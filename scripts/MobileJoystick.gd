@@ -10,6 +10,9 @@ extends Control
 @export var dead_zone: float = 0.12         # 이 미만의 입력은 0 처리
 @export var activation_ratio: float = 1.0   # 1.0=화면 전체, 0.5=좌측 절반에서만 활성화
 
+const _BASE_TEX := preload("res://assets/ui/ui_joystick_base.png")
+const _KNOB_TEX := preload("res://assets/ui/ui_joystick_knob.png")
+
 var _value: Vector2 = Vector2.ZERO
 var _active: bool = false
 var _touch_index: int = -1
@@ -64,7 +67,7 @@ func _reset() -> void:
 func _draw() -> void:
 	if not _active:
 		return
-	# Control 이 (0,0) 풀-렉트이므로 화면좌표 ≒ 로컬좌표
-	draw_circle(_origin, base_radius, Color(1, 1, 1, 0.15))
-	draw_arc(_origin, base_radius, 0, TAU, 48, Color(1, 1, 1, 0.35), 3.0, true)
-	draw_circle(_knob_pos, knob_radius, Color(1, 1, 1, 0.45))
+	var base_sz := Vector2(base_radius * 2, base_radius * 2)
+	var knob_sz := Vector2(knob_radius * 2, knob_radius * 2)
+	draw_texture_rect(_BASE_TEX, Rect2(_origin - base_sz * 0.5, base_sz), false)
+	draw_texture_rect(_KNOB_TEX, Rect2(_knob_pos - knob_sz * 0.5, knob_sz), false)

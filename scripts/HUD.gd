@@ -1,8 +1,11 @@
 extends CanvasLayer
 ## HUD: 골드·체력·웨이브·경과시간을 Events 시그널로 받아 실시간 갱신. 게임오버 패널 제어.
 
+const HEART_FULL := preload("res://assets/ui/ui_heart_full.png")
+const HEART_EMPTY := preload("res://assets/ui/ui_heart_empty.png")
+
 @onready var gold_label: Label = $GoldLabel
-@onready var health_bar: ProgressBar = $HealthBar
+@onready var heart_row: HBoxContainer = $HeartRow
 @onready var wave_label: Label = $WaveLabel
 @onready var time_label: Label = $TimeLabel
 @onready var flash_overlay: ColorRect = $FlashOverlay
@@ -10,6 +13,7 @@ extends CanvasLayer
 @onready var restart_button: Button = $GameOverPanel/VBoxContainer/RestartButton
 
 var _prev_health: int = -1
+var _max_health: int = 0
 
 
 func _ready() -> void:
@@ -27,15 +31,35 @@ func _ready() -> void:
 
 
 func _on_gold_changed(total: int) -> void:
-	gold_label.text = "Gold: %d" % total
+	gold_label.text = "%d" % total
 
 
 func _on_player_health_changed(health: int, max_health: int) -> void:
-	health_bar.max_value = max_health
-	health_bar.value = health
+	if max_health != _max_health:
+		_max_health = max_health
+		_rebuild_hearts(max_health)
+	_update_hearts(health)
 	if _prev_health > 0 and health < _prev_health and health > 0:
 		_flash_hurt()
 	_prev_health = health
+
+
+func _rebuild_hearts(max_health: int) -> void:
+	for child in heart_row.get_children():
+		child.queue_free()
+	for i in range(max_health):
+		var tr := TextureRect.new()
+		tr.custom_minimum_size = Vector2(44, 44)
+		tr.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.texture = HEART_FULL
+		heart_row.add_child(tr)
+
+
+func _update_hearts(health: int) -> void:
+	var children := heart_row.get_children()
+	for i in range(children.size()):
+		children[i].texture = HEART_FULL if i < health else HEART_EMPTY
 
 
 func _flash_hurt() -> void:
