@@ -22,6 +22,10 @@ func on_spawn() -> void:
 		player = get_tree().get_first_node_in_group("player")
 
 
+func on_despawn() -> void:
+	_alive = false
+
+
 func _physics_process(delta: float) -> void:
 	if not _alive:
 		return

@@ -24,6 +24,12 @@ func on_spawn() -> void:
 		player = get_tree().get_first_node_in_group("player")
 
 
+func on_despawn() -> void:
+	_alive = false
+	velocity = Vector2.ZERO
+	remove_from_group("zombies")
+
+
 func _physics_process(_delta: float) -> void:
 	if not _alive:
 		return
