@@ -1,0 +1,44 @@
+; Engine configuration file.
+; Godot 4.x — Action Defence (Mobile WebGL)
+; 에디터에서 한 번 열면 uid 등이 자동 채워집니다.
+
+config_version=5
+
+[application]
+
+config/name="Action Defence"
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.1", "GL Compatibility")
+
+[autoload]
+
+Events="*res://scripts/Events.gd"
+
+[display]
+
+; 모바일 세로 화면 기준 (필요시 가로로 바꾸세요)
+window/size/viewport_width=720
+window/size/viewport_height=1280
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation="portrait"
+
+[input_devices]
+
+; 데스크톱(에디터/브라우저)에서 마우스로 터치를 흉내 → 조이스틱 테스트 가능
+pointing/emulate_touch_from_mouse=true
+pointing/emulate_mouse_from_touch=true
+
+[rendering]
+
+; WebGL/모바일 호환을 위해 반드시 Compatibility 렌더러 사용
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+
+[layer_names]
+
+2d_physics/layer_1="player"
+2d_physics/layer_2="zombies"
+2d_physics/layer_3="bullets"
+2d_physics/layer_4="gold"

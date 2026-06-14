@@ -1,0 +1,64 @@
+extends CharacterBody2D
+## 플레이어: 가상 조이스틱으로 이동 + 가장 가까운 좀비에게 자동 발사
+
+@export var move_speed: float = 220.0
+@export var attack_range: float = 360.0     # 이 범위 안의 적만 조준
+@export var attack_cooldown: float = 0.35   # 발사 간격(초)
+
+const BULLET := preload("res://scenes/Bullet.tscn")
+
+@onready var muzzle: Marker2D = $Muzzle
+
+var joystick: Node = null
+var _attack_accum: float = 0.0
+
+
+func _ready() -> void:
+	add_to_group("player")
+
+
+func _physics_process(delta: float) -> void:
+	_handle_move()
+	_handle_attack(delta)
+
+
+func _handle_move() -> void:
+	# 조이스틱은 HUD 가 준비된 뒤에 그룹에 등록되므로 지연 조회
+	if joystick == null:
+		joystick = get_tree().get_first_node_in_group("joystick")
+
+	var input := Vector2.ZERO
+	if joystick:
+		input = joystick.get_value()
+
+	velocity = input * move_speed
+	move_and_slide()
+
+
+func _handle_attack(delta: float) -> void:
+	_attack_accum += delta
+	if _attack_accum < attack_cooldown:
+		return
+	var target := _get_nearest_zombie()
+	if target:
+		_attack_accum = 0.0
+		_shoot_at(target)
+
+
+func _shoot_at(target: Node2D) -> void:
+	var b := BULLET.instantiate()
+	b.global_position = muzzle.global_position
+	b.direction = (target.global_position - global_position).normalized()
+	get_tree().current_scene.add_child(b)
+
+
+## 그룹 순회로 최근접 적 탐색. distance_squared 로 sqrt 비용 제거.
+func _get_nearest_zombie() -> Node2D:
+	var nearest: Node2D = null
+	var min_d := attack_range * attack_range
+	for z in get_tree().get_nodes_in_group("zombies"):
+		var d := global_position.distance_squared_to(z.global_position)
+		if d < min_d:
+			min_d = d
+			nearest = z
+	return nearest
