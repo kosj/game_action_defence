@@ -78,6 +78,7 @@ func _update_facing(target: Node2D) -> void:
 
 
 func _shoot_at(target: Node2D) -> void:
+	SoundManager.play("shoot")
 	var b := Pool.acquire(BULLET, get_tree().current_scene)
 	b.global_position = muzzle.global_position
 	b.direction = (target.global_position - global_position).normalized()
@@ -98,6 +99,7 @@ func _get_nearest_zombie() -> Node2D:
 
 func _take_damage(amount: int) -> void:
 	_hurt_timer = contact_cooldown
+	SoundManager.play("player_hurt")
 	health = max(0, health - amount)
 	Events.update_player_health(health, max_health)
 	if health <= 0:

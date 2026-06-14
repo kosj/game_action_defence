@@ -5,8 +5,11 @@ extends CanvasLayer
 @onready var health_bar: ProgressBar = $HealthBar
 @onready var wave_label: Label = $WaveLabel
 @onready var time_label: Label = $TimeLabel
+@onready var flash_overlay: ColorRect = $FlashOverlay
 @onready var game_over_panel: ColorRect = $GameOverPanel
 @onready var restart_button: Button = $GameOverPanel/VBoxContainer/RestartButton
+
+var _prev_health: int = -1
 
 
 func _ready() -> void:
@@ -30,6 +33,15 @@ func _on_gold_changed(total: int) -> void:
 func _on_player_health_changed(health: int, max_health: int) -> void:
 	health_bar.max_value = max_health
 	health_bar.value = health
+	if _prev_health > 0 and health < _prev_health and health > 0:
+		_flash_hurt()
+	_prev_health = health
+
+
+func _flash_hurt() -> void:
+	flash_overlay.color = Color(1, 0, 0, 0.35)
+	var tw := create_tween()
+	tw.tween_property(flash_overlay, "color", Color(1, 0, 0, 0.0), 0.4)
 
 
 func _on_wave_changed(wave: int) -> void:
