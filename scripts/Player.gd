@@ -10,7 +10,8 @@ extends CharacterBody2D
 
 const BULLET := preload("res://scenes/Bullet.tscn")
 
-@onready var muzzle: Marker2D = $Muzzle
+@onready var body: Node2D = $Body
+@onready var muzzle: Marker2D = $Body/Muzzle
 @onready var hurtbox: Area2D = $Hurtbox
 
 var joystick: Node = null
@@ -28,17 +29,20 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_hurt_timer -= delta
-	if not _dead:
-		_check_contact_damage()
-		_handle_move()
-		_handle_attack(delta)
+	if _dead:
+		return
+	_check_contact_damage()
+	_handle_move()
+	var target := _get_nearest_zombie()
+	_handle_attack(delta, target)
+	_update_facing(target)
 
 
 func _check_contact_damage() -> void:
 	if _hurt_timer > 0.0:
 		return
-	for body in hurtbox.get_overlapping_bodies():
-		if body.is_in_group("zombies"):
+	for body_node in hurtbox.get_overlapping_bodies():
+		if body_node.is_in_group("zombies"):
 			_take_damage(contact_damage)
 			break
 
@@ -56,20 +60,28 @@ func _handle_move() -> void:
 	move_and_slide()
 
 
-func _handle_attack(delta: float) -> void:
+func _handle_attack(delta: float, target: Node2D) -> void:
 	_attack_accum += delta
 	if _attack_accum < attack_cooldown:
 		return
-	var target := _get_nearest_zombie()
 	if target:
 		_attack_accum = 0.0
 		_shoot_at(target)
+
+
+## 조준 대상이 있으면 그쪽을, 없으면 이동 방향을 바라본다(스프라이트만 회전).
+func _update_facing(target: Node2D) -> void:
+	if target:
+		body.rotation = (target.global_position - global_position).angle()
+	elif velocity.length() > 1.0:
+		body.rotation = velocity.angle()
 
 
 func _shoot_at(target: Node2D) -> void:
 	var b := Pool.acquire(BULLET, get_tree().current_scene)
 	b.global_position = muzzle.global_position
 	b.direction = (target.global_position - global_position).normalized()
+	b.rotation = b.direction.angle() + PI / 2   # 총알 스프라이트는 위(-Y)를 향함
 
 
 ## 그룹 순회로 최근접 적 탐색. distance_squared 로 sqrt 비용 제거.

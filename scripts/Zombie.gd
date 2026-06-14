@@ -6,6 +6,8 @@ extends CharacterBody2D
 
 const GOLD := preload("res://scenes/Gold.tscn")
 
+@onready var body: Node2D = $Body
+
 var health: int
 var player: Node2D = null
 var _alive: bool = false
@@ -38,6 +40,7 @@ func _physics_process(_delta: float) -> void:
 		return
 	var dir := (player.global_position - global_position).normalized()
 	velocity = dir * speed
+	body.rotation = dir.angle()   # 플레이어를 바라보게 스프라이트 회전
 	move_and_slide()   # 좀비끼리 충돌(레이어2/마스크2)로 자연스럽게 분산
 
 
