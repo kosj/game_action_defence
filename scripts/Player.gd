@@ -4,22 +4,43 @@ extends CharacterBody2D
 @export var move_speed: float = 220.0
 @export var attack_range: float = 360.0     # 이 범위 안의 적만 조준
 @export var attack_cooldown: float = 0.35   # 발사 간격(초)
+@export var max_health: int = 5
+@export var contact_damage: int = 1
+@export var contact_cooldown: float = 1.0   # 좀비 접촉 피해 간격
 
 const BULLET := preload("res://scenes/Bullet.tscn")
 
 @onready var muzzle: Marker2D = $Muzzle
+@onready var hurtbox: Area2D = $Hurtbox
 
 var joystick: Node = null
+var health: int
 var _attack_accum: float = 0.0
+var _hurt_timer: float = 0.0
+var _dead: bool = false
 
 
 func _ready() -> void:
 	add_to_group("player")
+	health = max_health
+	Events.update_player_health(health, max_health)
 
 
 func _physics_process(delta: float) -> void:
-	_handle_move()
-	_handle_attack(delta)
+	_hurt_timer -= delta
+	if not _dead:
+		_check_contact_damage()
+		_handle_move()
+		_handle_attack(delta)
+
+
+func _check_contact_damage() -> void:
+	if _hurt_timer > 0.0:
+		return
+	for body in hurtbox.get_overlapping_bodies():
+		if body.is_in_group("zombies"):
+			_take_damage(contact_damage)
+			break
 
 
 func _handle_move() -> void:
@@ -61,3 +82,17 @@ func _get_nearest_zombie() -> Node2D:
 			min_d = d
 			nearest = z
 	return nearest
+
+
+func _take_damage(amount: int) -> void:
+	_hurt_timer = contact_cooldown
+	health = max(0, health - amount)
+	Events.update_player_health(health, max_health)
+	if health <= 0:
+		_die()
+
+
+func _die() -> void:
+	_dead = true
+	velocity = Vector2.ZERO
+	Events.player_died.emit()
