@@ -46,10 +46,9 @@ func _handle_attack(delta: float) -> void:
 
 
 func _shoot_at(target: Node2D) -> void:
-	var b := BULLET.instantiate()
+	var b := Pool.acquire(BULLET, get_tree().current_scene)
 	b.global_position = muzzle.global_position
 	b.direction = (target.global_position - global_position).normalized()
-	get_tree().current_scene.add_child(b)
 
 
 ## 그룹 순회로 최근접 적 탐색. distance_squared 로 sqrt 비용 제거.

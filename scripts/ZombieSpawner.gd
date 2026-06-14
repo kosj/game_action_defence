@@ -30,9 +30,8 @@ func _try_spawn() -> void:
 	# 상한을 넘으면 스폰 보류 → WebGL 프레임 보호
 	if get_tree().get_nodes_in_group("zombies").size() >= max_zombies:
 		return
-	var z := ZOMBIE.instantiate()
+	var z := Pool.acquire(ZOMBIE, get_tree().current_scene)
 	z.global_position = _random_spawn_pos()
-	get_tree().current_scene.add_child(z)
 
 
 ## 플레이어 기준 화면 대각선 절반 + 여유 만큼 떨어진 원 둘레의 임의 지점

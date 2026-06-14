@@ -28,7 +28,17 @@ Main.tscn ─ Main.gd
 Zombie.tscn ─ Zombie.gd   # CharacterBody2D, 추적 + 사망 시 골드 드랍
 Bullet.tscn ─ Bullet.gd   # Area2D, 직선 이동 + 명중 데미지
 Gold.tscn   ─ Gold.gd     # Area2D, 자석 수집
+
+Autoload(싱글톤):
+  Events ─ Events.gd       # 골드 카운트 + 시그널 버스
+  Pool   ─ Pool.gd         # 제너릭 오브젝트 풀 (좀비/총알/골드 재사용)
 ```
+
+## 오브젝트 풀링
+좀비·총알·골드는 `queue_free()` 대신 `Pool.release()` 로 트리에서 떼어내 재사용한다
+(GC 스파이크 방지 → WebGL 프레임 안정). 풀 대상 스크립트는 `on_spawn()` 으로 상태를
+초기화하고, `_ready()` 는 시그널 연결 등 1회성 셋업만 담당한다. Main 에서 `Pool.prewarm()`
+으로 첫 웨이브 전에 미리 채워둔다.
 
 ## 물리 레이어
 1=player, 2=zombies, 3=bullets, 4=gold (project.godot 에 정의)
