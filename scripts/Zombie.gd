@@ -32,6 +32,14 @@ func on_despawn() -> void:
 	remove_from_group("zombies")
 
 
+## 스포너가 풀에서 꺼낸 직후 호출해 종류별 스탯·색상을 주입한다.
+func setup(type_data: Dictionary) -> void:
+	speed = type_data["speed"]
+	max_health = type_data["max_health"]
+	health = max_health
+	body.modulate = type_data["modulate"]
+
+
 func _physics_process(_delta: float) -> void:
 	if not _alive:
 		return

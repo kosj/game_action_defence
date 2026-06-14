@@ -1,14 +1,17 @@
 extends Node
-## 전역 이벤트 버스 / 재화·체력 관리 (Autoload 싱글톤: "Events")
-## UI와 게임 로직을 직접 연결하지 않고 시그널로 느슨하게 묶는다.
+## 전역 이벤트 버스 / 재화·체력·웨이브 관리 (Autoload 싱글톤: "Events")
 
 signal gold_changed(total: int)
 signal player_health_changed(health: int, max_health: int)
 signal player_died
+signal wave_changed(wave: int)
+signal elapsed_changed(seconds: float)
 
 var total_gold: int = 0
 var player_health: int = 0
 var player_max_health: int = 0
+var current_wave: int = 1
+var elapsed_time: float = 0.0
 
 
 func add_gold(amount: int = 1) -> void:
@@ -26,4 +29,6 @@ func reset() -> void:
 	total_gold = 0
 	player_health = 0
 	player_max_health = 0
+	current_wave = 1
+	elapsed_time = 0.0
 	gold_changed.emit(total_gold)

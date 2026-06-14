@@ -1,8 +1,10 @@
 extends CanvasLayer
-## HUD: 골드·체력 수치를 Events 시그널로 받아 실시간 갱신. 게임오버 패널 제어.
+## HUD: 골드·체력·웨이브·경과시간을 Events 시그널로 받아 실시간 갱신. 게임오버 패널 제어.
 
 @onready var gold_label: Label = $GoldLabel
 @onready var health_bar: ProgressBar = $HealthBar
+@onready var wave_label: Label = $WaveLabel
+@onready var time_label: Label = $TimeLabel
 @onready var game_over_panel: ColorRect = $GameOverPanel
 @onready var restart_button: Button = $GameOverPanel/VBoxContainer/RestartButton
 
@@ -11,10 +13,14 @@ func _ready() -> void:
 	Events.gold_changed.connect(_on_gold_changed)
 	Events.player_health_changed.connect(_on_player_health_changed)
 	Events.player_died.connect(_on_player_died)
+	Events.wave_changed.connect(_on_wave_changed)
+	Events.elapsed_changed.connect(_on_elapsed_changed)
 	restart_button.pressed.connect(_on_restart_pressed)
 	_on_gold_changed(Events.total_gold)
 	if Events.player_max_health > 0:
 		_on_player_health_changed(Events.player_health, Events.player_max_health)
+	_on_wave_changed(Events.current_wave)
+	_on_elapsed_changed(Events.elapsed_time)
 
 
 func _on_gold_changed(total: int) -> void:
@@ -24,6 +30,16 @@ func _on_gold_changed(total: int) -> void:
 func _on_player_health_changed(health: int, max_health: int) -> void:
 	health_bar.max_value = max_health
 	health_bar.value = health
+
+
+func _on_wave_changed(wave: int) -> void:
+	wave_label.text = "Wave %d" % wave
+
+
+func _on_elapsed_changed(seconds: float) -> void:
+	var m := int(seconds) / 60
+	var s := int(seconds) % 60
+	time_label.text = "%02d:%02d" % [m, s]
 
 
 func _on_player_died() -> void:
