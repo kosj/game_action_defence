@@ -36,6 +36,7 @@ func _ready() -> void:
 	_hurt_timer = 5.0   # 시작 시 5초 무적 (프리워밍·첫 좀비 도착 전 보호)
 	Events.update_player_health(health, max_health)
 	Events.shop_closed.connect(apply_upgrades)
+	_update_orbs()
 
 
 func _physics_process(delta: float) -> void:
@@ -156,7 +157,7 @@ func apply_upgrades() -> void:
 
 
 func _update_orbs() -> void:
-	var desired := Events.upgrade_orbs
+	var desired := 1 + Events.upgrade_orbs
 	while _orbs.size() > desired:
 		var orb = _orbs.pop_back()
 		if is_instance_valid(orb):

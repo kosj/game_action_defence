@@ -6,7 +6,6 @@ const UPGRADES: Array = [
 	{"id": "atk_speed",    "label": "Atk Speed",   "desc": "-15% fire delay",   "costs": [15, 22, 30, 40]},
 	{"id": "damage",       "label": "Bullet Dmg",  "desc": "+1 bullet/orb dmg", "costs": [20, 30, 45, 60]},
 	{"id": "multi_bullet", "label": "Multi-Shot",  "desc": "+1 extra bullet",   "costs": [30, 50, 80]},
-	{"id": "orbs",         "label": "Orb Shield",  "desc": "+1 orbiting orb",   "costs": [25, 40, 60, 80]},
 	{"id": "max_health",   "label": "Max HP",       "desc": "+1 heart (heals)", "costs": [12, 18, 26, 35]},
 	{"id": "heal",         "label": "Heal HP",      "desc": "Full HP restore",   "costs": [8,  8,  8,  8]},
 ]
@@ -121,7 +120,6 @@ func _get_level(id: String) -> int:
 		"atk_speed":    return Events.upgrade_atk_speed
 		"damage":       return Events.upgrade_damage
 		"multi_bullet": return Events.upgrade_multi_bullet
-		"orbs":         return Events.upgrade_orbs
 		"max_health":   return Events.upgrade_max_health
 	return 0
 
@@ -167,7 +165,6 @@ func _on_upgrade_pressed(id: String) -> void:
 		"atk_speed":    Events.upgrade_atk_speed += 1
 		"damage":       Events.upgrade_damage += 1
 		"multi_bullet": Events.upgrade_multi_bullet += 1
-		"orbs":         Events.upgrade_orbs += 1
 		"max_health":   Events.upgrade_max_health += 1
 		"heal":
 			var player := get_tree().get_first_node_in_group("player")

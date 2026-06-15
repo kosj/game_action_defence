@@ -32,6 +32,7 @@ var _spawned: int = 0      # 현재 웨이브에서 스폰한 수
 var _killed: int = 0       # 현재 웨이브에서 처치한 수
 var _wave_active: bool = false
 var _game_over: bool = false
+var _start_delay: float = 5.0   # first-wave spawn delay matches player grace period
 
 
 func _ready() -> void:
@@ -72,12 +73,15 @@ func _process(delta: float) -> void:
 
 	# 아직 스폰할 좀비가 남아있으면 스폰 시도
 	if _spawned < wave["total"]:
-		_accum += delta
-		if _accum >= wave["interval"]:
-			var alive := get_tree().get_nodes_in_group("zombies").size()
-			if alive < wave["max_z"]:
-				_accum = 0.0
-				_try_spawn()
+		if _start_delay > 0.0:
+			_start_delay -= delta
+		else:
+			_accum += delta
+			if _accum >= wave["interval"]:
+				var alive := get_tree().get_nodes_in_group("zombies").size()
+				if alive < wave["max_z"]:
+					_accum = 0.0
+					_try_spawn()
 
 	# 총 처치 수 달성 → 웨이브 클리어
 	if _killed >= wave["total"]:
