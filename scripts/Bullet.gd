@@ -17,6 +17,12 @@ func _ready() -> void:
 func on_spawn() -> void:
 	_age = 0.0
 	_alive = true
+	damage = 1 + Events.upgrade_damage
+
+
+func on_despawn() -> void:
+	_alive = false
+	_age = 0.0
 
 
 func _physics_process(delta: float) -> void:
