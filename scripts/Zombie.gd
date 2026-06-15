@@ -6,9 +6,12 @@ extends CharacterBody2D
 
 const GOLD := preload("res://scenes/Gold.tscn")
 
+@onready var body: Node2D = $Body
+
 var health: int
 var player: Node2D = null
 var _alive: bool = false
+var _type_color: Color = Color.WHITE
 
 
 func _ready() -> void:
@@ -24,6 +27,22 @@ func on_spawn() -> void:
 		player = get_tree().get_first_node_in_group("player")
 
 
+func on_despawn() -> void:
+	_alive = false
+	velocity = Vector2.ZERO
+	remove_from_group("zombies")
+	body.modulate = Color.WHITE
+
+
+## 스포너가 풀에서 꺼낸 직후 호출해 종류별 스탯·색상을 주입한다.
+func setup(type_data: Dictionary) -> void:
+	speed = type_data["speed"]
+	max_health = type_data["max_health"]
+	health = max_health
+	_type_color = type_data["modulate"]
+	body.modulate = _type_color
+
+
 func _physics_process(_delta: float) -> void:
 	if not _alive:
 		return
@@ -32,6 +51,7 @@ func _physics_process(_delta: float) -> void:
 		return
 	var dir := (player.global_position - global_position).normalized()
 	velocity = dir * speed
+	body.rotation = dir.angle()
 	move_and_slide()   # 좀비끼리 충돌(레이어2/마스크2)로 자연스럽게 분산
 
 
@@ -39,13 +59,18 @@ func take_damage(amount: int) -> void:
 	if not _alive:
 		return
 	health -= amount
+	SoundManager.play("zombie_hit")
+	body.modulate = Color.WHITE
+	var tw := create_tween()
+	tw.tween_property(body, "modulate", _type_color, 0.12)
 	if health <= 0:
 		_die()
 
 
 func _die() -> void:
 	_alive = false
-	remove_from_group("zombies")   # 즉시 타깃/카운트에서 제외
+	SoundManager.play("zombie_die")
+	remove_from_group("zombies")
 	var g := Pool.acquire(GOLD, get_tree().current_scene)
 	g.global_position = global_position
 	Pool.release(self)

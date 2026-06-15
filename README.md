@@ -50,5 +50,15 @@ Autoload(싱글톤):
 - Gold: `magnet_radius`, `collect_radius`, `move_speed`
 - MobileJoystick: `base_radius`, `knob_radius`, `dead_zone`, `activation_ratio`
 
+## 아트 에셋
+`assets/sprites/` 의 스프라이트는 [Kenney](https://www.kenney.nl/) 의 CC0(퍼블릭
+도메인) 에셋입니다. 출처 팩:
+- `player.png` — Top-down Shooter (`survivor1_gun`)
+- `zombie.png` — Top-down Shooter (`zoimbie1_hold`)
+- `bullet.png` — Top-down Tanks Redux (`bulletSand1_outline`)
+- `gold.png`   — Platformer/Physics (`coinGold`)
+
+PNG 는 Godot 에디터를 한 번 열면 `.import` 가 자동 생성됩니다(스크립트 uid 와 동일).
+
 ## WebGL 빌드
 Project > Export > Web. 자세한 팁은 대화 내 설명 참고.

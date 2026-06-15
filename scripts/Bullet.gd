@@ -19,6 +19,11 @@ func on_spawn() -> void:
 	_alive = true
 
 
+func on_despawn() -> void:
+	_alive = false
+	_age = 0.0
+
+
 func _physics_process(delta: float) -> void:
 	if not _alive:
 		return
