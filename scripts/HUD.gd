@@ -19,7 +19,6 @@ var _max_health: int = 0
 
 
 func _ready() -> void:
-	# 1. 시그널 연결 및 텍스트 초기화를 먼저 수행 (폰트 로드 실패와 무관하게 동작)
 	Events.gold_changed.connect(_on_gold_changed)
 	Events.player_health_changed.connect(_on_player_health_changed)
 	Events.player_died.connect(_on_player_died)
@@ -34,19 +33,43 @@ func _ready() -> void:
 	_on_wave_changed(Events.current_wave)
 	_on_elapsed_changed(Events.elapsed_time)
 	_on_wave_progress_changed(Events.wave_kill_progress, Events.wave_kill_total)
-	# 2. 폰트 적용은 마지막에 (실패해도 텍스트 내용은 이미 설정됨)
 	_apply_korean_font()
 
 
 func _apply_korean_font() -> void:
+	# ── 파일 존재 확인 ───────────────────────────────────────────────
+	var fa := FileAccess.open("res://assets/fonts/NotoSansKR-Regular.ttf", FileAccess.READ)
+	if fa:
+		ScreenLog.ok("TTF file OK, size=%d bytes" % fa.get_length())
+		fa.close()
+	else:
+		ScreenLog.err("TTF file NOT found! err=%d" % FileAccess.get_open_error())
+
+	# ── load() 시도 ──────────────────────────────────────────────────
 	var font = load("res://assets/fonts/NotoSansKR-Regular.ttf")
-	if not font:
+	if font == null:
+		ScreenLog.err("load(TTF) = null — font won't render")
 		return
-	# 한글이 포함된 라벨/버튼에만 적용
-	var korean_nodes: Array = [wave_clear_label, restart_button]
-	for n in korean_nodes:
+	ScreenLog.ok("load(TTF) OK class=%s" % font.get_class())
+
+	# ── 한글 포함 노드에 적용 ────────────────────────────────────────
+	var targets: Array = [wave_clear_label, restart_button]
+	for n in targets:
 		if is_instance_valid(n):
 			n.add_theme_font_override("font", font)
+			ScreenLog.info("  font -> %s" % n.name)
+		else:
+			ScreenLog.err("  node is NULL: %s" % str(n))
+
+	# ── 인라인 한글 렌더 테스트 라벨 ────────────────────────────────
+	var test := Label.new()
+	test.text = "한글렌더: 이동속도 공격속도"
+	test.add_theme_font_override("font", font)
+	test.add_theme_font_size_override("font_size", 22)
+	test.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
+	test.position = Vector2(10, 440)
+	add_child(test)
+	ScreenLog.info("Korean test label placed at y=440")
 
 
 func _on_gold_changed(total: int) -> void:
