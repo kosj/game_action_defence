@@ -1,36 +1,33 @@
 extends CanvasLayer
 ## 상점 패널: 웨이브 클리어 후 자동 등장. 골드로 캐릭터 업그레이드 구매.
 
-const KR_FONT := preload("res://assets/fonts/NotoSansKR-Regular.ttf")
-
 # id, 표시명, 설명, 레벨별 비용 배열 (배열 길이 = 최대 구매 횟수)
 const UPGRADES: Array = [
-	{"id": "speed",      "label": "이동 속도",    "desc": "이동속도 +30",      "costs": [10, 15, 20, 25]},
-	{"id": "atk_speed",  "label": "공격 속도",    "desc": "발사 간격 -15%",    "costs": [15, 22, 30, 40]},
-	{"id": "damage",     "label": "총알 데미지",  "desc": "총알 데미지 +1",    "costs": [20, 30, 45, 60]},
+	{"id": "speed",      "label": "이동 속도",    "desc": "이동속도 +30",       "costs": [10, 15, 20, 25]},
+	{"id": "atk_speed",  "label": "공격 속도",    "desc": "발사 간격 -15%",     "costs": [15, 22, 30, 40]},
+	{"id": "damage",     "label": "총알 데미지",  "desc": "총알 데미지 +1",     "costs": [20, 30, 45, 60]},
 	{"id": "max_health", "label": "최대 체력",    "desc": "+1 하트 (즉시 회복)", "costs": [12, 18, 26, 35]},
 	{"id": "heal",       "label": "체력 회복",    "desc": "체력 완전 회복",     "costs": [8,  8,  8,  8 ]},
 ]
 
+var _kr_font = null   # load() 로 런타임에 가져옴 (preload 실패 방지)
 var _wave_label: Label
 var _gold_label: Label
 var _buttons: Array = []
 var _continue_btn: Button
-var _current_wave: int = 0
 
 
 func _ready() -> void:
 	layer = 10
 	visible = false
+	_kr_font = load("res://assets/fonts/NotoSansKR-Regular.ttf")
 	Events.wave_complete.connect(_on_wave_complete)
 	_build_ui()
 
 
 func _on_wave_complete(wave: int) -> void:
-	_current_wave = wave
 	_wave_label.text = "Wave %d 클리어!" % wave
 	_refresh_buttons()
-	# 웨이브 클리어 애니메이션이 끝난 뒤 등장 (HUD 애니메이션 2초)
 	await get_tree().create_timer(2.1).timeout
 	if not is_instance_valid(self):
 		return
@@ -38,7 +35,7 @@ func _on_wave_complete(wave: int) -> void:
 
 
 func _build_ui() -> void:
-	# 전체화면 어두운 오버레이 (게임 입력 차단)
+	# 전체화면 어두운 오버레이
 	var overlay := ColorRect.new()
 	overlay.anchor_right = 1.0
 	overlay.anchor_bottom = 1.0
@@ -78,7 +75,7 @@ func _build_ui() -> void:
 	vbox.add_child(_wave_label)
 
 	# 보유 골드
-	_gold_label = _make_label("골드: 0", 24, true)
+	_gold_label = _make_label("Gold: 0", 24, true)
 	_gold_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
 	vbox.add_child(_gold_label)
 
@@ -89,8 +86,7 @@ func _build_ui() -> void:
 	for upg: Dictionary in UPGRADES:
 		var btn := Button.new()
 		btn.custom_minimum_size = Vector2(0, 72)
-		btn.add_theme_font_override("font", KR_FONT)
-		btn.add_theme_font_size_override("font_size", 20)
+		_apply_font(btn, 20)
 		var id: String = upg["id"]
 		btn.pressed.connect(_on_upgrade_pressed.bind(id))
 		vbox.add_child(btn)
@@ -100,10 +96,9 @@ func _build_ui() -> void:
 
 	# 계속 버튼
 	_continue_btn = Button.new()
-	_continue_btn.text = "계속 →"
+	_continue_btn.text = "Continue ->"
 	_continue_btn.custom_minimum_size = Vector2(0, 70)
-	_continue_btn.add_theme_font_override("font", KR_FONT)
-	_continue_btn.add_theme_font_size_override("font_size", 26)
+	_apply_font(_continue_btn, 26)
 	_continue_btn.pressed.connect(_on_continue)
 	vbox.add_child(_continue_btn)
 
@@ -111,11 +106,16 @@ func _build_ui() -> void:
 func _make_label(txt: String, size: int, centered: bool = false) -> Label:
 	var lbl := Label.new()
 	lbl.text = txt
-	lbl.add_theme_font_override("font", KR_FONT)
-	lbl.add_theme_font_size_override("font_size", size)
+	_apply_font(lbl, size)
 	if centered:
 		lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return lbl
+
+
+func _apply_font(node: Control, size: int) -> void:
+	node.add_theme_font_size_override("font_size", size)
+	if _kr_font:
+		node.add_theme_font_override("font", _kr_font)
 
 
 func _get_level(id: String) -> int:
@@ -124,7 +124,7 @@ func _get_level(id: String) -> int:
 		"atk_speed":  return Events.upgrade_atk_speed
 		"damage":     return Events.upgrade_damage
 		"max_health": return Events.upgrade_max_health
-	return 0   # heal 은 레벨 없음
+	return 0
 
 
 func _get_cost(upg: Dictionary) -> int:
@@ -136,7 +136,7 @@ func _get_cost(upg: Dictionary) -> int:
 
 
 func _refresh_buttons() -> void:
-	_gold_label.text = "골드: %d" % Events.total_gold
+	_gold_label.text = "Gold: %d" % Events.total_gold
 	for i in UPGRADES.size():
 		var upg: Dictionary = UPGRADES[i]
 		var id: String = upg["id"]
@@ -144,18 +144,21 @@ func _refresh_buttons() -> void:
 		var cost := _get_cost(upg)
 
 		if id != "heal" and cost == -1:
-			btn.text = "%s  [MAX]\n%s" % [upg["label"], upg["desc"]]
+			btn.text = "%s  [MAX]" % upg["label"]
 			btn.disabled = true
 		else:
 			var lvl := _get_level(id)
 			var max_lvl: int = upg["costs"].size()
-			var lvl_str := ("  Lv%d/%d" % [lvl, max_lvl]) if id != "heal" else ""
-			btn.text = "%s%s  -%d골드\n%s" % [upg["label"], lvl_str, cost, upg["desc"]]
+			var lvl_str := (" Lv%d/%d" % [lvl, max_lvl]) if id != "heal" else ""
+			btn.text = "%s%s  -%dG\n%s" % [upg["label"], lvl_str, cost, upg["desc"]]
 			btn.disabled = Events.total_gold < cost
 
 
 func _on_upgrade_pressed(id: String) -> void:
-	var upg: Dictionary = UPGRADES.filter(func(u: Dictionary) -> bool: return u["id"] == id)[0]
+	var matches := UPGRADES.filter(func(u: Dictionary) -> bool: return u["id"] == id)
+	if matches.is_empty():
+		return
+	var upg: Dictionary = matches[0]
 	var cost := _get_cost(upg)
 	if cost == -1 or not Events.spend_gold(cost):
 		return
@@ -170,7 +173,6 @@ func _on_upgrade_pressed(id: String) -> void:
 			if player and player.has_method("heal_full"):
 				player.heal_full()
 
-	# 스탯 즉시 반영 (heal 제외)
 	if id != "heal":
 		var player := get_tree().get_first_node_in_group("player")
 		if player and player.has_method("apply_upgrades"):
