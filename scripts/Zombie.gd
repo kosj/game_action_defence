@@ -5,6 +5,7 @@ extends CharacterBody2D
 @export var max_health: int = 3
 
 const GOLD := preload("res://scenes/Gold.tscn")
+const _FXBurst := preload("res://scripts/FXBurst.gd")
 
 @onready var body: Node2D = $Body
 
@@ -72,6 +73,12 @@ func _die() -> void:
 	SoundManager.play("zombie_die")
 	remove_from_group("zombies")
 	Events.zombie_killed.emit()
+	var fx := _FXBurst.new()
+	fx.color = _type_color
+	fx.max_radius = 38.0
+	fx.duration = 0.38
+	get_tree().current_scene.add_child(fx)
+	fx.global_position = global_position
 	var g := Pool.acquire(GOLD, get_tree().current_scene)
 	g.global_position = global_position
 	Pool.release(self)

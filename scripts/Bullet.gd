@@ -32,6 +32,15 @@ func _physics_process(delta: float) -> void:
 	_age += delta
 	if _age >= lifetime:   # 화면 밖으로 날아간 총알 회수
 		_despawn()
+	queue_redraw()
+
+
+func _draw() -> void:
+	if not _alive:
+		return
+	draw_circle(Vector2.ZERO, 14.0, Color(1.0, 0.80, 0.15, 0.20))
+	draw_circle(Vector2.ZERO,  8.0, Color(1.0, 0.92, 0.35, 0.55))
+	draw_circle(Vector2.ZERO,  3.5, Color(1.0, 1.0,  0.85, 0.90))
 
 
 func _on_body_entered(body: Node) -> void:

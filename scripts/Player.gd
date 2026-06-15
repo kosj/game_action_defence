@@ -9,6 +9,8 @@ extends CharacterBody2D
 @export var contact_cooldown: float = 1.5   # 좀비 접촉 피해 간격
 
 const BULLET := preload("res://scenes/Bullet.tscn")
+const _OrbClass := preload("res://scripts/Orb.gd")
+const _FXBurst  := preload("res://scripts/FXBurst.gd")
 
 @onready var body: Node2D = $Body
 @onready var muzzle: Marker2D = $Body/Muzzle
@@ -22,6 +24,7 @@ var _dead: bool = false
 var _base_move_speed: float
 var _base_attack_cooldown: float
 var _base_max_health: int
+var _orbs: Array = []
 
 
 func _ready() -> void:
@@ -92,10 +95,25 @@ func _update_facing(target: Node2D) -> void:
 
 func _shoot_at(target: Node2D) -> void:
 	SoundManager.play("shoot")
-	var b := Pool.acquire(BULLET, get_tree().current_scene)
-	b.global_position = muzzle.global_position
-	b.direction = (target.global_position - global_position).normalized()
-	b.rotation = b.direction.angle() + PI / 2   # 총알 스프라이트는 위(-Y)를 향함
+	var base_dir := (target.global_position - global_position).normalized()
+	var count := 1 + Events.upgrade_multi_bullet
+	var spread := 0.22
+	for i in range(count):
+		var angle_off := 0.0
+		if count > 1:
+			angle_off = lerp(-spread, spread, float(i) / (count - 1))
+		var dir := base_dir.rotated(angle_off)
+		var b := Pool.acquire(BULLET, get_tree().current_scene)
+		b.global_position = muzzle.global_position
+		b.direction = dir
+		b.rotation = dir.angle() + PI / 2
+	# muzzle flash
+	var fx := _FXBurst.new()
+	fx.color = Color(1.0, 0.75, 0.2)
+	fx.max_radius = 14.0
+	fx.duration = 0.1
+	get_tree().current_scene.add_child(fx)
+	fx.global_position = muzzle.global_position
 
 
 ## 그룹 순회로 최근접 적 탐색. distance_squared 로 sqrt 비용 제거.
@@ -134,6 +152,22 @@ func apply_upgrades() -> void:
 		health += new_max - max_health   # 늘어난 만큼 즉시 회복
 		max_health = new_max
 		Events.update_player_health(health, max_health)
+	_update_orbs()
+
+
+func _update_orbs() -> void:
+	var desired := Events.upgrade_orbs
+	while _orbs.size() > desired:
+		var orb = _orbs.pop_back()
+		if is_instance_valid(orb):
+			orb.queue_free()
+	while _orbs.size() < desired:
+		var orb := _OrbClass.new()
+		add_child(orb)
+		_orbs.append(orb)
+	for i in _orbs.size():
+		if is_instance_valid(_orbs[i]):
+			_orbs[i].init_angle(TAU * i / max(_orbs.size(), 1))
 
 
 ## 상점의 회복 아이템 구매 시 호출.
