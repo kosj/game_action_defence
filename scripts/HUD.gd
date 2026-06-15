@@ -36,40 +36,39 @@ func _ready() -> void:
 	_apply_korean_font()
 
 
-func _apply_korean_font() -> void:
-	# ── 파일 존재 확인 ───────────────────────────────────────────────
-	var fa := FileAccess.open("res://assets/fonts/NotoSansKR-Regular.ttf", FileAccess.READ)
+## .bin 파일(Godot 임포트 제외)에서 raw TTF 바이트를 읽어 FontFile.data 에 직접 주입.
+## 임포트된 FontFile 은 헤드리스 빌드에서 글리프 데이터가 비어있으므로 이 방식이 필요.
+func _load_kr_font() -> Font:
+	var fa := FileAccess.open("res://assets/fonts/NotoSansKR.bin", FileAccess.READ)
 	if fa:
-		ScreenLog.ok("TTF file OK, size=%d bytes" % fa.get_length())
+		var font := FontFile.new()
+		font.data = fa.get_buffer(fa.get_length())
 		fa.close()
-	else:
-		ScreenLog.err("TTF file NOT found! err=%d" % FileAccess.get_open_error())
+		ScreenLog.ok(".bin OK  bytes=%d" % font.data.size())
+		return font
+	ScreenLog.err(".bin NOT found  err=%d" % FileAccess.get_open_error())
+	return null
 
-	# ── load() 시도 ──────────────────────────────────────────────────
-	var font = load("res://assets/fonts/NotoSansKR-Regular.ttf")
+
+func _apply_korean_font() -> void:
+	var font := _load_kr_font()
 	if font == null:
-		ScreenLog.err("load(TTF) = null — font won't render")
+		ScreenLog.warn("Korean font unavailable — using default")
 		return
-	ScreenLog.ok("load(TTF) OK class=%s" % font.get_class())
 
-	# ── 한글 포함 노드에 적용 ────────────────────────────────────────
-	var targets: Array = [wave_clear_label, restart_button]
-	for n in targets:
+	var korean_nodes: Array = [wave_clear_label, restart_button]
+	for n in korean_nodes:
 		if is_instance_valid(n):
 			n.add_theme_font_override("font", font)
-			ScreenLog.info("  font -> %s" % n.name)
-		else:
-			ScreenLog.err("  node is NULL: %s" % str(n))
 
-	# ── 인라인 한글 렌더 테스트 라벨 ────────────────────────────────
+	# 인라인 한글 렌더 테스트
 	var test := Label.new()
-	test.text = "한글렌더: 이동속도 공격속도"
+	test.text = "한글OK: 이동속도 공격속도"
 	test.add_theme_font_override("font", font)
 	test.add_theme_font_size_override("font_size", 22)
 	test.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
 	test.position = Vector2(10, 440)
 	add_child(test)
-	ScreenLog.info("Korean test label placed at y=440")
 
 
 func _on_gold_changed(total: int) -> void:

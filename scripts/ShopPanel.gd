@@ -10,7 +10,7 @@ const UPGRADES: Array = [
 	{"id": "heal",       "label": "체력 회복",    "desc": "체력 완전 회복",     "costs": [8,  8,  8,  8 ]},
 ]
 
-var _kr_font = null   # load() 로 런타임에 가져옴 (preload 실패 방지)
+var _kr_font = null
 var _wave_label: Label
 var _gold_label: Label
 var _buttons: Array = []
@@ -20,9 +20,20 @@ var _continue_btn: Button
 func _ready() -> void:
 	layer = 10
 	visible = false
-	_kr_font = load("res://assets/fonts/NotoSansKR-Regular.ttf")
+	_kr_font = _load_kr_font()
 	Events.wave_complete.connect(_on_wave_complete)
 	_build_ui()
+
+
+## .bin 파일에서 raw TTF 바이트를 읽어 FontFile.data 에 직접 주입 (HUD와 동일한 방식)
+func _load_kr_font() -> Font:
+	var fa := FileAccess.open("res://assets/fonts/NotoSansKR.bin", FileAccess.READ)
+	if fa:
+		var font := FontFile.new()
+		font.data = fa.get_buffer(fa.get_length())
+		fa.close()
+		return font
+	return null
 
 
 func _on_wave_complete(wave: int) -> void:
