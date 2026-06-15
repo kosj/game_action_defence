@@ -25,15 +25,13 @@ func _ready() -> void:
 	_build_ui()
 
 
-## .bin 파일에서 raw TTF 바이트를 읽어 FontFile.data 에 직접 주입 (HUD와 동일한 방식)
 func _load_kr_font() -> Font:
-	var fa := FileAccess.open("res://assets/fonts/NotoSansKR.bin", FileAccess.READ)
-	if fa:
-		var font := FontFile.new()
-		font.data = fa.get_buffer(fa.get_length())
-		fa.close()
-		return font
-	return null
+	var font = load("res://assets/fonts/NotoSansKR-Regular.ttf")
+	if font:
+		ScreenLog.ok("Shop KR font OK")
+	else:
+		ScreenLog.err("Shop KR font FAILED")
+	return font
 
 
 func _on_wave_complete(wave: int) -> void:

@@ -36,17 +36,12 @@ func _ready() -> void:
 	_apply_korean_font()
 
 
-## .bin 파일(Godot 임포트 제외)에서 raw TTF 바이트를 읽어 FontFile.data 에 직접 주입.
-## 임포트된 FontFile 은 헤드리스 빌드에서 글리프 데이터가 비어있으므로 이 방식이 필요.
 func _load_kr_font() -> Font:
-	var fa := FileAccess.open("res://assets/fonts/NotoSansKR.bin", FileAccess.READ)
-	if fa:
-		var font := FontFile.new()
-		font.data = fa.get_buffer(fa.get_length())
-		fa.close()
-		ScreenLog.ok(".bin OK  bytes=%d" % font.data.size())
+	var font = load("res://assets/fonts/NotoSansKR-Regular.ttf")
+	if font:
+		ScreenLog.ok("KR font OK  class=%s" % font.get_class())
 		return font
-	ScreenLog.err(".bin NOT found  err=%d" % FileAccess.get_open_error())
+	ScreenLog.err("KR font load failed")
 	return null
 
 
