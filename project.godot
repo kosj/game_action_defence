@@ -32,6 +32,12 @@ window/handheld/orientation="portrait"
 pointing/emulate_touch_from_mouse=true
 pointing/emulate_mouse_from_touch=true
 
+[internationalization]
+
+; 한글(CJK) 렌더링을 위해 FreeType/HarfBuzz 텍스트 서버 사용
+; TextServerFallback은 CJK 글리프를 지원하지 않음
+rendering/text_driver="ICU / HarfBuzz / FreeType"
+
 [rendering]
 
 ; WebGL/모바일 호환을 위해 반드시 Compatibility 렌더러 사용

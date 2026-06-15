@@ -37,16 +37,21 @@ func _ready() -> void:
 
 
 func _load_kr_font() -> Font:
-	var font = load("res://assets/fonts/NotoSansKR-Regular.ttf")
-	if font == null:
-		ScreenLog.err("KR font load failed")
+	# TextServerAdvanced(FreeType) 환경에서 raw TTF 바이트를 직접 파싱 가능.
+	# .bin = 임포트 파이프라인을 우회한 NotoSansKR TTF 복사본.
+	var fa := FileAccess.open("res://assets/fonts/NotoSansKR.bin", FileAccess.READ)
+	if fa == null:
+		ScreenLog.err(".bin NOT found  err=%d" % FileAccess.get_open_error())
 		return null
-	# 빈 FontFile을 override하면 모든 텍스트가 사라짐 → 'A' 글리프 너비로 검증
+	var font := FontFile.new()
+	font.data = fa.get_buffer(fa.get_length())
+	fa.close()
+	# 글리프 검증 — char_w=0 이면 TextServerFallback(CJK 미지원) 환경
 	var char_w: float = font.get_char_size(65, 16).x
 	if char_w <= 0.0:
-		ScreenLog.warn("KR font no glyphs (char_w=0) — default font kept")
+		ScreenLog.warn("KR font no glyphs — TextServerFallback? (char_w=0)")
 		return null
-	ScreenLog.ok("KR font OK  char_w=%.0fpx" % char_w)
+	ScreenLog.ok("KR font OK  bytes=%d  char_w=%.0fpx" % [font.data.size(), char_w])
 	return font
 
 
