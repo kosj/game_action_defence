@@ -71,6 +71,7 @@ func _die() -> void:
 	_alive = false
 	SoundManager.play("zombie_die")
 	remove_from_group("zombies")
+	Events.zombie_killed.emit()
 	var g := Pool.acquire(GOLD, get_tree().current_scene)
 	g.global_position = global_position
 	Pool.release(self)

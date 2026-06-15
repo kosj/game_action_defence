@@ -9,7 +9,9 @@ const KR_FONT := preload("res://assets/fonts/NotoSansKR-Regular.ttf")
 @onready var heart_row: HBoxContainer = $HeartRow
 @onready var wave_label: Label = $WaveLabel
 @onready var time_label: Label = $TimeLabel
+@onready var progress_label: Label = $ProgressLabel
 @onready var flash_overlay: ColorRect = $FlashOverlay
+@onready var wave_clear_label: Label = $WaveClearLabel
 @onready var game_over_panel: ColorRect = $GameOverPanel
 @onready var restart_button: Button = $GameOverPanel/VBoxContainer/RestartButton
 
@@ -24,17 +26,20 @@ func _ready() -> void:
 	Events.player_died.connect(_on_player_died)
 	Events.wave_changed.connect(_on_wave_changed)
 	Events.elapsed_changed.connect(_on_elapsed_changed)
+	Events.wave_progress_changed.connect(_on_wave_progress_changed)
+	Events.wave_complete.connect(_on_wave_complete)
 	restart_button.pressed.connect(_on_restart_pressed)
 	_on_gold_changed(Events.total_gold)
 	if Events.player_max_health > 0:
 		_on_player_health_changed(Events.player_health, Events.player_max_health)
 	_on_wave_changed(Events.current_wave)
 	_on_elapsed_changed(Events.elapsed_time)
+	_on_wave_progress_changed(Events.wave_kill_progress, Events.wave_kill_total)
 
 
 func _apply_font() -> void:
 	var nodes: Array = [
-		gold_label, wave_label, time_label,
+		gold_label, wave_label, time_label, progress_label, wave_clear_label,
 		$GameOverPanel/VBoxContainer/GameOverLabel,
 		restart_button,
 	]
@@ -88,6 +93,23 @@ func _on_elapsed_changed(seconds: float) -> void:
 	var m := int(seconds) / 60
 	var s := int(seconds) % 60
 	time_label.text = "%02d:%02d" % [m, s]
+
+
+func _on_wave_progress_changed(killed: int, total: int) -> void:
+	if total > 0:
+		progress_label.text = "%d / %d" % [killed, total]
+	else:
+		progress_label.text = ""
+
+
+func _on_wave_complete(wave: int) -> void:
+	wave_clear_label.text = "Wave %d 클리어!" % wave
+	wave_clear_label.modulate.a = 1.0
+	wave_clear_label.visible = true
+	var tw := create_tween()
+	tw.tween_interval(1.4)
+	tw.tween_property(wave_clear_label, "modulate:a", 0.0, 0.6)
+	tw.tween_callback(func(): wave_clear_label.visible = false)
 
 
 func _on_player_died() -> void:

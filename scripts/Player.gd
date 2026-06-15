@@ -19,13 +19,20 @@ var health: int
 var _attack_accum: float = 0.0
 var _hurt_timer: float = 0.0
 var _dead: bool = false
+var _base_move_speed: float
+var _base_attack_cooldown: float
+var _base_max_health: int
 
 
 func _ready() -> void:
 	add_to_group("player")
+	_base_move_speed = move_speed
+	_base_attack_cooldown = attack_cooldown
+	_base_max_health = max_health
 	health = max_health
 	_hurt_timer = contact_cooldown   # grace period so spawn-at-origin zombies can't instant-damage
 	Events.update_player_health(health, max_health)
+	Events.shop_closed.connect(apply_upgrades)
 
 
 func _physics_process(delta: float) -> void:
@@ -111,3 +118,20 @@ func _die() -> void:
 	_dead = true
 	velocity = Vector2.ZERO
 	Events.player_died.emit()
+
+
+## 상점에서 업그레이드 구매 후 또는 웨이브 시작 시 호출.
+func apply_upgrades() -> void:
+	move_speed = _base_move_speed + 30.0 * Events.upgrade_speed
+	attack_cooldown = _base_attack_cooldown * pow(0.85, Events.upgrade_atk_speed)
+	var new_max := _base_max_health + Events.upgrade_max_health
+	if new_max > max_health:
+		health += new_max - max_health   # 늘어난 만큼 즉시 회복
+		max_health = new_max
+		Events.update_player_health(health, max_health)
+
+
+## 상점의 회복 아이템 구매 시 호출.
+func heal_full() -> void:
+	health = max_health
+	Events.update_player_health(health, max_health)

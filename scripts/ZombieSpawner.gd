@@ -1,19 +1,18 @@
 extends Node
-## 좀비 스포너: 시간 기반 웨이브 테이블로 스폰 간격·종류·난이도를 단계적으로 상승.
+## 좀비 스포너: 킬카운트 기반 웨이브. 웨이브 총 킬수 달성 시 wave_complete 신호 발생.
 
 const ZOMBIE := preload("res://scenes/Zombie.tscn")
 
-@export var spawn_margin: float = 80.0   # 화면 가장자리 바깥 여유 거리
+@export var spawn_margin: float = 80.0
 
-## 웨이브 테이블: from(초) 이후 이 행이 적용됨.
-## weights = [기본, 빠른, 탱커] 정수 비중 (총합 기준 rng)
+## 웨이브 테이블: total=이 웨이브에서 처치해야 할 총 좀비 수, max_z=최대 동시 출현 수
 const WAVES: Array = [
-	{"from": 0,   "interval": 0.8,  "max_z": 30,  "weights": [10, 0, 0]},
-	{"from": 30,  "interval": 0.6,  "max_z": 50,  "weights": [8,  2, 0]},
-	{"from": 60,  "interval": 0.45, "max_z": 70,  "weights": [6,  3, 1]},
-	{"from": 90,  "interval": 0.35, "max_z": 90,  "weights": [5,  3, 2]},
-	{"from": 120, "interval": 0.25, "max_z": 110, "weights": [4,  4, 2]},
-	{"from": 180, "interval": 0.2,  "max_z": 120, "weights": [3,  4, 3]},
+	{"total": 20,  "max_z": 8,  "interval": 0.9,  "weights": [10, 0, 0]},
+	{"total": 30,  "max_z": 12, "interval": 0.70, "weights": [8,  2, 0]},
+	{"total": 45,  "max_z": 16, "interval": 0.55, "weights": [6,  3, 1]},
+	{"total": 60,  "max_z": 20, "interval": 0.45, "weights": [5,  3, 2]},
+	{"total": 80,  "max_z": 25, "interval": 0.35, "weights": [4,  4, 2]},
+	{"total": 100, "max_z": 30, "interval": 0.25, "weights": [3,  4, 3]},
 ]
 
 ## 인덱스 0=기본(흰색), 1=빠른(노란색), 2=탱커(보라색)
@@ -26,14 +25,34 @@ const ZOMBIE_TYPES: Array = [
 var player: Node2D = null
 var _accum: float = 0.0
 var _elapsed: float = 0.0
-var _wave_idx: int = 0
 var _last_second: int = -1
+var _wave_idx: int = 0     # 설정 테이블 인덱스 (최대 WAVES.size()-1 로 고정)
+var _wave_num: int = 1     # 표시용 웨이브 번호 (계속 증가)
+var _spawned: int = 0      # 현재 웨이브에서 스폰한 수
+var _killed: int = 0       # 현재 웨이브에서 처치한 수
+var _wave_active: bool = false
 var _game_over: bool = false
 
 
 func _ready() -> void:
 	player = get_tree().get_first_node_in_group("player")
 	Events.player_died.connect(func(): _game_over = true)
+	Events.zombie_killed.connect(_on_zombie_killed)
+	Events.shop_closed.connect(_start_wave)
+	_start_wave()
+
+
+func _start_wave() -> void:
+	_spawned = 0
+	_killed = 0
+	_accum = 0.0
+	_wave_active = true
+	var total: int = WAVES[_wave_idx]["total"]
+	Events.current_wave = _wave_num
+	Events.wave_kill_progress = 0
+	Events.wave_kill_total = total
+	Events.wave_changed.emit(_wave_num)
+	Events.wave_progress_changed.emit(0, total)
 
 
 func _process(delta: float) -> void:
@@ -45,12 +64,24 @@ func _process(delta: float) -> void:
 
 	_elapsed += delta
 	_tick_elapsed()
-	_update_wave()
 
-	_accum += delta
-	if _accum >= WAVES[_wave_idx]["interval"]:
-		_accum = 0.0
-		_try_spawn()
+	if not _wave_active:
+		return
+
+	var wave: Dictionary = WAVES[_wave_idx]
+
+	# 아직 스폰할 좀비가 남아있으면 스폰 시도
+	if _spawned < wave["total"]:
+		_accum += delta
+		if _accum >= wave["interval"]:
+			var alive := get_tree().get_nodes_in_group("zombies").size()
+			if alive < wave["max_z"]:
+				_accum = 0.0
+				_try_spawn()
+
+	# 총 처치 수 달성 → 웨이브 클리어
+	if _killed >= wave["total"]:
+		_wave_complete()
 
 
 func _tick_elapsed() -> void:
@@ -61,21 +92,29 @@ func _tick_elapsed() -> void:
 		Events.elapsed_changed.emit(_elapsed)
 
 
-func _update_wave() -> void:
-	var next := _wave_idx + 1
-	if next < WAVES.size() and _elapsed >= WAVES[next]["from"]:
-		_wave_idx = next
-		Events.current_wave = _wave_idx + 1
-		Events.wave_changed.emit(_wave_idx + 1)
+func _on_zombie_killed() -> void:
+	if not _wave_active:
+		return
+	_killed += 1
+	Events.wave_kill_progress = _killed
+	Events.wave_progress_changed.emit(_killed, WAVES[_wave_idx]["total"])
+
+
+func _wave_complete() -> void:
+	_wave_active = false
+	Events.wave_complete.emit(_wave_num)
+	_wave_num += 1
+	_wave_idx = mini(_wave_idx + 1, WAVES.size() - 1)
 
 
 func _try_spawn() -> void:
-	var wave: Dictionary = WAVES[_wave_idx]
-	if get_tree().get_nodes_in_group("zombies").size() >= wave["max_z"]:
+	if not is_instance_valid(player):
 		return
+	var wave: Dictionary = WAVES[_wave_idx]
 	var z := Pool.acquire(ZOMBIE, get_tree().current_scene)
 	z.global_position = _random_spawn_pos()
 	z.setup(_pick_type(wave["weights"]))
+	_spawned += 1
 
 
 func _pick_type(weights: Array) -> Dictionary:
