@@ -27,10 +27,15 @@ func _ready() -> void:
 
 func _load_kr_font() -> Font:
 	var font = load("res://assets/fonts/NotoSansKR-Regular.ttf")
-	if font:
-		ScreenLog.ok("Shop KR font OK")
-	else:
+	if font == null:
 		ScreenLog.err("Shop KR font FAILED")
+		return null
+	# 빈 FontFile override → 텍스트 전체 소멸 방지
+	var char_w: float = font.get_char_size(65, 16).x
+	if char_w <= 0.0:
+		ScreenLog.warn("Shop KR font no glyphs — default font kept")
+		return null
+	ScreenLog.ok("Shop KR font OK  char_w=%.0fpx" % char_w)
 	return font
 
 

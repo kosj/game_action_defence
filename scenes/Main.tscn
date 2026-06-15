@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/Main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2"]
 [ext_resource type="Script" path="res://scripts/ZombieSpawner.gd" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/HUD.tscn" id="4"]
 [ext_resource type="PackedScene" path="res://scenes/ShopPanel.tscn" id="5"]
+[ext_resource type="Script" path="res://scripts/Ground.gd" id="6"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1")
@@ -14,7 +15,10 @@ offset_left = -2000.0
 offset_top = -2000.0
 offset_right = 2000.0
 offset_bottom = 2000.0
-color = Color(0.12, 0.13, 0.16, 1)
+color = Color(0.10, 0.16, 0.08, 1)
+
+[node name="Ground" type="Node2D" parent="."]
+script = ExtResource("6")
 
 [node name="Player" parent="." instance=ExtResource("2")]
 position = Vector2(0, 0)

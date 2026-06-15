@@ -38,11 +38,16 @@ func _ready() -> void:
 
 func _load_kr_font() -> Font:
 	var font = load("res://assets/fonts/NotoSansKR-Regular.ttf")
-	if font:
-		ScreenLog.ok("KR font OK  class=%s" % font.get_class())
-		return font
-	ScreenLog.err("KR font load failed")
-	return null
+	if font == null:
+		ScreenLog.err("KR font load failed")
+		return null
+	# 빈 FontFile을 override하면 모든 텍스트가 사라짐 → 'A' 글리프 너비로 검증
+	var char_w: float = font.get_char_size(65, 16).x
+	if char_w <= 0.0:
+		ScreenLog.warn("KR font no glyphs (char_w=0) — default font kept")
+		return null
+	ScreenLog.ok("KR font OK  char_w=%.0fpx" % char_w)
+	return font
 
 
 func _apply_korean_font() -> void:
