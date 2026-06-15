@@ -57,14 +57,16 @@ func _input(event: InputEvent) -> void:
 func _try_activate(pos: Vector2, index: int) -> void:
 	if _active:
 		return
-	var max_x := get_viewport_rect().size.x * activation_ratio
-	if pos.x <= max_x:
-		_active = true
-		_touch_index = index
-		_origin = pos
-		_knob_pos = pos
-		_value = Vector2.ZERO
-		queue_redraw()
+	if activation_ratio < 1.0:
+		var max_x := get_viewport_rect().size.x * activation_ratio
+		if pos.x > max_x:
+			return
+	_active = true
+	_touch_index = index
+	_origin = pos
+	_knob_pos = pos
+	_value = Vector2.ZERO
+	queue_redraw()
 
 
 func _move_knob(pos: Vector2) -> void:

@@ -24,6 +24,7 @@ var _dead: bool = false
 func _ready() -> void:
 	add_to_group("player")
 	health = max_health
+	_hurt_timer = contact_cooldown   # grace period so spawn-at-origin zombies can't instant-damage
 	Events.update_player_health(health, max_health)
 
 

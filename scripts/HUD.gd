@@ -3,6 +3,7 @@ extends CanvasLayer
 
 const HEART_FULL := preload("res://assets/ui/ui_heart_full.png")
 const HEART_EMPTY := preload("res://assets/ui/ui_heart_empty.png")
+const KR_FONT := preload("res://assets/fonts/NotoSansKR-Regular.ttf")
 
 @onready var gold_label: Label = $GoldLabel
 @onready var heart_row: HBoxContainer = $HeartRow
@@ -17,6 +18,7 @@ var _max_health: int = 0
 
 
 func _ready() -> void:
+	_apply_font()
 	Events.gold_changed.connect(_on_gold_changed)
 	Events.player_health_changed.connect(_on_player_health_changed)
 	Events.player_died.connect(_on_player_died)
@@ -28,6 +30,16 @@ func _ready() -> void:
 		_on_player_health_changed(Events.player_health, Events.player_max_health)
 	_on_wave_changed(Events.current_wave)
 	_on_elapsed_changed(Events.elapsed_time)
+
+
+func _apply_font() -> void:
+	var nodes: Array = [
+		gold_label, wave_label, time_label,
+		$GameOverPanel/VBoxContainer/GameOverLabel,
+		restart_button,
+	]
+	for n in nodes:
+		n.add_theme_font_override("font", KR_FONT)
 
 
 func _on_gold_changed(total: int) -> void:
