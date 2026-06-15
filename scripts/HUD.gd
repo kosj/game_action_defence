@@ -3,7 +3,6 @@ extends CanvasLayer
 
 const HEART_FULL := preload("res://assets/ui/ui_heart_full.png")
 const HEART_EMPTY := preload("res://assets/ui/ui_heart_empty.png")
-const KR_FONT := preload("res://assets/fonts/NotoSansKR-Regular.ttf")
 
 @onready var gold_label: Label = $GoldLabel
 @onready var heart_row: HBoxContainer = $HeartRow
@@ -20,7 +19,7 @@ var _max_health: int = 0
 
 
 func _ready() -> void:
-	_apply_font()
+	# 1. 시그널 연결 및 텍스트 초기화를 먼저 수행 (폰트 로드 실패와 무관하게 동작)
 	Events.gold_changed.connect(_on_gold_changed)
 	Events.player_health_changed.connect(_on_player_health_changed)
 	Events.player_died.connect(_on_player_died)
@@ -35,16 +34,19 @@ func _ready() -> void:
 	_on_wave_changed(Events.current_wave)
 	_on_elapsed_changed(Events.elapsed_time)
 	_on_wave_progress_changed(Events.wave_kill_progress, Events.wave_kill_total)
+	# 2. 폰트 적용은 마지막에 (실패해도 텍스트 내용은 이미 설정됨)
+	_apply_korean_font()
 
 
-func _apply_font() -> void:
-	var nodes: Array = [
-		gold_label, wave_label, time_label, progress_label, wave_clear_label,
-		$GameOverPanel/VBoxContainer/GameOverLabel,
-		restart_button,
-	]
-	for n in nodes:
-		n.add_theme_font_override("font", KR_FONT)
+func _apply_korean_font() -> void:
+	var font = load("res://assets/fonts/NotoSansKR-Regular.ttf")
+	if not font:
+		return
+	# 한글이 포함된 라벨/버튼에만 적용
+	var korean_nodes: Array = [wave_clear_label, restart_button]
+	for n in korean_nodes:
+		if is_instance_valid(n):
+			n.add_theme_font_override("font", font)
 
 
 func _on_gold_changed(total: int) -> void:
