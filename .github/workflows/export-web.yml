@@ -2,7 +2,7 @@ name: Export Web (Godot 4)
 
 on:
   push:
-    branches: [main]
+    branches: [main, claude/todo-implementation-ag08aw]
   workflow_dispatch:
 
 permissions:
