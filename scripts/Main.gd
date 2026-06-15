@@ -8,7 +8,11 @@ const GOLD := preload("res://scenes/Gold.tscn")
 
 func _ready() -> void:
 	Events.reset()
-	# 자주 쓰는 오브젝트를 미리 풀에 채워둔다
-	Pool.prewarm(ZOMBIE, 60)
-	Pool.prewarm(BULLET, 40)
-	Pool.prewarm(GOLD, 40)
+	# 첫 프레임을 먼저 렌더한 뒤 풀을 채워 WebGL 초기 프리즈 방지
+	call_deferred("_do_prewarm")
+
+
+func _do_prewarm() -> void:
+	Pool.prewarm(ZOMBIE, 15)
+	Pool.prewarm(BULLET, 20)
+	Pool.prewarm(GOLD, 15)

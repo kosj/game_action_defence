@@ -6,7 +6,7 @@ extends CharacterBody2D
 @export var attack_cooldown: float = 0.35   # 발사 간격(초)
 @export var max_health: int = 5
 @export var contact_damage: int = 1
-@export var contact_cooldown: float = 1.0   # 좀비 접촉 피해 간격
+@export var contact_cooldown: float = 1.5   # 좀비 접촉 피해 간격
 
 const BULLET := preload("res://scenes/Bullet.tscn")
 
@@ -30,7 +30,7 @@ func _ready() -> void:
 	_base_attack_cooldown = attack_cooldown
 	_base_max_health = max_health
 	health = max_health
-	_hurt_timer = contact_cooldown   # grace period so spawn-at-origin zombies can't instant-damage
+	_hurt_timer = 3.0   # 시작 시 3초 무적 (프리워밍·첫 좀비 도착 전 보호)
 	Events.update_player_health(health, max_health)
 	Events.shop_closed.connect(apply_upgrades)
 
