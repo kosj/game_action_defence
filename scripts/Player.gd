@@ -30,7 +30,7 @@ func _ready() -> void:
 	_base_attack_cooldown = attack_cooldown
 	_base_max_health = max_health
 	health = max_health
-	_hurt_timer = 3.0   # 시작 시 3초 무적 (프리워밍·첫 좀비 도착 전 보호)
+	_hurt_timer = 5.0   # 시작 시 5초 무적 (프리워밍·첫 좀비 도착 전 보호)
 	Events.update_player_health(health, max_health)
 	Events.shop_closed.connect(apply_upgrades)
 
@@ -39,6 +39,11 @@ func _physics_process(delta: float) -> void:
 	_hurt_timer -= delta
 	if _dead:
 		return
+	# 무적 중 깜빡임 — 플레이어가 언제까지 안전한지 시각적으로 표시
+	if _hurt_timer > 0.0:
+		body.modulate.a = 1.0 if fmod(_hurt_timer, 0.4) > 0.2 else 0.35
+	else:
+		body.modulate.a = 1.0
 	_check_contact_damage()
 	_handle_move()
 	var target := _get_nearest_zombie()

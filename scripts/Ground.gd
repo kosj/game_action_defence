@@ -8,6 +8,7 @@ const GRASS_B  := Color(0.16, 0.24, 0.13)   # 밝은 초록 (체커보드)
 const MARK_COL := Color(0.22, 0.31, 0.16)   # 잔디 점·크로스
 
 var _player: Node2D = null
+var _last_pos := Vector2(INF, INF)
 
 
 func _ready() -> void:
@@ -18,8 +19,12 @@ func _process(_delta: float) -> void:
 	if not is_instance_valid(_player):
 		_player = get_tree().get_first_node_in_group("player")
 		return
-	global_position = _player.global_position
-	queue_redraw()
+	var p := _player.global_position
+	# 1픽셀 이상 이동했을 때만 재드로우 (불필요한 _draw() 호출 방지)
+	if p.distance_squared_to(_last_pos) > 0.5:
+		global_position = p
+		_last_pos = p
+		queue_redraw()
 
 
 func _draw() -> void:
