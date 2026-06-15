@@ -33,47 +33,6 @@ func _ready() -> void:
 	_on_wave_changed(Events.current_wave)
 	_on_elapsed_changed(Events.elapsed_time)
 	_on_wave_progress_changed(Events.wave_kill_progress, Events.wave_kill_total)
-	_apply_korean_font()
-
-
-func _load_kr_font() -> Font:
-	# TextServerAdvanced(FreeType) 환경에서 raw TTF 바이트를 직접 파싱 가능.
-	# .bin = 임포트 파이프라인을 우회한 NotoSansKR TTF 복사본.
-	var fa := FileAccess.open("res://assets/fonts/NotoSansKR.bin", FileAccess.READ)
-	if fa == null:
-		ScreenLog.err(".bin NOT found  err=%d" % FileAccess.get_open_error())
-		return null
-	var font := FontFile.new()
-	font.data = fa.get_buffer(fa.get_length())
-	fa.close()
-	# 글리프 검증 — char_w=0 이면 TextServerFallback(CJK 미지원) 환경
-	var char_w: float = font.get_char_size(65, 16).x
-	if char_w <= 0.0:
-		ScreenLog.warn("KR font no glyphs — TextServerFallback? (char_w=0)")
-		return null
-	ScreenLog.ok("KR font OK  bytes=%d  char_w=%.0fpx" % [font.data.size(), char_w])
-	return font
-
-
-func _apply_korean_font() -> void:
-	var font := _load_kr_font()
-	if font == null:
-		ScreenLog.warn("Korean font unavailable — using default")
-		return
-
-	var korean_nodes: Array = [wave_clear_label, restart_button]
-	for n in korean_nodes:
-		if is_instance_valid(n):
-			n.add_theme_font_override("font", font)
-
-	# 인라인 한글 렌더 테스트
-	var test := Label.new()
-	test.text = "한글OK: 이동속도 공격속도"
-	test.add_theme_font_override("font", font)
-	test.add_theme_font_size_override("font_size", 22)
-	test.add_theme_color_override("font_color", Color(0.3, 1.0, 0.4))
-	test.position = Vector2(10, 440)
-	add_child(test)
 
 
 func _on_gold_changed(total: int) -> void:
@@ -132,7 +91,7 @@ func _on_wave_progress_changed(killed: int, total: int) -> void:
 
 
 func _on_wave_complete(wave: int) -> void:
-	wave_clear_label.text = "Wave %d 클리어!" % wave
+	wave_clear_label.text = "Wave %d Clear!" % wave
 	wave_clear_label.modulate.a = 1.0
 	wave_clear_label.visible = true
 	var tw := create_tween()

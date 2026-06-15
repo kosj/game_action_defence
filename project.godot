@@ -15,7 +15,6 @@ config/features=PackedStringArray("4.1", "GL Compatibility")
 Events="*res://scripts/Events.gd"
 Pool="*res://scripts/Pool.gd"
 SoundManager="*res://scripts/SoundManager.gd"
-ScreenLog="*res://scripts/ScreenLog.gd"
 
 [display]
 

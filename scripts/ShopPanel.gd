@@ -1,16 +1,14 @@
 extends CanvasLayer
 ## 상점 패널: 웨이브 클리어 후 자동 등장. 골드로 캐릭터 업그레이드 구매.
 
-# id, 표시명, 설명, 레벨별 비용 배열 (배열 길이 = 최대 구매 횟수)
 const UPGRADES: Array = [
-	{"id": "speed",      "label": "이동 속도",    "desc": "이동속도 +30",       "costs": [10, 15, 20, 25]},
-	{"id": "atk_speed",  "label": "공격 속도",    "desc": "발사 간격 -15%",     "costs": [15, 22, 30, 40]},
-	{"id": "damage",     "label": "총알 데미지",  "desc": "총알 데미지 +1",     "costs": [20, 30, 45, 60]},
-	{"id": "max_health", "label": "최대 체력",    "desc": "+1 하트 (즉시 회복)", "costs": [12, 18, 26, 35]},
-	{"id": "heal",       "label": "체력 회복",    "desc": "체력 완전 회복",     "costs": [8,  8,  8,  8 ]},
+	{"id": "speed",      "label": "Move Speed",  "desc": "+30 move speed",    "costs": [10, 15, 20, 25]},
+	{"id": "atk_speed",  "label": "Atk Speed",   "desc": "-15% fire delay",   "costs": [15, 22, 30, 40]},
+	{"id": "damage",     "label": "Bullet Dmg",  "desc": "+1 bullet damage",  "costs": [20, 30, 45, 60]},
+	{"id": "max_health", "label": "Max HP",       "desc": "+1 heart (heals)", "costs": [12, 18, 26, 35]},
+	{"id": "heal",       "label": "Heal HP",      "desc": "Full HP restore",   "costs": [8,  8,  8,  8 ]},
 ]
 
-var _kr_font = null
 var _wave_label: Label
 var _gold_label: Label
 var _buttons: Array = []
@@ -20,29 +18,12 @@ var _continue_btn: Button
 func _ready() -> void:
 	layer = 10
 	visible = false
-	_kr_font = _load_kr_font()
 	Events.wave_complete.connect(_on_wave_complete)
 	_build_ui()
 
 
-func _load_kr_font() -> Font:
-	var fa := FileAccess.open("res://assets/fonts/NotoSansKR.bin", FileAccess.READ)
-	if fa == null:
-		ScreenLog.err("Shop .bin NOT found")
-		return null
-	var font := FontFile.new()
-	font.data = fa.get_buffer(fa.get_length())
-	fa.close()
-	var char_w: float = font.get_char_size(65, 16).x
-	if char_w <= 0.0:
-		ScreenLog.warn("Shop KR font no glyphs (char_w=0)")
-		return null
-	ScreenLog.ok("Shop KR font OK  char_w=%.0fpx" % char_w)
-	return font
-
-
 func _on_wave_complete(wave: int) -> void:
-	_wave_label.text = "Wave %d 클리어!" % wave
+	_wave_label.text = "Wave %d Clear!" % wave
 	_refresh_buttons()
 	await get_tree().create_timer(2.1).timeout
 	if not is_instance_valid(self):
@@ -86,7 +67,7 @@ func _build_ui() -> void:
 	margin.add_child(vbox)
 
 	# 웨이브 클리어 제목
-	_wave_label = _make_label("Wave 클리어!", 36, true)
+	_wave_label = _make_label("Wave Clear!", 36, true)
 	_wave_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	vbox.add_child(_wave_label)
 
@@ -130,8 +111,6 @@ func _make_label(txt: String, size: int, centered: bool = false) -> Label:
 
 func _apply_font(node: Control, size: int) -> void:
 	node.add_theme_font_size_override("font_size", size)
-	if _kr_font:
-		node.add_theme_font_override("font", _kr_font)
 
 
 func _get_level(id: String) -> int:
