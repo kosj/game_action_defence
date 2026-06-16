@@ -8,6 +8,7 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var top_bg: Panel = $TopBg
 @onready var gold_label: Label = $GoldLabel
 @onready var heart_row: HBoxContainer = $HeartRow
+@onready var weapon_label: Label = $WeaponLabel
 @onready var wave_label: Label = $WaveLabel
 @onready var time_label: Label = $TimeLabel
 @onready var progress_label: Label = $ProgressLabel
@@ -18,6 +19,7 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var game_over_panel: Panel = $GameOverPanel
 @onready var stats_label: Label = $GameOverPanel/Margin/VBoxContainer/StatsLabel
 @onready var restart_button: Button = $GameOverPanel/Margin/VBoxContainer/RestartButton
+@onready var main_menu_button: Button = $GameOverPanel/Margin/VBoxContainer/MainMenuButton
 
 var _prev_health: int = -1
 var _prev_gold: int = -1
@@ -30,6 +32,7 @@ func _ready() -> void:
 	wave_clear_bg.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.30, 0.14, 0.92), Color(1.0, 0.85, 0.2), 26, 3))
 	game_over_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.05, 0.06, 0.96), Color(0.85, 0.25, 0.22), 22, 3))
 	_UIStyle.apply_button_style(restart_button, Color(0.55, 0.16, 0.16), Color(0.95, 0.35, 0.3))
+	_UIStyle.apply_button_style(main_menu_button, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
 	call_deferred("_init_pivots")
 
 	Events.gold_changed.connect(_on_gold_changed)
@@ -39,7 +42,9 @@ func _ready() -> void:
 	Events.elapsed_changed.connect(_on_elapsed_changed)
 	Events.wave_progress_changed.connect(_on_wave_progress_changed)
 	Events.wave_complete.connect(_on_wave_complete)
+	Events.weapon_equipped.connect(_on_weapon_equipped)
 	restart_button.pressed.connect(_on_restart_pressed)
+	main_menu_button.pressed.connect(_on_main_menu_pressed)
 	_on_gold_changed(Events.total_gold)
 	if Events.player_max_health > 0:
 		_on_player_health_changed(Events.player_health, Events.player_max_health)
@@ -51,6 +56,7 @@ func _ready() -> void:
 ## 둥근 패널/라벨이 자신의 중심을 기준으로 스케일되도록 pivot 보정 (레이아웃 확정 후 1회).
 func _init_pivots() -> void:
 	gold_label.pivot_offset = gold_label.size * 0.5
+	weapon_label.pivot_offset = weapon_label.size * 0.5
 	wave_clear_bg.pivot_offset = wave_clear_bg.size * 0.5
 	wave_clear_label.pivot_offset = wave_clear_label.size * 0.5
 	game_over_panel.pivot_offset = game_over_panel.size * 0.5
@@ -119,6 +125,19 @@ func _update_low_hp_warning(health: int) -> void:
 		low_hp_overlay.color.a = 0.0
 
 
+## 무기 픽업 획득 시 이름/등급을 표시하고 등급 색으로 강조 펄스.
+func _on_weapon_equipped(stats: Dictionary) -> void:
+	var tier_id: String = stats.get("tier_id", "common")
+	if tier_id == "common":
+		weapon_label.text = stats.get("name", "")
+	else:
+		weapon_label.text = "%s %s" % [stats.get("tier_name", ""), stats.get("name", "")]
+	weapon_label.add_theme_color_override("font_color", stats.get("tier_color", Color.WHITE))
+	weapon_label.scale = Vector2(1.4, 1.4)
+	var tw := create_tween()
+	tw.tween_property(weapon_label, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
 func _on_wave_changed(wave: int) -> void:
 	wave_label.text = "Wave %d" % wave
 
@@ -161,6 +180,7 @@ func _on_wave_complete(wave: int) -> void:
 
 
 func _on_player_died() -> void:
+	SaveManager.delete_save()   # 사망 시 진행 실패 — 체크포인트 무효화
 	var m := int(Events.elapsed_time) / 60
 	var s := int(Events.elapsed_time) % 60
 	stats_label.text = "Reached Wave %d   Time %02d:%02d" % [Events.current_wave, m, s]
@@ -178,3 +198,9 @@ func _on_restart_pressed() -> void:
 	Events.reset()
 	Pool.clear()
 	get_tree().reload_current_scene()
+
+
+func _on_main_menu_pressed() -> void:
+	Events.reset()
+	Pool.clear()
+	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")

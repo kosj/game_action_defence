@@ -10,6 +10,7 @@ signal wave_complete(wave: int)
 signal wave_progress_changed(killed: int, total: int)
 signal zombie_killed
 signal shop_closed
+signal weapon_equipped(stats: Dictionary)
 
 var total_gold: int = 0
 var player_health: int = 0
