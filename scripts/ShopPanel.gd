@@ -2,6 +2,7 @@ extends CanvasLayer
 ## 상점 패널: 웨이브 클리어 후 자동 등장. 골드로 캐릭터 업그레이드 구매.
 
 const _UIStyle := preload("res://scripts/UIStyle.gd")
+const _COIN_ICON := preload("res://assets/ui/ui_coin.png")
 
 const UPGRADES: Array = [
 	{"section": "WEAPON",    "id": "speed",            "label": "Move Speed",    "desc": "+30 move speed",           "costs": [10, 15, 20, 25]},
@@ -23,11 +24,17 @@ const SECTION_COLORS: Dictionary = {
 	"SURVIVAL":  Color(0.45, 0.85, 0.50),
 }
 
+## 누른 지점에서 이만큼(px) 이상 드래그되면 탭이 아니라 스크롤로 간주해 구매를 취소.
+const SCROLL_TAP_THRESHOLD := 12.0
+
 var _panel: PanelContainer
 var _wave_label: Label
 var _gold_label: Label
 var _buttons: Array = []
 var _continue_btn: Button
+var _scroll: ScrollContainer
+var _dragging: bool = false
+var _drag_total: float = 0.0
 
 
 func _ready() -> void:
@@ -91,10 +98,22 @@ func _build_ui() -> void:
 	_wave_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	outer.add_child(_wave_label)
 
-	# 보유 골드
-	_gold_label = _make_label("Gold: 0", 22, true)
+	# 보유 골드 (코인 아이콘 + 수량)
+	var gold_row := HBoxContainer.new()
+	gold_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	gold_row.add_theme_constant_override("separation", 6)
+	outer.add_child(gold_row)
+
+	var coin_icon := TextureRect.new()
+	coin_icon.texture = _COIN_ICON
+	coin_icon.custom_minimum_size = Vector2(26, 26)
+	coin_icon.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	coin_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	gold_row.add_child(coin_icon)
+
+	_gold_label = _make_label("0", 22)
 	_gold_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
-	outer.add_child(_gold_label)
+	gold_row.add_child(_gold_label)
 
 	outer.add_child(HSeparator.new())
 
@@ -102,11 +121,15 @@ func _build_ui() -> void:
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.gui_input.connect(_on_scroll_gui_input)
 	outer.add_child(scroll)
+	_scroll = scroll
 
 	var list := VBoxContainer.new()
 	list.add_theme_constant_override("separation", 8)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# PASS: 버튼이 누름은 그대로 처리하면서도 드래그 이벤트가 위의 scroll 까지 전달되게 한다.
+	list.mouse_filter = Control.MOUSE_FILTER_PASS
 	scroll.add_child(list)
 
 	_buttons.clear()
@@ -124,7 +147,7 @@ func _build_ui() -> void:
 
 	# 계속 버튼
 	_continue_btn = Button.new()
-	_continue_btn.text = "Continue ->"
+	_continue_btn.text = "Continue  →"
 	_continue_btn.custom_minimum_size = Vector2(0, 66)
 	_apply_font(_continue_btn, 26)
 	_UIStyle.apply_button_style(_continue_btn, Color(0.14, 0.40, 0.20), Color(0.4, 0.85, 0.45))
@@ -137,7 +160,7 @@ func _init_pivot() -> void:
 
 
 func _make_section_header(section: String) -> Label:
-	var lbl := _make_label(section, 15)
+	var lbl := _make_label("◆ %s" % section, 15)
 	lbl.add_theme_color_override("font_color", SECTION_COLORS.get(section, Color.WHITE))
 	return lbl
 
@@ -149,8 +172,35 @@ func _make_upgrade_button(upg: Dictionary) -> Button:
 	var id: String = upg["id"]
 	var col: Color = SECTION_COLORS.get(upg["section"], Color(0.4, 0.4, 0.45))
 	_UIStyle.apply_button_style(btn, col.darkened(0.82), col)
-	btn.pressed.connect(_on_upgrade_pressed.bind(id))
+	# 섹션 색상의 굵은 좌측 띠로 카테고리를 한눈에 구분
+	for state_name in ["normal", "hover", "pressed", "disabled"]:
+		var sb := btn.get_theme_stylebox(state_name) as StyleBoxFlat
+		if sb:
+			sb.border_width_left = 7
+	btn.icon = _COIN_ICON
+	btn.add_theme_constant_override("icon_max_width", 26)
+	btn.add_theme_constant_override("h_separation", 10)
+	btn.mouse_filter = Control.MOUSE_FILTER_PASS   # 드래그를 위 scroll 으로도 전달
+	btn.pressed.connect(_on_upgrade_tap.bind(id))
 	return btn
+
+
+## 모바일 터치 드래그로 스크롤 — Godot ScrollContainer 는 터치 드래그를 안정적으로
+## 처리하지 못해(특히 버튼 위에서) 직접 입력을 받아 scroll_vertical 을 갱신한다.
+func _on_scroll_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		_dragging = event.pressed
+		_drag_total = 0.0
+	elif event is InputEventMouseMotion and _dragging:
+		_scroll.scroll_vertical -= int(event.relative.y)
+		_drag_total += absf(event.relative.y)
+
+
+## 버튼 클릭이 일정 거리 이상의 드래그(스크롤)였다면 구매로 처리하지 않는다.
+func _on_upgrade_tap(id: String) -> void:
+	if _drag_total > SCROLL_TAP_THRESHOLD:
+		return
+	_on_upgrade_pressed(id)
 
 
 func _make_label(txt: String, size: int, centered: bool = false) -> Label:
@@ -189,7 +239,7 @@ func _get_cost(upg: Dictionary) -> int:
 
 
 func _refresh_buttons() -> void:
-	_gold_label.text = "Gold: %d" % Events.total_gold
+	_gold_label.text = "%d" % Events.total_gold
 	for i in UPGRADES.size():
 		var upg: Dictionary = UPGRADES[i]
 		var id: String = upg["id"]
@@ -197,14 +247,22 @@ func _refresh_buttons() -> void:
 		var cost := _get_cost(upg)
 
 		if id != "heal" and cost == -1:
-			btn.text = "%s  [MAX]" % upg["label"]
+			btn.text = "%s  ★ MAX\n%s" % [upg["label"], upg["desc"]]
 			btn.disabled = true
 		else:
 			var lvl := _get_level(id)
 			var max_lvl: int = upg["costs"].size()
-			var lvl_str := (" Lv%d/%d" % [lvl, max_lvl]) if id != "heal" else ""
-			btn.text = "%s%s  -%dG\n%s" % [upg["label"], lvl_str, cost, upg["desc"]]
+			var pip_str := ("  " + _pip_string(lvl, max_lvl)) if id != "heal" else ""
+			btn.text = "%s%s\n-%dG   %s" % [upg["label"], pip_str, cost, upg["desc"]]
 			btn.disabled = Events.total_gold < cost
+
+
+## 업그레이드 레벨을 ●(획득)/○(남음) 점으로 한눈에 표시.
+func _pip_string(lvl: int, max_lvl: int) -> String:
+	var s := ""
+	for i in max_lvl:
+		s += "●" if i < lvl else "○"
+	return s
 
 
 func _on_upgrade_pressed(id: String) -> void:
