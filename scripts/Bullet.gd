@@ -38,9 +38,13 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	if not _alive:
 		return
-	draw_circle(Vector2.ZERO, 14.0, Color(1.0, 0.80, 0.15, 0.20))
-	draw_circle(Vector2.ZERO,  8.0, Color(1.0, 0.92, 0.35, 0.55))
-	draw_circle(Vector2.ZERO,  3.5, Color(1.0, 1.0,  0.85, 0.90))
+	# 골드(노란 동전)와 헷갈리지 않도록 총알은 적색 계열 트레일로 표현.
+	# 로컬 +Y가 진행 방향의 반대쪽(꼬리) — Player._shoot_at() 의 회전식 참고.
+	var tail := Vector2(0.0, 16.0)
+	draw_line(Vector2.ZERO, tail, Color(1.0, 0.30, 0.10, 0.50), 5.0, true)
+	draw_circle(Vector2.ZERO, 10.0, Color(1.0, 0.30, 0.10, 0.20))
+	draw_circle(Vector2.ZERO,  6.0, Color(1.0, 0.45, 0.15, 0.55))
+	draw_circle(Vector2.ZERO,  3.0, Color(1.0, 0.95, 0.75, 0.95))
 
 
 func _on_body_entered(body: Node) -> void:
