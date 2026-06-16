@@ -13,6 +13,7 @@ var health: int
 var player: Node2D = null
 var _alive: bool = false
 var _type_color: Color = Color.WHITE
+var _score_value: int = 0
 
 
 func _ready() -> void:
@@ -41,6 +42,7 @@ func setup(type_data: Dictionary) -> void:
 	max_health = type_data["max_health"]
 	health = max_health
 	_type_color = type_data["modulate"]
+	_score_value = type_data.get("score", 0)
 	body.modulate = _type_color
 
 
@@ -73,6 +75,7 @@ func _die() -> void:
 	SoundManager.play("zombie_die")
 	remove_from_group("zombies")
 	Events.zombie_killed.emit()
+	Events.add_score(_score_value)
 	var fx := _FXBurst.new()
 	fx.color = _type_color
 	fx.max_radius = 38.0

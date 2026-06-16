@@ -33,6 +33,13 @@ func _build_ui() -> void:
 	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	box.add_child(title)
 
+	var best := Label.new()
+	best.text = "Best Score: %d" % Events.high_score
+	best.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	best.add_theme_font_size_override("font_size", 22)
+	best.add_theme_color_override("font_color", Color(0.85, 0.88, 0.95))
+	box.add_child(best)
+
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 24)
 	box.add_child(spacer)

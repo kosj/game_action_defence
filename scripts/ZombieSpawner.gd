@@ -15,11 +15,11 @@ const WAVES: Array = [
 	{"total": 100, "max_z": 30, "interval": 0.25, "weights": [3,  4, 3]},
 ]
 
-## 인덱스 0=기본(흰색), 1=빠른(노란색), 2=탱커(보라색)
+## 인덱스 0=기본(흰색), 1=빠른(노란색), 2=탱커(보라색). score=처치 점수.
 const ZOMBIE_TYPES: Array = [
-	{"speed": 65,  "max_health": 3, "modulate": Color(1.0, 1.0, 1.0)},
-	{"speed": 130, "max_health": 1, "modulate": Color(1.0, 0.9, 0.3)},
-	{"speed": 40,  "max_health": 8, "modulate": Color(0.75, 0.5, 1.0)},
+	{"speed": 65,  "max_health": 3, "modulate": Color(1.0, 1.0, 1.0), "score": 10},
+	{"speed": 130, "max_health": 1, "modulate": Color(1.0, 0.9, 0.3), "score": 15},
+	{"speed": 40,  "max_health": 8, "modulate": Color(0.75, 0.5, 1.0), "score": 30},
 ]
 
 var player: Node2D = null
