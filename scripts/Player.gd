@@ -42,6 +42,10 @@ func _ready() -> void:
 	_hurt_timer = 5.0   # 시작 시 5초 무적 (프리워밍·첫 좀비 도착 전 보호)
 	Events.update_player_health(health, max_health)
 	Events.shop_closed.connect(apply_upgrades)
+	Events.shop_closed.connect(_autosave)
+	Events.wave_complete.connect(func(_wave: int): _autosave())
+	if SaveManager.pending_continue:
+		_load_saved_state()
 
 
 func _physics_process(delta: float) -> void:
@@ -209,3 +213,17 @@ func equip_weapon(weapon_stats: Dictionary) -> void:
 	current_weapon = weapon_stats
 	_recompute_combat_stats()
 	Events.weapon_equipped.emit(weapon_stats)
+	_autosave()
+
+
+## 메인 메뉴의 "이어하기"로 진입했을 때, 저장된 체력/무기 상태를 적용.
+func _load_saved_state() -> void:
+	apply_upgrades()
+	health = clampi(SaveManager.pending_player_health, 1, max_health)
+	Events.update_player_health(health, max_health)
+	equip_weapon(_WeaponDB.build_from_ids(SaveManager.pending_weapon_id, SaveManager.pending_weapon_tier_id))
+	SaveManager.pending_continue = false
+
+
+func _autosave() -> void:
+	SaveManager.save_game(self)

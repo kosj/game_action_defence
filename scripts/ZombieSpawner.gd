@@ -40,6 +40,10 @@ func _ready() -> void:
 	Events.player_died.connect(func(): _game_over = true)
 	Events.zombie_killed.connect(_on_zombie_killed)
 	Events.shop_closed.connect(_start_wave)
+	# 이어하기 시 저장된 웨이브/경과시간부터 재개 (새 게임은 Events.reset() 직후라 1 / 0.0).
+	_elapsed = Events.elapsed_time
+	_wave_num = Events.current_wave
+	_wave_idx = mini(_wave_num - 1, WAVES.size() - 1)
 	_start_wave()
 
 

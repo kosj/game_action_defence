@@ -19,6 +19,7 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var game_over_panel: Panel = $GameOverPanel
 @onready var stats_label: Label = $GameOverPanel/Margin/VBoxContainer/StatsLabel
 @onready var restart_button: Button = $GameOverPanel/Margin/VBoxContainer/RestartButton
+@onready var main_menu_button: Button = $GameOverPanel/Margin/VBoxContainer/MainMenuButton
 
 var _prev_health: int = -1
 var _prev_gold: int = -1
@@ -31,6 +32,7 @@ func _ready() -> void:
 	wave_clear_bg.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.30, 0.14, 0.92), Color(1.0, 0.85, 0.2), 26, 3))
 	game_over_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.05, 0.06, 0.96), Color(0.85, 0.25, 0.22), 22, 3))
 	_UIStyle.apply_button_style(restart_button, Color(0.55, 0.16, 0.16), Color(0.95, 0.35, 0.3))
+	_UIStyle.apply_button_style(main_menu_button, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
 	call_deferred("_init_pivots")
 
 	Events.gold_changed.connect(_on_gold_changed)
@@ -42,6 +44,7 @@ func _ready() -> void:
 	Events.wave_complete.connect(_on_wave_complete)
 	Events.weapon_equipped.connect(_on_weapon_equipped)
 	restart_button.pressed.connect(_on_restart_pressed)
+	main_menu_button.pressed.connect(_on_main_menu_pressed)
 	_on_gold_changed(Events.total_gold)
 	if Events.player_max_health > 0:
 		_on_player_health_changed(Events.player_health, Events.player_max_health)
@@ -177,6 +180,7 @@ func _on_wave_complete(wave: int) -> void:
 
 
 func _on_player_died() -> void:
+	SaveManager.delete_save()   # 사망 시 진행 실패 — 체크포인트 무효화
 	var m := int(Events.elapsed_time) / 60
 	var s := int(Events.elapsed_time) % 60
 	stats_label.text = "Reached Wave %d   Time %02d:%02d" % [Events.current_wave, m, s]
@@ -194,3 +198,9 @@ func _on_restart_pressed() -> void:
 	Events.reset()
 	Pool.clear()
 	get_tree().reload_current_scene()
+
+
+func _on_main_menu_pressed() -> void:
+	Events.reset()
+	Pool.clear()
+	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")

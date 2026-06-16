@@ -30,6 +30,21 @@ static func default_weapon() -> Dictionary:
 	return _build_stats(WEAPONS[0], TIERS[0])
 
 
+## 저장 데이터(문자열 id)로부터 무기 스탯을 재구성 — Color 등은 직렬화하지 않고 id만 저장하기 위함.
+static func build_from_ids(weapon_id: String, tier_id: String) -> Dictionary:
+	var archetype: Dictionary = WEAPONS[0]
+	for w in WEAPONS:
+		if w["id"] == weapon_id:
+			archetype = w
+			break
+	var tier: Dictionary = TIERS[0]
+	for t in TIERS:
+		if t["id"] == tier_id:
+			tier = t
+			break
+	return _build_stats(archetype, tier)
+
+
 static func _roll_tier() -> Dictionary:
 	var total := 0
 	for tier in TIERS:
