@@ -24,7 +24,7 @@ func _physics_process(delta: float) -> void:
 			_timers.erase(id)
 
 	# damage nearby zombies
-	var dmg := 1 + Events.upgrade_damage
+	var dmg := 1 + Events.upgrade_orb_damage
 	for z in get_tree().get_nodes_in_group("zombies"):
 		if not is_instance_valid(z):
 			continue

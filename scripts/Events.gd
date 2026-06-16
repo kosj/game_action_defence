@@ -22,10 +22,13 @@ var wave_kill_total: int = 0
 # 업그레이드 레벨 (0 = 미구매)
 var upgrade_speed: int = 0
 var upgrade_atk_speed: int = 0
-var upgrade_damage: int = 0
+var upgrade_bullet_damage: int = 0
+var upgrade_orb_damage: int = 0
+var upgrade_lightning_damage: int = 0
 var upgrade_max_health: int = 0
 var upgrade_multi_bullet: int = 0
 var upgrade_orbs: int = 0
+var upgrade_lightning: int = 0
 
 
 func add_gold(amount: int = 1) -> void:
@@ -57,8 +60,11 @@ func reset() -> void:
 	wave_kill_total = 0
 	upgrade_speed = 0
 	upgrade_atk_speed = 0
-	upgrade_damage = 0
+	upgrade_bullet_damage = 0
+	upgrade_orb_damage = 0
+	upgrade_lightning_damage = 0
 	upgrade_max_health = 0
 	upgrade_multi_bullet = 0
 	upgrade_orbs = 0
+	upgrade_lightning = 0
 	gold_changed.emit(total_gold)

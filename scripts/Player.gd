@@ -10,6 +10,7 @@ extends CharacterBody2D
 
 const BULLET := preload("res://scenes/Bullet.tscn")
 const _OrbClass := preload("res://scripts/Orb.gd")
+const _LightningClass := preload("res://scripts/Lightning.gd")
 const _FXBurst  := preload("res://scripts/FXBurst.gd")
 
 @onready var body: Node2D = $Body
@@ -25,6 +26,7 @@ var _base_move_speed: float
 var _base_attack_cooldown: float
 var _base_max_health: int
 var _orbs: Array = []
+var _lightning: Node2D = null
 
 
 func _ready() -> void:
@@ -36,7 +38,6 @@ func _ready() -> void:
 	_hurt_timer = 5.0   # 시작 시 5초 무적 (프리워밍·첫 좀비 도착 전 보호)
 	Events.update_player_health(health, max_health)
 	Events.shop_closed.connect(apply_upgrades)
-	_update_orbs()
 
 
 func _physics_process(delta: float) -> void:
@@ -154,10 +155,11 @@ func apply_upgrades() -> void:
 		max_health = new_max
 		Events.update_player_health(health, max_health)
 	_update_orbs()
+	_update_lightning()
 
 
 func _update_orbs() -> void:
-	var desired := 1 + Events.upgrade_orbs
+	var desired := Events.upgrade_orbs
 	while _orbs.size() > desired:
 		var orb = _orbs.pop_back()
 		if is_instance_valid(orb):
@@ -169,6 +171,16 @@ func _update_orbs() -> void:
 	for i in _orbs.size():
 		if is_instance_valid(_orbs[i]):
 			_orbs[i].init_angle(TAU * i / max(_orbs.size(), 1))
+
+
+func _update_lightning() -> void:
+	var owned := Events.upgrade_lightning > 0
+	if owned and _lightning == null:
+		_lightning = _LightningClass.new()
+		add_child(_lightning)
+	elif not owned and _lightning != null:
+		_lightning.queue_free()
+		_lightning = null
 
 
 ## 상점의 회복 아이템 구매 시 호출.
