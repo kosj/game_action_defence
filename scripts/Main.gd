@@ -4,6 +4,7 @@ extends Node2D
 const ZOMBIE := preload("res://scenes/Zombie.tscn")
 const BULLET := preload("res://scenes/Bullet.tscn")
 const GOLD := preload("res://scenes/Gold.tscn")
+const WEAPON_PICKUP := preload("res://scenes/WeaponPickup.tscn")
 
 
 func _ready() -> void:
@@ -16,3 +17,4 @@ func _do_prewarm() -> void:
 	Pool.prewarm(ZOMBIE, 15)
 	Pool.prewarm(BULLET, 20)
 	Pool.prewarm(GOLD, 15)
+	Pool.prewarm(WEAPON_PICKUP, 3)

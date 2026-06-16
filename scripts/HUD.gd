@@ -8,6 +8,7 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var top_bg: Panel = $TopBg
 @onready var gold_label: Label = $GoldLabel
 @onready var heart_row: HBoxContainer = $HeartRow
+@onready var weapon_label: Label = $WeaponLabel
 @onready var wave_label: Label = $WaveLabel
 @onready var time_label: Label = $TimeLabel
 @onready var progress_label: Label = $ProgressLabel
@@ -39,6 +40,7 @@ func _ready() -> void:
 	Events.elapsed_changed.connect(_on_elapsed_changed)
 	Events.wave_progress_changed.connect(_on_wave_progress_changed)
 	Events.wave_complete.connect(_on_wave_complete)
+	Events.weapon_equipped.connect(_on_weapon_equipped)
 	restart_button.pressed.connect(_on_restart_pressed)
 	_on_gold_changed(Events.total_gold)
 	if Events.player_max_health > 0:
@@ -51,6 +53,7 @@ func _ready() -> void:
 ## 둥근 패널/라벨이 자신의 중심을 기준으로 스케일되도록 pivot 보정 (레이아웃 확정 후 1회).
 func _init_pivots() -> void:
 	gold_label.pivot_offset = gold_label.size * 0.5
+	weapon_label.pivot_offset = weapon_label.size * 0.5
 	wave_clear_bg.pivot_offset = wave_clear_bg.size * 0.5
 	wave_clear_label.pivot_offset = wave_clear_label.size * 0.5
 	game_over_panel.pivot_offset = game_over_panel.size * 0.5
@@ -117,6 +120,19 @@ func _update_low_hp_warning(health: int) -> void:
 		_low_hp_tween.kill()
 		_low_hp_tween = null
 		low_hp_overlay.color.a = 0.0
+
+
+## 무기 픽업 획득 시 이름/등급을 표시하고 등급 색으로 강조 펄스.
+func _on_weapon_equipped(stats: Dictionary) -> void:
+	var tier_id: String = stats.get("tier_id", "common")
+	if tier_id == "common":
+		weapon_label.text = stats.get("name", "")
+	else:
+		weapon_label.text = "%s %s" % [stats.get("tier_name", ""), stats.get("name", "")]
+	weapon_label.add_theme_color_override("font_color", stats.get("tier_color", Color.WHITE))
+	weapon_label.scale = Vector2(1.4, 1.4)
+	var tw := create_tween()
+	tw.tween_property(weapon_label, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _on_wave_changed(wave: int) -> void:

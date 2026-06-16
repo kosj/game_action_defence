@@ -12,6 +12,8 @@ const BULLET := preload("res://scenes/Bullet.tscn")
 const _OrbClass := preload("res://scripts/Orb.gd")
 const _LightningClass := preload("res://scripts/Lightning.gd")
 const _FXBurst  := preload("res://scripts/FXBurst.gd")
+const _WeaponDB := preload("res://scripts/WeaponDB.gd")
+const BASE_BULLET_SPEED := 700.0
 
 @onready var body: Node2D = $Body
 @onready var muzzle: Marker2D = $Body/Muzzle
@@ -27,6 +29,7 @@ var _base_attack_cooldown: float
 var _base_max_health: int
 var _orbs: Array = []
 var _lightning: Node2D = null
+var current_weapon: Dictionary = _WeaponDB.default_weapon()
 
 
 func _ready() -> void:
@@ -34,6 +37,7 @@ func _ready() -> void:
 	_base_move_speed = move_speed
 	_base_attack_cooldown = attack_cooldown
 	_base_max_health = max_health
+	_recompute_combat_stats()
 	health = max_health
 	_hurt_timer = 5.0   # 시작 시 5초 무적 (프리워밍·첫 좀비 도착 전 보호)
 	Events.update_player_health(health, max_health)
@@ -98,8 +102,10 @@ func _update_facing(target: Node2D) -> void:
 func _shoot_at(target: Node2D) -> void:
 	SoundManager.play("shoot")
 	var base_dir := (target.global_position - global_position).normalized()
-	var count := 1 + Events.upgrade_multi_bullet
-	var spread := 0.22
+	var count: int = current_weapon["pellet_count"] + Events.upgrade_multi_bullet
+	var spread: float = current_weapon["spread"]
+	if count > 1 and spread <= 0.0:
+		spread = 0.22   # 무기 자체엔 탄퍼짐이 없어도 다중발사 강화 시 보기 좋게 퍼지도록
 	for i in range(count):
 		var angle_off := 0.0
 		if count > 1:
@@ -109,10 +115,15 @@ func _shoot_at(target: Node2D) -> void:
 		b.global_position = muzzle.global_position
 		b.direction = dir
 		b.rotation = dir.angle() + PI / 2
-	# muzzle flash
+		b.speed = BASE_BULLET_SPEED * current_weapon["bullet_speed_mult"]
+		b.damage = current_weapon["damage"] + Events.upgrade_bullet_damage
+		b.scale = Vector2.ONE * current_weapon["bullet_scale"]
+		b.trail_color = current_weapon["color"]
+		b.splash_radius = current_weapon["splash_radius"]
+	# muzzle flash — 무기 등급이 높을수록 더 크고 화려하게
 	var fx := _FXBurst.new()
-	fx.color = Color(1.0, 0.75, 0.2)
-	fx.max_radius = 14.0
+	fx.color = current_weapon["color"]
+	fx.max_radius = 14.0 * (1.0 + (current_weapon["tier_mult"] - 1.0) * 0.35)
 	fx.duration = 0.1
 	get_tree().current_scene.add_child(fx)
 	fx.global_position = muzzle.global_position
@@ -148,7 +159,7 @@ func _die() -> void:
 ## 상점에서 업그레이드 구매 후 또는 웨이브 시작 시 호출.
 func apply_upgrades() -> void:
 	move_speed = _base_move_speed + 30.0 * Events.upgrade_speed
-	attack_cooldown = _base_attack_cooldown * pow(0.85, Events.upgrade_atk_speed)
+	_recompute_combat_stats()
 	var new_max := _base_max_health + Events.upgrade_max_health
 	if new_max > max_health:
 		health += new_max - max_health   # 늘어난 만큼 즉시 회복
@@ -187,3 +198,14 @@ func _update_lightning() -> void:
 func heal_full() -> void:
 	health = max_health
 	Events.update_player_health(health, max_health)
+
+
+func _recompute_combat_stats() -> void:
+	attack_cooldown = _base_attack_cooldown * pow(0.85, Events.upgrade_atk_speed) * current_weapon["cooldown_mult"]
+
+
+## 맵의 무기 픽업 획득 시 호출 — 즉시 교체 장착.
+func equip_weapon(weapon_stats: Dictionary) -> void:
+	current_weapon = weapon_stats
+	_recompute_combat_stats()
+	Events.weapon_equipped.emit(weapon_stats)
