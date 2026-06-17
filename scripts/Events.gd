@@ -13,6 +13,9 @@ signal shop_closed
 signal weapon_equipped(stats: Dictionary)
 signal score_changed(score: int)
 signal high_score_changed(high_score: int)
+signal boss_spawned(max_health: int)
+signal boss_health_changed(health: int, max_health: int)
+signal boss_died
 
 var total_gold: int = 0
 var total_kills: int = 0

@@ -69,7 +69,10 @@ func _check_contact_damage() -> void:
 		return
 	for body_node in hurtbox.get_overlapping_bodies():
 		if body_node.is_in_group("zombies"):
-			_take_damage(contact_damage)
+			var dmg := contact_damage
+			if body_node.has_method("get_contact_damage"):
+				dmg = body_node.get_contact_damage()   # 보스 등 강화 적은 더 큰 접촉 피해
+			_take_damage(dmg)
 			break
 
 
