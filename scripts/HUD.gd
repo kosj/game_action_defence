@@ -183,7 +183,7 @@ func _on_player_died() -> void:
 	SaveManager.delete_save()   # 사망 시 진행 실패 — 체크포인트 무효화
 	var m := int(Events.elapsed_time) / 60
 	var s := int(Events.elapsed_time) % 60
-	stats_label.text = "Reached Wave %d   Time %02d:%02d" % [Events.current_wave, m, s]
+	stats_label.text = "Wave %d   Kills %d\n%02d:%02d" % [Events.current_wave, Events.total_kills, m, s]
 
 	game_over_panel.visible = true
 	game_over_panel.modulate.a = 0.0

@@ -13,6 +13,7 @@ signal shop_closed
 signal weapon_equipped(stats: Dictionary)
 
 var total_gold: int = 0
+var total_kills: int = 0
 var player_health: int = 0
 var player_max_health: int = 0
 var current_wave: int = 1
@@ -53,6 +54,7 @@ func update_player_health(health: int, max_health: int) -> void:
 
 func reset() -> void:
 	total_gold = 0
+	total_kills = 0
 	player_health = 0
 	player_max_health = 0
 	current_wave = 1

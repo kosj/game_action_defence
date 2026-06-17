@@ -147,7 +147,7 @@ func _build_ui() -> void:
 
 	# 계속 버튼
 	_continue_btn = Button.new()
-	_continue_btn.text = "Continue  →"
+	_continue_btn.text = "Continue ->"
 	_continue_btn.custom_minimum_size = Vector2(0, 66)
 	_apply_font(_continue_btn, 26)
 	_UIStyle.apply_button_style(_continue_btn, Color(0.14, 0.40, 0.20), Color(0.4, 0.85, 0.45))
@@ -160,7 +160,7 @@ func _init_pivot() -> void:
 
 
 func _make_section_header(section: String) -> Label:
-	var lbl := _make_label("◆ %s" % section, 15)
+	var lbl := _make_label("-- %s" % section, 15)
 	lbl.add_theme_color_override("font_color", SECTION_COLORS.get(section, Color.WHITE))
 	return lbl
 
@@ -247,22 +247,14 @@ func _refresh_buttons() -> void:
 		var cost := _get_cost(upg)
 
 		if id != "heal" and cost == -1:
-			btn.text = "%s  ★ MAX\n%s" % [upg["label"], upg["desc"]]
+			btn.text = "%s  [MAX]\n%s" % [upg["label"], upg["desc"]]
 			btn.disabled = true
 		else:
 			var lvl := _get_level(id)
 			var max_lvl: int = upg["costs"].size()
-			var pip_str := ("  " + _pip_string(lvl, max_lvl)) if id != "heal" else ""
-			btn.text = "%s%s\n-%dG   %s" % [upg["label"], pip_str, cost, upg["desc"]]
+			var lvl_str := ("  (%d/%d)" % [lvl, max_lvl]) if id != "heal" else ""
+			btn.text = "%s%s\n-%dG   %s" % [upg["label"], lvl_str, cost, upg["desc"]]
 			btn.disabled = Events.total_gold < cost
-
-
-## 업그레이드 레벨을 ●(획득)/○(남음) 점으로 한눈에 표시.
-func _pip_string(lvl: int, max_lvl: int) -> String:
-	var s := ""
-	for i in max_lvl:
-		s += "●" if i < lvl else "○"
-	return s
 
 
 func _on_upgrade_pressed(id: String) -> void:
