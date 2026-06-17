@@ -51,12 +51,15 @@ Autoload(싱글톤):
 - MobileJoystick: `base_radius`, `knob_radius`, `dead_zone`, `activation_ratio`
 
 ## 아트 에셋
-`assets/sprites/` 의 스프라이트는 [Kenney](https://www.kenney.nl/) 의 CC0(퍼블릭
-도메인) 에셋입니다. 출처 팩:
-- `player.png` — Top-down Shooter (`survivor1_gun`)
-- `zombie.png` — Top-down Shooter (`zoimbie1_hold`)
-- `bullet.png` — Top-down Tanks Redux (`bulletSand1_outline`)
-- `gold.png`   — Platformer/Physics (`coinGold`)
+`assets/` 의 스프라이트는 [Kenney](https://www.kenney.nl/) 의 CC0(퍼블릭
+도메인) 에셋입니다. 출처 팩 / 원본 파일:
+- `sprites/player.png`           — Top-down Shooter (`manBlue_gun`)
+- `sprites/zombie.png`           — Top-down Shooter (`zoimbie1_machine`)
+- `sprites/bullet.png`           — Top-down Tanks Redux (`bulletSand1_outline`)
+- `sprites/gold.png`             — Platformer/Physics (`coinGold`)
+- `ui/ui_joystick_base.png`      — UI Pack (`grey_circle`)
+- `ui/ui_joystick_knob.png`      — UI Pack (`blue_circle`)
+- `ui/ui_heart_*.png`, `ui_coin.png` — Kenney 스타일 CC0 HUD 아이콘
 
 PNG 는 Godot 에디터를 한 번 열면 `.import` 가 자동 생성됩니다(스크립트 uid 와 동일).
 
