@@ -104,6 +104,7 @@ func _on_zombie_killed() -> void:
 	if not _wave_active:
 		return
 	_killed += 1
+	Events.total_kills += 1
 	Events.wave_kill_progress = _killed
 	Events.wave_progress_changed.emit(_killed, WAVES[_wave_idx]["total"])
 

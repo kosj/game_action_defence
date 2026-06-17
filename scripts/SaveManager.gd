@@ -50,6 +50,7 @@ func delete_save() -> void:
 func save_game(player: Node) -> void:
 	var data := {
 		"total_gold": Events.total_gold,
+		"total_kills": Events.total_kills,
 		"current_wave": Events.current_wave,
 		"elapsed_time": Events.elapsed_time,
 		"player_health": player.health,
@@ -90,6 +91,7 @@ func load_save() -> Dictionary:
 func apply_to_events(data: Dictionary) -> void:
 	Events.reset()
 	Events.total_gold = data.get("total_gold", 0)
+	Events.total_kills = data.get("total_kills", 0)
 	Events.current_wave = data.get("current_wave", 1)
 	Events.elapsed_time = data.get("elapsed_time", 0.0)
 	Events.upgrade_speed = data.get("upgrade_speed", 0)

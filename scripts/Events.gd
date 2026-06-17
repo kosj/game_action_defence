@@ -15,6 +15,7 @@ signal score_changed(score: int)
 signal high_score_changed(high_score: int)
 
 var total_gold: int = 0
+var total_kills: int = 0
 var player_health: int = 0
 var player_max_health: int = 0
 var current_wave: int = 1
@@ -81,6 +82,7 @@ func is_new_record() -> bool:
 
 func reset() -> void:
 	total_gold = 0
+	total_kills = 0
 	player_health = 0
 	player_max_health = 0
 	current_wave = 1
