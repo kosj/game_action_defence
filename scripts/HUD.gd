@@ -16,6 +16,8 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var high_score_label: Label = $HighScoreLabel
 @onready var flash_overlay: ColorRect = $FlashOverlay
 @onready var low_hp_overlay: ColorRect = $LowHpOverlay
+@onready var boss_bar: Control = $BossBar
+@onready var boss_fill: ColorRect = $BossBar/BarFill
 @onready var wave_clear_bg: Panel = $WaveClearBg
 @onready var wave_clear_label: Label = $WaveClearLabel
 @onready var game_over_panel: Panel = $GameOverPanel
@@ -23,11 +25,14 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var restart_button: Button = $GameOverPanel/Margin/VBoxContainer/RestartButton
 @onready var main_menu_button: Button = $GameOverPanel/Margin/VBoxContainer/MainMenuButton
 
+const BOSS_BAR_W := 400.0
+
 var _prev_health: int = -1
 var _prev_gold: int = -1
 var _prev_score: int = -1
 var _max_health: int = 0
 var _low_hp_tween: Tween = null
+var _boss_max: int = 1
 
 
 func _ready() -> void:
@@ -48,6 +53,9 @@ func _ready() -> void:
 	Events.weapon_equipped.connect(_on_weapon_equipped)
 	Events.score_changed.connect(_on_score_changed)
 	Events.high_score_changed.connect(_on_high_score_changed)
+	Events.boss_spawned.connect(_on_boss_spawned)
+	Events.boss_health_changed.connect(_on_boss_health_changed)
+	Events.boss_died.connect(_on_boss_died)
 	restart_button.pressed.connect(_on_restart_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
 	_on_gold_changed(Events.total_gold)
@@ -98,6 +106,28 @@ func _pulse_score() -> void:
 
 func _on_high_score_changed(high: int) -> void:
 	high_score_label.text = "Best %d" % high
+
+
+func _on_boss_spawned(max_health: int) -> void:
+	_boss_max = maxi(max_health, 1)
+	boss_fill.size.x = BOSS_BAR_W
+	boss_bar.visible = true
+	boss_bar.modulate.a = 0.0
+	var tw := create_tween()
+	tw.tween_property(boss_bar, "modulate:a", 1.0, 0.3)
+
+
+func _on_boss_health_changed(health: int, max_health: int) -> void:
+	_boss_max = maxi(max_health, 1)
+	var ratio := clampf(float(health) / float(_boss_max), 0.0, 1.0)
+	var tw := create_tween()
+	tw.tween_property(boss_fill, "size:x", BOSS_BAR_W * ratio, 0.12)
+
+
+func _on_boss_died() -> void:
+	var tw := create_tween()
+	tw.tween_property(boss_bar, "modulate:a", 0.0, 0.4)
+	tw.tween_callback(func(): boss_bar.visible = false)
 
 
 func _on_player_health_changed(health: int, max_health: int) -> void:
@@ -211,6 +241,7 @@ func _on_wave_complete(wave: int) -> void:
 
 func _on_player_died() -> void:
 	SaveManager.delete_save()   # 사망 시 진행 실패 — 체크포인트 무효화
+	boss_bar.visible = false
 	var m := int(Events.elapsed_time) / 60
 	var s := int(Events.elapsed_time) % 60
 	var best_text := ("NEW BEST!  %d" % Events.high_score) if Events.is_new_record() \
