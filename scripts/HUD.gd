@@ -12,8 +12,6 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var wave_label: Label = $WaveLabel
 @onready var time_label: Label = $TimeLabel
 @onready var progress_label: Label = $ProgressLabel
-@onready var score_label: Label = $ScoreLabel
-@onready var high_score_label: Label = $HighScoreLabel
 @onready var flash_overlay: ColorRect = $FlashOverlay
 @onready var low_hp_overlay: ColorRect = $LowHpOverlay
 @onready var wave_clear_bg: Panel = $WaveClearBg
@@ -25,7 +23,6 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 
 var _prev_health: int = -1
 var _prev_gold: int = -1
-var _prev_score: int = -1
 var _max_health: int = 0
 var _low_hp_tween: Tween = null
 
@@ -46,8 +43,6 @@ func _ready() -> void:
 	Events.wave_progress_changed.connect(_on_wave_progress_changed)
 	Events.wave_complete.connect(_on_wave_complete)
 	Events.weapon_equipped.connect(_on_weapon_equipped)
-	Events.score_changed.connect(_on_score_changed)
-	Events.high_score_changed.connect(_on_high_score_changed)
 	restart_button.pressed.connect(_on_restart_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
 	_on_gold_changed(Events.total_gold)
@@ -56,15 +51,12 @@ func _ready() -> void:
 	_on_wave_changed(Events.current_wave)
 	_on_elapsed_changed(Events.elapsed_time)
 	_on_wave_progress_changed(Events.wave_kill_progress, Events.wave_kill_total)
-	_on_score_changed(Events.score)
-	_on_high_score_changed(Events.high_score)
 
 
 ## 둥근 패널/라벨이 자신의 중심을 기준으로 스케일되도록 pivot 보정 (레이아웃 확정 후 1회).
 func _init_pivots() -> void:
 	gold_label.pivot_offset = gold_label.size * 0.5
 	weapon_label.pivot_offset = weapon_label.size * 0.5
-	score_label.pivot_offset = score_label.size * 0.5
 	wave_clear_bg.pivot_offset = wave_clear_bg.size * 0.5
 	wave_clear_label.pivot_offset = wave_clear_label.size * 0.5
 	game_over_panel.pivot_offset = game_over_panel.size * 0.5
@@ -83,23 +75,6 @@ func _pulse_gold() -> void:
 	tw.tween_property(gold_label, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
-func _on_score_changed(total: int) -> void:
-	score_label.text = "Score %d" % total
-	if _prev_score >= 0 and total > _prev_score:
-		_pulse_score()
-	_prev_score = total
-
-
-func _pulse_score() -> void:
-	score_label.scale = Vector2(1.25, 1.25)
-	var tw := create_tween()
-	tw.tween_property(score_label, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-
-
-func _on_high_score_changed(high: int) -> void:
-	high_score_label.text = "Best %d" % high
-
-
 func _on_player_health_changed(health: int, max_health: int) -> void:
 	if max_health != _max_health:
 		_max_health = max_health
@@ -116,7 +91,7 @@ func _rebuild_hearts(max_health: int) -> void:
 		child.queue_free()
 	for i in range(max_health):
 		var tr := TextureRect.new()
-		tr.custom_minimum_size = Vector2(44, 44)
+		tr.custom_minimum_size = Vector2(30, 30)
 		tr.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
 		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tr.texture = HEART_FULL
@@ -150,7 +125,7 @@ func _update_low_hp_warning(health: int) -> void:
 		low_hp_overlay.color.a = 0.0
 
 
-## 무기 픽업 획득 시 이름/등급을 표시하고 등급 색으로 강조 펄스.
+## 무기 픽업 획득 시 이름/등급을 잠시 표시 후 자동 페이드 아웃.
 func _on_weapon_equipped(stats: Dictionary) -> void:
 	var tier_id: String = stats.get("tier_id", "common")
 	if tier_id == "common":
@@ -158,9 +133,14 @@ func _on_weapon_equipped(stats: Dictionary) -> void:
 	else:
 		weapon_label.text = "%s %s" % [stats.get("tier_name", ""), stats.get("name", "")]
 	weapon_label.add_theme_color_override("font_color", stats.get("tier_color", Color.WHITE))
+	weapon_label.modulate.a = 1.0
 	weapon_label.scale = Vector2(1.4, 1.4)
+	weapon_label.visible = true
 	var tw := create_tween()
 	tw.tween_property(weapon_label, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(1.5)
+	tw.tween_property(weapon_label, "modulate:a", 0.0, 0.4)
+	tw.tween_callback(func(): weapon_label.visible = false)
 
 
 func _on_wave_changed(wave: int) -> void:
@@ -208,10 +188,7 @@ func _on_player_died() -> void:
 	SaveManager.delete_save()   # 사망 시 진행 실패 — 체크포인트 무효화
 	var m := int(Events.elapsed_time) / 60
 	var s := int(Events.elapsed_time) % 60
-	var best_text := ("NEW BEST!  %d" % Events.high_score) if Events.is_new_record() \
-		else ("Best  %d" % Events.high_score)
-	stats_label.text = "Score  %d\n%s\nReached Wave %d   Time %02d:%02d" % \
-		[Events.score, best_text, Events.current_wave, m, s]
+	stats_label.text = "Wave %d   Kills %d\n%02d:%02d" % [Events.current_wave, Events.total_kills, m, s]
 
 	game_over_panel.visible = true
 	game_over_panel.modulate.a = 0.0
@@ -223,14 +200,12 @@ func _on_player_died() -> void:
 
 
 func _on_restart_pressed() -> void:
-	SaveManager.save_high_score()   # 죽지 않고 재시작해도 최고점 보존
 	Events.reset()
 	Pool.clear()
 	get_tree().reload_current_scene()
 
 
 func _on_main_menu_pressed() -> void:
-	SaveManager.save_high_score()
 	Events.reset()
 	Pool.clear()
 	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
