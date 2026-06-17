@@ -4,11 +4,37 @@ extends Node
 ## 이어하기는 마지막 체크포인트의 골드/업그레이드/체력/장착 무기로 새 웨이브를 시작한다.
 
 const SAVE_PATH := "user://save.json"
+const HIGHSCORE_PATH := "user://highscore.save"   # 체크포인트와 분리 — 사망해도 유지
 
 var pending_continue: bool = false
 var pending_player_health: int = 1
 var pending_weapon_id: String = "pistol"
 var pending_weapon_tier_id: String = "common"
+
+
+func _ready() -> void:
+	# 시작 시 최고 점수를 불러와 Events 에 주입 (autoload 순서상 Events 는 이미 준비됨)
+	Events.set_high_score(_read_high_score())
+	# 사망/판 종료 시 최고 점수를 디스크에 보존
+	Events.player_died.connect(save_high_score)
+
+
+func save_high_score() -> void:
+	var f := FileAccess.open(HIGHSCORE_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(str(Events.high_score))
+		f.close()
+
+
+func _read_high_score() -> int:
+	if not FileAccess.file_exists(HIGHSCORE_PATH):
+		return 0
+	var f := FileAccess.open(HIGHSCORE_PATH, FileAccess.READ)
+	if not f:
+		return 0
+	var text := f.get_as_text().strip_edges()
+	f.close()
+	return int(text) if text.is_valid_int() else 0
 
 
 func has_save() -> bool:
