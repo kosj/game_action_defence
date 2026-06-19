@@ -31,6 +31,22 @@ var score: int = 0
 var high_score: int = 0
 var _prev_high: int = 0
 
+# 난이도 (0=Easy, 1=Normal, 2=Hard) — 메인 메뉴에서 선택하며 디스크에 보존된다.
+# Events.reset() 으로 초기화되지 않는다(판이 바뀌어도 유지되는 설정값).
+var difficulty: int = 1
+const DIFFICULTY_NAMES: Array = ["Easy", "Normal", "Hard"]
+const _DIFF_ENEMY_HP: Array    = [0.70, 1.00, 1.55]   # 좀비 체력 배수
+const _DIFF_ENEMY_SPEED: Array = [0.90, 1.00, 1.18]   # 좀비 이동속도 배수
+const _DIFF_SPAWN_MULT: Array  = [1.30, 1.00, 0.78]   # 스폰 간격 배수(낮을수록 빠르게 몰림)
+const _DIFF_BOSS_HP: Array     = [0.70, 1.00, 1.60]   # 보스 체력 배수
+
+
+func diff_enemy_hp_mult() -> float:    return _DIFF_ENEMY_HP[clampi(difficulty, 0, 2)]
+func diff_enemy_speed_mult() -> float: return _DIFF_ENEMY_SPEED[clampi(difficulty, 0, 2)]
+func diff_spawn_mult() -> float:       return _DIFF_SPAWN_MULT[clampi(difficulty, 0, 2)]
+func diff_boss_hp_mult() -> float:     return _DIFF_BOSS_HP[clampi(difficulty, 0, 2)]
+func difficulty_name() -> String:      return DIFFICULTY_NAMES[clampi(difficulty, 0, 2)]
+
 # 업그레이드 레벨 (0 = 미구매)
 var upgrade_speed: int = 0
 var upgrade_atk_speed: int = 0

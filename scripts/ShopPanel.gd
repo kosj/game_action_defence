@@ -5,15 +5,15 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 const _COIN_ICON := preload("res://assets/ui/ui_coin.png")
 
 const UPGRADES: Array = [
-	{"section": "WEAPON",    "id": "speed",            "label": "Move Speed",    "desc": "+30 move speed",           "costs": [10, 15, 20, 25]},
-	{"section": "WEAPON",    "id": "atk_speed",        "label": "Atk Speed",     "desc": "-15% fire delay",          "costs": [15, 22, 30, 40]},
-	{"section": "WEAPON",    "id": "bullet_damage",    "label": "Bullet Dmg",    "desc": "+1 bullet damage",         "costs": [20, 30, 45, 60]},
-	{"section": "WEAPON",    "id": "multi_bullet",     "label": "Multi-Shot",    "desc": "+1 extra bullet",          "costs": [30, 50, 80]},
-	{"section": "ORB",       "id": "orbs",             "label": "Orb Shield",    "desc": "+1 orbiting orb",          "costs": [25, 40, 60, 80]},
-	{"section": "ORB",       "id": "orb_damage",       "label": "Orb Dmg",       "desc": "+1 orb damage",            "costs": [20, 30, 45, 60]},
-	{"section": "LIGHTNING", "id": "lightning",        "label": "Lightning Bolt","desc": "Periodic strike + splash", "costs": [40, 65, 95, 130]},
-	{"section": "LIGHTNING", "id": "lightning_damage", "label": "Lightning Dmg", "desc": "+1 lightning damage",      "costs": [20, 30, 45, 60]},
-	{"section": "SURVIVAL",  "id": "max_health",       "label": "Max HP",        "desc": "+1 heart (heals)",         "costs": [12, 18, 26, 35]},
+	{"section": "WEAPON",    "id": "speed",            "label": "Move Speed",    "desc": "+30 move speed",           "costs": [10, 15, 20, 25, 32, 40, 50, 62, 76, 92]},
+	{"section": "WEAPON",    "id": "atk_speed",        "label": "Atk Speed",     "desc": "-15% fire delay",          "costs": [15, 22, 30, 40, 52, 66, 82, 100, 120, 142]},
+	{"section": "WEAPON",    "id": "bullet_damage",    "label": "Bullet Dmg",    "desc": "+1 bullet damage",         "costs": [20, 30, 45, 60, 80, 105, 135, 170, 210, 255]},
+	{"section": "WEAPON",    "id": "multi_bullet",     "label": "Multi-Shot",    "desc": "+1 extra bullet",          "costs": [30, 50, 80, 120, 170, 230]},
+	{"section": "ORB",       "id": "orbs",             "label": "Orb Shield",    "desc": "+1 orbiting orb",          "costs": [25, 40, 60, 80, 105, 135, 170, 210]},
+	{"section": "ORB",       "id": "orb_damage",       "label": "Orb Dmg",       "desc": "+1 orb damage",            "costs": [20, 30, 45, 60, 80, 105, 135, 170]},
+	{"section": "LIGHTNING", "id": "lightning",        "label": "Lightning Bolt","desc": "Faster strikes",           "costs": [40, 65, 95, 130, 170, 215, 265, 320]},
+	{"section": "LIGHTNING", "id": "lightning_damage", "label": "Lightning Dmg", "desc": "+1 lightning damage",      "costs": [20, 30, 45, 60, 80, 105, 135, 170]},
+	{"section": "SURVIVAL",  "id": "max_health",       "label": "Max HP",        "desc": "+1 heart (heals)",         "costs": [12, 18, 26, 35, 46, 58, 72, 88, 106, 126]},
 	{"section": "SURVIVAL",  "id": "heal",             "label": "Heal HP",       "desc": "Full HP restore",          "costs": [8,  8,  8,  8]},
 ]
 

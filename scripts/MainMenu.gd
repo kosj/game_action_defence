@@ -4,6 +4,7 @@ extends CanvasLayer
 const _UIStyle := preload("res://scripts/UIStyle.gd")
 
 var _continue_btn: Button
+var _diff_buttons: Array = []
 
 
 func _ready() -> void:
@@ -40,6 +41,29 @@ func _build_ui() -> void:
 	best.add_theme_color_override("font_color", Color(0.85, 0.88, 0.95))
 	box.add_child(best)
 
+	# 난이도 선택 (Easy / Normal / Hard) — 선택 즉시 디스크에 보존되며 New Game/Continue 모두에 적용.
+	var diff_title := Label.new()
+	diff_title.text = "Difficulty"
+	diff_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	diff_title.add_theme_font_size_override("font_size", 18)
+	diff_title.add_theme_color_override("font_color", Color(0.75, 0.80, 0.90))
+	box.add_child(diff_title)
+
+	var diff_row := HBoxContainer.new()
+	diff_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	diff_row.add_theme_constant_override("separation", 10)
+	box.add_child(diff_row)
+	_diff_buttons.clear()
+	for i in Events.DIFFICULTY_NAMES.size():
+		var b := Button.new()
+		b.text = Events.DIFFICULTY_NAMES[i]
+		b.custom_minimum_size = Vector2(96, 50)
+		b.add_theme_font_size_override("font_size", 19)
+		b.pressed.connect(_on_difficulty_pressed.bind(i))
+		diff_row.add_child(b)
+		_diff_buttons.append(b)
+	_refresh_difficulty_buttons()
+
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 24)
 	box.add_child(spacer)
@@ -60,6 +84,23 @@ func _build_ui() -> void:
 	_continue_btn.disabled = not SaveManager.has_save()
 	_continue_btn.pressed.connect(_on_continue_pressed)
 	box.add_child(_continue_btn)
+
+
+func _on_difficulty_pressed(idx: int) -> void:
+	Events.difficulty = clampi(idx, 0, 2)
+	SaveManager.save_difficulty()
+	_refresh_difficulty_buttons()
+
+
+## 선택된 난이도만 강조색으로 표시(Easy=초록 / Normal=파랑 / Hard=빨강).
+func _refresh_difficulty_buttons() -> void:
+	var accents := [Color(0.40, 0.85, 0.45), Color(0.40, 0.60, 0.95), Color(0.95, 0.40, 0.35)]
+	for i in _diff_buttons.size():
+		var b: Button = _diff_buttons[i]
+		if i == Events.difficulty:
+			_UIStyle.apply_button_style(b, accents[i].darkened(0.25), accents[i])
+		else:
+			_UIStyle.apply_button_style(b, Color(0.14, 0.15, 0.20), Color(0.30, 0.32, 0.40))
 
 
 func _on_new_game_pressed() -> void:

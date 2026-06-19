@@ -5,6 +5,7 @@ extends Node
 
 const SAVE_PATH := "user://save.json"
 const HIGHSCORE_PATH := "user://highscore.save"   # 체크포인트와 분리 — 사망해도 유지
+const DIFFICULTY_PATH := "user://difficulty.save" # 난이도 설정 — 세션 간 보존
 
 var pending_continue: bool = false
 var pending_player_health: int = 1
@@ -15,8 +16,28 @@ var pending_weapon_tier_id: String = "common"
 func _ready() -> void:
 	# 시작 시 최고 점수를 불러와 Events 에 주입 (autoload 순서상 Events 는 이미 준비됨)
 	Events.set_high_score(_read_high_score())
+	# 저장된 난이도 설정 복원 (없으면 Normal)
+	Events.difficulty = _read_difficulty()
 	# 사망/판 종료 시 최고 점수를 디스크에 보존
 	Events.player_died.connect(save_high_score)
+
+
+func save_difficulty() -> void:
+	var f := FileAccess.open(DIFFICULTY_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(str(Events.difficulty))
+		f.close()
+
+
+func _read_difficulty() -> int:
+	if not FileAccess.file_exists(DIFFICULTY_PATH):
+		return 1   # 기본값: Normal
+	var f := FileAccess.open(DIFFICULTY_PATH, FileAccess.READ)
+	if not f:
+		return 1
+	var text := f.get_as_text().strip_edges()
+	f.close()
+	return clampi(int(text), 0, 2) if text.is_valid_int() else 1
 
 
 func save_high_score() -> void:
