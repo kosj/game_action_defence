@@ -7,6 +7,7 @@ extends CharacterBody2D
 @export var max_health: int = 5
 @export var contact_damage: int = 1
 @export var contact_cooldown: float = 1.5   # 좀비 접촉 피해 간격
+@export var contact_radius: float = 26.0    # 실제 접촉으로 인정할 중심간 거리(스프라이트가 겹쳤을 때만 피해)
 
 const BULLET := preload("res://scenes/Bullet.tscn")
 const _OrbClass := preload("res://scripts/Orb.gd")
@@ -67,8 +68,13 @@ func _physics_process(delta: float) -> void:
 func _check_contact_damage() -> void:
 	if _hurt_timer > 0.0:
 		return
+	var contact_r_sq := contact_radius * contact_radius
 	for body_node in hurtbox.get_overlapping_bodies():
 		if body_node.is_in_group("zombies"):
+			# Area2D 광역 검출은 가장자리 접촉(중심거리 ~32px)도 잡으므로,
+			# 실제로 스프라이트가 겹친 경우(중심거리 ≤ contact_radius)에만 피해를 준다.
+			if global_position.distance_squared_to(body_node.global_position) > contact_r_sq:
+				continue
 			var dmg := contact_damage
 			if body_node.has_method("get_contact_damage"):
 				dmg = body_node.get_contact_damage()   # 보스 등 강화 적은 더 큰 접촉 피해
