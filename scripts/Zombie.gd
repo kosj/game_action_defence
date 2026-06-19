@@ -14,6 +14,7 @@ var player: Node2D = null
 var _alive: bool = false
 var _type_color: Color = Color.WHITE
 var _score_value: int = 0
+var _contact_damage: int = 1
 
 
 func _ready() -> void:
@@ -34,6 +35,7 @@ func on_despawn() -> void:
 	velocity = Vector2.ZERO
 	remove_from_group("zombies")
 	body.modulate = Color.WHITE
+	body.scale = Vector2.ONE
 
 
 ## 스포너가 풀에서 꺼낸 직후 호출해 종류별 스탯·색상을 주입한다.
@@ -43,7 +45,14 @@ func setup(type_data: Dictionary) -> void:
 	health = max_health
 	_type_color = type_data["modulate"]
 	_score_value = type_data.get("score", 0)
+	_contact_damage = type_data.get("contact", 1)
 	body.modulate = _type_color
+	body.scale = Vector2.ONE * float(type_data.get("scale", 1.0))
+
+
+## 종류별 접촉 피해(차저/저거넛 등 강화 좀비는 더 큰 피해). Player 가 호출.
+func get_contact_damage() -> int:
+	return _contact_damage
 
 
 func _physics_process(_delta: float) -> void:

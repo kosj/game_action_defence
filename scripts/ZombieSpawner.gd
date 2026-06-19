@@ -11,21 +11,27 @@ const BOSS := preload("res://scenes/Boss.tscn")
 ## 몇 웨이브마다 보스가 등장하는지 (5, 10, 15, ...)
 const BOSS_EVERY: int = 5
 
-## 웨이브 테이블: total=이 웨이브에서 처치해야 할 총 좀비 수, max_z=최대 동시 출현 수
+## 웨이브 테이블: total=이 웨이브에서 처치해야 할 총 좀비 수, max_z=최대 동시 출현 수.
+## weights 의 인덱스는 ZOMBIE_TYPES 와 1:1 대응 — 후반 웨이브일수록 강한 종을 더 많이 섞는다.
 const WAVES: Array = [
-	{"total": 20,  "max_z": 8,  "interval": 0.9,  "weights": [10, 0, 0]},
-	{"total": 30,  "max_z": 12, "interval": 0.70, "weights": [8,  2, 0]},
-	{"total": 45,  "max_z": 16, "interval": 0.55, "weights": [6,  3, 1]},
-	{"total": 60,  "max_z": 20, "interval": 0.45, "weights": [5,  3, 2]},
-	{"total": 80,  "max_z": 25, "interval": 0.35, "weights": [4,  4, 2]},
-	{"total": 100, "max_z": 30, "interval": 0.25, "weights": [3,  4, 3]},
+	{"total": 20,  "max_z": 8,  "interval": 0.9,  "weights": [10, 0, 0, 0, 0, 0]},
+	{"total": 30,  "max_z": 12, "interval": 0.70, "weights": [8,  2, 0, 2, 0, 0]},
+	{"total": 45,  "max_z": 16, "interval": 0.55, "weights": [6,  3, 1, 3, 1, 0]},
+	{"total": 60,  "max_z": 20, "interval": 0.45, "weights": [5,  3, 2, 3, 2, 1]},
+	{"total": 80,  "max_z": 25, "interval": 0.35, "weights": [4,  4, 2, 3, 3, 1]},
+	{"total": 100, "max_z": 30, "interval": 0.25, "weights": [3,  4, 3, 3, 3, 2]},
 ]
 
-## 인덱스 0=기본(흰색), 1=빠른(노란색), 2=탱커(보라색). score=처치 점수.
+## 좀비 종류 테이블. 모두 플레이어를 추격하는 근접형이지만 속도/체력/접촉피해/크기/색이 다르다.
+##   0 Walker     기본              1 Runner   빠르고 약함      2 Brute      느리고 단단
+##   3 Swarmling  작고 빠른 떼거리   4 Charger  빠르고 단단+강타  5 Juggernaut 거대·매우 단단+강타
 const ZOMBIE_TYPES: Array = [
-	{"speed": 65,  "max_health": 3, "modulate": Color(1.0, 1.0, 1.0), "score": 10},
-	{"speed": 130, "max_health": 1, "modulate": Color(1.0, 0.9, 0.3), "score": 15},
-	{"speed": 40,  "max_health": 8, "modulate": Color(0.75, 0.5, 1.0), "score": 30},
+	{"speed": 65,  "max_health": 3,  "modulate": Color(1.00, 1.00, 1.00), "score": 10, "scale": 1.00, "contact": 1},
+	{"speed": 130, "max_health": 1,  "modulate": Color(1.00, 0.90, 0.30), "score": 15, "scale": 0.90, "contact": 1},
+	{"speed": 40,  "max_health": 8,  "modulate": Color(0.75, 0.50, 1.00), "score": 30, "scale": 1.25, "contact": 1},
+	{"speed": 95,  "max_health": 1,  "modulate": Color(0.55, 0.90, 0.55), "score": 8,  "scale": 0.70, "contact": 1},
+	{"speed": 108, "max_health": 5,  "modulate": Color(1.00, 0.55, 0.25), "score": 25, "scale": 1.05, "contact": 2},
+	{"speed": 32,  "max_health": 16, "modulate": Color(0.85, 0.25, 0.30), "score": 60, "scale": 1.45, "contact": 2},
 ]
 
 var player: Node2D = null
