@@ -38,15 +38,17 @@ func on_despawn() -> void:
 	body.scale = Vector2.ONE
 
 
-## 스포너가 풀에서 꺼낸 직후 호출해 종류별 스탯·색상을 주입한다.
+## 스포너가 풀에서 꺼낸 직후 호출해 종류별 스탯·스프라이트를 주입한다.
 func setup(type_data: Dictionary) -> void:
 	speed = type_data["speed"]
 	max_health = type_data["max_health"]
 	health = max_health
-	_type_color = type_data["modulate"]
+	_type_color = type_data["modulate"]   # 사망 폭발 FX·피격 잔광 색
 	_score_value = type_data.get("score", 0)
 	_contact_damage = type_data.get("contact", 1)
-	body.modulate = _type_color
+	if type_data.has("texture"):
+		body.texture = type_data["texture"]   # 종류별 캐릭터 스프라이트
+	body.modulate = Color.WHITE              # 스프라이트 본연의 색을 그대로 노출
 	body.scale = Vector2.ONE * float(type_data.get("scale", 1.0))
 
 
@@ -72,9 +74,9 @@ func take_damage(amount: int) -> void:
 		return
 	health -= amount
 	SoundManager.play("zombie_hit")
-	body.modulate = Color.WHITE
+	body.modulate = Color(1.0, 0.45, 0.45)   # 피격 순간 붉게 번쩍
 	var tw := create_tween()
-	tw.tween_property(body, "modulate", _type_color, 0.12)
+	tw.tween_property(body, "modulate", Color.WHITE, 0.12)
 	if health <= 0:
 		_die()
 

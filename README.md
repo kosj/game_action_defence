@@ -54,7 +54,14 @@ Autoload(싱글톤):
 `assets/` 의 스프라이트는 [Kenney](https://www.kenney.nl/) 의 CC0(퍼블릭
 도메인) 에셋입니다. 출처 팩 / 원본 파일:
 - `sprites/player.png`           — Top-down Shooter (`manBlue_gun`)
-- `sprites/zombie.png`           — Top-down Shooter (`zoimbie1_machine`)
+- 좀비 종류별 스프라이트 (모두 Top-down Shooter, 종류 구분용):
+  - `sprites/zombie_walker.png`     — Walker (`zoimbie1_hold`)
+  - `sprites/zombie_runner.png`     — Runner (`hitman1_hold`)
+  - `sprites/zombie_brute.png`      — Brute (`manBrown_hold`)
+  - `sprites/zombie_swarmling.png`  — Swarmling (`manOld_hold`)
+  - `sprites/zombie_charger.png`    — Charger (`survivor1_hold`)
+  - `sprites/zombie_juggernaut.png` — Juggernaut (`robot1_hold`)
+  - `sprites/boss.png`              — Boss (`zoimbie1_machine`)
 - `sprites/bullet.png`           — Top-down Tanks Redux (`bulletSand1_outline`)
 - `sprites/gold.png`             — Platformer/Physics (`coinGold`)
 - `ui/ui_joystick_base.png`      — UI Pack (`grey_circle`)
