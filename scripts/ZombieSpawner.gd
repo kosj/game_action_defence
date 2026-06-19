@@ -22,16 +22,18 @@ const WAVES: Array = [
 	{"total": 100, "max_z": 30, "interval": 0.25, "weights": [3,  4, 3, 3, 3, 2]},
 ]
 
-## 좀비 종류 테이블. 모두 플레이어를 추격하는 근접형이지만 속도/체력/접촉피해/크기/색이 다르다.
-##   0 Walker     기본              1 Runner   빠르고 약함      2 Brute      느리고 단단
-##   3 Swarmling  작고 빠른 떼거리   4 Charger  빠르고 단단+강타  5 Juggernaut 거대·매우 단단+강타
+## 좀비 종류 테이블. 모두 플레이어를 추격하는 근접형이지만 속도/체력/접촉피해/크기/스프라이트가 다르다.
+## 각 종은 Kenney Top-down Shooter 팩의 서로 다른 캐릭터로 시각 구분된다(texture).
+## modulate 는 더 이상 종 구분용 색조가 아니라 사망 폭발 FX·피격 잔광 색으로만 쓰인다.
+##   0 Walker     기본 좀비(green)        1 Runner   민첩한 정장(hitman)   2 Brute      거구(manBrown)
+##   3 Swarmling  허약한 노인(manOld)      4 Charger  단단한 생존자(survivor) 5 Juggernaut 기계 거인(robot)
 const ZOMBIE_TYPES: Array = [
-	{"speed": 65,  "max_health": 3,  "modulate": Color(1.00, 1.00, 1.00), "score": 10, "scale": 1.00, "contact": 1},
-	{"speed": 130, "max_health": 1,  "modulate": Color(1.00, 0.90, 0.30), "score": 15, "scale": 0.90, "contact": 1},
-	{"speed": 40,  "max_health": 8,  "modulate": Color(0.75, 0.50, 1.00), "score": 30, "scale": 1.25, "contact": 1},
-	{"speed": 95,  "max_health": 1,  "modulate": Color(0.55, 0.90, 0.55), "score": 8,  "scale": 0.70, "contact": 1},
-	{"speed": 108, "max_health": 5,  "modulate": Color(1.00, 0.55, 0.25), "score": 25, "scale": 1.05, "contact": 2},
-	{"speed": 32,  "max_health": 16, "modulate": Color(0.85, 0.25, 0.30), "score": 60, "scale": 1.45, "contact": 2},
+	{"speed": 65,  "max_health": 3,  "modulate": Color(0.70, 0.95, 0.55), "score": 10, "scale": 1.00, "contact": 1, "texture": preload("res://assets/sprites/zombie_walker.png")},
+	{"speed": 130, "max_health": 1,  "modulate": Color(0.85, 0.85, 0.95), "score": 15, "scale": 0.90, "contact": 1, "texture": preload("res://assets/sprites/zombie_runner.png")},
+	{"speed": 40,  "max_health": 8,  "modulate": Color(0.95, 0.70, 0.45), "score": 30, "scale": 1.25, "contact": 1, "texture": preload("res://assets/sprites/zombie_brute.png")},
+	{"speed": 95,  "max_health": 1,  "modulate": Color(1.00, 0.85, 0.70), "score": 8,  "scale": 0.70, "contact": 1, "texture": preload("res://assets/sprites/zombie_swarmling.png")},
+	{"speed": 108, "max_health": 5,  "modulate": Color(0.90, 0.80, 0.55), "score": 25, "scale": 1.05, "contact": 2, "texture": preload("res://assets/sprites/zombie_charger.png")},
+	{"speed": 32,  "max_health": 16, "modulate": Color(1.00, 0.65, 0.35), "score": 60, "scale": 1.45, "contact": 2, "texture": preload("res://assets/sprites/zombie_juggernaut.png")},
 ]
 
 var player: Node2D = null
