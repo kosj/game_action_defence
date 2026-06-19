@@ -98,7 +98,7 @@ func _process(delta: float) -> void:
 			_start_delay -= delta
 		else:
 			_accum += delta
-			if _accum >= wave["interval"]:
+			if _accum >= wave["interval"] * Events.diff_spawn_mult():
 				var alive := get_tree().get_nodes_in_group("zombies").size()
 				if alive < wave["max_z"]:
 					_accum = 0.0
@@ -165,7 +165,11 @@ func _spawn_one(type_data: Dictionary) -> void:
 		return
 	var z := Pool.acquire(ZOMBIE, get_tree().current_scene)
 	z.global_position = _random_spawn_pos()
-	z.setup(type_data)
+	# 난이도에 따라 체력/속도를 배수 적용 (원본 상수 테이블을 훼손하지 않도록 복제본 사용).
+	var d := type_data.duplicate()
+	d["max_health"] = maxi(1, int(round(float(type_data["max_health"]) * Events.diff_enemy_hp_mult())))
+	d["speed"] = float(type_data["speed"]) * Events.diff_enemy_speed_mult()
+	z.setup(d)
 
 
 ## 보스 소환 + 호위 정예 좀비. 보스 처치 시까지 웨이브 완료가 보류된다.
@@ -179,10 +183,12 @@ func _spawn_boss() -> void:
 	var boss := BOSS.instantiate()
 	get_tree().current_scene.add_child(boss)
 	boss.global_position = _random_spawn_pos()
+	# 보스는 플레이어(이속 220)를 압박할 수 있도록 일반 좀비보다 빠르게 — 회차/난이도에 따라 가속.
+	var boss_hp := int(round(float(80 + 60 * (boss_count - 1)) * Events.diff_boss_hp_mult()))
 	boss.setup({
-		"max_health": 80 + 60 * (boss_count - 1),
-		"speed": 52.0 + 3.0 * boss_count,
-		"contact_damage": 2,
+		"max_health": boss_hp,
+		"speed": (104.0 + 9.0 * boss_count) * Events.diff_enemy_speed_mult(),
+		"contact_damage": 2 + (1 if Events.difficulty == 2 else 0),
 		"score": 200 * boss_count,
 		"gold": 12 + 4 * boss_count,
 	})
