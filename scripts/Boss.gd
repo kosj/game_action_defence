@@ -45,10 +45,12 @@ func get_contact_damage() -> int:
 
 
 func _spawn_intro() -> void:
-	# 바닥에서 솟아오르듯 확대 등장 + 충격파
-	scale = Vector2.ZERO
+	# 주의: 루트(CharacterBody2D)의 scale 을 애니메이션하면 move_and_slide 의 이동/충돌이
+	# 깨져 보스가 그 자리에 얼어붙는다. 그래서 루트는 건드리지 않고 Body 스프라이트만 확대한다.
+	var target_scale := body.scale   # 씬에 지정된 크기(2.7)
+	body.scale = Vector2.ZERO
 	var tw := create_tween()
-	tw.tween_property(self, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(body, "scale", target_scale, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	var fx := _FXBurst.new()
 	fx.color = Color(0.9, 0.2, 0.2)
 	fx.max_radius = 90.0
