@@ -93,5 +93,6 @@ func _draw() -> void:
 		return
 	var base_sz := Vector2(base_radius * 2, base_radius * 2)
 	var knob_sz := Vector2(knob_radius * 2, knob_radius * 2)
-	draw_texture_rect(_BASE_TEX, Rect2(_origin - base_sz * 0.5, base_sz), false)
-	draw_texture_rect(_KNOB_TEX, Rect2(_knob_pos - knob_sz * 0.5, knob_sz), false)
+	# 반투명하게 그려 게임 화면을 가리지 않도록 한다(베이스는 더 흐리게, 노브는 또렷하게).
+	draw_texture_rect(_BASE_TEX, Rect2(_origin - base_sz * 0.5, base_sz), false, Color(1, 1, 1, 0.40))
+	draw_texture_rect(_KNOB_TEX, Rect2(_knob_pos - knob_sz * 0.5, knob_sz), false, Color(1, 1, 1, 0.65))
