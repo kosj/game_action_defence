@@ -154,6 +154,13 @@ func _get_nearest_zombie() -> Node2D:
 	return nearest
 
 
+## 적 투사체/폭발 등 비접촉 피해 진입점(스피터·자폭 좀비가 호출). 무적 시간 중이면 무시.
+func take_hit(amount: int) -> void:
+	if _dead or _hurt_timer > 0.0:
+		return
+	_take_damage(amount)
+
+
 func _take_damage(amount: int) -> void:
 	_hurt_timer = contact_cooldown
 	SoundManager.play("player_hurt")
