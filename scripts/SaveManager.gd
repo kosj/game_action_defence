@@ -20,6 +20,10 @@ func _ready() -> void:
 	Events.difficulty = _read_difficulty()
 	# 사망/판 종료 시 최고 점수를 디스크에 보존
 	Events.player_died.connect(save_high_score)
+	# 신기록이 갱신되는 즉시 보존 — 죽지 않고 창을 닫거나(에디터 정지 포함) 종료해도
+	# 최고 점수가 유실되지 않도록 한다. high_score_changed 는 점수가 실제로 갱신될 때만
+	# 발생하므로(부팅 시 주입분은 위 set_high_score 이후 연결돼 제외) 디스크 쓰기 빈도는 낮다.
+	Events.high_score_changed.connect(func(_h: int) -> void: save_high_score())
 
 
 func save_difficulty() -> void:
