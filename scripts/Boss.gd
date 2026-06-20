@@ -60,7 +60,7 @@ func _spawn_intro() -> void:
 func _physics_process(_delta: float) -> void:
 	if not _alive:
 		return
-	var player := get_tree().get_first_node_in_group("player")
+	var player: Node2D = get_tree().get_first_node_in_group("player")
 	if not is_instance_valid(player):
 		return
 	var dir := (player.global_position - global_position).normalized()
