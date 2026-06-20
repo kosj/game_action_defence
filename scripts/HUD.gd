@@ -9,6 +9,7 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var gold_label: Label = $GoldLabel
 @onready var heart_row: HBoxContainer = $HeartRow
 @onready var weapon_label: Label = $WeaponLabel
+@onready var buff_label: Label = $BuffLabel
 @onready var wave_label: Label = $WaveLabel
 @onready var time_label: Label = $TimeLabel
 @onready var progress_label: Label = $ProgressLabel
@@ -33,6 +34,9 @@ var _prev_score: int = -1
 var _max_health: int = 0
 var _low_hp_tween: Tween = null
 var _boss_max: int = 1
+var _weapon_tween: Tween = null
+var _weapon_base_text: String = ""
+var _magnet_tween: Tween = null
 
 
 func _ready() -> void:
@@ -51,6 +55,8 @@ func _ready() -> void:
 	Events.wave_progress_changed.connect(_on_wave_progress_changed)
 	Events.wave_complete.connect(_on_wave_complete)
 	Events.weapon_equipped.connect(_on_weapon_equipped)
+	Events.weapon_timer_changed.connect(_on_weapon_timer_changed)
+	Events.gold_magnet_changed.connect(_on_gold_magnet_changed)
 	Events.score_changed.connect(_on_score_changed)
 	Events.high_score_changed.connect(_on_high_score_changed)
 	Events.boss_spawned.connect(_on_boss_spawned)
@@ -184,18 +190,49 @@ func _update_low_hp_warning(health: int) -> void:
 func _on_weapon_equipped(stats: Dictionary) -> void:
 	var tier_id: String = stats.get("tier_id", "common")
 	if tier_id == "common":
-		weapon_label.text = stats.get("name", "")
+		_weapon_base_text = stats.get("name", "")
 	else:
-		weapon_label.text = "%s %s" % [stats.get("tier_name", ""), stats.get("name", "")]
+		_weapon_base_text = "%s %s" % [stats.get("tier_name", ""), stats.get("name", "")]
 	weapon_label.add_theme_color_override("font_color", stats.get("tier_color", Color.WHITE))
 	weapon_label.modulate.a = 1.0
 	weapon_label.scale = Vector2(1.4, 1.4)
 	weapon_label.visible = true
-	var tw := create_tween()
-	tw.tween_property(weapon_label, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_interval(1.5)
-	tw.tween_property(weapon_label, "modulate:a", 0.0, 0.4)
-	tw.tween_callback(func(): weapon_label.visible = false)
+	if _weapon_tween and _weapon_tween.is_valid():
+		_weapon_tween.kill()
+	_weapon_tween = create_tween()
+	_weapon_tween.tween_property(weapon_label, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var dur: float = float(stats.get("duration", 0.0))
+	if dur > 0.0:
+		# 임시 무기: 남은 사용 시간을 계속 표시(자동 페이드 없음). 카운트다운은 weapon_timer_changed 로 갱신.
+		weapon_label.text = "%s  %ds" % [_weapon_base_text, int(ceil(dur))]
+	else:
+		# 기본/영구 무기: 잠깐 보여주고 사라진다.
+		weapon_label.text = _weapon_base_text
+		_weapon_tween.tween_interval(1.5)
+		_weapon_tween.tween_property(weapon_label, "modulate:a", 0.0, 0.4)
+		_weapon_tween.tween_callback(func(): weapon_label.visible = false)
+
+
+## 임시 무기 남은 시간 갱신(초 단위). 만료(<=0)는 기본 무기 장착 신호가 처리하므로 무시.
+func _on_weapon_timer_changed(time_left: float, _total: float) -> void:
+	if time_left > 0.0:
+		weapon_label.text = "%s  %ds" % [_weapon_base_text, int(ceil(time_left))]
+		weapon_label.visible = true
+		weapon_label.modulate.a = 1.0
+
+
+## 골드 자석 버프 표시 — 활성 중 남은 시간 표시, 종료 시 페이드 아웃.
+func _on_gold_magnet_changed(active: bool, time_left: float) -> void:
+	if _magnet_tween and _magnet_tween.is_valid():
+		_magnet_tween.kill()
+	if active:
+		buff_label.text = "Gold Magnet  %ds" % int(ceil(time_left))
+		buff_label.modulate.a = 1.0
+		buff_label.visible = true
+	else:
+		_magnet_tween = create_tween()
+		_magnet_tween.tween_property(buff_label, "modulate:a", 0.0, 0.4)
+		_magnet_tween.tween_callback(func(): buff_label.visible = false)
 
 
 func _on_wave_changed(wave: int) -> void:

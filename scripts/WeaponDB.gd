@@ -72,4 +72,7 @@ static func _build_stats(archetype: Dictionary, tier: Dictionary) -> Dictionary:
 	stats["bullet_scale"] = archetype["bullet_scale"] * (1.0 + (mult - 1.0) * 0.5)
 	stats["splash_radius"] = archetype["splash_radius"] * mult + (mult - 1.0) * 14.0
 	stats["color"] = base_color.lerp(tier["color"], 0.4)
+	# 사용 시간: 기본 무기(권총·Common)는 무한(0), 그 외 필드 무기는 티어에 비례해 만료된다.
+	var is_basic: bool = archetype["id"] == "pistol" and tier["id"] == "common"
+	stats["duration"] = 0.0 if is_basic else (12.0 + (mult - 1.0) * 6.0)
 	return stats
