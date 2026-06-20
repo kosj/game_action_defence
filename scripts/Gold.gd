@@ -42,10 +42,14 @@ func _physics_process(delta: float) -> void:
 	if dist <= collect_radius:
 		_collect()
 		return
-	if dist <= magnet_radius:
+	# 자석 버프 중에는 거리와 무관하게 끌려온다(자동 줍기).
+	if Events.gold_magnet_active or dist <= magnet_radius:
 		var dir := (player.global_position - global_position).normalized()
-		var t := 1.0 - (dist / magnet_radius)   # 가까울수록 가속
-		global_position += dir * move_speed * (0.3 + t) * delta
+		var t := clampf(1.0 - dist / magnet_radius, 0.0, 1.0)   # 가까울수록 가속
+		var spd := move_speed * (0.3 + t)
+		if Events.gold_magnet_active:
+			spd = maxf(spd, move_speed)   # 멀리 있어도 빠르게 흡수
+		global_position += dir * spd * delta
 
 
 func _collect() -> void:

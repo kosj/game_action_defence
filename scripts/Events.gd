@@ -17,6 +17,10 @@ signal boss_spawned(max_health: int)
 signal boss_health_changed(health: int, max_health: int)
 signal boss_died
 
+# 필드 버프 상태
+signal weapon_timer_changed(time_left: float, total: float)   # 임시 무기 남은 사용 시간
+signal gold_magnet_changed(active: bool, time_left: float)    # 골드 자동 줍기(자석) 버프
+
 var total_gold: int = 0
 var total_kills: int = 0
 var player_health: int = 0
@@ -25,6 +29,9 @@ var current_wave: int = 1
 var elapsed_time: float = 0.0
 var wave_kill_progress: int = 0
 var wave_kill_total: int = 0
+
+# 골드 자동 줍기(자석) 버프 활성 여부 — Gold 이 매 프레임 참조하는 일시 상태(저장 안 함).
+var gold_magnet_active: bool = false
 
 # 점수: score=이번 판 점수, high_score=저장된 최고점, _prev_high=이번 판 시작 시점 최고점(갱신 판정용)
 var score: int = 0
@@ -108,6 +115,7 @@ func reset() -> void:
 	elapsed_time = 0.0
 	wave_kill_progress = 0
 	wave_kill_total = 0
+	gold_magnet_active = false
 	score = 0
 	_prev_high = high_score   # 이번 판이 깨야 할 기준점 = 현재 최고점 (high_score 는 유지)
 	upgrade_speed = 0

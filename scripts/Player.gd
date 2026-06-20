@@ -32,6 +32,13 @@ var _orbs: Array = []
 var _lightning: Node2D = null
 var current_weapon: Dictionary = _WeaponDB.default_weapon()
 
+# 임시 무기 사용 시간 / 골드 자석 버프 타이머 (초 단위 변화 시에만 HUD 로 신호)
+var _weapon_time_left: float = 0.0
+var _weapon_duration: float = 0.0
+var _weapon_last_sec: int = -1
+var _magnet_time_left: float = 0.0
+var _magnet_last_sec: int = -1
+
 
 func _ready() -> void:
 	add_to_group("player")
@@ -53,6 +60,7 @@ func _physics_process(delta: float) -> void:
 	_hurt_timer -= delta
 	if _dead:
 		return
+	_tick_buffs(delta)
 	# 무적 중 깜빡임 — 플레이어가 언제까지 안전한지 시각적으로 표시
 	if _hurt_timer > 0.0:
 		body.modulate.a = 1.0 if fmod(_hurt_timer, 0.4) > 0.2 else 0.35
@@ -217,12 +225,48 @@ func _recompute_combat_stats() -> void:
 	attack_cooldown = _base_attack_cooldown * pow(0.85, Events.upgrade_atk_speed) * current_weapon["cooldown_mult"]
 
 
-## 맵의 무기 픽업 획득 시 호출 — 즉시 교체 장착.
+## 맵의 무기 픽업 획득 시 호출 — 즉시 교체 장착. duration>0 이면 사용 시간이 지나면 만료된다.
 func equip_weapon(weapon_stats: Dictionary) -> void:
 	current_weapon = weapon_stats
 	_recompute_combat_stats()
+	_weapon_duration = float(weapon_stats.get("duration", 0.0))
+	_weapon_time_left = _weapon_duration
+	_weapon_last_sec = int(ceil(_weapon_time_left))
 	Events.weapon_equipped.emit(weapon_stats)
+	Events.weapon_timer_changed.emit(_weapon_time_left, _weapon_duration)
 	_autosave()
+
+
+## 골드 자석 아이템 획득 시 호출 — 일정 시간 동안 필드 골드를 거리와 무관하게 자동 흡수.
+func activate_gold_magnet(duration: float) -> void:
+	_magnet_time_left = duration
+	_magnet_last_sec = int(ceil(duration))
+	Events.gold_magnet_active = true
+	Events.gold_magnet_changed.emit(true, duration)
+
+
+## 임시 무기·골드 자석 버프 잔여 시간 갱신. 만료 시 각각 기본 무기 복귀 / 자석 해제.
+func _tick_buffs(delta: float) -> void:
+	if _weapon_time_left > 0.0:
+		_weapon_time_left -= delta
+		if _weapon_time_left <= 0.0:
+			equip_weapon(_WeaponDB.default_weapon())   # 사용 시간 만료 → 기본 무기로 복귀
+		else:
+			var sec := int(ceil(_weapon_time_left))
+			if sec != _weapon_last_sec:
+				_weapon_last_sec = sec
+				Events.weapon_timer_changed.emit(_weapon_time_left, _weapon_duration)
+	if _magnet_time_left > 0.0:
+		_magnet_time_left -= delta
+		if _magnet_time_left <= 0.0:
+			_magnet_time_left = 0.0
+			Events.gold_magnet_active = false
+			Events.gold_magnet_changed.emit(false, 0.0)
+		else:
+			var msec := int(ceil(_magnet_time_left))
+			if msec != _magnet_last_sec:
+				_magnet_last_sec = msec
+				Events.gold_magnet_changed.emit(true, _magnet_time_left)
 
 
 ## 메인 메뉴의 "이어하기"로 진입했을 때, 저장된 체력/무기 상태를 적용.
