@@ -1,13 +1,22 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/HUD.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/MobileJoystick.gd" id="2"]
 [ext_resource type="Texture2D" path="res://assets/ui/ui_coin.png" id="3"]
 [ext_resource type="Texture2D" path="res://assets/ui/ui_heart_full.png" id="4"]
 [ext_resource type="Texture2D" path="res://assets/ui/ui_heart_empty.png" id="5"]
+[ext_resource type="Texture2D" path="res://assets/ui/vignette.png" id="6"]
 
 [node name="HUD" type="CanvasLayer"]
 script = ExtResource("1")
+
+[node name="Vignette" type="TextureRect" parent="."]
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+texture = ExtResource("6")
+expand_mode = 1
+stretch_mode = 0
 
 [node name="TopBg" type="Panel" parent="."]
 anchor_right = 1.0

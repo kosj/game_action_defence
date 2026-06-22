@@ -14,12 +14,12 @@ const BOSS_EVERY: int = 5
 ## 웨이브 테이블: total=이 웨이브에서 처치해야 할 총 좀비 수, max_z=최대 동시 출현 수.
 ## weights 의 인덱스는 ZOMBIE_TYPES 와 1:1 대응 — 후반 웨이브일수록 강한 종을 더 많이 섞는다.
 const WAVES: Array = [
-	{"total": 40,  "max_z": 16, "interval": 0.9,  "weights": [10, 0, 0, 0, 0, 0]},
-	{"total": 60,  "max_z": 24, "interval": 0.70, "weights": [8,  2, 0, 2, 0, 0]},
-	{"total": 90,  "max_z": 32, "interval": 0.55, "weights": [6,  3, 1, 3, 1, 0]},
-	{"total": 120, "max_z": 40, "interval": 0.45, "weights": [5,  3, 2, 3, 2, 1]},
-	{"total": 160, "max_z": 50, "interval": 0.35, "weights": [4,  4, 2, 3, 3, 1]},
-	{"total": 200, "max_z": 60, "interval": 0.25, "weights": [3,  4, 3, 3, 3, 2]},
+	{"total": 80,  "max_z": 32,  "interval": 0.9,  "weights": [10, 0, 0, 0, 0, 0]},
+	{"total": 120, "max_z": 48,  "interval": 0.70, "weights": [8,  2, 0, 2, 0, 0]},
+	{"total": 180, "max_z": 64,  "interval": 0.55, "weights": [6,  3, 1, 3, 1, 0]},
+	{"total": 240, "max_z": 80,  "interval": 0.45, "weights": [5,  3, 2, 3, 2, 1]},
+	{"total": 320, "max_z": 100, "interval": 0.35, "weights": [4,  4, 2, 3, 3, 1]},
+	{"total": 400, "max_z": 120, "interval": 0.25, "weights": [3,  4, 3, 3, 3, 2]},
 ]
 
 ## 좀비 종류 테이블. 모두 플레이어를 추격하는 근접형이지만 속도/체력/접촉피해/크기/스프라이트가 다르다.

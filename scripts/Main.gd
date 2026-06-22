@@ -15,8 +15,8 @@ func _ready() -> void:
 
 
 func _do_prewarm() -> void:
-	Pool.prewarm(ZOMBIE, 40)
-	Pool.prewarm(BULLET, 40)
-	Pool.prewarm(GOLD, 40)
+	Pool.prewarm(ZOMBIE, 60)
+	Pool.prewarm(BULLET, 50)
+	Pool.prewarm(GOLD, 60)
 	Pool.prewarm(WEAPON_PICKUP, 3)
 	Pool.prewarm(ITEM_PICKUP, 2)
