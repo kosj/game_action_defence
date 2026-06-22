@@ -57,16 +57,19 @@ func get_contact_damage() -> int:
 	return _contact_damage
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if not _alive:
 		return
 	if not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
 		return
 	var dir := (player.global_position - global_position).normalized()
-	velocity = dir * speed
 	body.rotation = dir.angle()
-	move_and_slide()   # 좀비끼리 충돌(레이어2/마스크2)로 자연스럽게 분산
+	# 직선 적분 이동: 좀비끼리 상호 충돌을 해소하는 move_and_slide() 는 개체 수의 제곱에
+	# 비례해 비싸져 수천~만 마리 환경에서 프레임을 깎는다. 위치를 직접 갱신해 좀비당 비용을
+	# O(1) 로 낮춘다(스프라이트끼리 겹칠 수 있으나 대규모 횡스크롤 디펜스에선 일반적).
+	# 충돌 도형(레이어2)은 그대로 남아 총알 명중·플레이어 접촉 판정에 계속 쓰인다.
+	global_position += dir * speed * delta
 
 
 func take_damage(amount: int) -> void:

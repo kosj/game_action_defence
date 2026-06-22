@@ -13,6 +13,7 @@ const COLLECT_SCALE := Vector2(0.4, 0.4)   # tscn 에서 설정한 기본 크기
 
 var player: Node2D = null
 var _alive: bool = false
+var _launching: bool = false   # 분출 연출 중에는 자석 흡수를 멈춘다(보스 동전 폭발 등)
 
 
 func _ready() -> void:
@@ -22,9 +23,24 @@ func _ready() -> void:
 
 func on_spawn() -> void:
 	_alive = true
+	_launching = false
 	body.scale = COLLECT_SCALE   # 수집 애니메이션 후 리셋
 	if player == null or not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
+
+
+## 한 지점에서 바깥으로 톡 튀어 흩어지는 분출 연출(보스 처치 동전 분수). 연출 동안에는
+## 자석에 끌리지 않다가, 착지 후 평소대로 수집 가능 상태로 돌아온다.
+func launch(to: Vector2, delay: float = 0.0) -> void:
+	_launching = true
+	body.scale = COLLECT_SCALE * 0.3
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(self, "global_position", to, 0.4).set_delay(delay) \
+		.set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	tw.tween_property(body, "scale", COLLECT_SCALE, 0.4).set_delay(delay) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	# 분출 애니메이션(지연+0.4s)이 모두 끝난 뒤 자석 흡수를 다시 허용.
+	tw.chain().tween_callback(func(): _launching = false)
 
 
 func on_despawn() -> void:
@@ -32,7 +48,7 @@ func on_despawn() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	if not _alive:
+	if not _alive or _launching:
 		return
 	if not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
