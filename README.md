@@ -64,6 +64,8 @@ Autoload(싱글톤):
   - `sprites/boss.png`              — Boss (`soldier1_machine`, 군용 캐릭터로 일반 좀비와 확실히 구분)
 - `sprites/bullet.png`           — Top-down Tanks Redux (`bulletSand1_outline`)
 - `sprites/gold.png`             — Platformer/Physics (`coinGold`)
+- `sprites/shadow.png`           — 절차 생성 소프트 그림자(유닛 입체감용, 부드러운 타원 알파)
+- `ui/vignette.png`              — 절차 생성 비네트 오버레이(화면 가장자리 어둡게, 시네마틱 깊이감)
 - `ui/ui_joystick_base.png`      — UI Pack (`grey_circle`)
 - `ui/ui_joystick_knob.png`      — UI Pack (`blue_circle`)
 - `ui/ui_heart_*.png`, `ui_coin.png` — Kenney 스타일 CC0 HUD 아이콘
