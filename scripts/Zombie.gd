@@ -8,6 +8,9 @@ const GOLD := preload("res://scenes/Gold.tscn")
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 
 @onready var body: Node2D = $Body
+@onready var shadow: Node2D = $Shadow
+
+const _SHADOW_BASE := 0.32   # 크기 1.0 좀비 기준 그림자 스케일(Zombie.tscn 과 일치)
 
 var health: int
 var player: Node2D = null
@@ -36,6 +39,7 @@ func on_despawn() -> void:
 	remove_from_group("zombies")
 	body.modulate = Color.WHITE
 	body.scale = Vector2.ONE
+	shadow.scale = Vector2.ONE * _SHADOW_BASE
 
 
 ## 스포너가 풀에서 꺼낸 직후 호출해 종류별 스탯·스프라이트를 주입한다.
@@ -49,7 +53,9 @@ func setup(type_data: Dictionary) -> void:
 	if type_data.has("texture"):
 		body.texture = type_data["texture"]   # 종류별 캐릭터 스프라이트
 	body.modulate = Color.WHITE              # 스프라이트 본연의 색을 그대로 노출
-	body.scale = Vector2.ONE * float(type_data.get("scale", 1.0))
+	var s := float(type_data.get("scale", 1.0))
+	body.scale = Vector2.ONE * s
+	shadow.scale = Vector2.ONE * (_SHADOW_BASE * s)   # 큰 좀비일수록 그림자도 크게
 
 
 ## 종류별 접촉 피해(차저/저거넛 등 강화 좀비는 더 큰 피해). Player 가 호출.
