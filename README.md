@@ -61,7 +61,7 @@ Autoload(싱글톤):
   - `sprites/zombie_swarmling.png`  — Swarmling (`manOld_hold`)
   - `sprites/zombie_charger.png`    — Charger (`survivor1_hold`)
   - `sprites/zombie_juggernaut.png` — Juggernaut (`robot1_hold`)
-  - `sprites/boss.png`              — Boss (`zoimbie1_machine`)
+  - `sprites/boss.png`              — Boss (`soldier1_machine`, 군용 캐릭터로 일반 좀비와 확실히 구분)
 - `sprites/bullet.png`           — Top-down Tanks Redux (`bulletSand1_outline`)
 - `sprites/gold.png`             — Platformer/Physics (`coinGold`)
 - `ui/ui_joystick_base.png`      — UI Pack (`grey_circle`)
