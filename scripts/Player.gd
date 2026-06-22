@@ -25,6 +25,17 @@ var health: int
 var _attack_accum: float = 0.0
 var _hurt_timer: float = 0.0
 var _dead: bool = false
+
+# 최근접 적 캐시: _get_nearest_zombie() 는 좀비 그룹 전체를 순회하므로(O(n)) 매 프레임
+# 돌리면 대량 좀비 환경에서 비싸다. 짧은 주기로만 갱신하고 그 사이에는 캐시를 재사용한다.
+var _target: Node2D = null
+var _target_accum: float = 999.0
+const TARGET_RESCAN := 0.1
+
+# 주기적 자동저장: 웨이브 클리어/상점 체크포인트 사이에 종료해도 점수·골드·진행이
+# 유실되지 않도록 일정 간격으로 현재 상태를 저장한다(_notification 으로 백그라운드/종료 시에도).
+var _autosave_accum: float = 0.0
+const AUTOSAVE_INTERVAL := 4.0
 var _base_move_speed: float
 var _base_attack_cooldown: float
 var _base_max_health: int
@@ -68,9 +79,22 @@ func _physics_process(delta: float) -> void:
 		body.modulate.a = 1.0
 	_check_contact_damage()
 	_handle_move()
-	var target := _get_nearest_zombie()
+	# 최근접 적은 짧은 주기로만 재탐색하고(대상 소멸 시 즉시 재탐색) 그 외엔 캐시 재사용.
+	# 죽은 좀비는 풀로 반납돼도 is_instance_valid 는 참이므로(트리에서 분리될 뿐) "zombies"
+	# 그룹 소속까지 확인한다 — 좀비는 사망 즉시 그룹에서 빠진다.
+	_target_accum += delta
+	if _target_accum >= TARGET_RESCAN or not _is_live_target(_target):
+		_target_accum = 0.0
+		_target = _get_nearest_zombie()
+	var target := _target
 	_handle_attack(delta, target)
 	_update_facing(target)
+
+	# 주기적 자동저장(체크포인트 사이 진행 보존). 사망 시엔 위에서 이미 return.
+	_autosave_accum += delta
+	if _autosave_accum >= AUTOSAVE_INTERVAL:
+		_autosave_accum = 0.0
+		_autosave()
 
 
 func _check_contact_damage() -> void:
@@ -148,6 +172,11 @@ func _shoot_at(target: Node2D) -> void:
 	fx.duration = 0.1
 	get_tree().current_scene.add_child(fx)
 	fx.global_position = muzzle.global_position
+
+
+## 캐시된 조준 대상이 아직 살아있는 좀비인지(풀 반납·사망 제외).
+func _is_live_target(t: Node2D) -> bool:
+	return is_instance_valid(t) and t.is_in_group("zombies")
 
 
 ## 그룹 순회로 최근접 적 탐색. distance_squared 로 sqrt 비용 제거.
@@ -280,3 +309,14 @@ func _load_saved_state() -> void:
 
 func _autosave() -> void:
 	SaveManager.save_game(self)
+
+
+## 창 닫기·앱 백그라운드 전환(모바일/웹) 직전에 마지막 상태를 저장 — 종료 시점 점수가
+## 유실되지 않도록 한다. 사망 후엔 체크포인트가 무효이므로 저장하지 않는다.
+func _notification(what: int) -> void:
+	if _dead:
+		return
+	if what == NOTIFICATION_WM_CLOSE_REQUEST \
+			or what == NOTIFICATION_APPLICATION_PAUSED \
+			or what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_autosave()

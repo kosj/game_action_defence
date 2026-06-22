@@ -14,12 +14,12 @@ const BOSS_EVERY: int = 5
 ## 웨이브 테이블: total=이 웨이브에서 처치해야 할 총 좀비 수, max_z=최대 동시 출현 수.
 ## weights 의 인덱스는 ZOMBIE_TYPES 와 1:1 대응 — 후반 웨이브일수록 강한 종을 더 많이 섞는다.
 const WAVES: Array = [
-	{"total": 20,  "max_z": 8,  "interval": 0.9,  "weights": [10, 0, 0, 0, 0, 0]},
-	{"total": 30,  "max_z": 12, "interval": 0.70, "weights": [8,  2, 0, 2, 0, 0]},
-	{"total": 45,  "max_z": 16, "interval": 0.55, "weights": [6,  3, 1, 3, 1, 0]},
-	{"total": 60,  "max_z": 20, "interval": 0.45, "weights": [5,  3, 2, 3, 2, 1]},
-	{"total": 80,  "max_z": 25, "interval": 0.35, "weights": [4,  4, 2, 3, 3, 1]},
-	{"total": 100, "max_z": 30, "interval": 0.25, "weights": [3,  4, 3, 3, 3, 2]},
+	{"total": 40,  "max_z": 16, "interval": 0.9,  "weights": [10, 0, 0, 0, 0, 0]},
+	{"total": 60,  "max_z": 24, "interval": 0.70, "weights": [8,  2, 0, 2, 0, 0]},
+	{"total": 90,  "max_z": 32, "interval": 0.55, "weights": [6,  3, 1, 3, 1, 0]},
+	{"total": 120, "max_z": 40, "interval": 0.45, "weights": [5,  3, 2, 3, 2, 1]},
+	{"total": 160, "max_z": 50, "interval": 0.35, "weights": [4,  4, 2, 3, 3, 1]},
+	{"total": 200, "max_z": 60, "interval": 0.25, "weights": [3,  4, 3, 3, 3, 2]},
 ]
 
 ## 좀비 종류 테이블. 모두 플레이어를 추격하는 근접형이지만 속도/체력/접촉피해/크기/스프라이트가 다르다.
@@ -46,6 +46,9 @@ var _spawned: int = 0      # 현재 웨이브에서 스폰한 수
 var _killed: int = 0       # 현재 웨이브에서 처치한 수
 var _wave_active: bool = false
 var _game_over: bool = false
+## 살아있는 일반 좀비 수. 매 프레임 get_nodes_in_group() O(n) 스캔을 피하려고
+## 스폰 시 +1 / 처치 시 -1 로 직접 추적한다(대량 좀비 환경 최적화). 보스는 별도.
+var _alive_zombies: int = 0
 var _start_delay: float = 5.0   # first-wave spawn delay matches player grace period
 
 # 보스 웨이브 상태
@@ -107,8 +110,7 @@ func _process(delta: float) -> void:
 		else:
 			_accum += delta
 			if _accum >= wave["interval"] * Events.diff_spawn_mult():
-				var alive := get_tree().get_nodes_in_group("zombies").size()
-				if alive < wave["max_z"]:
+				if _alive_zombies < wave["max_z"]:
 					_accum = 0.0
 					_try_spawn()
 
@@ -117,8 +119,7 @@ func _process(delta: float) -> void:
 		_escort_accum += delta
 		if _escort_accum >= 1.6:
 			_escort_accum = 0.0
-			var alive2 := get_tree().get_nodes_in_group("zombies").size()
-			if alive2 < wave["max_z"]:
+			if _alive_zombies < wave["max_z"]:
 				_spawn_one(_pick_type(wave["weights"]))
 
 	# 웨이브 완료 판정
@@ -142,6 +143,8 @@ func _tick_elapsed() -> void:
 
 
 func _on_zombie_killed() -> void:
+	# 살아있는 좀비 카운터는 웨이브 상태와 무관하게 항상 감소시켜야 한다.
+	_alive_zombies = maxi(0, _alive_zombies - 1)
 	if not _wave_active:
 		return
 	_killed += 1
@@ -178,6 +181,7 @@ func _spawn_one(type_data: Dictionary) -> void:
 	d["max_health"] = maxi(1, int(round(float(type_data["max_health"]) * Events.diff_enemy_hp_mult())))
 	d["speed"] = float(type_data["speed"]) * Events.diff_enemy_speed_mult()
 	z.setup(d)
+	_alive_zombies += 1
 
 
 ## 보스 소환 + 호위 정예 좀비. 보스 처치 시까지 웨이브 완료가 보류된다.
