@@ -32,6 +32,8 @@ var _wave_label: Label
 var _gold_label: Label
 var _buttons: Array = []
 var _continue_btn: Button
+var _ad_gold_btn: Button
+var _ad_gold_claimed: bool = false   # 상점 1회 등장당 보상형 골드 1회만
 var _scroll: ScrollContainer
 var _dragging: bool = false
 var _drag_total: float = 0.0
@@ -41,11 +43,13 @@ func _ready() -> void:
 	layer = 10
 	visible = false
 	Events.wave_complete.connect(_on_wave_complete)
+	AdManager.rewarded_granted.connect(_on_rewarded_granted)
 	_build_ui()
 
 
 func _on_wave_complete(wave: int) -> void:
 	_wave_label.text = "Wave %d Clear!" % wave
+	_ad_gold_claimed = false   # 새 상점 등장 — 보상형 골드 다시 1회 허용
 	_refresh_buttons()
 	await get_tree().create_timer(2.1).timeout
 	if not is_instance_valid(self):
@@ -114,6 +118,17 @@ func _build_ui() -> void:
 	_gold_label = _make_label("0", 22)
 	_gold_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
 	gold_row.add_child(_gold_label)
+
+	# 보상형 광고: 시청하면 보유 골드를 보너스로 지급(최대 2배). 상점당 1회.
+	_ad_gold_btn = Button.new()
+	_ad_gold_btn.custom_minimum_size = Vector2(0, 50)
+	_apply_font(_ad_gold_btn, 18)
+	_ad_gold_btn.icon = _COIN_ICON
+	_ad_gold_btn.add_theme_constant_override("icon_max_width", 24)
+	_ad_gold_btn.add_theme_constant_override("h_separation", 8)
+	_UIStyle.apply_button_style(_ad_gold_btn, Color(0.42, 0.30, 0.06), Color(1.0, 0.78, 0.22))
+	_ad_gold_btn.pressed.connect(_on_ad_gold_pressed)
+	outer.add_child(_ad_gold_btn)
 
 	outer.add_child(HSeparator.new())
 
@@ -238,8 +253,40 @@ func _get_cost(upg: Dictionary) -> int:
 	return costs[lvl]
 
 
+## 보상형 광고로 받을 보너스 골드 — 보유 골드만큼(최대 2배) 주되 최소 30 보장.
+func _ad_gold_bonus() -> int:
+	return clampi(Events.total_gold, 30, 300)
+
+
+func _update_ad_gold_btn() -> void:
+	if _ad_gold_claimed:
+		_ad_gold_btn.text = "Bonus claimed"
+		_ad_gold_btn.disabled = true
+	elif not AdManager.is_rewarded_ready():
+		_ad_gold_btn.text = "Free Gold (ad unavailable)"
+		_ad_gold_btn.disabled = true
+	else:
+		_ad_gold_btn.text = "+%d Gold  (Watch Ad)" % _ad_gold_bonus()
+		_ad_gold_btn.disabled = false
+
+
+func _on_ad_gold_pressed() -> void:
+	if _ad_gold_claimed or not AdManager.is_rewarded_ready():
+		return
+	AdManager.show_rewarded("shop_gold")
+
+
+func _on_rewarded_granted(placement: String) -> void:
+	if placement != "shop_gold" or _ad_gold_claimed:
+		return
+	_ad_gold_claimed = true
+	Events.add_gold(_ad_gold_bonus())
+	_refresh_buttons()
+
+
 func _refresh_buttons() -> void:
 	_gold_label.text = "%d" % Events.total_gold
+	_update_ad_gold_btn()
 	for i in UPGRADES.size():
 		var upg: Dictionary = UPGRADES[i]
 		var id: String = upg["id"]

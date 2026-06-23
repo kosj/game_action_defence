@@ -38,6 +38,10 @@ var _weapon_tween: Tween = null
 var _weapon_base_text: String = ""
 var _magnet_tween: Tween = null
 
+# 보상형 광고 부활: 한 판에 1회만 허용. 코드로 생성해 게임오버 패널 최상단에 끼운다.
+var _revive_btn: Button = null
+var _revive_used: bool = false
+
 
 func _ready() -> void:
 	top_bg.add_theme_stylebox_override("panel", _UIStyle.bottom_bar(Color(0.05, 0.06, 0.09, 0.62)))
@@ -45,6 +49,7 @@ func _ready() -> void:
 	game_over_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.05, 0.06, 0.96), Color(0.85, 0.25, 0.22), 22, 3))
 	_UIStyle.apply_button_style(restart_button, Color(0.55, 0.16, 0.16), Color(0.95, 0.35, 0.3))
 	_UIStyle.apply_button_style(main_menu_button, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
+	_build_revive_button()
 	call_deferred("_init_pivots")
 
 	Events.gold_changed.connect(_on_gold_changed)
@@ -64,6 +69,7 @@ func _ready() -> void:
 	Events.boss_died.connect(_on_boss_died)
 	restart_button.pressed.connect(_on_restart_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
+	AdManager.rewarded_granted.connect(_on_rewarded_granted)
 	_on_gold_changed(Events.total_gold)
 	if Events.player_max_health > 0:
 		_on_player_health_changed(Events.player_health, Events.player_max_health)
@@ -276,8 +282,42 @@ func _on_wave_complete(wave: int) -> void:
 		wave_clear_bg.visible = false)
 
 
+## 게임오버 패널 최상단에 "광고 보고 부활" 버튼을 코드로 생성(보상형 광고 유도).
+func _build_revive_button() -> void:
+	_revive_btn = Button.new()
+	_revive_btn.text = "REVIVE  (Watch Ad)"
+	_revive_btn.custom_minimum_size = Vector2(0, 56)
+	_revive_btn.add_theme_font_size_override("font_size", 22)
+	_UIStyle.apply_button_style(_revive_btn, Color(0.14, 0.40, 0.20), Color(0.4, 0.9, 0.45))
+	_revive_btn.pressed.connect(_on_revive_pressed)
+	var box := restart_button.get_parent()
+	box.add_child(_revive_btn)
+	box.move_child(_revive_btn, restart_button.get_index())   # 다시하기 버튼 바로 위로
+
+
+func _on_revive_pressed() -> void:
+	if _revive_used or not AdManager.is_rewarded_ready():
+		return
+	AdManager.show_rewarded("revive")
+
+
+## 보상형 시청 완료 콜백. 부활 placement 만 처리(상점 보상은 ShopPanel 이 처리).
+func _on_rewarded_granted(placement: String) -> void:
+	if placement != "revive" or _revive_used:
+		return
+	var player := get_tree().get_first_node_in_group("player")
+	if player == null or not player.has_method("revive"):
+		return
+	_revive_used = true
+	# 부활 시 사라진 게임오버 패널을 닫고 그대로 진행 재개.
+	game_over_panel.visible = false
+	player.revive()
+
+
 func _on_player_died() -> void:
 	SaveManager.delete_save()   # 사망 시 진행 실패 — 체크포인트 무효화
+	# 부활 버튼은 아직 안 썼고 광고가 준비됐을 때만 노출.
+	_revive_btn.visible = not _revive_used and AdManager.is_rewarded_ready()
 	boss_bar.visible = false
 	var m := int(Events.elapsed_time) / 60
 	var s := int(Events.elapsed_time) % 60

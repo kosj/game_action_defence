@@ -206,6 +206,20 @@ func _die() -> void:
 	Events.player_died.emit()
 
 
+## 보상형 광고 시청 후 사망 직후 부활 — 체력을 가득 채우고 잠시 무적을 부여한다.
+## (게임 트리는 사망 시 멈추지 않으므로 그대로 이어서 진행된다.)
+func revive() -> void:
+	if not _dead:
+		return
+	_dead = false
+	health = max_health
+	_hurt_timer = 3.0   # 부활 직후 무적 — 둘러싼 좀비에게 즉사하지 않도록
+	_attack_accum = 0.0
+	_autosave_accum = 0.0
+	Events.update_player_health(health, max_health)
+	Events.player_revived.emit()
+
+
 ## 상점에서 업그레이드 구매 후 또는 웨이브 시작 시 호출.
 func apply_upgrades() -> void:
 	move_speed = _base_move_speed + 30.0 * Events.upgrade_speed
