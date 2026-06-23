@@ -49,12 +49,7 @@ func _spawn_intro() -> void:
 	scale = Vector2.ZERO
 	var tw := create_tween()
 	tw.tween_property(self, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	var fx := _FXBurst.new()
-	fx.color = Color(0.9, 0.2, 0.2)
-	fx.max_radius = 90.0
-	fx.duration = 0.5
-	get_tree().current_scene.add_child(fx)
-	fx.global_position = global_position
+	_FXBurst.spawn(get_tree().current_scene, global_position, Color(0.9, 0.2, 0.2), 90.0, 0.5)
 
 
 func _physics_process(_delta: float) -> void:
@@ -138,10 +133,4 @@ func _die() -> void:
 ## FXBurst 가 start_delay 로 스스로 시간차 재생하므로(타이머·콜백 불필요) 보스가 곧바로
 ## 해제돼도 안전하다 — 파동 노드는 현재 씬에 독립적으로 붙는다.
 func _burst(c: Color, radius: float, dur: float, delay: float) -> void:
-	var fx := _FXBurst.new()
-	fx.color = c
-	fx.max_radius = radius
-	fx.duration = dur
-	fx.start_delay = delay
-	get_tree().current_scene.add_child(fx)
-	fx.global_position = global_position
+	_FXBurst.spawn(get_tree().current_scene, global_position, c, radius, dur, delay)

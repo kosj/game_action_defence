@@ -48,9 +48,4 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, 3.0, Color(1.0, 1.0, 1.0, 1.0))
 
 func _spawn_hit_fx(world_pos: Vector2) -> void:
-	var fx := _FXBurst.new()
-	fx.color = Color(0.45, 0.82, 1.0)
-	fx.max_radius = 20.0
-	fx.duration = 0.22
-	get_tree().current_scene.add_child(fx)
-	fx.global_position = world_pos
+	_FXBurst.spawn(get_tree().current_scene, world_pos, Color(0.45, 0.82, 1.0), 20.0, 0.22)
