@@ -4,6 +4,7 @@ extends Node
 signal gold_changed(total: int)
 signal player_health_changed(health: int, max_health: int)
 signal player_died
+signal player_revived            # 보상형 광고 시청으로 사망 직후 부활
 signal wave_changed(wave: int)
 signal elapsed_changed(seconds: float)
 signal wave_complete(wave: int)
