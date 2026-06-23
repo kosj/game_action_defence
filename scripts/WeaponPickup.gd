@@ -60,12 +60,8 @@ func _collect() -> void:
 	if is_instance_valid(player) and player.has_method("equip_weapon"):
 		player.equip_weapon(stats)
 	SoundManager.play("gold", 0.05)
-	var fx := _FXBurst.new()
-	fx.color = stats.get("tier_color", Color.WHITE)
-	fx.max_radius = 26.0 + 10.0 * (stats.get("tier_mult", 1.0) - 1.0)
-	fx.duration = 0.32
-	get_tree().current_scene.add_child(fx)
-	fx.global_position = global_position
+	_FXBurst.spawn(get_tree().current_scene, global_position, stats.get("tier_color", Color.WHITE), \
+		26.0 + 10.0 * (stats.get("tier_mult", 1.0) - 1.0), 0.32)
 	_despawn()
 
 

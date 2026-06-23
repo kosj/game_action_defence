@@ -58,12 +58,7 @@ func _collect() -> void:
 	if is_instance_valid(player) and player.has_method("activate_gold_magnet"):
 		player.activate_gold_magnet(magnet_duration)
 	SoundManager.play("gold", 0.05)
-	var fx := _FXBurst.new()
-	fx.color = ICON_COLOR
-	fx.max_radius = 60.0
-	fx.duration = 0.4
-	get_tree().current_scene.add_child(fx)
-	fx.global_position = global_position
+	_FXBurst.spawn(get_tree().current_scene, global_position, ICON_COLOR, 60.0, 0.4)
 	_despawn()
 
 

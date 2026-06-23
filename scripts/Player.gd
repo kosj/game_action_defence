@@ -166,12 +166,8 @@ func _shoot_at(target: Node2D) -> void:
 		b.trail_color = current_weapon["color"]
 		b.splash_radius = current_weapon["splash_radius"]
 	# muzzle flash — 무기 등급이 높을수록 더 크고 화려하게
-	var fx := _FXBurst.new()
-	fx.color = current_weapon["color"]
-	fx.max_radius = 14.0 * (1.0 + (current_weapon["tier_mult"] - 1.0) * 0.35)
-	fx.duration = 0.1
-	get_tree().current_scene.add_child(fx)
-	fx.global_position = muzzle.global_position
+	_FXBurst.spawn(get_tree().current_scene, muzzle.global_position, current_weapon["color"], \
+		14.0 * (1.0 + (current_weapon["tier_mult"] - 1.0) * 0.35), 0.1)
 
 
 ## 캐시된 조준 대상이 아직 살아있는 좀비인지(풀 반납·사망 제외).

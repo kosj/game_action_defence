@@ -68,15 +68,11 @@ func _on_body_entered(body: Node) -> void:
 
 ## 폭발형 무기: 명중 지점 주변의 모든 좀비에게 피해 + 확산 이펙트.
 func _splash_hit() -> void:
+	var r_sq := splash_radius * splash_radius
 	for z in get_tree().get_nodes_in_group("zombies"):
-		if global_position.distance_to(z.global_position) <= splash_radius and z.has_method("take_damage"):
+		if global_position.distance_squared_to(z.global_position) <= r_sq and z.has_method("take_damage"):
 			z.take_damage(damage)
-	var fx := _FXBurst.new()
-	fx.color = trail_color
-	fx.max_radius = splash_radius
-	fx.duration = 0.3
-	get_tree().current_scene.add_child(fx)
-	fx.global_position = global_position
+	_FXBurst.spawn(get_tree().current_scene, global_position, trail_color, splash_radius, 0.3)
 
 
 func _despawn() -> void:

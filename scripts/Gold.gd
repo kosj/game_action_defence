@@ -8,12 +8,15 @@ extends Area2D
 @export var value: int = 1
 
 const COLLECT_SCALE := Vector2(0.4, 0.4)   # tscn 에서 설정한 기본 크기
+const COLLECT_POP := 0.08                  # 수집 시 톡 커지는 연출 시간(초)
 
 @onready var body: Sprite2D = $Body
 
 var player: Node2D = null
 var _alive: bool = false
 var _launching: bool = false   # 분출 연출 중에는 자석 흡수를 멈춘다(보스 동전 폭발 등)
+var _collecting: bool = false  # 수집 팝 연출 중 — Tween 대신 타이머로 처리(대량 수집 시 Tween 폭증 방지)
+var _collect_t: float = 0.0
 
 
 func _ready() -> void:
@@ -24,6 +27,7 @@ func _ready() -> void:
 func on_spawn() -> void:
 	_alive = true
 	_launching = false
+	_collecting = false
 	body.scale = COLLECT_SCALE   # 수집 애니메이션 후 리셋
 	if player == null or not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
@@ -48,19 +52,30 @@ func on_despawn() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	# 수집 팝 연출: 잠깐 커졌다가 풀로 반납(Tween 없이 타이머로)
+	if _collecting:
+		_collect_t -= delta
+		var k := clampf(1.0 - _collect_t / COLLECT_POP, 0.0, 1.0)
+		body.scale = COLLECT_SCALE.lerp(COLLECT_SCALE * 1.8, k)
+		if _collect_t <= 0.0:
+			_collecting = false
+			Pool.release(self)
+		return
 	if not _alive or _launching:
 		return
 	if not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
 		return
 
-	var dist := global_position.distance_to(player.global_position)
-	if dist <= collect_radius:
+	# sqrt 비용 제거: 자석/수집 판정을 거리제곱으로. 실제 거리는 흡수 가속 계산에만 사용.
+	var dist_sq := global_position.distance_squared_to(player.global_position)
+	if dist_sq <= collect_radius * collect_radius:
 		_collect()
 		return
 	# 자석 버프 중에는 거리와 무관하게 끌려온다(자동 줍기).
-	if Events.gold_magnet_active or dist <= magnet_radius:
-		var dir := (player.global_position - global_position).normalized()
+	if Events.gold_magnet_active or dist_sq <= magnet_radius * magnet_radius:
+		var dist := sqrt(dist_sq)
+		var dir := (player.global_position - global_position) / dist   # 정규화(이미 dist 계산됨)
 		var t := clampf(1.0 - dist / magnet_radius, 0.0, 1.0)   # 가까울수록 가속
 		var spd := move_speed * (0.3 + t)
 		if Events.gold_magnet_active:
@@ -72,7 +87,6 @@ func _collect() -> void:
 	_alive = false
 	Events.add_gold(value)
 	SoundManager.play("gold", 0.05)
-	# 잠깐 커졌다가 풀로 반납(스파클 효과)
-	var tw := create_tween()
-	tw.tween_property(body, "scale", COLLECT_SCALE * 1.8, 0.08)
-	tw.tween_callback(func(): Pool.release(self))
+	# 잠깐 커졌다가 풀로 반납(스파클 효과) — _physics_process 에서 타이머로 진행
+	_collecting = true
+	_collect_t = COLLECT_POP
