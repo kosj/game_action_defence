@@ -45,6 +45,7 @@ func _build_ui() -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 44)
 	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	UITheme.heading(title)
 	box.add_child(title)
 
 	_best_label = Label.new()

@@ -97,6 +97,7 @@ func _build_ui() -> void:
 	# 웨이브 클리어 제목
 	_wave_label = _make_label(Locale.t("shop_clear_title"), 34, true)
 	_wave_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	UITheme.heading(_wave_label)
 	outer.add_child(_wave_label)
 
 	# 보유 골드 (코인 아이콘 + 수량)
@@ -192,6 +193,7 @@ func _upg_desc(upg: Dictionary) -> String:
 func _make_section_header(section: String) -> Label:
 	var lbl := _make_label("-- %s" % _sec_name(section), 15)
 	lbl.add_theme_color_override("font_color", SECTION_COLORS.get(section, Color.WHITE))
+	UITheme.heading(lbl)
 	return lbl
 
 

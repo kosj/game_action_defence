@@ -13,6 +13,9 @@ const TEXT      := Color(0.90, 0.92, 0.96)
 const TEXT_DIM  := Color(0.66, 0.70, 0.78)
 
 const FONT_PATH := "res://assets/fonts/NotoSansCJK-Subset.otf"
+const BOLD_PATH := "res://assets/fonts/NotoSansCJK-Subset-Bold.otf"
+
+var _bold_cache: Font = null
 
 
 func _ready() -> void:
@@ -39,6 +42,9 @@ func build() -> Theme:
 	t.set_stylebox("pressed",  "Button", _btn(BTN_BG.darkened(0.18), ACCENT))
 	t.set_stylebox("disabled", "Button", _btn(Color(0.14, 0.15, 0.18), Color(0.26, 0.27, 0.31)))
 	t.set_stylebox("focus",    "Button", _empty())
+	var bold := bold_font()
+	if bold:
+		t.set_font("font", "Button", bold)   # 버튼 라벨은 굵게
 	t.set_color("font_color",          "Button", TEXT)
 	t.set_color("font_hover_color",    "Button", Color.WHITE)
 	t.set_color("font_pressed_color",  "Button", ACCENT)
@@ -90,6 +96,26 @@ func _panel() -> StyleBoxFlat:
 
 func _empty() -> StyleBoxEmpty:
 	return StyleBoxEmpty.new()
+
+
+## 굵은(Bold) 폰트 — 제목/헤더용. 번들 Bold 서브셋이 있으면 사용, 없으면 기본 폰트.
+func bold_font() -> Font:
+	if _bold_cache:
+		return _bold_cache
+	if ResourceLoader.exists(BOLD_PATH):
+		var f = load(BOLD_PATH)
+		if f is Font:
+			_bold_cache = f
+			return _bold_cache
+	_bold_cache = _font()
+	return _bold_cache
+
+
+## 라벨을 제목 스타일(굵게)로 만든다. 색/크기는 호출부 설정을 유지.
+func heading(label: Label) -> void:
+	var b := bold_font()
+	if b:
+		label.add_theme_font_override("font", b)
 
 
 ## 세로 그라데이션 배경(TextureRect, 전체 앵커). 메뉴/상점 등 단색 배경 대체용.
