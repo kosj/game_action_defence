@@ -56,6 +56,65 @@ const STRINGS: Dictionary = {
 	"diff_easy":       {"en": "Easy",       "ko": "쉬움",      "ja": "イージー"},
 	"diff_normal":     {"en": "Normal",     "ko": "보통",      "ja": "ノーマル"},
 	"diff_hard":       {"en": "Hard",       "ko": "어려움",    "ja": "ハード"},
+
+	# ── HUD (포맷 문자열은 %d 자리 유지) ──────────────────────────────────
+	"hud_score_fmt":   {"en": "Score %d",   "ko": "점수 %d",   "ja": "スコア %d"},
+	"hud_best_fmt":    {"en": "Best %d",    "ko": "최고 %d",   "ja": "ベスト %d"},
+	"hud_wave_fmt":    {"en": "Wave %d",    "ko": "웨이브 %d", "ja": "ウェーブ %d"},
+	"wave_clear_fmt":  {"en": "Wave %d Clear!", "ko": "웨이브 %d 클리어!", "ja": "ウェーブ %d クリア！"},
+	"hud_magnet_fmt":  {"en": "Gold Magnet  %ds", "ko": "골드 자석  %d초", "ja": "ゴールド磁石  %d秒"},
+	"hud_revive":      {"en": "REVIVE  (Watch Ad)", "ko": "부활  (광고 시청)", "ja": "復活（広告を視聴）"},
+
+	# ── 게임오버 패널 ─────────────────────────────────────────────────────
+	"go_score_fmt":      {"en": "Score  %d", "ko": "점수  %d", "ja": "スコア  %d"},
+	"go_new_best_fmt":   {"en": "NEW BEST!  %d", "ko": "신기록!  %d", "ja": "新記録！  %d"},
+	"go_best_fmt":       {"en": "Best  %d", "ko": "최고  %d", "ja": "ベスト  %d"},
+	"go_wave_kills_fmt": {"en": "Wave %d   Kills %d", "ko": "웨이브 %d   처치 %d", "ja": "ウェーブ %d   撃破 %d"},
+	"go_retry":          {"en": "Retry",     "ko": "다시하기",   "ja": "リトライ"},
+	"go_menu":           {"en": "Main Menu", "ko": "메인 메뉴",  "ja": "メインメニュー"},
+
+	# ── 상점 ──────────────────────────────────────────────────────────────
+	"shop_clear_title":  {"en": "Wave Clear!", "ko": "웨이브 클리어!", "ja": "ウェーブクリア！"},
+	"shop_continue":     {"en": "Continue ->", "ko": "계속 ->", "ja": "つづける →"},
+	"shop_max":          {"en": "MAX", "ko": "최대", "ja": "最大"},
+	"shop_ad_claimed":   {"en": "Bonus claimed", "ko": "보너스 받음", "ja": "ボーナス受取済"},
+	"shop_ad_unavail":   {"en": "Free Gold (ad unavailable)", "ko": "무료 골드 (광고 없음)", "ja": "無料ゴールド（広告なし）"},
+	"shop_ad_gold_fmt":  {"en": "+%d Gold  (Watch Ad)", "ko": "+%d 골드  (광고 시청)", "ja": "+%d ゴールド（広告視聴）"},
+	"sec_weapon":    {"en": "WEAPON",    "ko": "무기",   "ja": "武器"},
+	"sec_orb":       {"en": "ORB",       "ko": "오브",   "ja": "オーブ"},
+	"sec_lightning": {"en": "LIGHTNING", "ko": "번개",   "ja": "稲妻"},
+	"sec_survival":  {"en": "SURVIVAL",  "ko": "생존",   "ja": "生存"},
+
+	# 업그레이드 이름/설명
+	"upg_speed_name":            {"en": "Move Speed",     "ko": "이동 속도",    "ja": "移動速度"},
+	"upg_speed_desc":            {"en": "+30 move speed", "ko": "+30 이동 속도", "ja": "+30 移動速度"},
+	"upg_atk_speed_name":        {"en": "Atk Speed",      "ko": "공격 속도",    "ja": "攻撃速度"},
+	"upg_atk_speed_desc":        {"en": "-15% fire delay","ko": "-15% 발사 딜레이", "ja": "-15% 発射ディレイ"},
+	"upg_bullet_damage_name":    {"en": "Bullet Dmg",     "ko": "총알 데미지",  "ja": "弾ダメージ"},
+	"upg_bullet_damage_desc":    {"en": "+1 bullet damage","ko": "+1 총알 데미지","ja": "+1 弾ダメージ"},
+	"upg_multi_bullet_name":     {"en": "Multi-Shot",     "ko": "멀티샷",       "ja": "マルチショット"},
+	"upg_multi_bullet_desc":     {"en": "+1 extra bullet","ko": "+1 추가 총알", "ja": "+1 追加弾"},
+	"upg_orbs_name":             {"en": "Orb Shield",     "ko": "오브 실드",    "ja": "オーブシールド"},
+	"upg_orbs_desc":             {"en": "+1 orbiting orb","ko": "+1 공전 오브", "ja": "+1 周回オーブ"},
+	"upg_orb_damage_name":       {"en": "Orb Dmg",        "ko": "오브 데미지",  "ja": "オーブダメージ"},
+	"upg_orb_damage_desc":       {"en": "+1 orb damage",  "ko": "+1 오브 데미지","ja": "+1 オーブダメージ"},
+	"upg_lightning_name":        {"en": "Lightning Bolt", "ko": "번개",         "ja": "稲妻"},
+	"upg_lightning_desc":        {"en": "Faster strikes", "ko": "더 빠른 낙뢰", "ja": "落雷が高速化"},
+	"upg_lightning_damage_name": {"en": "Lightning Dmg",  "ko": "번개 데미지",  "ja": "稲妻ダメージ"},
+	"upg_lightning_damage_desc": {"en": "+1 lightning damage","ko": "+1 번개 데미지","ja": "+1 稲妻ダメージ"},
+	"upg_max_health_name":       {"en": "Max HP",         "ko": "최대 체력",    "ja": "最大HP"},
+	"upg_max_health_desc":       {"en": "+1 heart (heals)","ko": "+1 하트 (회복)","ja": "+1 ハート（回復）"},
+	"upg_heal_name":             {"en": "Heal HP",        "ko": "체력 회복",    "ja": "HP回復"},
+	"upg_heal_desc":             {"en": "Full HP restore","ko": "체력 전부 회복","ja": "HP全回復"},
+
+	# ── 보상형 광고 오버레이 ──────────────────────────────────────────────
+	"ad_title":      {"en": "REWARDED AD", "ko": "보상형 광고", "ja": "リワード広告"},
+	"ad_watch_fmt":  {"en": "Watch  %d",   "ko": "시청  %d",    "ja": "視聴  %d"},
+	"ad_finished":   {"en": "Ad finished", "ko": "시청 완료",   "ja": "視聴完了"},
+	"ad_claim":      {"en": "CLAIM REWARD","ko": "보상 받기",   "ja": "報酬を受取"},
+	"ad_demo_hint":  {"en": "(demo placeholder — real video plays here in a build)",
+					  "ko": "(데모 — 실제 빌드에선 영상이 재생됩니다)",
+					  "ja": "(デモ — 製品版では動画が再生されます)"},
 }
 
 

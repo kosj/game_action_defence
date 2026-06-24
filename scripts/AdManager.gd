@@ -77,7 +77,7 @@ func _show_real_rewarded(placement: String) -> void:
 func _show_stub_rewarded() -> void:
 	_ensure_overlay()
 	_count = STUB_WATCH_SECONDS
-	_title.text = "REWARDED AD"
+	_title.text = Locale.t("ad_title")
 	_claim_btn.visible = false
 	_layer.visible = true
 	_tick()
@@ -86,10 +86,10 @@ func _show_stub_rewarded() -> void:
 ## 1초마다 카운트다운. 0 이 되면 "보상 받기" 버튼을 띄워 유저가 닫으며 보상 확정.
 func _tick() -> void:
 	if _count <= 0:
-		_count_label.text = "Ad finished"
+		_count_label.text = Locale.t("ad_finished")
 		_claim_btn.visible = true
 		return
-	_count_label.text = "Watch  %d" % _count
+	_count_label.text = Locale.t("ad_watch_fmt") % _count
 	_count -= 1
 	# process_always 타이머라 트리가 일시정지돼도 흐른다.
 	get_tree().create_timer(1.0).timeout.connect(_tick, CONNECT_ONE_SHOT)
@@ -148,19 +148,19 @@ func _ensure_overlay() -> void:
 	box.add_theme_constant_override("separation", 18)
 	_layer.add_child(box)
 
-	_title = _make_label("REWARDED AD", 30)
+	_title = _make_label(Locale.t("ad_title"), 30)
 	_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25))
 	box.add_child(_title)
 
-	_count_label = _make_label("Watch  3", 22)
+	_count_label = _make_label(Locale.t("ad_watch_fmt") % STUB_WATCH_SECONDS, 22)
 	box.add_child(_count_label)
 
-	var hint := _make_label("(demo placeholder — real video plays here in a build)", 13)
+	var hint := _make_label(Locale.t("ad_demo_hint"), 13)
 	hint.add_theme_color_override("font_color", Color(0.65, 0.67, 0.72))
 	box.add_child(hint)
 
 	_claim_btn = Button.new()
-	_claim_btn.text = "CLAIM REWARD"
+	_claim_btn.text = Locale.t("ad_claim")
 	_claim_btn.custom_minimum_size = Vector2(0, 56)
 	_claim_btn.add_theme_font_size_override("font_size", 22)
 	_claim_btn.visible = false
