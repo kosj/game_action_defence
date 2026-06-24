@@ -1,20 +1,22 @@
 extends CanvasLayer
-## 상점 패널: 웨이브 클리어 후 자동 등장. 골드로 캐릭터 업그레이드 구매.
+## 룰렛 패널: 웨이브 클리어 후 자동 등장. 골드를 내고 룰렛을 돌려
+## 랜덤하게 업그레이드 1개를 획득한다. 골드가 부족하면 돌릴 수 없다.
 
 const _UIStyle := preload("res://scripts/UIStyle.gd")
+const _RouletteWheel := preload("res://scripts/RouletteWheel.gd")
 const _COIN_ICON := preload("res://assets/ui/ui_coin.png")
 
 const UPGRADES: Array = [
-	{"section": "WEAPON",    "id": "speed",            "label": "Move Speed",    "desc": "+30 move speed",           "costs": [10, 15, 20, 25, 32, 40, 50, 62, 76, 92]},
-	{"section": "WEAPON",    "id": "atk_speed",        "label": "Atk Speed",     "desc": "-15% fire delay",          "costs": [15, 22, 30, 40, 52, 66, 82, 100, 120, 142]},
-	{"section": "WEAPON",    "id": "bullet_damage",    "label": "Bullet Dmg",    "desc": "+1 bullet damage",         "costs": [20, 30, 45, 60, 80, 105, 135, 170, 210, 255]},
-	{"section": "WEAPON",    "id": "multi_bullet",     "label": "Multi-Shot",    "desc": "+1 extra bullet",          "costs": [30, 50, 80, 120, 170, 230]},
-	{"section": "ORB",       "id": "orbs",             "label": "Orb Shield",    "desc": "+1 orbiting orb",          "costs": [25, 40, 60, 80, 105, 135, 170, 210]},
-	{"section": "ORB",       "id": "orb_damage",       "label": "Orb Dmg",       "desc": "+1 orb damage",            "costs": [20, 30, 45, 60, 80, 105, 135, 170]},
-	{"section": "LIGHTNING", "id": "lightning",        "label": "Lightning Bolt","desc": "Faster strikes",           "costs": [40, 65, 95, 130, 170, 215, 265, 320]},
-	{"section": "LIGHTNING", "id": "lightning_damage", "label": "Lightning Dmg", "desc": "+1 lightning damage",      "costs": [20, 30, 45, 60, 80, 105, 135, 170]},
-	{"section": "SURVIVAL",  "id": "max_health",       "label": "Max HP",        "desc": "+1 heart (heals)",         "costs": [12, 18, 26, 35, 46, 58, 72, 88, 106, 126]},
-	{"section": "SURVIVAL",  "id": "heal",             "label": "Heal HP",       "desc": "Full HP restore",          "costs": [8,  8,  8,  8]},
+	{"section": "WEAPON",    "id": "speed",            "costs": [10, 15, 20, 25, 32, 40, 50, 62, 76, 92]},
+	{"section": "WEAPON",    "id": "atk_speed",        "costs": [15, 22, 30, 40, 52, 66, 82, 100, 120, 142]},
+	{"section": "WEAPON",    "id": "bullet_damage",    "costs": [20, 30, 45, 60, 80, 105, 135, 170, 210, 255]},
+	{"section": "WEAPON",    "id": "multi_bullet",     "costs": [30, 50, 80, 120, 170, 230]},
+	{"section": "ORB",       "id": "orbs",             "costs": [25, 40, 60, 80, 105, 135, 170, 210]},
+	{"section": "ORB",       "id": "orb_damage",       "costs": [20, 30, 45, 60, 80, 105, 135, 170]},
+	{"section": "LIGHTNING", "id": "lightning",        "costs": [40, 65, 95, 130, 170, 215, 265, 320]},
+	{"section": "LIGHTNING", "id": "lightning_damage", "costs": [20, 30, 45, 60, 80, 105, 135, 170]},
+	{"section": "SURVIVAL",  "id": "max_health",       "costs": [12, 18, 26, 35, 46, 58, 72, 88, 106, 126]},
+	{"section": "SURVIVAL",  "id": "heal",             "costs": [8,  8,  8,  8]},
 ]
 
 const SECTION_COLORS: Dictionary = {
@@ -24,19 +26,26 @@ const SECTION_COLORS: Dictionary = {
 	"SURVIVAL":  Color(0.45, 0.85, 0.50),
 }
 
-## 누른 지점에서 이만큼(px) 이상 드래그되면 탭이 아니라 스크롤로 간주해 구매를 취소.
-const SCROLL_TAP_THRESHOLD := 12.0
+## 스핀 비용 = 기본 + 웨이브 보정 + 이번 등장에서 돌린 횟수 * 증가분.
+## 돌릴수록 비싸져 무한 스핀을 막고, 후반 웨이브일수록 기본가가 오른다.
+const SPIN_BASE := 12
+const SPIN_WAVE_MULT := 4
+const SPIN_STEP := 12
+
+const WHEEL_SIZE := 320.0
 
 var _panel: PanelContainer
 var _wave_label: Label
 var _gold_label: Label
-var _buttons: Array = []
+var _result_label: Label
+var _spin_btn: Button
 var _continue_btn: Button
 var _ad_gold_btn: Button
-var _ad_gold_claimed: bool = false   # 상점 1회 등장당 보상형 골드 1회만
-var _scroll: ScrollContainer
-var _dragging: bool = false
-var _drag_total: float = 0.0
+var _wheel: Control
+var _ad_gold_claimed: bool = false   # 등장당 보상형 골드 1회만
+var _spins_done: int = 0             # 이번 등장에서 돌린 횟수
+var _wave: int = 1
+var _spinning: bool = false
 
 
 func _ready() -> void:
@@ -48,9 +57,13 @@ func _ready() -> void:
 
 
 func _on_wave_complete(wave: int) -> void:
+	_wave = wave
 	_wave_label.text = Locale.t("wave_clear_fmt") % wave
-	_ad_gold_claimed = false   # 새 상점 등장 — 보상형 골드 다시 1회 허용
-	_refresh_buttons()
+	_ad_gold_claimed = false
+	_spins_done = 0
+	_spinning = false
+	_result_label.text = Locale.t("spin_hint")
+	_refresh()
 	await get_tree().create_timer(2.1).timeout
 	if not is_instance_valid(self):
 		return
@@ -69,16 +82,16 @@ func _build_ui() -> void:
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(overlay)
 
-	# 중앙 패널 (둥근 모서리 + 테두리 + 그림자)
+	# 중앙 패널
 	_panel = PanelContainer.new()
 	_panel.anchor_left = 0.5
 	_panel.anchor_right = 0.5
 	_panel.anchor_top = 0.5
 	_panel.anchor_bottom = 0.5
 	_panel.offset_left = -320.0
-	_panel.offset_top  = -460.0
+	_panel.offset_top  = -440.0
 	_panel.offset_right = 320.0
-	_panel.offset_bottom = 460.0
+	_panel.offset_bottom = 440.0
 	_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 0.97), Color(0.35, 0.38, 0.5)))
 	add_child(_panel)
 	call_deferred("_init_pivot")
@@ -100,7 +113,7 @@ func _build_ui() -> void:
 	UITheme.heading(_wave_label)
 	outer.add_child(_wave_label)
 
-	# 보유 골드 (코인 아이콘 + 수량)
+	# 보유 골드
 	var gold_row := HBoxContainer.new()
 	gold_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	gold_row.add_theme_constant_override("separation", 6)
@@ -117,12 +130,12 @@ func _build_ui() -> void:
 	_gold_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.3))
 	gold_row.add_child(_gold_label)
 
-	# 보상형 광고: 시청하면 보유 골드를 보너스로 지급(최대 2배). 상점당 1회.
+	# 보상형 광고: 보유 골드 보너스(최대 2배). 등장당 1회.
 	_ad_gold_btn = Button.new()
-	_ad_gold_btn.custom_minimum_size = Vector2(0, 50)
-	_apply_font(_ad_gold_btn, 18)
+	_ad_gold_btn.custom_minimum_size = Vector2(0, 48)
+	_apply_font(_ad_gold_btn, 17)
 	_ad_gold_btn.icon = _COIN_ICON
-	_ad_gold_btn.add_theme_constant_override("icon_max_width", 24)
+	_ad_gold_btn.add_theme_constant_override("icon_max_width", 22)
 	_ad_gold_btn.add_theme_constant_override("h_separation", 8)
 	_UIStyle.apply_button_style(_ad_gold_btn, Color(0.42, 0.30, 0.06), Color(1.0, 0.78, 0.22))
 	_ad_gold_btn.pressed.connect(_on_ad_gold_pressed)
@@ -130,109 +143,74 @@ func _build_ui() -> void:
 
 	outer.add_child(HSeparator.new())
 
-	# 스크롤되는 업그레이드 목록 (섹션 헤더 포함)
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.gui_input.connect(_on_scroll_gui_input)
-	outer.add_child(scroll)
-	_scroll = scroll
+	# 룰렛 휠 + 상단 포인터
+	var holder := Control.new()
+	holder.custom_minimum_size = Vector2(WHEEL_SIZE, WHEEL_SIZE)
+	holder.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	outer.add_child(holder)
 
-	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", 8)
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# PASS: 버튼이 누름은 그대로 처리하면서도 드래그 이벤트가 위의 scroll 까지 전달되게 한다.
-	list.mouse_filter = Control.MOUSE_FILTER_PASS
-	scroll.add_child(list)
+	_wheel = _RouletteWheel.new()
+	_wheel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_wheel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 휠은 holder(고정 크기) 를 꽉 채우므로 회전 중심을 직접 지정.
+	_wheel.pivot_offset = Vector2(WHEEL_SIZE, WHEEL_SIZE) * 0.5
+	holder.add_child(_wheel)
 
-	_buttons.clear()
-	var last_section := ""
-	for upg: Dictionary in UPGRADES:
-		var section: String = upg["section"]
-		if section != last_section:
-			list.add_child(_make_section_header(section))
-			last_section = section
-		var btn := _make_upgrade_button(upg)
-		list.add_child(btn)
-		_buttons.append(btn)
+	var pointer := Label.new()
+	pointer.text = "▼"
+	pointer.add_theme_font_size_override("font_size", 42)
+	pointer.add_theme_color_override("font_color", Color(1.0, 0.92, 0.32))
+	pointer.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	pointer.add_theme_constant_override("outline_size", 5)
+	pointer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	pointer.anchor_left = 0.5
+	pointer.anchor_right = 0.5
+	pointer.offset_left = -22.0
+	pointer.offset_right = 22.0
+	pointer.offset_top = -8.0
+	pointer.offset_bottom = 48.0
+	holder.add_child(pointer)
+
+	# 결과 / 안내 텍스트
+	_result_label = _make_label(Locale.t("spin_hint"), 22, true)
+	_result_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.55))
+	_result_label.custom_minimum_size = Vector2(0, 32)
+	_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	outer.add_child(_result_label)
+
+	# 스핀 버튼
+	_spin_btn = Button.new()
+	_spin_btn.custom_minimum_size = Vector2(0, 66)
+	_apply_font(_spin_btn, 24)
+	_spin_btn.icon = _COIN_ICON
+	_spin_btn.add_theme_constant_override("icon_max_width", 26)
+	_spin_btn.add_theme_constant_override("h_separation", 10)
+	_UIStyle.apply_button_style(_spin_btn, Color(0.44, 0.20, 0.46), Color(0.85, 0.45, 0.95))
+	_spin_btn.pressed.connect(_on_spin)
+	outer.add_child(_spin_btn)
 
 	outer.add_child(HSeparator.new())
 
 	# 계속 버튼
 	_continue_btn = Button.new()
 	_continue_btn.text = Locale.t("shop_continue")
-	_continue_btn.custom_minimum_size = Vector2(0, 66)
-	_apply_font(_continue_btn, 26)
+	_continue_btn.custom_minimum_size = Vector2(0, 60)
+	_apply_font(_continue_btn, 24)
 	_UIStyle.apply_button_style(_continue_btn, Color(0.14, 0.40, 0.20), Color(0.4, 0.85, 0.45))
 	_continue_btn.pressed.connect(_on_continue)
 	outer.add_child(_continue_btn)
 
+	_rebuild_wheel()
+
 
 func _init_pivot() -> void:
 	_panel.pivot_offset = _panel.size * 0.5
+	_wheel.pivot_offset = _wheel.size * 0.5
 
 
-## 섹션 헤더 영문 ID → Locale 키
-const _SEC_KEYS: Dictionary = {
-	"WEAPON": "sec_weapon", "ORB": "sec_orb", "LIGHTNING": "sec_lightning", "SURVIVAL": "sec_survival",
-}
-
-
-func _sec_name(section: String) -> String:
-	return Locale.t(_SEC_KEYS.get(section, section))
-
-
+# ---------------------------------------------------------------- locale helpers
 func _upg_name(upg: Dictionary) -> String:
 	return Locale.t("upg_%s_name" % upg["id"])
-
-
-func _upg_desc(upg: Dictionary) -> String:
-	return Locale.t("upg_%s_desc" % upg["id"])
-
-
-func _make_section_header(section: String) -> Label:
-	var lbl := _make_label("-- %s" % _sec_name(section), 15)
-	lbl.add_theme_color_override("font_color", SECTION_COLORS.get(section, Color.WHITE))
-	UITheme.heading(lbl)
-	return lbl
-
-
-func _make_upgrade_button(upg: Dictionary) -> Button:
-	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(0, 62)
-	_apply_font(btn, 19)
-	var id: String = upg["id"]
-	var col: Color = SECTION_COLORS.get(upg["section"], Color(0.4, 0.4, 0.45))
-	_UIStyle.apply_button_style(btn, col.darkened(0.82), col)
-	# 섹션 색상의 굵은 좌측 띠로 카테고리를 한눈에 구분
-	for state_name in ["normal", "hover", "pressed", "disabled"]:
-		var sb := btn.get_theme_stylebox(state_name) as StyleBoxFlat
-		if sb:
-			sb.border_width_left = 7
-	btn.icon = _COIN_ICON
-	btn.add_theme_constant_override("icon_max_width", 26)
-	btn.add_theme_constant_override("h_separation", 10)
-	btn.mouse_filter = Control.MOUSE_FILTER_PASS   # 드래그를 위 scroll 으로도 전달
-	btn.pressed.connect(_on_upgrade_tap.bind(id))
-	return btn
-
-
-## 모바일 터치 드래그로 스크롤 — Godot ScrollContainer 는 터치 드래그를 안정적으로
-## 처리하지 못해(특히 버튼 위에서) 직접 입력을 받아 scroll_vertical 을 갱신한다.
-func _on_scroll_gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		_dragging = event.pressed
-		_drag_total = 0.0
-	elif event is InputEventMouseMotion and _dragging:
-		_scroll.scroll_vertical -= int(event.relative.y)
-		_drag_total += absf(event.relative.y)
-
-
-## 버튼 클릭이 일정 거리 이상의 드래그(스크롤)였다면 구매로 처리하지 않는다.
-func _on_upgrade_tap(id: String) -> void:
-	if _drag_total > SCROLL_TAP_THRESHOLD:
-		return
-	_on_upgrade_pressed(id)
 
 
 func _make_label(txt: String, size: int, centered: bool = false) -> Label:
@@ -248,6 +226,7 @@ func _apply_font(node: Control, size: int) -> void:
 	node.add_theme_font_size_override("font_size", size)
 
 
+# ---------------------------------------------------------------- upgrade state
 func _get_level(id: String) -> int:
 	match id:
 		"speed":            return Events.upgrade_speed
@@ -262,15 +241,27 @@ func _get_level(id: String) -> int:
 	return 0
 
 
-func _get_cost(upg: Dictionary) -> int:
-	var costs: Array = upg["costs"]
-	var lvl := _get_level(upg["id"])
-	if lvl >= costs.size():
-		return -1   # 최대 레벨
-	return costs[lvl]
+## 최대 레벨 여부 (heal 은 반복 가능하므로 항상 false).
+func _is_maxed(upg: Dictionary) -> bool:
+	if upg["id"] == "heal":
+		return false
+	return _get_level(upg["id"]) >= int(upg["costs"].size())
 
 
-## 보상형 광고로 받을 보너스 골드 — 보유 골드만큼(최대 2배) 주되 최소 30 보장.
+## 룰렛이 당첨시킬 수 있는 후보(최대치가 아닌 업그레이드) 인덱스 목록.
+func _available_indices() -> Array:
+	var arr: Array = []
+	for i in UPGRADES.size():
+		if not _is_maxed(UPGRADES[i]):
+			arr.append(i)
+	return arr
+
+
+func _spin_cost() -> int:
+	return SPIN_BASE + _wave * SPIN_WAVE_MULT + _spins_done * SPIN_STEP
+
+
+# ---------------------------------------------------------------- ad gold
 func _ad_gold_bonus() -> int:
 	return clampi(Events.total_gold, 30, 300)
 
@@ -284,11 +275,11 @@ func _update_ad_gold_btn() -> void:
 		_ad_gold_btn.disabled = true
 	else:
 		_ad_gold_btn.text = Locale.t("shop_ad_gold_fmt") % _ad_gold_bonus()
-		_ad_gold_btn.disabled = false
+		_ad_gold_btn.disabled = _spinning
 
 
 func _on_ad_gold_pressed() -> void:
-	if _ad_gold_claimed or not AdManager.is_rewarded_ready():
+	if _ad_gold_claimed or _spinning or not AdManager.is_rewarded_ready():
 		return
 	AdManager.show_rewarded("shop_gold")
 
@@ -298,38 +289,91 @@ func _on_rewarded_granted(placement: String) -> void:
 		return
 	_ad_gold_claimed = true
 	Events.add_gold(_ad_gold_bonus())
-	_refresh_buttons()
+	_refresh()
 
 
-func _refresh_buttons() -> void:
+# ---------------------------------------------------------------- wheel build / refresh
+func _rebuild_wheel() -> void:
+	var sectors: Array = []
+	for upg: Dictionary in UPGRADES:
+		sectors.append({
+			"color": SECTION_COLORS.get(upg["section"], Color(0.4, 0.4, 0.45)),
+			"label": _upg_name(upg),
+			"dim": _is_maxed(upg),
+		})
+	_wheel.setup(sectors)
+
+
+func _refresh() -> void:
 	_gold_label.text = "%d" % Events.total_gold
 	_update_ad_gold_btn()
-	for i in UPGRADES.size():
-		var upg: Dictionary = UPGRADES[i]
-		var id: String = upg["id"]
-		var btn: Button = _buttons[i]
-		var cost := _get_cost(upg)
+	_rebuild_wheel()
 
-		if id != "heal" and cost == -1:
-			btn.text = "%s  [%s]\n%s" % [_upg_name(upg), Locale.t("shop_max"), _upg_desc(upg)]
-			btn.disabled = true
-		else:
-			var lvl := _get_level(id)
-			var max_lvl: int = upg["costs"].size()
-			var lvl_str := ("  (%d/%d)" % [lvl, max_lvl]) if id != "heal" else ""
-			btn.text = "%s%s\n-%dG   %s" % [_upg_name(upg), lvl_str, cost, _upg_desc(upg)]
-			btn.disabled = Events.total_gold < cost
+	var cost := _spin_cost()
+	if _spinning:
+		_spin_btn.text = Locale.t("spin_spinning")
+		_spin_btn.disabled = true
+	elif Events.total_gold < cost:
+		_spin_btn.text = "%s  (-%dG)" % [Locale.t("spin_insufficient"), cost]
+		_spin_btn.disabled = true
+	else:
+		_spin_btn.text = Locale.t("spin_btn_fmt") % cost
+		_spin_btn.disabled = false
 
 
-func _on_upgrade_pressed(id: String) -> void:
-	var matches := UPGRADES.filter(func(u: Dictionary) -> bool: return u["id"] == id)
-	if matches.is_empty():
+# ---------------------------------------------------------------- spin
+func _on_spin() -> void:
+	if _spinning:
 		return
-	var upg: Dictionary = matches[0]
-	var cost := _get_cost(upg)
-	if cost == -1 or not Events.spend_gold(cost):
+	var cost := _spin_cost()
+	# 골드가 부족하면 구매(스핀)되지 않는다.
+	if not Events.spend_gold(cost):
+		_refresh()
 		return
+	_spins_done += 1
+	_spinning = true
+	_continue_btn.disabled = true
+	_result_label.text = Locale.t("spin_spinning")
+	_refresh()
 
+	var avail := _available_indices()
+	var winner: int = avail[randi() % avail.size()]
+	_animate_to(winner)
+
+
+func _animate_to(winner: int) -> void:
+	var n := UPGRADES.size()
+	var step := TAU / n
+	var a_mid := (winner + 0.5) * step
+	var jitter := randf_range(-step * 0.32, step * 0.32)
+	# 당첨 섹터 중심이 상단 포인터(각도 -PI/2) 아래에 오도록.
+	var desired := fposmod(-PI * 0.5 - a_mid - jitter, TAU)
+	_wheel.rotation = fposmod(_wheel.rotation, TAU)
+	var turns := 5
+	var target := _wheel.rotation + TAU * turns + fposmod(desired - _wheel.rotation, TAU)
+
+	var tw := create_tween()
+	tw.tween_property(_wheel, "rotation", target, 3.0).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(_finish_spin.bind(winner))
+
+
+func _finish_spin(winner: int) -> void:
+	var upg: Dictionary = UPGRADES[winner]
+	_grant_upgrade(upg["id"])
+
+	_spinning = false
+	_continue_btn.disabled = false
+	_result_label.text = Locale.t("spin_result_fmt") % _upg_name(upg)
+	# 결과 텍스트 팝 연출
+	_result_label.scale = Vector2(1.35, 1.35)
+	_result_label.pivot_offset = _result_label.size * 0.5
+	create_tween().tween_property(_result_label, "scale", Vector2.ONE, 0.25)\
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_refresh()
+
+
+## 비용 없이(스핀 비용으로 이미 지불) 업그레이드 1단계를 적용한다.
+func _grant_upgrade(id: String) -> void:
 	match id:
 		"speed":            Events.upgrade_speed += 1
 		"atk_speed":        Events.upgrade_atk_speed += 1
@@ -341,18 +385,18 @@ func _on_upgrade_pressed(id: String) -> void:
 		"lightning":        Events.upgrade_lightning += 1
 		"max_health":       Events.upgrade_max_health += 1
 		"heal":
-			var player := get_tree().get_first_node_in_group("player")
-			if player and player.has_method("heal_full"):
-				player.heal_full()
+			var ph := get_tree().get_first_node_in_group("player")
+			if ph and ph.has_method("heal_full"):
+				ph.heal_full()
 
 	if id != "heal":
 		var player := get_tree().get_first_node_in_group("player")
 		if player and player.has_method("apply_upgrades"):
 			player.apply_upgrades()
 
-	_refresh_buttons()
-
 
 func _on_continue() -> void:
+	if _spinning:
+		return
 	visible = false
 	Events.shop_closed.emit()
