@@ -1,9 +1,9 @@
 extends CanvasLayer
-## 룰렛 패널: 웨이브 클리어 후 자동 등장. 골드를 내고 룰렛을 돌려
-## 랜덤하게 업그레이드 1개를 획득한다. 골드가 부족하면 돌릴 수 없다.
+## 카드 선택 패널: 웨이브 클리어 후 자동 등장.
+## 골드를 내고 뒤집힌 카드(?) 한 벌을 뽑은 뒤, 그 중 하나를 골라 "까서"
+## 랜덤 업그레이드 1개를 획득한다. 골드가 부족하면 뽑을 수 없다.
 
 const _UIStyle := preload("res://scripts/UIStyle.gd")
-const _RouletteWheel := preload("res://scripts/RouletteWheel.gd")
 const _COIN_ICON := preload("res://assets/ui/ui_coin.png")
 
 const UPGRADES: Array = [
@@ -26,26 +26,35 @@ const SECTION_COLORS: Dictionary = {
 	"SURVIVAL":  Color(0.45, 0.85, 0.50),
 }
 
-## 스핀 비용 = 기본 + 웨이브 보정 + 이번 등장에서 돌린 횟수 * 증가분.
-## 돌릴수록 비싸져 무한 스핀을 막고, 후반 웨이브일수록 기본가가 오른다.
-const SPIN_BASE := 12
-const SPIN_WAVE_MULT := 4
-const SPIN_STEP := 12
+## 섹션별 대표 아이콘(UIIcon kind).
+const SECTION_ICON: Dictionary = {
+	"WEAPON": "sword", "ORB": "orb", "LIGHTNING": "bolt", "SURVIVAL": "heart",
+}
 
-const WHEEL_SIZE := 320.0
+## 뽑기 비용 = 기본 + 웨이브 보정 + 이번 등장에서 뽑은 횟수 * 증가분.
+## 뽑을수록 비싸져 무한 뽑기를 막고, 후반 웨이브일수록 기본가가 오른다.
+const DRAW_BASE := 12
+const DRAW_WAVE_MULT := 4
+const DRAW_STEP := 12
+
+const CARD_COUNT := 3
 
 var _panel: PanelContainer
 var _wave_label: Label
 var _gold_label: Label
 var _result_label: Label
-var _spin_btn: Button
+var _draw_btn: Button
 var _continue_btn: Button
 var _ad_gold_btn: Button
-var _wheel: Control
+var _cards_row: HBoxContainer
+var _cards: Array = []          # [{btn, q, face, icon, name}, ...]
+var _deal: Array = []           # 이번 한 벌에 배정된 UPGRADES 인덱스(카드별)
 var _ad_gold_claimed: bool = false   # 등장당 보상형 골드 1회만
-var _spins_done: int = 0             # 이번 등장에서 돌린 횟수
+var _draws_done: int = 0        # 이번 등장에서 뽑은 횟수
 var _wave: int = 1
-var _spinning: bool = false
+var _busy: bool = false         # 까는 연출 중
+var _selectable: bool = false   # 카드를 고를 수 있는 상태(뽑은 직후)
+var _hint_tween: Tween = null
 
 
 func _ready() -> void:
@@ -60,9 +69,11 @@ func _on_wave_complete(wave: int) -> void:
 	_wave = wave
 	_wave_label.text = Locale.t("wave_clear_fmt") % wave
 	_ad_gold_claimed = false
-	_spins_done = 0
-	_spinning = false
-	_result_label.text = Locale.t("spin_hint")
+	_draws_done = 0
+	_busy = false
+	_selectable = false
+	_reset_cards_facedown()
+	_result_label.text = Locale.t("pick_intro")
 	_refresh()
 	await get_tree().create_timer(2.1).timeout
 	if not is_instance_valid(self):
@@ -89,9 +100,9 @@ func _build_ui() -> void:
 	_panel.anchor_top = 0.5
 	_panel.anchor_bottom = 0.5
 	_panel.offset_left = -320.0
-	_panel.offset_top  = -440.0
+	_panel.offset_top  = -420.0
 	_panel.offset_right = 320.0
-	_panel.offset_bottom = 440.0
+	_panel.offset_bottom = 420.0
 	_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 0.97), Color(0.35, 0.38, 0.5)))
 	add_child(_panel)
 	call_deferred("_init_pivot")
@@ -143,70 +154,121 @@ func _build_ui() -> void:
 
 	outer.add_child(HSeparator.new())
 
-	# 룰렛 휠 + 상단 포인터
-	var holder := Control.new()
-	holder.custom_minimum_size = Vector2(WHEEL_SIZE, WHEEL_SIZE)
-	holder.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	outer.add_child(holder)
+	# "테이블" 위의 미스터리 카드 한 벌
+	var table := PanelContainer.new()
+	table.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.06, 0.05, 0.09, 0.92), Color(0.30, 0.18, 0.34), 18, 2))
+	outer.add_child(table)
 
-	_wheel = _RouletteWheel.new()
-	_wheel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_wheel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	# 휠은 holder(고정 크기) 를 꽉 채우므로 회전 중심을 직접 지정.
-	_wheel.pivot_offset = Vector2(WHEEL_SIZE, WHEEL_SIZE) * 0.5
-	holder.add_child(_wheel)
+	var table_margin := MarginContainer.new()
+	table_margin.add_theme_constant_override("margin_left",   14)
+	table_margin.add_theme_constant_override("margin_right",  14)
+	table_margin.add_theme_constant_override("margin_top",    16)
+	table_margin.add_theme_constant_override("margin_bottom", 16)
+	table.add_child(table_margin)
 
-	# 상단 포인터: 폰트에 없는 ▼ 글리프(깨짐) 대신 코드로 삼각형을 그린다.
-	var px := WHEEL_SIZE * 0.5   # 휠 상단 중앙
-	var ptr_outline := Polygon2D.new()   # 어두운 외곽선
-	ptr_outline.polygon = PackedVector2Array([Vector2(-20, -9), Vector2(20, -9), Vector2(0, 29)])
-	ptr_outline.color = Color(0, 0, 0, 0.85)
-	ptr_outline.position = Vector2(px, 2)
-	holder.add_child(ptr_outline)
-	var pointer := Polygon2D.new()
-	pointer.polygon = PackedVector2Array([Vector2(-16, -6), Vector2(16, -6), Vector2(0, 24)])
-	pointer.color = Color(1.0, 0.92, 0.32)
-	pointer.position = Vector2(px, 2)
-	holder.add_child(pointer)
+	_cards_row = HBoxContainer.new()
+	_cards_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_cards_row.add_theme_constant_override("separation", 12)
+	table_margin.add_child(_cards_row)
+
+	_cards.clear()
+	for i in CARD_COUNT:
+		var card := _make_card(i)
+		_cards.append(card)
+		_cards_row.add_child(card["btn"])
 
 	# 결과 / 안내 텍스트
-	_result_label = _make_label(Locale.t("spin_hint"), 22, true)
+	_result_label = _make_label(Locale.t("pick_intro"), 22, true)
 	_result_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.55))
 	_result_label.custom_minimum_size = Vector2(0, 32)
 	_result_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	outer.add_child(_result_label)
 
-	# 스핀 버튼
-	_spin_btn = Button.new()
-	_spin_btn.custom_minimum_size = Vector2(0, 66)
-	_apply_font(_spin_btn, 24)
-	_spin_btn.icon = _COIN_ICON
-	_spin_btn.add_theme_constant_override("icon_max_width", 26)
-	_spin_btn.add_theme_constant_override("h_separation", 10)
-	_UIStyle.apply_button_style(_spin_btn, Color(0.44, 0.20, 0.46), Color(0.85, 0.45, 0.95))
-	_spin_btn.pressed.connect(_on_spin)
-	outer.add_child(_spin_btn)
+	# 뽑기 버튼 (골드 소모) — 뽑으면 카드가 선택 가능해진다.
+	_draw_btn = Button.new()
+	_draw_btn.custom_minimum_size = Vector2(0, 64)
+	_apply_font(_draw_btn, 24)
+	_draw_btn.icon = _COIN_ICON
+	_draw_btn.add_theme_constant_override("icon_max_width", 26)
+	_draw_btn.add_theme_constant_override("h_separation", 10)
+	_UIStyle.apply_button_style(_draw_btn, Color(0.44, 0.20, 0.46), Color(0.85, 0.45, 0.95))
+	_draw_btn.pressed.connect(_on_draw)
+	outer.add_child(_draw_btn)
 
 	outer.add_child(HSeparator.new())
 
 	# 계속 버튼
 	_continue_btn = Button.new()
 	_continue_btn.text = Locale.t("shop_continue")
-	_continue_btn.custom_minimum_size = Vector2(0, 60)
+	_continue_btn.custom_minimum_size = Vector2(0, 58)
 	_apply_font(_continue_btn, 24)
 	_UIStyle.apply_button_style(_continue_btn, Color(0.14, 0.40, 0.20), Color(0.4, 0.85, 0.45))
 	_continue_btn.pressed.connect(_on_continue)
 	outer.add_child(_continue_btn)
 
-	_rebuild_wheel()
+	_reset_cards_facedown()
 
 
 func _init_pivot() -> void:
 	_panel.pivot_offset = _panel.size * 0.5
-	_wheel.pivot_offset = _wheel.size * 0.5
 
 
-# ---------------------------------------------------------------- locale helpers
+# ---------------------------------------------------------------- card build
+func _make_card(idx: int) -> Dictionary:
+	var btn := Button.new()
+	btn.custom_minimum_size = Vector2(118, 152)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_UIStyle.apply_button_style(btn, Color(0.17, 0.12, 0.22), Color(0.60, 0.42, 0.75))
+	btn.pressed.connect(_on_card_pressed.bind(idx))
+
+	# 앞면/뒷면이 같은 자리에 겹치도록 CenterContainer 사용(각 자식이 중앙 정렬됨).
+	var cc := CenterContainer.new()
+	cc.set_anchors_preset(Control.PRESET_FULL_RECT)
+	cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(cc)
+
+	# 뒷면: 큰 물음표
+	var q := Label.new()
+	q.text = "?"
+	q.add_theme_font_size_override("font_size", 58)
+	q.add_theme_color_override("font_color", Color(1.0, 0.9, 0.45))
+	q.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	UITheme.heading(q)
+	cc.add_child(q)
+
+	# 앞면(공개 시): 아이콘 + 이름
+	var face := VBoxContainer.new()
+	face.alignment = BoxContainer.ALIGNMENT_CENTER
+	face.add_theme_constant_override("separation", 8)
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	face.visible = false
+	cc.add_child(face)
+
+	var icon := UIIcon.make("star", 46, Color.WHITE)
+	icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	face.add_child(icon)
+
+	var nm := _make_label("", 15, true)
+	nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	nm.custom_minimum_size = Vector2(104, 0)
+	face.add_child(nm)
+
+	return {"btn": btn, "q": q, "face": face, "icon": icon, "name": nm}
+
+
+## 모든 카드를 비활성 뒷면(?) 상태로 되돌린다.
+func _reset_cards_facedown() -> void:
+	_stop_card_hint()
+	for card: Dictionary in _cards:
+		var btn: Button = card["btn"]
+		btn.disabled = true
+		btn.scale = Vector2.ONE
+		btn.modulate = Color.WHITE
+		card["q"].visible = true
+		card["face"].visible = false
+
+
+# ---------------------------------------------------------------- locale / font helpers
 func _upg_name(upg: Dictionary) -> String:
 	return Locale.t("upg_%s_name" % upg["id"])
 
@@ -246,7 +308,7 @@ func _is_maxed(upg: Dictionary) -> bool:
 	return _get_level(upg["id"]) >= int(upg["costs"].size())
 
 
-## 룰렛이 당첨시킬 수 있는 후보(최대치가 아닌 업그레이드) 인덱스 목록.
+## 카드에 배정 가능한 후보(최대치가 아닌 업그레이드) 인덱스 목록.
 func _available_indices() -> Array:
 	var arr: Array = []
 	for i in UPGRADES.size():
@@ -255,8 +317,18 @@ func _available_indices() -> Array:
 	return arr
 
 
-func _spin_cost() -> int:
-	return SPIN_BASE + _wave * SPIN_WAVE_MULT + _spins_done * SPIN_STEP
+## 한 벌(CARD_COUNT장)에 배정할 업그레이드 인덱스 — 가능하면 서로 다르게.
+func _deal_indices() -> Array:
+	var pool := _available_indices()
+	pool.shuffle()
+	var out: Array = []
+	for i in CARD_COUNT:
+		out.append(pool[i % pool.size()])
+	return out
+
+
+func _draw_cost() -> int:
+	return DRAW_BASE + _wave * DRAW_WAVE_MULT + _draws_done * DRAW_STEP
 
 
 # ---------------------------------------------------------------- ad gold
@@ -273,11 +345,11 @@ func _update_ad_gold_btn() -> void:
 		_ad_gold_btn.disabled = true
 	else:
 		_ad_gold_btn.text = Locale.t("shop_ad_gold_fmt") % _ad_gold_bonus()
-		_ad_gold_btn.disabled = _spinning
+		_ad_gold_btn.disabled = _busy or _selectable
 
 
 func _on_ad_gold_pressed() -> void:
-	if _ad_gold_claimed or _spinning or not AdManager.is_rewarded_ready():
+	if _ad_gold_claimed or _busy or _selectable or not AdManager.is_rewarded_ready():
 		return
 	AdManager.show_rewarded("shop_gold")
 
@@ -290,87 +362,125 @@ func _on_rewarded_granted(placement: String) -> void:
 	_refresh()
 
 
-# ---------------------------------------------------------------- wheel build / refresh
-func _rebuild_wheel() -> void:
-	var sectors: Array = []
-	for upg: Dictionary in UPGRADES:
-		sectors.append({
-			"color": SECTION_COLORS.get(upg["section"], Color(0.4, 0.4, 0.45)),
-			"label": _upg_name(upg),
-			"dim": _is_maxed(upg),
-		})
-	_wheel.setup(sectors)
-
-
+# ---------------------------------------------------------------- refresh
 func _refresh() -> void:
 	_gold_label.text = "%d" % Events.total_gold
 	_update_ad_gold_btn()
-	_rebuild_wheel()
 
-	var cost := _spin_cost()
-	if _spinning:
-		_spin_btn.text = Locale.t("spin_spinning")
-		_spin_btn.disabled = true
-	elif Events.total_gold < cost:
-		_spin_btn.text = "%s  (-%dG)" % [Locale.t("spin_insufficient"), cost]
-		_spin_btn.disabled = true
+	var cost := _draw_cost()
+	if _selectable:
+		# 카드를 고르는 동안에는 뽑기 버튼을 숨긴다(행동은 카드 탭).
+		_draw_btn.visible = false
 	else:
-		_spin_btn.text = Locale.t("spin_btn_fmt") % cost
-		_spin_btn.disabled = false
+		_draw_btn.visible = true
+		if _busy:
+			_draw_btn.disabled = true
+		elif Events.total_gold < cost:
+			_draw_btn.text = "%s  (-%dG)" % [Locale.t("spin_insufficient"), cost]
+			_draw_btn.disabled = true
+		else:
+			_draw_btn.text = Locale.t("pick_draw_fmt") % cost
+			_draw_btn.disabled = false
 
 
-# ---------------------------------------------------------------- spin
-func _on_spin() -> void:
-	if _spinning:
+# ---------------------------------------------------------------- draw / pick
+func _on_draw() -> void:
+	if _busy or _selectable:
 		return
-	var cost := _spin_cost()
-	# 골드가 부족하면 구매(스핀)되지 않는다.
+	var cost := _draw_cost()
+	# 골드가 부족하면 뽑을 수 없다.
 	if not Events.spend_gold(cost):
 		_refresh()
 		return
-	_spins_done += 1
-	_spinning = true
+	_draws_done += 1
+	_deal = _deal_indices()
+	_selectable = true
+
+	# 카드를 활성 뒷면으로 세팅하고 "선택" 유도 연출 시작.
+	for card: Dictionary in _cards:
+		var btn: Button = card["btn"]
+		btn.disabled = false
+		btn.scale = Vector2.ONE
+		btn.modulate = Color.WHITE
+		card["q"].visible = true
+		card["face"].visible = false
+	_result_label.text = Locale.t("pick_hint")
 	_continue_btn.disabled = true
-	_result_label.text = Locale.t("spin_spinning")
+	_start_card_hint()
 	_refresh()
 
-	var avail := _available_indices()
-	var winner: int = avail[randi() % avail.size()]
-	_animate_to(winner)
 
+func _on_card_pressed(i: int) -> void:
+	if not _selectable or _busy:
+		return
+	_selectable = false
+	_busy = true
+	_stop_card_hint()
 
-func _animate_to(winner: int) -> void:
-	var n := UPGRADES.size()
-	var step := TAU / n
-	var a_mid := (winner + 0.5) * step
-	var jitter := randf_range(-step * 0.32, step * 0.32)
-	# 당첨 섹터 중심이 상단 포인터(각도 -PI/2) 아래에 오도록.
-	var desired := fposmod(-PI * 0.5 - a_mid - jitter, TAU)
-	_wheel.rotation = fposmod(_wheel.rotation, TAU)
-	var turns := 5
-	var target := _wheel.rotation + TAU * turns + fposmod(desired - _wheel.rotation, TAU)
+	var picked: int = _deal[i]
+	_grant_upgrade(UPGRADES[picked]["id"])
+	_result_label.text = Locale.t("spin_result_fmt") % _upg_name(UPGRADES[picked])
 
-	var tw := create_tween()
-	tw.tween_property(_wheel, "rotation", target, 3.0).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_callback(_finish_spin.bind(winner))
+	# 모든 카드를 까되, 고른 카드만 강조.
+	for c in CARD_COUNT:
+		_cards[c]["btn"].disabled = true
+		_flip_reveal(_cards[c], _deal[c], c == i)
 
-
-func _finish_spin(winner: int) -> void:
-	var upg: Dictionary = UPGRADES[winner]
-	_grant_upgrade(upg["id"])
-
-	_spinning = false
+	await get_tree().create_timer(0.55).timeout
+	if not is_instance_valid(self):
+		return
+	_busy = false
 	_continue_btn.disabled = false
-	_result_label.text = Locale.t("spin_result_fmt") % _upg_name(upg)
-	# 결과 텍스트 팝 연출
-	_result_label.scale = Vector2(1.35, 1.35)
-	_result_label.pivot_offset = _result_label.size * 0.5
-	create_tween().tween_property(_result_label, "scale", Vector2.ONE, 0.25)\
-		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_refresh()
 
 
-## 비용 없이(스핀 비용으로 이미 지불) 업그레이드 1단계를 적용한다.
+## 카드 뒤집기(까기) 연출: 가로로 납작해졌다가 앞면으로 펴진다.
+func _flip_reveal(card: Dictionary, upg_index: int, picked: bool) -> void:
+	var btn: Button = card["btn"]
+	btn.pivot_offset = btn.size * 0.5
+	if not picked:
+		btn.modulate = Color(1, 1, 1, 0.5)   # 안 고른 카드는 흐리게
+	var tw := create_tween()
+	tw.tween_property(btn, "scale:x", 0.06, 0.13).set_trans(Tween.TRANS_SINE)
+	tw.tween_callback(_set_card_face.bind(card, upg_index))
+	tw.tween_property(btn, "scale:x", 1.0, 0.13).set_trans(Tween.TRANS_SINE)
+	if picked:
+		tw.tween_property(btn, "scale", Vector2(1.12, 1.12), 0.10).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.tween_property(btn, "scale", Vector2.ONE, 0.12)
+
+
+## 카드 앞면을 해당 업그레이드 내용으로 채운다(? → 아이콘+이름).
+func _set_card_face(card: Dictionary, upg_index: int) -> void:
+	var upg: Dictionary = UPGRADES[upg_index]
+	var col: Color = SECTION_COLORS.get(upg["section"], Color.WHITE)
+	var ic: UIIcon = card["icon"]
+	ic.kind = SECTION_ICON.get(upg["section"], "star")
+	ic.color = col
+	ic.queue_redraw()
+	card["name"].text = _upg_name(upg)
+	card["name"].add_theme_color_override("font_color", col.lightened(0.2))
+	card["q"].visible = false
+	card["face"].visible = true
+
+
+## 고를 수 있는 동안 카드 줄을 은은하게 점멸시켜 선택을 유도한다.
+func _start_card_hint() -> void:
+	_stop_card_hint()
+	_cards_row.modulate.a = 1.0
+	_hint_tween = create_tween().set_loops()
+	_hint_tween.tween_property(_cards_row, "modulate:a", 0.72, 0.55)
+	_hint_tween.tween_property(_cards_row, "modulate:a", 1.0, 0.55)
+
+
+func _stop_card_hint() -> void:
+	if _hint_tween and _hint_tween.is_valid():
+		_hint_tween.kill()
+	_hint_tween = null
+	if _cards_row:
+		_cards_row.modulate.a = 1.0
+
+
+## 비용 없이(뽑기 비용으로 이미 지불) 업그레이드 1단계를 적용한다.
 func _grant_upgrade(id: String) -> void:
 	match id:
 		"speed":            Events.upgrade_speed += 1
@@ -394,7 +504,7 @@ func _grant_upgrade(id: String) -> void:
 
 
 func _on_continue() -> void:
-	if _spinning:
+	if _busy or _selectable:
 		return
 	visible = false
 	Events.shop_closed.emit()
