@@ -59,6 +59,8 @@ func _ready() -> void:
 	_build_revive_button()
 	_build_hud_icons()
 	_build_gameover_stats()
+	UITheme.heading(wave_clear_label)
+	UITheme.heading($GameOverPanel/Margin/VBoxContainer/GameOverLabel)
 	call_deferred("_init_pivots")
 
 	Events.gold_changed.connect(_on_gold_changed)
@@ -365,6 +367,7 @@ func _build_gameover_stats() -> void:
 	_go_record.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_go_record.add_theme_font_size_override("font_size", 20)
 	_go_record.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25))
+	UITheme.heading(_go_record)
 	_go_record.visible = false
 	holder.add_child(_go_record)
 
