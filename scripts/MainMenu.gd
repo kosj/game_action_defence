@@ -24,11 +24,11 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	var bg := ColorRect.new()
-	bg.anchor_right = 1.0
-	bg.anchor_bottom = 1.0
-	bg.color = Color(0.08, 0.10, 0.07, 1.0)
-	add_child(bg)
+	# 그라데이션 배경 + 비네트로 단색 대비 깊이감 부여
+	add_child(UITheme.make_gradient_bg(Color(0.10, 0.12, 0.16), Color(0.04, 0.05, 0.07)))
+	var vig := UITheme.make_vignette()
+	vig.modulate = Color(1, 1, 1, 0.55)
+	add_child(vig)
 
 	var center := CenterContainer.new()
 	center.anchor_right = 1.0

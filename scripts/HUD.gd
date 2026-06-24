@@ -42,6 +42,11 @@ var _magnet_tween: Tween = null
 var _revive_btn: Button = null
 var _revive_used: bool = false
 
+# 게임오버 통계 위젯(아이콘 그리드) — 코드로 생성해 텍스트 라벨을 대체.
+var _go_medal: UIIcon = null
+var _go_record: Label = null
+var _go_vals: Dictionary = {}   # "score"/"best"/"wave"/"kills"/"time" -> Label
+
 
 func _ready() -> void:
 	top_bg.add_theme_stylebox_override("panel", _UIStyle.bottom_bar(Color(0.05, 0.06, 0.09, 0.62)))
@@ -52,6 +57,8 @@ func _ready() -> void:
 	restart_button.text = Locale.t("go_retry")
 	main_menu_button.text = Locale.t("go_menu")
 	_build_revive_button()
+	_build_hud_icons()
+	_build_gameover_stats()
 	call_deferred("_init_pivots")
 
 	Events.gold_changed.connect(_on_gold_changed)
@@ -316,6 +323,69 @@ func _on_rewarded_granted(placement: String) -> void:
 	player.revive()
 
 
+# 상단 바 작은 아이콘들(점수 별 / 웨이브·시간·최고 아이콘) — 텍스트 위주 HUD 보강.
+func _build_hud_icons() -> void:
+	var star := UIIcon.make("star", 20, Color(1.0, 0.85, 0.2))
+	star.position = Vector2(score_label.offset_left, score_label.offset_top + 5)
+	add_child(star)
+	score_label.offset_left += 24   # 별 자리 확보를 위해 점수 텍스트를 오른쪽으로
+	_right_stat_icon("flag",   wave_label,       Color(0.70, 0.85, 1.0))
+	_right_stat_icon("clock",  time_label,       Color(0.82, 0.86, 0.95))
+	_right_stat_icon("trophy", high_score_label, Color(1.0, 0.82, 0.3))
+
+
+## 우측 정렬 라벨의 오른쪽 끝에 작은 아이콘을 붙이고, 값 텍스트 자리를 그만큼 확보.
+func _right_stat_icon(kind: String, label: Label, col: Color) -> void:
+	var ic := UIIcon.make(kind, 18, col)
+	ic.anchor_left = 1.0
+	ic.anchor_right = 1.0
+	ic.offset_left = -28.0
+	ic.offset_top = label.offset_top + 3.0
+	add_child(ic)
+	label.offset_right -= 26.0
+
+
+# 게임오버 패널: 메달 + 아이콘 통계 그리드를 코드로 구성(기존 텍스트 라벨 대체).
+func _build_gameover_stats() -> void:
+	stats_label.visible = false
+	var vbox := stats_label.get_parent()
+
+	var holder := VBoxContainer.new()
+	holder.alignment = BoxContainer.ALIGNMENT_CENTER
+	holder.add_theme_constant_override("separation", 10)
+	vbox.add_child(holder)
+	vbox.move_child(holder, stats_label.get_index() + 1)
+
+	# 메달 + 신기록 표시
+	_go_medal = UIIcon.make("trophy", 56, Color(1.0, 0.82, 0.25))
+	_go_medal.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	holder.add_child(_go_medal)
+
+	_go_record = Label.new()
+	_go_record.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_go_record.add_theme_font_size_override("font_size", 20)
+	_go_record.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25))
+	_go_record.visible = false
+	holder.add_child(_go_record)
+
+	# 통계 그리드 [아이콘][값]
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 6)
+	holder.add_child(grid)
+	for row in [["star", "score", Color(1.0, 0.85, 0.2)], ["flag", "wave", Color(0.7, 0.85, 1.0)],
+			["skull", "kills", Color(0.95, 0.55, 0.55)], ["clock", "time", Color(0.82, 0.86, 0.95)],
+			["trophy", "best", Color(0.8, 0.82, 0.9)]]:
+		grid.add_child(UIIcon.make(row[0], 22, row[2]))
+		var val := Label.new()
+		val.add_theme_font_size_override("font_size", 24)
+		val.add_theme_color_override("font_color", Color(0.92, 0.94, 0.98))
+		grid.add_child(val)
+		_go_vals[row[1]] = val
+
+
 func _on_player_died() -> void:
 	SaveManager.delete_save()   # 사망 시 진행 실패 — 체크포인트 무효화
 	# 부활 버튼은 아직 안 썼고 광고가 준비됐을 때만 노출.
@@ -323,13 +393,27 @@ func _on_player_died() -> void:
 	boss_bar.visible = false
 	var m := int(Events.elapsed_time) / 60
 	var s := int(Events.elapsed_time) % 60
-	var best_text := (Locale.t("go_new_best_fmt") % Events.high_score) if Events.is_new_record() \
-		else (Locale.t("go_best_fmt") % Events.high_score)
-	stats_label.text = "%s\n%s\n%s\n%02d:%02d" % [
-		Locale.t("go_score_fmt") % Events.score,
-		best_text,
-		Locale.t("go_wave_kills_fmt") % [Events.current_wave, Events.total_kills],
-		m, s]
+
+	# 점수 등급별 메달 색
+	var medal := Color(0.80, 0.52, 0.32)   # bronze
+	if Events.score >= 2500: medal = Color(1.0, 0.82, 0.25)      # gold
+	elif Events.score >= 800: medal = Color(0.78, 0.80, 0.88)    # silver
+	_go_medal.color = medal
+	_go_medal.queue_redraw()
+
+	_go_record.visible = Events.is_new_record()
+	if Events.is_new_record():
+		_go_record.text = Locale.t("go_new_best_fmt") % Events.high_score
+
+	_go_vals["wave"].text = "%d" % Events.current_wave
+	_go_vals["kills"].text = "%d" % Events.total_kills
+	_go_vals["time"].text = "%02d:%02d" % [m, s]
+	_go_vals["best"].text = "%d" % Events.high_score
+	# 점수 카운트업 연출
+	_go_vals["score"].text = "0"
+	var ct := create_tween()
+	ct.tween_method(func(v: float): _go_vals["score"].text = "%d" % int(v), 0.0, float(Events.score), 0.7) \
+		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 	game_over_panel.visible = true
 	game_over_panel.modulate.a = 0.0

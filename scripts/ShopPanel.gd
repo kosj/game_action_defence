@@ -64,11 +64,8 @@ func _on_wave_complete(wave: int) -> void:
 
 
 func _build_ui() -> void:
-	# 전체화면 어두운 오버레이
-	var overlay := ColorRect.new()
-	overlay.anchor_right = 1.0
-	overlay.anchor_bottom = 1.0
-	overlay.color = Color(0, 0, 0, 0.78)
+	# 전체화면 어두운 그라데이션 오버레이(입력 차단)
+	var overlay := UITheme.make_gradient_bg(Color(0.07, 0.08, 0.12, 0.85), Color(0.0, 0.0, 0.0, 0.92))
 	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(overlay)
 
