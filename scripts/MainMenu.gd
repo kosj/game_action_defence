@@ -2,6 +2,7 @@ extends CanvasLayer
 ## 메인 메뉴: 새로하기 / 이어하기. 이어하기는 로컬 저장 데이터가 있을 때만 활성화된다.
 
 const _UIStyle := preload("res://scripts/UIStyle.gd")
+const _IntroStory := preload("res://scripts/IntroStory.gd")
 
 var _continue_btn: Button
 var _diff_buttons: Array = []
@@ -104,6 +105,11 @@ func _refresh_difficulty_buttons() -> void:
 
 
 func _on_new_game_pressed() -> void:
+	# 새 게임은 서사 인트로를 먼저 보여준 뒤(완료/건너뛰기 시) 실제로 시작한다.
+	_IntroStory.play(self, _start_new_game)
+
+
+func _start_new_game() -> void:
 	SaveManager.delete_save()
 	SaveManager.pending_continue = false
 	Events.reset()
