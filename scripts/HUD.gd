@@ -337,14 +337,26 @@ func _build_hud_icons() -> void:
 
 
 ## 우측 정렬 라벨의 오른쪽 끝에 작은 아이콘을 붙이고, 값 텍스트 자리를 그만큼 확보.
+## 아이콘을 화면 오른쪽 끝(EDGE_MARGIN)에 정확히 맞추고, 라벨 텍스트는 그 왼쪽으로 물려준다.
 func _right_stat_icon(kind: String, label: Label, col: Color) -> void:
-	var ic := UIIcon.make(kind, 18, col)
+	const SZ := 18.0
+	const EDGE_MARGIN := 10.0   # 화면 오른쪽 끝 여백
+	const GAP := 6.0            # 아이콘과 텍스트 사이 간격
+	var ic := UIIcon.make(kind, SZ, col)
+	# 모든 앵커/오프셋을 명시해 아이콘 사각형을 화면 안에 가두고(이전엔 offset_right
+	# 가 18 로 남아 오른쪽으로 18px 삐져나가 잘렸음), 라벨 세로 중앙에 맞춘다.
 	ic.anchor_left = 1.0
 	ic.anchor_right = 1.0
-	ic.offset_left = -28.0
-	ic.offset_top = label.offset_top + 3.0
+	ic.anchor_top = 0.0
+	ic.anchor_bottom = 0.0
+	ic.offset_right = -EDGE_MARGIN
+	ic.offset_left = -EDGE_MARGIN - SZ
+	var cy := (label.offset_top + label.offset_bottom) * 0.5
+	ic.offset_top = cy - SZ * 0.5
+	ic.offset_bottom = cy + SZ * 0.5
 	add_child(ic)
-	label.offset_right -= 26.0
+	# 라벨 오른쪽 끝을 아이콘 왼쪽까지 당겨 텍스트와 아이콘이 겹치지 않게 한다.
+	label.offset_right = -EDGE_MARGIN - SZ - GAP
 
 
 # 게임오버 패널: 메달 + 아이콘 통계 그리드를 코드로 구성(기존 텍스트 라벨 대체).
