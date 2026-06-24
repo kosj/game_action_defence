@@ -48,7 +48,7 @@ func _ready() -> void:
 
 
 func _on_wave_complete(wave: int) -> void:
-	_wave_label.text = "Wave %d Clear!" % wave
+	_wave_label.text = Locale.t("wave_clear_fmt") % wave
 	_ad_gold_claimed = false   # 새 상점 등장 — 보상형 골드 다시 1회 허용
 	_refresh_buttons()
 	await get_tree().create_timer(2.1).timeout
@@ -98,7 +98,7 @@ func _build_ui() -> void:
 	margin.add_child(outer)
 
 	# 웨이브 클리어 제목
-	_wave_label = _make_label("Wave Clear!", 34, true)
+	_wave_label = _make_label(Locale.t("shop_clear_title"), 34, true)
 	_wave_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
 	outer.add_child(_wave_label)
 
@@ -162,7 +162,7 @@ func _build_ui() -> void:
 
 	# 계속 버튼
 	_continue_btn = Button.new()
-	_continue_btn.text = "Continue ->"
+	_continue_btn.text = Locale.t("shop_continue")
 	_continue_btn.custom_minimum_size = Vector2(0, 66)
 	_apply_font(_continue_btn, 26)
 	_UIStyle.apply_button_style(_continue_btn, Color(0.14, 0.40, 0.20), Color(0.4, 0.85, 0.45))
@@ -174,8 +174,26 @@ func _init_pivot() -> void:
 	_panel.pivot_offset = _panel.size * 0.5
 
 
+## 섹션 헤더 영문 ID → Locale 키
+const _SEC_KEYS: Dictionary = {
+	"WEAPON": "sec_weapon", "ORB": "sec_orb", "LIGHTNING": "sec_lightning", "SURVIVAL": "sec_survival",
+}
+
+
+func _sec_name(section: String) -> String:
+	return Locale.t(_SEC_KEYS.get(section, section))
+
+
+func _upg_name(upg: Dictionary) -> String:
+	return Locale.t("upg_%s_name" % upg["id"])
+
+
+func _upg_desc(upg: Dictionary) -> String:
+	return Locale.t("upg_%s_desc" % upg["id"])
+
+
 func _make_section_header(section: String) -> Label:
-	var lbl := _make_label("-- %s" % section, 15)
+	var lbl := _make_label("-- %s" % _sec_name(section), 15)
 	lbl.add_theme_color_override("font_color", SECTION_COLORS.get(section, Color.WHITE))
 	return lbl
 
@@ -260,13 +278,13 @@ func _ad_gold_bonus() -> int:
 
 func _update_ad_gold_btn() -> void:
 	if _ad_gold_claimed:
-		_ad_gold_btn.text = "Bonus claimed"
+		_ad_gold_btn.text = Locale.t("shop_ad_claimed")
 		_ad_gold_btn.disabled = true
 	elif not AdManager.is_rewarded_ready():
-		_ad_gold_btn.text = "Free Gold (ad unavailable)"
+		_ad_gold_btn.text = Locale.t("shop_ad_unavail")
 		_ad_gold_btn.disabled = true
 	else:
-		_ad_gold_btn.text = "+%d Gold  (Watch Ad)" % _ad_gold_bonus()
+		_ad_gold_btn.text = Locale.t("shop_ad_gold_fmt") % _ad_gold_bonus()
 		_ad_gold_btn.disabled = false
 
 
@@ -294,13 +312,13 @@ func _refresh_buttons() -> void:
 		var cost := _get_cost(upg)
 
 		if id != "heal" and cost == -1:
-			btn.text = "%s  [MAX]\n%s" % [upg["label"], upg["desc"]]
+			btn.text = "%s  [%s]\n%s" % [_upg_name(upg), Locale.t("shop_max"), _upg_desc(upg)]
 			btn.disabled = true
 		else:
 			var lvl := _get_level(id)
 			var max_lvl: int = upg["costs"].size()
 			var lvl_str := ("  (%d/%d)" % [lvl, max_lvl]) if id != "heal" else ""
-			btn.text = "%s%s\n-%dG   %s" % [upg["label"], lvl_str, cost, upg["desc"]]
+			btn.text = "%s%s\n-%dG   %s" % [_upg_name(upg), lvl_str, cost, _upg_desc(upg)]
 			btn.disabled = Events.total_gold < cost
 
 

@@ -49,6 +49,8 @@ func _ready() -> void:
 	game_over_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.05, 0.06, 0.96), Color(0.85, 0.25, 0.22), 22, 3))
 	_UIStyle.apply_button_style(restart_button, Color(0.55, 0.16, 0.16), Color(0.95, 0.35, 0.3))
 	_UIStyle.apply_button_style(main_menu_button, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
+	restart_button.text = Locale.t("go_retry")
+	main_menu_button.text = Locale.t("go_menu")
 	_build_revive_button()
 	call_deferred("_init_pivots")
 
@@ -104,7 +106,7 @@ func _pulse_gold() -> void:
 
 
 func _on_score_changed(total: int) -> void:
-	score_label.text = "Score %d" % total
+	score_label.text = Locale.t("hud_score_fmt") % total
 	if _prev_score >= 0 and total > _prev_score:
 		_pulse_score()
 	_prev_score = total
@@ -117,7 +119,7 @@ func _pulse_score() -> void:
 
 
 func _on_high_score_changed(high: int) -> void:
-	high_score_label.text = "Best %d" % high
+	high_score_label.text = Locale.t("hud_best_fmt") % high
 
 
 func _on_boss_spawned(max_health: int) -> void:
@@ -232,7 +234,7 @@ func _on_gold_magnet_changed(active: bool, time_left: float) -> void:
 	if _magnet_tween and _magnet_tween.is_valid():
 		_magnet_tween.kill()
 	if active:
-		buff_label.text = "Gold Magnet  %ds" % int(ceil(time_left))
+		buff_label.text = Locale.t("hud_magnet_fmt") % int(ceil(time_left))
 		buff_label.modulate.a = 1.0
 		buff_label.visible = true
 	else:
@@ -242,7 +244,7 @@ func _on_gold_magnet_changed(active: bool, time_left: float) -> void:
 
 
 func _on_wave_changed(wave: int) -> void:
-	wave_label.text = "Wave %d" % wave
+	wave_label.text = Locale.t("hud_wave_fmt") % wave
 
 
 func _on_elapsed_changed(seconds: float) -> void:
@@ -259,7 +261,7 @@ func _on_wave_progress_changed(killed: int, total: int) -> void:
 
 
 func _on_wave_complete(wave: int) -> void:
-	wave_clear_label.text = "Wave %d Clear!" % wave
+	wave_clear_label.text = Locale.t("wave_clear_fmt") % wave
 	wave_clear_label.visible = true
 	wave_clear_bg.visible = true
 	wave_clear_label.modulate.a = 1.0
@@ -285,7 +287,7 @@ func _on_wave_complete(wave: int) -> void:
 ## 게임오버 패널 최상단에 "광고 보고 부활" 버튼을 코드로 생성(보상형 광고 유도).
 func _build_revive_button() -> void:
 	_revive_btn = Button.new()
-	_revive_btn.text = "REVIVE  (Watch Ad)"
+	_revive_btn.text = Locale.t("hud_revive")
 	_revive_btn.custom_minimum_size = Vector2(0, 56)
 	_revive_btn.add_theme_font_size_override("font_size", 22)
 	_UIStyle.apply_button_style(_revive_btn, Color(0.14, 0.40, 0.20), Color(0.4, 0.9, 0.45))
@@ -321,10 +323,13 @@ func _on_player_died() -> void:
 	boss_bar.visible = false
 	var m := int(Events.elapsed_time) / 60
 	var s := int(Events.elapsed_time) % 60
-	var best_text := ("NEW BEST!  %d" % Events.high_score) if Events.is_new_record() \
-		else ("Best  %d" % Events.high_score)
-	stats_label.text = "Score  %d\n%s\nWave %d   Kills %d\n%02d:%02d" % \
-		[Events.score, best_text, Events.current_wave, Events.total_kills, m, s]
+	var best_text := (Locale.t("go_new_best_fmt") % Events.high_score) if Events.is_new_record() \
+		else (Locale.t("go_best_fmt") % Events.high_score)
+	stats_label.text = "%s\n%s\n%s\n%02d:%02d" % [
+		Locale.t("go_score_fmt") % Events.score,
+		best_text,
+		Locale.t("go_wave_kills_fmt") % [Events.current_wave, Events.total_kills],
+		m, s]
 
 	game_over_panel.visible = true
 	game_over_panel.modulate.a = 0.0
