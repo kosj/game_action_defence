@@ -156,19 +156,17 @@ func _build_ui() -> void:
 	_wheel.pivot_offset = Vector2(WHEEL_SIZE, WHEEL_SIZE) * 0.5
 	holder.add_child(_wheel)
 
-	var pointer := Label.new()
-	pointer.text = "▼"
-	pointer.add_theme_font_size_override("font_size", 42)
-	pointer.add_theme_color_override("font_color", Color(1.0, 0.92, 0.32))
-	pointer.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-	pointer.add_theme_constant_override("outline_size", 5)
-	pointer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pointer.anchor_left = 0.5
-	pointer.anchor_right = 0.5
-	pointer.offset_left = -22.0
-	pointer.offset_right = 22.0
-	pointer.offset_top = -8.0
-	pointer.offset_bottom = 48.0
+	# 상단 포인터: 폰트에 없는 ▼ 글리프(깨짐) 대신 코드로 삼각형을 그린다.
+	var px := WHEEL_SIZE * 0.5   # 휠 상단 중앙
+	var ptr_outline := Polygon2D.new()   # 어두운 외곽선
+	ptr_outline.polygon = PackedVector2Array([Vector2(-20, -9), Vector2(20, -9), Vector2(0, 29)])
+	ptr_outline.color = Color(0, 0, 0, 0.85)
+	ptr_outline.position = Vector2(px, 2)
+	holder.add_child(ptr_outline)
+	var pointer := Polygon2D.new()
+	pointer.polygon = PackedVector2Array([Vector2(-16, -6), Vector2(16, -6), Vector2(0, 24)])
+	pointer.color = Color(1.0, 0.92, 0.32)
+	pointer.position = Vector2(px, 2)
 	holder.add_child(pointer)
 
 	# 결과 / 안내 텍스트
