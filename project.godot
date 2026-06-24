@@ -18,6 +18,7 @@ SoundManager="*res://scripts/SoundManager.gd"
 SaveManager="*res://scripts/SaveManager.gd"
 AdManager="*res://scripts/AdManager.gd"
 Locale="*res://scripts/Locale.gd"
+UITheme="*res://scripts/UITheme.gd"
 
 [display]
 
