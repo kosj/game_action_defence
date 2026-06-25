@@ -18,6 +18,7 @@ var _game_over: bool = false
 func _ready() -> void:
 	player = get_tree().get_first_node_in_group("player")
 	Events.player_died.connect(func(): _game_over = true)
+	Events.player_revived.connect(func(): _game_over = false)   # 부활 시 스폰 재개
 	_next_interval = randf_range(spawn_interval_min, spawn_interval_max)
 
 
