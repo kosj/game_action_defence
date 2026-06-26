@@ -6,6 +6,7 @@ extends CanvasLayer
 ## 사용:  IntroStory.play(parent_node, func(): <게임 시작 전환>)
 
 const _UIStyle := preload("res://scripts/UIStyle.gd")
+const _IntroBackdrop := preload("res://scripts/IntroBackdrop.gd")
 
 ## 순서대로 노출할 본문 줄(Locale 키). 줄 추가/순서 변경은 여기서만.
 const LINE_KEYS: Array = ["intro_l1", "intro_l2", "intro_l3", "intro_l4", "intro_l5"]
@@ -35,11 +36,24 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	# 전체 화면 암전 배경 — 탭하면 본문을 빠르게 다 보여준다(스킵과는 별개).
+	# 1) 밤하늘 그라데이션
+	var sky := UITheme.make_gradient_bg(Color(0.06, 0.07, 0.14), Color(0.01, 0.01, 0.03))
+	sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(sky)
+
+	# 2) 코드로 그린 분위기 배경 — 폐허 도시 + 송신탑 비컨("The Last Beacon")
+	var backdrop := _IntroBackdrop.new()
+	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(backdrop)
+
+	# 2-1) 가장자리 비네트로 분위기 + 본문 가독성 강화
+	add_child(UITheme.make_vignette())
+
+	# 3) 입력 캐쳐 + 가독성용 약한 어둠 — 탭하면 본문을 빠르게 다 보여준다(스킵과 별개).
 	var bg := ColorRect.new()
-	bg.anchor_right = 1.0
-	bg.anchor_bottom = 1.0
-	bg.color = Color(0.02, 0.02, 0.03, 1.0)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.color = Color(0.02, 0.02, 0.05, 0.22)
 	bg.mouse_filter = Control.MOUSE_FILTER_STOP
 	bg.gui_input.connect(_on_bg_input)
 	add_child(bg)
