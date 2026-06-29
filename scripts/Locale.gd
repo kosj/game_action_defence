@@ -58,6 +58,8 @@ const STRINGS: Dictionary = {
 	"menu_sound":      {"en": "Sound",       "ko": "사운드",    "ja": "サウンド"},
 	"sound_on":        {"en": "On",          "ko": "켜짐",      "ja": "オン"},
 	"sound_off":       {"en": "Off",         "ko": "꺼짐",      "ja": "オフ"},
+	"menu_options":    {"en": "Options",     "ko": "옵션",      "ja": "オプション"},
+	"menu_close":      {"en": "Close",       "ko": "닫기",      "ja": "閉じる"},
 	"diff_easy":       {"en": "Easy",       "ko": "쉬움",      "ja": "イージー"},
 	"diff_normal":     {"en": "Normal",     "ko": "보통",      "ja": "ノーマル"},
 	"diff_hard":       {"en": "Hard",       "ko": "어려움",    "ja": "ハード"},
