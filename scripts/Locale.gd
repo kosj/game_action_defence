@@ -100,6 +100,8 @@ const STRINGS: Dictionary = {
 	"upg_orb_damage_desc":       {"en": "+1 orb damage",  "ko": "+1 오브 데미지","ja": "+1 オーブダメージ"},
 	"upg_lightning_name":        {"en": "Lightning Bolt", "ko": "번개",         "ja": "稲妻"},
 	"upg_lightning_desc":        {"en": "Faster strikes", "ko": "더 빠른 낙뢰", "ja": "落雷が高速化"},
+	"upg_lightning_count_name":  {"en": "Lightning Count","ko": "번개 갯수",     "ja": "稲妻の数"},
+	"upg_lightning_count_desc":  {"en": "+1 lightning bolt","ko": "+1 번개 가닥","ja": "+1 稲妻"},
 	"upg_lightning_damage_name": {"en": "Lightning Dmg",  "ko": "번개 데미지",  "ja": "稲妻ダメージ"},
 	"upg_lightning_damage_desc": {"en": "+1 lightning damage","ko": "+1 번개 데미지","ja": "+1 稲妻ダメージ"},
 	"upg_max_health_name":       {"en": "Max HP",         "ko": "최대 체력",    "ja": "最大HP"},

@@ -89,6 +89,7 @@ func save_game(player: Node) -> void:
 		"upgrade_multi_bullet": Events.upgrade_multi_bullet,
 		"upgrade_orbs": Events.upgrade_orbs,
 		"upgrade_lightning": Events.upgrade_lightning,
+		"upgrade_lightning_count": Events.upgrade_lightning_count,
 		"weapon_id": player.current_weapon.get("id", "pistol"),
 		"weapon_tier_id": player.current_weapon.get("tier_id", "common"),
 	}
@@ -130,6 +131,7 @@ func apply_to_events(data: Dictionary) -> void:
 	Events.upgrade_multi_bullet = data.get("upgrade_multi_bullet", 0)
 	Events.upgrade_orbs = data.get("upgrade_orbs", 0)
 	Events.upgrade_lightning = data.get("upgrade_lightning", 0)
+	Events.upgrade_lightning_count = data.get("upgrade_lightning_count", 0)
 	Events.gold_changed.emit(Events.total_gold)
 	Events.score_changed.emit(Events.score)
 

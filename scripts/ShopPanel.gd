@@ -12,6 +12,7 @@ const UPGRADES: Array = [
 	{"section": "ORB",       "id": "orbs",             "label": "Orb Shield",    "desc": "+1 orbiting orb",          "costs": [25, 40, 60, 80, 105, 135, 170, 210]},
 	{"section": "ORB",       "id": "orb_damage",       "label": "Orb Dmg",       "desc": "+1 orb damage",            "costs": [20, 30, 45, 60, 80, 105, 135, 170]},
 	{"section": "LIGHTNING", "id": "lightning",        "label": "Lightning Bolt","desc": "Faster strikes",           "costs": [40, 65, 95, 130, 170, 215, 265, 320]},
+	{"section": "LIGHTNING", "id": "lightning_count",  "label": "Lightning Count","desc": "+1 lightning bolt",        "costs": [55, 90, 130, 180, 240, 310]},
 	{"section": "LIGHTNING", "id": "lightning_damage", "label": "Lightning Dmg", "desc": "+1 lightning damage",      "costs": [20, 30, 45, 60, 80, 105, 135, 170]},
 	{"section": "SURVIVAL",  "id": "max_health",       "label": "Max HP",        "desc": "+1 heart (heals)",         "costs": [12, 18, 26, 35, 46, 58, 72, 88, 106, 126]},
 	{"section": "SURVIVAL",  "id": "heal",             "label": "Heal HP",       "desc": "Full HP restore",          "costs": [8,  8,  8,  8]},
@@ -258,6 +259,7 @@ func _get_level(id: String) -> int:
 		"multi_bullet":     return Events.upgrade_multi_bullet
 		"orbs":             return Events.upgrade_orbs
 		"lightning":        return Events.upgrade_lightning
+		"lightning_count":  return Events.upgrade_lightning_count
 		"max_health":       return Events.upgrade_max_health
 	return 0
 
@@ -339,6 +341,7 @@ func _on_upgrade_pressed(id: String) -> void:
 		"multi_bullet":     Events.upgrade_multi_bullet += 1
 		"orbs":             Events.upgrade_orbs += 1
 		"lightning":        Events.upgrade_lightning += 1
+		"lightning_count":  Events.upgrade_lightning_count += 1
 		"max_health":       Events.upgrade_max_health += 1
 		"heal":
 			var player := get_tree().get_first_node_in_group("player")

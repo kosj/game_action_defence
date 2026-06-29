@@ -1,5 +1,6 @@
 extends CharacterBody2D
 ## 좀비: 플레이어를 향해 단순 방향벡터 이동. 사망 시 골드 드랍 후 풀로 반납.
+## 일부 종류는 고유 행동 패턴을 가진다(weaver: 지그재그 / spitter: 원거리 / bomber: 자폭).
 
 @export var speed: float = 65.0
 @export var max_health: int = 3
@@ -64,12 +65,12 @@ func on_despawn() -> void:
 	shadow.scale = Vector2.ONE * _SHADOW_BASE
 
 
-## 스포너가 풀에서 꺼낸 직후 호출해 종류별 스탯·스프라이트를 주입한다.
+## 스포너가 풀에서 꺼낸 직후 호출해 종류별 스탯·스프라이트·행동을 주입한다.
 func setup(type_data: Dictionary) -> void:
 	speed = type_data["speed"]
 	max_health = type_data["max_health"]
 	health = max_health
-	_type_color = type_data["modulate"]   # 사망 폭발 FX·피격 잔광 색
+	_type_color = type_data["modulate"]   # 사망 폭발 FX·투사체·피격 잔광 색
 	_score_value = type_data.get("score", 0)
 	_contact_damage = type_data.get("contact", 1)
 	_behavior = type_data.get("behavior", "chase")
@@ -77,8 +78,6 @@ func setup(type_data: Dictionary) -> void:
 	_fire_timer = SPIT_COOLDOWN * 0.5   # 등장 직후 즉시 난사하지 않도록 약간의 지연
 	_fuse_active = false
 	_fuse_timer = 0.0
-	body.modulate = _type_color
-	body.scale = Vector2.ONE * float(type_data.get("scale", 1.0))
 	if type_data.has("texture"):
 		body.texture = type_data["texture"]   # 종류별 캐릭터 스프라이트
 	body.modulate = Color.WHITE              # 스프라이트 본연의 색을 그대로 노출
@@ -87,7 +86,7 @@ func setup(type_data: Dictionary) -> void:
 	shadow.scale = Vector2.ONE * (_SHADOW_BASE * s)   # 큰 좀비일수록 그림자도 크게
 
 
-## 종류별 접촉 피해(차저/저거넛 등 강화 좀비는 더 큰 피해). Player 가 호출.
+## 종류별 접촉 피해(차저/저거넛 등 강화 적은 더 큰 피해). Player 가 호출.
 func get_contact_damage() -> int:
 	return _contact_damage
 
@@ -98,22 +97,25 @@ func _physics_process(delta: float) -> void:
 	if not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
 		return
-	match _behavior:
-		"weaver":  _behave_weaver(delta)
-		"spitter": _behave_spitter(delta)
-		"bomber":  _behave_bomber(delta)
-		_:         _behave_chase()
-
-
-## 기본: 플레이어를 향해 직진 추격. move_and_slide 로 좀비끼리 자연 분산.
-func _behave_chase() -> void:
 	# 피격 잔광: Tween 대신 잔여 시간을 직접 감쇠(대량 동시 피격 시 Tween 폭증 방지)
 	if _flash > 0.0:
 		_flash = maxf(0.0, _flash - delta)
 		body.modulate = Color.WHITE.lerp(_HIT_COLOR, _flash / _HIT_FLASH)
+	match _behavior:
+		"weaver":  _behave_weaver(delta)
+		"spitter": _behave_spitter(delta)
+		"bomber":  _behave_bomber(delta)
+		_:         _behave_chase(delta)
+
+
+## 기본: 플레이어를 향해 직진 추격.
+## 직선 적분 이동: 좀비끼리 상호 충돌을 해소하는 move_and_slide() 는 개체 수의 제곱에 비례해
+## 비싸진다. 위치를 직접 갱신해 좀비당 비용을 O(1) 로 낮춘다(스프라이트끼리 겹칠 수 있으나
+## 대규모 디펜스에선 일반적). 충돌 도형(레이어2)은 남아 총알 명중·플레이어 접촉 판정에 쓰인다.
+func _behave_chase(delta: float) -> void:
 	var dir := (player.global_position - global_position).normalized()
 	body.rotation = dir.angle()
-	move_and_slide()
+	global_position += dir * speed * delta
 
 
 ## 지그재그: 플레이어로 접근하되 진행 방향에 수직으로 흔들어 조준을 어렵게 한다.
@@ -121,9 +123,9 @@ func _behave_weaver(delta: float) -> void:
 	_wt += delta
 	var dir := (player.global_position - global_position).normalized()
 	var perp := Vector2(-dir.y, dir.x)
-	velocity = dir * speed + perp * (sin(_wt * WEAVE_FREQ) * speed * WEAVE_AMP_RATIO)
+	var vel := dir * speed + perp * (sin(_wt * WEAVE_FREQ) * speed * WEAVE_AMP_RATIO)
 	body.rotation = dir.angle()
-	move_and_slide()
+	global_position += vel * delta
 
 
 ## 원거리: 선호 거리를 유지하며 주기적으로 투사체를 발사(카이팅).
@@ -131,14 +133,13 @@ func _behave_spitter(delta: float) -> void:
 	var to_p := player.global_position - global_position
 	var dist := to_p.length()
 	var dir := to_p / maxf(dist, 0.001)
+	var vel := Vector2.ZERO
 	if dist < SPIT_KEEP_DIST - 30.0:
-		velocity = -dir * speed      # 너무 가까우면 물러난다
+		vel = -dir * speed      # 너무 가까우면 물러난다
 	elif dist > SPIT_KEEP_DIST + 30.0:
-		velocity = dir * speed       # 너무 멀면 접근
-	else:
-		velocity = Vector2.ZERO
+		vel = dir * speed       # 너무 멀면 접근
 	body.rotation = dir.angle()
-	move_and_slide()
+	global_position += vel * delta
 	_fire_timer -= delta
 	if dist <= SPIT_RANGE and _fire_timer <= 0.0:
 		_fire_timer = SPIT_COOLDOWN
@@ -165,13 +166,11 @@ func _behave_bomber(delta: float) -> void:
 		return
 	var to_p := player.global_position - global_position
 	var dir := to_p.normalized()
-	velocity = dir * speed
 	body.rotation = dir.angle()
-	move_and_slide()
+	global_position += dir * speed * delta
 	if to_p.length() <= BOMB_TRIGGER:
 		_fuse_active = true
 		_fuse_timer = BOMB_FUSE
-		velocity = Vector2.ZERO
 
 
 func _explode() -> void:
@@ -180,18 +179,8 @@ func _explode() -> void:
 	if is_instance_valid(player) and global_position.distance_to(player.global_position) <= BOMB_RADIUS:
 		if player.has_method("take_hit"):
 			player.take_hit(_contact_damage)
-	var fx := _FXBurst.new()
-	fx.color = Color(1.0, 0.45, 0.15)
-	fx.max_radius = BOMB_RADIUS
-	fx.duration = 0.4
-	get_tree().current_scene.add_child(fx)
-	fx.global_position = global_position
+	_FXBurst.spawn(get_tree().current_scene, global_position, Color(1.0, 0.45, 0.15), BOMB_RADIUS, 0.4)
 	_die()   # 처치로 집계 — 웨이브 진행/골드 드랍 처리
-	# 직선 적분 이동: 좀비끼리 상호 충돌을 해소하는 move_and_slide() 는 개체 수의 제곱에
-	# 비례해 비싸져 수천~만 마리 환경에서 프레임을 깎는다. 위치를 직접 갱신해 좀비당 비용을
-	# O(1) 로 낮춘다(스프라이트끼리 겹칠 수 있으나 대규모 횡스크롤 디펜스에선 일반적).
-	# 충돌 도형(레이어2)은 그대로 남아 총알 명중·플레이어 접촉 판정에 계속 쓰인다.
-	global_position += dir * speed * delta
 
 
 func take_damage(amount: int) -> void:
@@ -211,11 +200,7 @@ func _die() -> void:
 	remove_from_group("zombies")
 	Events.zombie_killed.emit()
 	Events.add_score(_score_value)
-	_FXBurst.spawn(get_tree().current_scene, 
-  
-  
-  
-  , _type_color, 38.0, 0.38)
+	_FXBurst.spawn(get_tree().current_scene, global_position, _type_color, 38.0, 0.38)
 	var g := Pool.acquire(GOLD, get_tree().current_scene)
 	g.global_position = global_position
 	Pool.release(self)

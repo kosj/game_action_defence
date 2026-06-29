@@ -51,12 +51,6 @@ func _spawn_intro() -> void:
 	body.scale = Vector2.ZERO
 	var tw := create_tween()
 	tw.tween_property(body, "scale", target_scale, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	var fx := _FXBurst.new()
-	fx.color = Color(0.9, 0.2, 0.2)
-	fx.max_radius = 90.0
-	fx.duration = 0.5
-	get_tree().current_scene.add_child(fx)
-	fx.global_position = global_position	
 	_FXBurst.spawn(get_tree().current_scene, global_position, Color(0.9, 0.2, 0.2), 90.0, 0.5)
 
 
@@ -83,14 +77,19 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	if not _alive:
 		return
-	# 맥동하는 오라 링
-	var r := 46.0 + sin(_pulse * 4.0) * 4.0
+	# 스프라이트 실제 크기(2.7배 스케일)를 기준으로 오라·체력바 위치를 잡는다.
+	var half_h := 58.0
+	if body and body.texture:
+		half_h = body.texture.get_size().y * body.scale.y * 0.5
+
+	# 맥동하는 오라 링 — 보스 외곽을 감싸도록 스프라이트 크기에 맞춘다.
+	var r := half_h * 0.98 + sin(_pulse * 4.0) * 4.0
 	draw_arc(Vector2.ZERO, r, 0.0, TAU, 48, Color(0.95, 0.25, 0.2, 0.5), 3.0, true)
 
-	# 체력바 (스프라이트 위쪽)
-	var bar_w := 84.0
+	# 체력바 — 스프라이트 머리 위쪽에 확실히 떨어뜨려 그린다(겹침 방지).
+	var bar_w := 96.0
 	var bar_h := 9.0
-	var bar_y := -64.0
+	var bar_y := -(half_h + bar_h + 12.0)
 	var ratio := clampf(float(health) / float(max_health), 0.0, 1.0)
 	# 테두리/배경
 	draw_rect(Rect2(-bar_w * 0.5 - 2.0, bar_y - 2.0, bar_w + 4.0, bar_h + 4.0), Color(0, 0, 0, 0.7))

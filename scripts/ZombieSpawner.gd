@@ -14,19 +14,20 @@ const BOSS_EVERY: int = 5
 ## 웨이브 테이블: total=이 웨이브에서 처치해야 할 총 좀비 수, max_z=최대 동시 출현 수.
 ## weights 의 인덱스는 ZOMBIE_TYPES 와 1:1 대응 — 후반 웨이브일수록 강한 종을 더 많이 섞는다.
 const WAVES: Array = [
-	{"total": 80,  "max_z": 32,  "interval": 0.9,  "weights": [10, 0, 0, 0, 0, 0]},
-	{"total": 120, "max_z": 48,  "interval": 0.70, "weights": [8,  2, 0, 2, 0, 0]},
-	{"total": 180, "max_z": 64,  "interval": 0.55, "weights": [6,  3, 1, 3, 1, 0]},
-	{"total": 240, "max_z": 80,  "interval": 0.45, "weights": [5,  3, 2, 3, 2, 1]},
-	{"total": 320, "max_z": 100, "interval": 0.35, "weights": [4,  4, 2, 3, 3, 1]},
-	{"total": 400, "max_z": 120, "interval": 0.25, "weights": [3,  4, 3, 3, 3, 2]},
+	{"total": 80,  "max_z": 32,  "interval": 0.9,  "weights": [10, 0, 0, 0, 0, 0, 0, 0, 0]},
+	{"total": 120, "max_z": 48,  "interval": 0.70, "weights": [8,  2, 0, 2, 0, 0, 1, 0, 0]},
+	{"total": 180, "max_z": 64,  "interval": 0.55, "weights": [6,  3, 1, 3, 1, 0, 2, 1, 1]},
+	{"total": 240, "max_z": 80,  "interval": 0.45, "weights": [5,  3, 2, 3, 2, 1, 2, 2, 2]},
+	{"total": 320, "max_z": 100, "interval": 0.35, "weights": [4,  4, 2, 3, 3, 1, 2, 2, 2]},
+	{"total": 400, "max_z": 120, "interval": 0.25, "weights": [3,  4, 3, 3, 3, 2, 3, 3, 3]},
 ]
 
-## 좀비 종류 테이블. 모두 플레이어를 추격하는 근접형이지만 속도/체력/접촉피해/크기/스프라이트가 다르다.
-## 각 종은 Kenney Top-down Shooter 팩의 서로 다른 캐릭터로 시각 구분된다(texture).
-## modulate 는 더 이상 종 구분용 색조가 아니라 사망 폭발 FX·피격 잔광 색으로만 쓰인다.
-##   0 Walker     기본 좀비(green)        1 Runner   민첩한 정장(hitman)   2 Brute      거구(manBrown)
-##   3 Swarmling  허약한 노인(manOld)      4 Charger  단단한 생존자(survivor) 5 Juggernaut 기계 거인(robot)
+## 좀비 종류 테이블. 0~5 는 근접 추격형, 6~8 은 고유 행동 패턴(behavior: weaver/spitter/bomber).
+## 각 종은 Kenney Top-down Shooter 팩의 캐릭터 스프라이트(texture)로 시각 구분되며,
+## modulate 는 사망 폭발 FX·투사체·피격 잔광 색으로 쓰인다(행동 타입은 전용 스프라이트가 없어
+## 기존 스프라이트를 재활용하되 behavior·FX색으로 구분).
+##   0 Walker  1 Runner  2 Brute  3 Swarmling  4 Charger  5 Juggernaut
+##   6 Weaver(지그재그)  7 Spitter(원거리)  8 Bomber(자폭)
 const ZOMBIE_TYPES: Array = [
 	{"speed": 65,  "max_health": 3,  "modulate": Color(0.70, 0.95, 0.55), "score": 10, "scale": 1.00, "contact": 1, "texture": preload("res://assets/sprites/zombie_walker.png")},
 	{"speed": 130, "max_health": 1,  "modulate": Color(0.85, 0.85, 0.95), "score": 15, "scale": 0.90, "contact": 1, "texture": preload("res://assets/sprites/zombie_runner.png")},
@@ -34,6 +35,9 @@ const ZOMBIE_TYPES: Array = [
 	{"speed": 95,  "max_health": 1,  "modulate": Color(1.00, 0.85, 0.70), "score": 8,  "scale": 0.70, "contact": 1, "texture": preload("res://assets/sprites/zombie_swarmling.png")},
 	{"speed": 108, "max_health": 5,  "modulate": Color(0.90, 0.80, 0.55), "score": 25, "scale": 1.05, "contact": 2, "texture": preload("res://assets/sprites/zombie_charger.png")},
 	{"speed": 32,  "max_health": 16, "modulate": Color(1.00, 0.65, 0.35), "score": 60, "scale": 1.45, "contact": 2, "texture": preload("res://assets/sprites/zombie_juggernaut.png")},
+	{"speed": 80,  "max_health": 3,  "modulate": Color(0.40, 0.95, 0.95), "score": 18, "scale": 0.95, "contact": 1, "behavior": "weaver",  "texture": preload("res://assets/sprites/zombie_runner.png")},
+	{"speed": 55,  "max_health": 3,  "modulate": Color(0.95, 0.45, 0.95), "score": 35, "scale": 1.00, "contact": 1, "behavior": "spitter", "texture": preload("res://assets/sprites/zombie_charger.png")},
+	{"speed": 90,  "max_health": 2,  "modulate": Color(1.00, 0.50, 0.20), "score": 30, "scale": 1.10, "contact": 2, "behavior": "bomber",  "texture": preload("res://assets/sprites/zombie_swarmling.png")},
 ]
 
 var player: Node2D = null

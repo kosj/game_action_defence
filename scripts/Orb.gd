@@ -1,34 +1,56 @@
 extends Node2D
+## 공전 칼날: 플레이어를 중심으로 돌면서, 궤도 반경이 주기적으로 넓게 확장됐다가 다시
+## 돌아오기를 반복한다(넓은 영역을 휩쓰는 공격 연출). 외형은 빠르게 자전하는 이중 칼날.
 
-const ORBIT_RADIUS := 90.0
-const ORBIT_SPEED := 2.4   # rad/s
-const HIT_COOLDOWN := 0.8  # per zombie
-const HIT_RADIUS := 22.0   # distance to deal damage
+const ORBIT_MIN := 70.0     # 수축 시 궤도 반경
+const ORBIT_MAX := 158.0    # 확장 시 궤도 반경(넓게 휩쓸기)
+const PULSE_PERIOD := 2.2   # 한 번 확장→복귀에 걸리는 시간(초)
+const ORBIT_SPEED := 2.6    # 플레이어 주위를 도는 각속도(rad/s)
+const SPIN_SPEED := 15.0    # 칼날 자전 각속도(rad/s) — 공격적인 회전 느낌
+const HIT_COOLDOWN := 0.6   # 같은 적 재타격 간격
+const HIT_RADIUS := 28.0    # 피해 판정 반경(칼날 리치)
+
+const BLADE_LEN := 24.0
+const BLADE_W := 7.5
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 
-var _angle: float = 0.0
+var _orbit_angle: float = 0.0
+var _spin: float = 0.0
+var _pulse_t: float = 0.0
 var _timers: Dictionary = {}
 
+
+## 여러 칼날을 균등 분산 — 시작 각도와 함께 확장 위상도 어긋나게 해 서로 다른 타이밍에 휩쓴다.
 func init_angle(a: float) -> void:
-	_angle = a
+	_orbit_angle = a
+	_pulse_t = a * (PULSE_PERIOD / TAU)
+
 
 func _physics_process(delta: float) -> void:
-	_angle += ORBIT_SPEED * delta
-	position = Vector2.from_angle(_angle) * ORBIT_RADIUS
+	_orbit_angle += ORBIT_SPEED * delta
+	_spin += SPIN_SPEED * delta
+	_pulse_t += delta
 
-	# tick cooldowns
+	# 0→1→0 으로 부드럽게 오갔다 돌아오는 확장 계수
+	var pulse := 0.5 - 0.5 * cos(_pulse_t * TAU / PULSE_PERIOD)
+	var radius := ORBIT_MIN + (ORBIT_MAX - ORBIT_MIN) * pulse
+	position = Vector2.from_angle(_orbit_angle) * radius
+	rotation = _spin
+
+	# 재타격 쿨다운 감쇠
 	for id in _timers.keys():
 		_timers[id] -= delta
 		if _timers[id] <= 0.0:
 			_timers.erase(id)
 
-	# damage nearby zombies
+	# 칼날 리치 안의 좀비에게 피해(확장 시 더 넓은 영역을 휩쓴다)
 	var dmg := 1 + Events.upgrade_orb_damage
+	var r_sq := HIT_RADIUS * HIT_RADIUS
 	for z in get_tree().get_nodes_in_group("zombies"):
 		if not is_instance_valid(z):
 			continue
-		if global_position.distance_squared_to(z.global_position) < HIT_RADIUS * HIT_RADIUS:
+		if global_position.distance_squared_to(z.global_position) < r_sq:
 			var id := z.get_instance_id()
 			if not _timers.has(id):
 				z.take_damage(dmg)
@@ -37,15 +59,37 @@ func _physics_process(delta: float) -> void:
 
 	queue_redraw()
 
+
 func _draw() -> void:
-	# outer glow
-	draw_circle(Vector2.ZERO, 20.0, Color(0.25, 0.65, 1.0, 0.18))
-	# mid glow
-	draw_circle(Vector2.ZERO, 13.0, Color(0.45, 0.82, 1.0, 0.45))
-	# core
-	draw_circle(Vector2.ZERO, 7.5, Color(0.75, 0.96, 1.0, 0.90))
-	# bright center
-	draw_circle(Vector2.ZERO, 3.0, Color(1.0, 1.0, 1.0, 1.0))
+	# 모션 잔상(휩쓰는 공격 영역) — 확장 시 더 크게 보이도록 리치 반경을 옅게 깐다.
+	draw_circle(Vector2.ZERO, HIT_RADIUS, Color(0.70, 0.88, 1.0, 0.08))
+
+	# 십자형 이중 칼날(자전으로 회전하는 표창/검 느낌). 금속 본체 + 능선 하이라이트.
+	var tip := Vector2(BLADE_LEN, 0.0)
+	var s1 := Vector2(BLADE_LEN * 0.28, -BLADE_W)
+	var back := Vector2(-BLADE_LEN * 0.42, 0.0)
+	var s2 := Vector2(BLADE_LEN * 0.28, BLADE_W)
+	var steel := Color(0.85, 0.92, 1.0, 0.96)
+	var steel_dim := Color(0.62, 0.74, 0.92, 0.92)
+	var edge := Color(1.0, 1.0, 1.0, 0.95)
+
+	# 가로 칼날
+	draw_colored_polygon(PackedVector2Array([tip, s1, back, s2]), steel)
+	draw_line(back, tip, edge, 1.6, true)
+	draw_colored_polygon(PackedVector2Array([-tip, -s1, -back, -s2]), steel_dim)
+	draw_line(-back, -tip, edge, 1.4, true)
+	# 세로 칼날(직교) — 회전 시 십자 칼날처럼 보이게
+	var tipv := Vector2(0.0, BLADE_LEN)
+	var v1 := Vector2(BLADE_W, BLADE_LEN * 0.28)
+	var backv := Vector2(0.0, -BLADE_LEN * 0.42)
+	var v2 := Vector2(-BLADE_W, BLADE_LEN * 0.28)
+	draw_colored_polygon(PackedVector2Array([tipv, v1, backv, v2]), steel_dim)
+	draw_colored_polygon(PackedVector2Array([-tipv, -v1, -backv, -v2]), steel_dim)
+
+	# 중심 허브
+	draw_circle(Vector2.ZERO, 4.5, Color(0.95, 0.97, 1.0, 1.0))
+	draw_circle(Vector2.ZERO, 2.0, Color(0.45, 0.6, 0.85, 1.0))
+
 
 func _spawn_hit_fx(world_pos: Vector2) -> void:
-	_FXBurst.spawn(get_tree().current_scene, world_pos, Color(0.45, 0.82, 1.0), 20.0, 0.22)
+	_FXBurst.spawn(get_tree().current_scene, world_pos, Color(0.75, 0.9, 1.0), 20.0, 0.20)
