@@ -20,6 +20,7 @@ var _lang_buttons: Array = []   # [{ "btn": Button, "lang": String }]
 
 
 func _ready() -> void:
+	get_tree().paused = false   # 게임오버/상점에서 정지된 채 메뉴로 돌아와도 메뉴가 멈추지 않도록
 	_build_ui()
 	_apply_language()
 	Locale.language_changed.connect(_on_language_changed)
