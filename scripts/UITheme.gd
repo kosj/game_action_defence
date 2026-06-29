@@ -31,9 +31,9 @@ func _install() -> void:
 
 func build() -> Theme:
 	var t := Theme.new()
-	var font := _font()
-	if font:
-		t.default_font = font
+	# 기본 폰트는 ProjectSettings(gui/theme/custom_font)에서 엔진 레벨로 지정한다.
+	# 런타임 테마의 default_font 는 웹 빌드에서 적용이 누락돼 CJK 가 깨지므로 여기서 설정하지 않는다.
+	# (제목/버튼의 굵은 폰트는 아래 per-type 오버라이드로 계속 적용한다.)
 	t.default_font_size = 19
 
 	# ── Button ────────────────────────────────────────────────
