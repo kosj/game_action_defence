@@ -11,6 +11,7 @@ const ITEM_PICKUP := preload("res://scenes/ItemPickup.tscn")
 
 
 func _ready() -> void:
+	get_tree().paused = false   # 게임 씬 진입 시 정지 상태가 남아있지 않도록 보장
 	# 첫 프레임을 먼저 렌더한 뒤 풀을 채워 WebGL 초기 프리즈 방지
 	call_deferred("_do_prewarm")
 

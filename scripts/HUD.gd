@@ -53,6 +53,8 @@ var _go_vals: Dictionary = {}   # "score"/"best"/"wave"/"kills"/"time" -> Label
 
 
 func _ready() -> void:
+	# 게임오버로 트리를 일시정지해도 HUD(게임오버 패널·버튼·블러)는 계속 동작해야 한다.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	top_bg.add_theme_stylebox_override("panel", _UIStyle.bottom_bar(Color(0.05, 0.06, 0.09, 0.62)))
 	wave_clear_bg.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.30, 0.14, 0.92), Color(1.0, 0.85, 0.2), 26, 3))
 	game_over_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.05, 0.06, 0.96), Color(0.85, 0.25, 0.22), 22, 3))
@@ -355,9 +357,10 @@ func _on_rewarded_granted(placement: String) -> void:
 	if player == null or not player.has_method("revive"):
 		return
 	_revive_used = true
-	# 부활 시 사라진 게임오버 패널을 닫고 그대로 진행 재개.
+	# 부활 시 사라진 게임오버 패널을 닫고 정지를 해제해 그대로 진행 재개.
 	game_over_panel.visible = false
 	_set_blur(false)
+	get_tree().paused = false
 	player.revive()
 
 
@@ -475,8 +478,12 @@ func _on_player_died() -> void:
 	tw.tween_property(game_over_panel, "modulate:a", 1.0, 0.3)
 	tw.tween_property(game_over_panel, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
+	# 게임 전체 정지 — 좀비·총알·플레이어 이동까지 모두 멈춘다(HUD/광고는 PROCESS_MODE_ALWAYS 라 계속 동작).
+	get_tree().paused = true
+
 
 func _on_restart_pressed() -> void:
+	get_tree().paused = false   # 새 판 시작 전 정지 해제
 	SaveManager.save_high_score()
 	Events.reset()
 	Pool.clear()
@@ -484,6 +491,7 @@ func _on_restart_pressed() -> void:
 
 
 func _on_main_menu_pressed() -> void:
+	get_tree().paused = false   # 씬 전환 전 정지 해제
 	SaveManager.save_high_score()
 	Events.reset()
 	Pool.clear()

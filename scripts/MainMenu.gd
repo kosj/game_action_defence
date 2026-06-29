@@ -15,11 +15,17 @@ var _continue_btn: Button
 var _lang_title: Label
 var _sound_title: Label
 var _sound_btn: Button
+var _options_btn: Button
+var _options_dim: ColorRect
+var _options_panel: PanelContainer
+var _options_title: Label
+var _close_btn: Button
 var _diff_buttons: Array = []
 var _lang_buttons: Array = []   # [{ "btn": Button, "lang": String }]
 
 
 func _ready() -> void:
+	get_tree().paused = false   # 게임오버/상점에서 정지된 채 메뉴로 돌아와도 메뉴가 멈추지 않도록
 	_build_ui()
 	_apply_language()
 	Locale.language_changed.connect(_on_language_changed)
@@ -142,50 +148,17 @@ func _build_ui() -> void:
 	_continue_btn.pressed.connect(_on_continue_pressed)
 	box.add_child(_continue_btn)
 
-	# ── 언어 선택 ──────────────────────────────────────────────────────────
-	var lang_spacer := Control.new()
-	lang_spacer.custom_minimum_size = Vector2(0, 14)
-	box.add_child(lang_spacer)
+	# ── 옵션 버튼 (언어 / 사운드 설정은 옵션 패널 하위로) ─────────────────────
+	var opt_spacer := Control.new()
+	opt_spacer.custom_minimum_size = Vector2(0, 8)
+	box.add_child(opt_spacer)
 
-	_lang_title = Label.new()
-	_lang_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_lang_title.add_theme_font_size_override("font_size", 16)
-	_lang_title.add_theme_color_override("font_color", Color(0.70, 0.74, 0.82))
-	box.add_child(_lang_title)
-
-	var lang_row := HBoxContainer.new()
-	lang_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	lang_row.add_theme_constant_override("separation", 8)
-	box.add_child(lang_row)
-	_lang_buttons.clear()
-	for lang in Locale.SUPPORTED:
-		var lb := Button.new()
-		lb.text = Locale.native_name(lang)   # 각 언어를 자기 이름으로 표시(English / 한국어 / 日本語)
-		lb.custom_minimum_size = Vector2(92, 44)
-		lb.add_theme_font_size_override("font_size", 17)
-		lb.pressed.connect(_on_language_pressed.bind(lang))
-		lang_row.add_child(lb)
-		_lang_buttons.append({"btn": lb, "lang": lang})
-
-	# ── 사운드 On/Off (옵션) ────────────────────────────────────────────────
-	var snd_spacer := Control.new()
-	snd_spacer.custom_minimum_size = Vector2(0, 12)
-	box.add_child(snd_spacer)
-
-	_sound_title = Label.new()
-	_sound_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_sound_title.add_theme_font_size_override("font_size", 16)
-	_sound_title.add_theme_color_override("font_color", Color(0.70, 0.74, 0.82))
-	box.add_child(_sound_title)
-
-	var snd_row := HBoxContainer.new()
-	snd_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.add_child(snd_row)
-	_sound_btn = Button.new()
-	_sound_btn.custom_minimum_size = Vector2(160, 46)
-	_sound_btn.add_theme_font_size_override("font_size", 18)
-	_sound_btn.pressed.connect(_on_sound_pressed)
-	snd_row.add_child(_sound_btn)
+	_options_btn = Button.new()
+	_options_btn.custom_minimum_size = Vector2(300, 56)
+	_options_btn.add_theme_font_size_override("font_size", 22)
+	_UIStyle.apply_button_style(_options_btn, Color(0.20, 0.20, 0.28), Color(0.55, 0.58, 0.70))
+	_options_btn.pressed.connect(_on_options_pressed)
+	box.add_child(_options_btn)
 
 	# 버전 표시(하단)
 	var ver := Label.new()
@@ -194,6 +167,113 @@ func _build_ui() -> void:
 	ver.add_theme_font_size_override("font_size", 14)
 	ver.add_theme_color_override("font_color", Color(0.55, 0.58, 0.65, 0.8))
 	box.add_child(ver)
+
+	_build_options_panel()
+
+
+## 옵션 패널(언어 / 사운드 On/Off) — Option 버튼으로 열고 닫는 오버레이.
+func _build_options_panel() -> void:
+	_options_dim = ColorRect.new()
+	_options_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_options_dim.color = Color(0, 0, 0, 0.6)
+	_options_dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_options_dim.visible = false
+	_options_dim.gui_input.connect(_on_dim_input)   # 바깥 영역 탭 시 닫기
+	add_child(_options_dim)
+
+	_options_panel = PanelContainer.new()
+	_options_panel.anchor_left = 0.5
+	_options_panel.anchor_right = 0.5
+	_options_panel.anchor_top = 0.5
+	_options_panel.anchor_bottom = 0.5
+	_options_panel.offset_left = -210.0
+	_options_panel.offset_right = 210.0
+	_options_panel.offset_top = -240.0
+	_options_panel.offset_bottom = 240.0
+	_options_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 0.98), Color(0.35, 0.38, 0.5)))
+	_options_panel.visible = false
+	add_child(_options_panel)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 24)
+	margin.add_theme_constant_override("margin_right", 24)
+	margin.add_theme_constant_override("margin_top", 22)
+	margin.add_theme_constant_override("margin_bottom", 22)
+	_options_panel.add_child(margin)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 16)
+	margin.add_child(vb)
+
+	_options_title = Label.new()
+	_options_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_options_title.add_theme_font_size_override("font_size", 30)
+	_options_title.add_theme_color_override("font_color", Color(0.95, 0.92, 0.98))
+	UITheme.heading(_options_title)
+	vb.add_child(_options_title)
+
+	vb.add_child(HSeparator.new())
+
+	# 언어 설정
+	_lang_title = Label.new()
+	_lang_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_lang_title.add_theme_font_size_override("font_size", 18)
+	_lang_title.add_theme_color_override("font_color", Color(0.72, 0.76, 0.85))
+	vb.add_child(_lang_title)
+
+	var lang_row := HBoxContainer.new()
+	lang_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	lang_row.add_theme_constant_override("separation", 8)
+	vb.add_child(lang_row)
+	_lang_buttons.clear()
+	for lang in Locale.SUPPORTED:
+		var lb := Button.new()
+		lb.text = Locale.native_name(lang)
+		lb.custom_minimum_size = Vector2(92, 46)
+		lb.add_theme_font_size_override("font_size", 17)
+		lb.pressed.connect(_on_language_pressed.bind(lang))
+		lang_row.add_child(lb)
+		_lang_buttons.append({"btn": lb, "lang": lang})
+
+	# 사운드 On/Off
+	_sound_title = Label.new()
+	_sound_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sound_title.add_theme_font_size_override("font_size", 18)
+	_sound_title.add_theme_color_override("font_color", Color(0.72, 0.76, 0.85))
+	vb.add_child(_sound_title)
+
+	var snd_row := HBoxContainer.new()
+	snd_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	vb.add_child(snd_row)
+	_sound_btn = Button.new()
+	_sound_btn.custom_minimum_size = Vector2(180, 50)
+	_sound_btn.add_theme_font_size_override("font_size", 19)
+	_sound_btn.pressed.connect(_on_sound_pressed)
+	snd_row.add_child(_sound_btn)
+
+	vb.add_child(HSeparator.new())
+
+	_close_btn = Button.new()
+	_close_btn.custom_minimum_size = Vector2(0, 56)
+	_close_btn.add_theme_font_size_override("font_size", 22)
+	_UIStyle.apply_button_style(_close_btn, Color(0.14, 0.40, 0.20), Color(0.4, 0.85, 0.45))
+	_close_btn.pressed.connect(_on_close_options)
+	vb.add_child(_close_btn)
+
+
+func _on_options_pressed() -> void:
+	_options_dim.visible = true
+	_options_panel.visible = true
+
+
+func _on_close_options() -> void:
+	_options_dim.visible = false
+	_options_panel.visible = false
+
+
+func _on_dim_input(event: InputEvent) -> void:
+	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
+		_on_close_options()
 
 
 ## 현재 언어로 모든 라벨/버튼 텍스트를 갱신하고 선택 강조를 다시 칠한다.
@@ -204,6 +284,9 @@ func _apply_language() -> void:
 	_continue_btn.text = Locale.t("menu_continue")
 	_lang_title.text = Locale.t("menu_language")
 	_sound_title.text = Locale.t("menu_sound")
+	_options_btn.text = Locale.t("menu_options")
+	_options_title.text = Locale.t("menu_options")
+	_close_btn.text = Locale.t("menu_close")
 	for i in _diff_buttons.size():
 		_diff_buttons[i].text = Locale.t(_DIFF_KEYS[i])
 	_refresh_difficulty_buttons()

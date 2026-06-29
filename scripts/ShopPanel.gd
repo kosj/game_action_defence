@@ -42,12 +42,16 @@ var _drag_total: float = 0.0
 func _ready() -> void:
 	layer = 10
 	visible = false
+	# 웨이브 클리어로 트리를 일시정지해도 상점 UI는 계속 동작해야 한다.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	Events.wave_complete.connect(_on_wave_complete)
 	AdManager.rewarded_granted.connect(_on_rewarded_granted)
 	_build_ui()
 
 
 func _on_wave_complete(wave: int) -> void:
+	# 클리어 즉시 게임 정지 — 남은 호위 좀비 등이 상점 중에 계속 움직이지 않도록.
+	get_tree().paused = true
 	_wave_label.text = Locale.t("wave_clear_fmt") % wave
 	_ad_gold_claimed = false   # 새 상점 등장 — 보상형 골드 다시 1회 허용
 	_refresh_buttons()
@@ -355,4 +359,5 @@ func _on_upgrade_pressed(id: String) -> void:
 
 func _on_continue() -> void:
 	visible = false
+	get_tree().paused = false   # 다음 웨이브 진행을 위해 정지 해제
 	Events.shop_closed.emit()
