@@ -120,9 +120,14 @@ func _shoot_at(target: Node2D) -> void:
 	if count > 1 and spread <= 0.0:
 		spread = 0.22   # 무기 자체엔 탄퍼짐이 없어도 다중발사 강화 시 보기 좋게 퍼지도록
 	for i in range(count):
+		# 첫 발(i=0)은 항상 정조준 → 직격 보장. 짝수 발일 때 정중앙이 비어 단일 표적을
+		# 빗나가던 문제를 막는다. 나머지 탄은 좌우로 번갈아 부채꼴 분산.
 		var angle_off := 0.0
-		if count > 1:
-			angle_off = lerp(-spread, spread, float(i) / (count - 1))
+		if count > 1 and i > 0:
+			var pair := (i + 1) / 2                # 1,1,2,2,3,3...
+			var side := 1.0 if (i % 2 == 1) else -1.0
+			var steps: int = count / 2
+			angle_off = side * spread * float(pair) / float(maxi(steps, 1))
 		var dir := base_dir.rotated(angle_off)
 		var b := Pool.acquire(BULLET, get_tree().current_scene)
 		b.global_position = muzzle.global_position

@@ -35,11 +35,37 @@ func on_despawn() -> void:
 func _physics_process(delta: float) -> void:
 	if not _alive:
 		return
+	var from := global_position
 	global_position += direction * speed * delta
+	# 빠른 총알이 저프레임에서 좀비를 건너뛰는 터널링 방지: 이동 구간을 레이캐스트로 훑는다.
+	_check_swept_hit(from, global_position)
+	if not _alive:
+		return
 	_age += delta
 	if _age >= lifetime:   # 화면 밖으로 날아간 총알 회수
 		_despawn()
 	queue_redraw()
+
+
+## 직전 위치에서 현재 위치까지의 선분에 좀비가 걸리면 즉시 명중 처리.
+func _check_swept_hit(from: Vector2, to: Vector2) -> void:
+	if from == to:
+		return
+	var space := get_world_2d().direct_space_state
+	var q := PhysicsRayQueryParameters2D.create(from, to, 2)   # 마스크 2 = 좀비/보스 레이어
+	q.collide_with_areas = false
+	var hit := space.intersect_ray(q)
+	if hit.is_empty():
+		return
+	var c = hit.get("collider")
+	if c == null or not c.is_in_group("zombies"):
+		return
+	global_position = hit["position"]
+	if splash_radius > 0.0:
+		_splash_hit()
+	elif c.has_method("take_damage"):
+		c.take_damage(damage)
+	_despawn()
 
 
 func _draw() -> void:
