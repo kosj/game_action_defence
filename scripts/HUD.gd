@@ -42,6 +42,10 @@ var _magnet_tween: Tween = null
 var _revive_btn: Button = null
 var _revive_used: bool = false
 
+# 게임오버 패널 뒤 화면 블러(시인성). 패널이 뜰 때만 활성화한다.
+var _blur_bbc: BackBufferCopy = null
+var _blur_rect: ColorRect = null
+
 # 게임오버 통계 위젯(아이콘 그리드) — 코드로 생성해 텍스트 라벨을 대체.
 var _go_medal: UIIcon = null
 var _go_record: Label = null
@@ -59,6 +63,7 @@ func _ready() -> void:
 	_build_revive_button()
 	_build_hud_icons()
 	_build_gameover_stats()
+	_build_blur_overlay()
 	UITheme.heading(wave_clear_label)
 	UITheme.heading($GameOverPanel/Margin/VBoxContainer/GameOverLabel)
 	call_deferred("_init_pivots")
@@ -306,6 +311,36 @@ func _build_revive_button() -> void:
 	box.move_child(_revive_btn, restart_button.get_index())   # 다시하기 버튼 바로 위로
 
 
+## 게임오버 패널 뒤 화면을 흐리게 — BackBufferCopy 로 화면을 떠 두고 블러 셰이더 ColorRect 로 덮는다.
+## 그리기 순서를 패널 바로 앞(아래)으로 옮겨, 화면 전체를 블러한 위에 패널만 선명히 표시한다.
+func _build_blur_overlay() -> void:
+	_blur_bbc = BackBufferCopy.new()
+	_blur_bbc.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
+	_blur_bbc.visible = false
+	add_child(_blur_bbc)
+
+	_blur_rect = ColorRect.new()
+	_blur_rect.anchor_right = 1.0
+	_blur_rect.anchor_bottom = 1.0
+	_blur_rect.mouse_filter = Control.MOUSE_FILTER_STOP   # 패널 밖 영역의 터치가 뒤 게임으로 새지 않게 차단
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://assets/shaders/gameover_blur.gdshader")
+	_blur_rect.material = mat
+	_blur_rect.visible = false
+	add_child(_blur_rect)
+
+	var idx := game_over_panel.get_index()
+	move_child(_blur_bbc, idx)
+	move_child(_blur_rect, game_over_panel.get_index())
+
+
+func _set_blur(active: bool) -> void:
+	if _blur_bbc:
+		_blur_bbc.visible = active
+	if _blur_rect:
+		_blur_rect.visible = active
+
+
 func _on_revive_pressed() -> void:
 	if _revive_used or not AdManager.is_rewarded_ready():
 		return
@@ -322,6 +357,7 @@ func _on_rewarded_granted(placement: String) -> void:
 	_revive_used = true
 	# 부활 시 사라진 게임오버 패널을 닫고 그대로 진행 재개.
 	game_over_panel.visible = false
+	_set_blur(false)
 	player.revive()
 
 
@@ -430,6 +466,7 @@ func _on_player_died() -> void:
 	ct.tween_method(func(v: float): _go_vals["score"].text = "%d" % int(v), 0.0, float(Events.score), 0.7) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
+	_set_blur(true)
 	game_over_panel.visible = true
 	game_over_panel.modulate.a = 0.0
 	game_over_panel.scale = Vector2(0.8, 0.8)
