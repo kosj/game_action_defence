@@ -95,6 +95,23 @@ func _build() -> void:
 	_tap_label = _make_centered_label(Locale.t("title_tap"), 26, Color(0.95, 0.93, 0.95, 1.0), 1030.0)
 	UITheme.heading(_tap_label)
 
+	# 버전 표시(우하단)
+	var ver := Label.new()
+	ver.text = Events.VERSION
+	ver.anchor_left = 1.0
+	ver.anchor_right = 1.0
+	ver.anchor_top = 1.0
+	ver.anchor_bottom = 1.0
+	ver.offset_left = -130.0
+	ver.offset_top = -34.0
+	ver.offset_right = -14.0
+	ver.offset_bottom = -10.0
+	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	ver.add_theme_font_size_override("font_size", 16)
+	ver.add_theme_color_override("font_color", Color(0.6, 0.62, 0.68, 0.7))
+	ver.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(ver)
+
 	# 가장자리 비네트(분위기 + 시인성)
 	var vig := UITheme.make_vignette()
 	vig.modulate = Color(1, 1, 1, 0.85)

@@ -13,6 +13,8 @@ var _diff_title: Label
 var _new_game_btn: Button
 var _continue_btn: Button
 var _lang_title: Label
+var _sound_title: Label
+var _sound_btn: Button
 var _diff_buttons: Array = []
 var _lang_buttons: Array = []   # [{ "btn": Button, "lang": String }]
 
@@ -118,6 +120,34 @@ func _build_ui() -> void:
 		lang_row.add_child(lb)
 		_lang_buttons.append({"btn": lb, "lang": lang})
 
+	# ── 사운드 On/Off (옵션) ────────────────────────────────────────────────
+	var snd_spacer := Control.new()
+	snd_spacer.custom_minimum_size = Vector2(0, 12)
+	box.add_child(snd_spacer)
+
+	_sound_title = Label.new()
+	_sound_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_sound_title.add_theme_font_size_override("font_size", 16)
+	_sound_title.add_theme_color_override("font_color", Color(0.70, 0.74, 0.82))
+	box.add_child(_sound_title)
+
+	var snd_row := HBoxContainer.new()
+	snd_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(snd_row)
+	_sound_btn = Button.new()
+	_sound_btn.custom_minimum_size = Vector2(160, 46)
+	_sound_btn.add_theme_font_size_override("font_size", 18)
+	_sound_btn.pressed.connect(_on_sound_pressed)
+	snd_row.add_child(_sound_btn)
+
+	# 버전 표시(하단)
+	var ver := Label.new()
+	ver.text = Events.VERSION
+	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	ver.add_theme_font_size_override("font_size", 14)
+	ver.add_theme_color_override("font_color", Color(0.55, 0.58, 0.65, 0.8))
+	box.add_child(ver)
+
 
 ## 현재 언어로 모든 라벨/버튼 텍스트를 갱신하고 선택 강조를 다시 칠한다.
 func _apply_language() -> void:
@@ -126,10 +156,27 @@ func _apply_language() -> void:
 	_new_game_btn.text = Locale.t("menu_new_game")
 	_continue_btn.text = Locale.t("menu_continue")
 	_lang_title.text = Locale.t("menu_language")
+	_sound_title.text = Locale.t("menu_sound")
 	for i in _diff_buttons.size():
 		_diff_buttons[i].text = Locale.t(_DIFF_KEYS[i])
 	_refresh_difficulty_buttons()
 	_refresh_language_buttons()
+	_refresh_sound_button()
+
+
+## 사운드 On/Off 토글 — 즉시 적용·저장하고 버튼 표시를 갱신.
+func _on_sound_pressed() -> void:
+	SoundManager.set_enabled(not SoundManager.is_enabled())
+	_refresh_sound_button()
+
+
+func _refresh_sound_button() -> void:
+	var on := SoundManager.is_enabled()
+	_sound_btn.text = "%s: %s" % [Locale.t("menu_sound"), Locale.t("sound_on") if on else Locale.t("sound_off")]
+	if on:
+		_UIStyle.apply_button_style(_sound_btn, Color(0.14, 0.34, 0.20), Color(0.4, 0.85, 0.45))
+	else:
+		_UIStyle.apply_button_style(_sound_btn, Color(0.30, 0.14, 0.14), Color(0.85, 0.4, 0.4))
 
 
 func _on_language_pressed(lang: String) -> void:

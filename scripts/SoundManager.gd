@@ -18,10 +18,14 @@ const _VOLUMES: Dictionary = {
 	"player_hurt":  0.0,
 }
 
+const SETTING_PATH := "user://sound.save"
+
 var _players: Dictionary = {}
+var muted: bool = false   # 옵션에서 끄면 모든 효과음을 음소거
 
 
 func _ready() -> void:
+	muted = _read_setting()
 	for key in _SOUNDS:
 		var p := AudioStreamPlayer.new()
 		var stream = load(_SOUNDS[key])
@@ -33,7 +37,33 @@ func _ready() -> void:
 
 
 func play(sound: String, pitch_vary: float = 0.1) -> void:
+	if muted:
+		return
 	var p: AudioStreamPlayer = _players.get(sound)
 	if p and p.stream:
 		p.pitch_scale = 1.0 + randf_range(-pitch_vary, pitch_vary)
 		p.play()
+
+
+func is_enabled() -> bool:
+	return not muted
+
+
+## 사운드 On/Off 설정(옵션 메뉴). 즉시 적용하고 디스크에 보존한다.
+func set_enabled(on: bool) -> void:
+	muted = not on
+	var f := FileAccess.open(SETTING_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string("1" if on else "0")
+		f.close()
+
+
+func _read_setting() -> bool:
+	if not FileAccess.file_exists(SETTING_PATH):
+		return false   # 기본: 음소거 아님(사운드 On)
+	var f := FileAccess.open(SETTING_PATH, FileAccess.READ)
+	if not f:
+		return false
+	var txt := f.get_as_text().strip_edges()
+	f.close()
+	return txt == "0"   # "0" = Off → muted=true
