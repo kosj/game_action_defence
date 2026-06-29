@@ -25,11 +25,56 @@ func _ready() -> void:
 	Locale.language_changed.connect(_on_language_changed)
 
 
+## 타이틀 화면과 같은 핏빛 방사 글로우 + 떠오르는 잔불 — 메뉴 뒤 배경 분위기.
+func _build_backdrop() -> void:
+	var glow := TextureRect.new()
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0.72, 0.10, 0.10, 0.42))
+	grad.set_color(1, Color(0.72, 0.10, 0.10, 0.0))
+	var gtex := GradientTexture2D.new()
+	gtex.gradient = grad
+	gtex.fill = GradientTexture2D.FILL_RADIAL
+	gtex.fill_from = Vector2(0.5, 0.5)
+	gtex.fill_to = Vector2(1.0, 0.5)
+	gtex.width = 256
+	gtex.height = 256
+	glow.texture = gtex
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	glow.size = Vector2(700, 520)
+	glow.position = Vector2(360.0 - 350.0, 330.0 - 260.0)
+	add_child(glow)
+
+	var p := CPUParticles2D.new()
+	p.amount = 42
+	p.lifetime = 7.0
+	p.preprocess = 4.0
+	p.lifetime_randomness = 0.6
+	p.position = Vector2(360.0, 1300.0)
+	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	p.emission_rect_extents = Vector2(380.0, 8.0)
+	p.direction = Vector2(0, -1)
+	p.spread = 16.0
+	p.gravity = Vector2(0, -7.0)
+	p.initial_velocity_min = 12.0
+	p.initial_velocity_max = 32.0
+	p.scale_amount_min = 1.0
+	p.scale_amount_max = 2.4
+	p.color = Color(1.0, 0.45, 0.18, 0.5)
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(1.0, 0.5, 0.2, 0.0))
+	ramp.set_color(1, Color(1.0, 0.3, 0.1, 0.0))
+	ramp.add_point(0.25, Color(1.0, 0.5, 0.2, 0.55))
+	p.color_ramp = ramp
+	p.emitting = true
+	add_child(p)
+
+
 func _build_ui() -> void:
-	# 그라데이션 배경 + 비네트로 단색 대비 깊이감 부여
-	add_child(UITheme.make_gradient_bg(Color(0.10, 0.12, 0.16), Color(0.04, 0.05, 0.07)))
+	# 타이틀 화면과 같은 분위기를 메뉴 배경으로 — 핏빛 그라데이션 + 붉은 글로우 + 잔불.
+	add_child(UITheme.make_gradient_bg(Color(0.12, 0.03, 0.04), Color(0.02, 0.02, 0.03)))
+	_build_backdrop()
 	var vig := UITheme.make_vignette()
-	vig.modulate = Color(1, 1, 1, 0.55)
+	vig.modulate = Color(1, 1, 1, 0.80)
 	add_child(vig)
 
 	var center := CenterContainer.new()
@@ -41,12 +86,14 @@ func _build_ui() -> void:
 	box.add_theme_constant_override("separation", 18)
 	center.add_child(box)
 
-	# 게임 타이틀(브랜드) — 번역하지 않는다.
+	# 게임 타이틀(브랜드) — 타이틀 화면 로고와 동일한 룩(아웃라인 + 핏빛). 번역하지 않는다.
 	var title := Label.new()
 	title.text = "DeadLine"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 44)
-	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
+	title.add_theme_font_size_override("font_size", 66)
+	title.add_theme_color_override("font_color", Color(0.97, 0.94, 0.90))
+	title.add_theme_constant_override("outline_size", 10)
+	title.add_theme_color_override("font_outline_color", Color(0.35, 0.02, 0.03, 1.0))
 	UITheme.heading(title)
 	box.add_child(title)
 
