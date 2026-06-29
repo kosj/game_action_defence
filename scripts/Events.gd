@@ -1,6 +1,9 @@
 extends Node
 ## 전역 이벤트 버스 / 재화·체력·웨이브·업그레이드 관리 (Autoload 싱글톤: "Events")
 
+## 게임 버전 — 타이틀/메뉴에 표시.
+const VERSION := "v1.0.0"
+
 signal gold_changed(total: int)
 signal player_health_changed(health: int, max_health: int)
 signal player_died

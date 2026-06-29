@@ -14,9 +14,16 @@ var splash_radius: float = 0.0
 var _age: float = 0.0
 var _alive: bool = false
 
+# 글랜싱(스치는) 명중 검출용 원 도형 질의 — 매 프레임 재할당을 피하려 1회만 만든다.
+var _circle := CircleShape2D.new()
+var _shape_q := PhysicsShapeQueryParameters2D.new()
+
 
 func _ready() -> void:
 	body_entered.connect(_on_body_entered)   # 시그널은 1회만 연결
+	_shape_q.shape = _circle
+	_shape_q.collision_mask = 2              # 좀비/보스 레이어
+	_shape_q.collide_with_areas = false
 
 
 func on_spawn() -> void:
@@ -47,21 +54,35 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 
-## 직전 위치에서 현재 위치까지의 선분에 좀비가 걸리면 즉시 명중 처리.
+## 명중 누락 방지(특히 빠르거나 작은 총알): 두 방식을 함께 쓴다.
+##   ① 레이(직전→현재): 한 프레임에 적을 건너뛰는 터널링 + 적 내부에서 출발하는 경우.
+##   ② 원 도형 질의(현재 위치): 선분을 살짝 벗어나 스치는(글랜싱) 겹침.
 func _check_swept_hit(from: Vector2, to: Vector2) -> void:
-	if from == to:
-		return
 	var space := get_world_2d().direct_space_state
-	var q := PhysicsRayQueryParameters2D.create(from, to, 2)   # 마스크 2 = 좀비/보스 레이어
-	q.collide_with_areas = false
-	q.hit_from_inside = true   # 총알이 이미 적 충돌 도형 안에서 출발해도 명중으로 인정(누락 방지)
-	var hit := space.intersect_ray(q)
-	if hit.is_empty():
-		return
-	var c = hit.get("collider")
-	if c == null or not c.is_in_group("zombies"):
-		return
-	global_position = hit["position"]
+
+	if from != to:
+		var rq := PhysicsRayQueryParameters2D.create(from, to, 2)
+		rq.collide_with_areas = false
+		rq.hit_from_inside = true   # 적 충돌 도형 안에서 출발해도 명중 인정
+		var rhit := space.intersect_ray(rq)
+		if not rhit.is_empty():
+			var rc = rhit.get("collider")
+			if rc and rc.is_in_group("zombies"):
+				_resolve_hit(rc, rhit["position"])
+				return
+
+	# 총알 발자국(반경 = 충돌 도형 × 스케일 + 여유)만큼 겹친 좀비를 잡는다.
+	_circle.radius = 5.0 * scale.x + 4.0
+	_shape_q.transform = Transform2D(0.0, to)
+	var hits := space.intersect_shape(_shape_q, 1)
+	if hits.size() > 0:
+		var sc = hits[0].get("collider")
+		if sc and sc.is_in_group("zombies"):
+			_resolve_hit(sc, to)
+
+
+func _resolve_hit(c: Node, pos: Vector2) -> void:
+	global_position = pos
 	if splash_radius > 0.0:
 		_splash_hit()
 	elif c.has_method("take_damage"):

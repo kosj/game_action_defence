@@ -21,10 +21,11 @@ var _pulse_t: float = 0.0
 var _timers: Dictionary = {}
 
 
-## 여러 칼날을 균등 분산 — 시작 각도와 함께 확장 위상도 어긋나게 해 서로 다른 타이밍에 휩쓴다.
+## 여러 칼날을 각도만 균등 분산하고 확장 위상은 동기화 — 모두 같은 박자로 캐릭터를 중심으로
+## 일정하게 멀어졌다 돌아오게 한다(깔끔한 맥동 링).
 func init_angle(a: float) -> void:
 	_orbit_angle = a
-	_pulse_t = a * (PULSE_PERIOD / TAU)
+	_pulse_t = 0.0
 
 
 func _physics_process(delta: float) -> void:
