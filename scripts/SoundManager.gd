@@ -4,17 +4,21 @@ extends Node
 
 const _SOUNDS: Dictionary = {
 	"shoot":       "res://assets/audio/sfx_shoot.ogg",
+	"laser":       "res://assets/audio/sfx_laser.wav",   # 플라스마 등 에너지 무기
+	"boom":        "res://assets/audio/sfx_boom.wav",    # 샷건/로켓 등 폭발성 무기
 	"zombie_hit":  "res://assets/audio/sfx_zombie_hit.ogg",
 	"zombie_die":  "res://assets/audio/sfx_zombie_die.ogg",
-	"gold":        "res://assets/audio/sfx_gold.ogg",
+	"gold":        "res://assets/audio/sfx_coin.wav",    # 마리오풍 코인 획득음(띠링)
 	"player_hurt": "res://assets/audio/sfx_player_hurt.ogg",
 }
 
 const _VOLUMES: Dictionary = {
 	"shoot":       -8.0,
+	"laser":       -9.0,
+	"boom":        -4.0,
 	"zombie_hit":  -6.0,
 	"zombie_die":  -3.0,
-	"gold":        -5.0,
+	"gold":        -4.0,
 	"player_hurt":  0.0,
 }
 
@@ -36,12 +40,13 @@ func _ready() -> void:
 		_players[key] = p
 
 
-func play(sound: String, pitch_vary: float = 0.1) -> void:
+## base_pitch: 무기 특성별 기준 음높이(1.0=원음). pitch_vary: 매 발 랜덤 변주(반복 단조로움 방지).
+func play(sound: String, pitch_vary: float = 0.1, base_pitch: float = 1.0) -> void:
 	if muted:
 		return
 	var p: AudioStreamPlayer = _players.get(sound)
 	if p and p.stream:
-		p.pitch_scale = 1.0 + randf_range(-pitch_vary, pitch_vary)
+		p.pitch_scale = max(0.05, base_pitch * (1.0 + randf_range(-pitch_vary, pitch_vary)))
 		p.play()
 
 

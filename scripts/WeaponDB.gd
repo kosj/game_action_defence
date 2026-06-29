@@ -3,12 +3,12 @@ extends RefCounted
 ## 맵에서 주운 무기는 즉시 장착되며, 상점 강화(대미지/다중발사)는 어떤 무기를 들어도 그대로 적용된다.
 
 const WEAPONS: Array = [
-	{"id": "pistol",  "name": "Pistol",          "shape": "circle",       "color": Color(1.00, 0.30, 0.10), "base_damage": 1, "cooldown_mult": 1.00, "bullet_speed_mult": 1.00, "pellet_count": 1, "spread": 0.22, "bullet_scale": 1.0, "splash_radius": 0.0},
-	{"id": "shotgun", "name": "Shotgun",         "shape": "triangle",     "color": Color(1.00, 0.55, 0.15), "base_damage": 1, "cooldown_mult": 1.35, "bullet_speed_mult": 0.85, "pellet_count": 4, "spread": 0.50, "bullet_scale": 0.85, "splash_radius": 0.0},
-	{"id": "smg",     "name": "SMG",             "shape": "diamond",      "color": Color(0.80, 0.95, 0.25), "base_damage": 1, "cooldown_mult": 0.42, "bullet_speed_mult": 1.25, "pellet_count": 1, "spread": 0.10, "bullet_scale": 0.65, "splash_radius": 0.0},
-	{"id": "sniper",  "name": "Sniper Rifle",    "shape": "long_diamond", "color": Color(0.55, 0.85, 1.00), "base_damage": 4, "cooldown_mult": 2.30, "bullet_speed_mult": 2.00, "pellet_count": 1, "spread": 0.00, "bullet_scale": 1.3, "splash_radius": 0.0},
-	{"id": "rocket",  "name": "Rocket Launcher", "shape": "pentagon",     "color": Color(1.00, 0.35, 0.15), "base_damage": 3, "cooldown_mult": 1.70, "bullet_speed_mult": 0.65, "pellet_count": 1, "spread": 0.00, "bullet_scale": 2.0, "splash_radius": 70.0},
-	{"id": "plasma",  "name": "Plasma Cannon",   "shape": "hexagon",      "color": Color(0.75, 0.35, 1.00), "base_damage": 2, "cooldown_mult": 1.15, "bullet_speed_mult": 1.05, "pellet_count": 1, "spread": 0.00, "bullet_scale": 1.6, "splash_radius": 40.0},
+	{"id": "pistol",  "name": "Pistol",          "shape": "circle",       "color": Color(1.00, 0.30, 0.10), "base_damage": 1, "cooldown_mult": 1.00, "bullet_speed_mult": 1.00, "pellet_count": 1, "spread": 0.22, "bullet_scale": 1.0, "splash_radius": 0.0, "sfx": "shoot", "sfx_pitch": 1.00},
+	{"id": "shotgun", "name": "Shotgun",         "shape": "triangle",     "color": Color(1.00, 0.55, 0.15), "base_damage": 1, "cooldown_mult": 1.35, "bullet_speed_mult": 0.85, "pellet_count": 4, "spread": 0.50, "bullet_scale": 0.85, "splash_radius": 0.0, "sfx": "boom", "sfx_pitch": 1.05},
+	{"id": "smg",     "name": "SMG",             "shape": "diamond",      "color": Color(0.80, 0.95, 0.25), "base_damage": 1, "cooldown_mult": 0.42, "bullet_speed_mult": 1.25, "pellet_count": 1, "spread": 0.10, "bullet_scale": 0.65, "splash_radius": 0.0, "sfx": "shoot", "sfx_pitch": 1.45},
+	{"id": "sniper",  "name": "Sniper Rifle",    "shape": "long_diamond", "color": Color(0.55, 0.85, 1.00), "base_damage": 4, "cooldown_mult": 2.30, "bullet_speed_mult": 2.00, "pellet_count": 1, "spread": 0.00, "bullet_scale": 1.3, "splash_radius": 0.0, "sfx": "shoot", "sfx_pitch": 0.80},
+	{"id": "rocket",  "name": "Rocket Launcher", "shape": "pentagon",     "color": Color(1.00, 0.35, 0.15), "base_damage": 3, "cooldown_mult": 1.70, "bullet_speed_mult": 0.65, "pellet_count": 1, "spread": 0.00, "bullet_scale": 2.0, "splash_radius": 70.0, "sfx": "boom", "sfx_pitch": 0.72},
+	{"id": "plasma",  "name": "Plasma Cannon",   "shape": "hexagon",      "color": Color(0.75, 0.35, 1.00), "base_damage": 2, "cooldown_mult": 1.15, "bullet_speed_mult": 1.05, "pellet_count": 1, "spread": 0.00, "bullet_scale": 1.6, "splash_radius": 40.0, "sfx": "laser", "sfx_pitch": 1.00},
 ]
 
 ## 등급: 낮을수록 잘 나오고, 높을수록 희귀하며 대미지/발사체 크기/스플래시가 모두 강해진다.

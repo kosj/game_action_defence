@@ -145,7 +145,7 @@ func _update_facing(target: Node2D) -> void:
 
 
 func _shoot_at(target: Node2D) -> void:
-	SoundManager.play("shoot")
+	SoundManager.play(current_weapon.get("sfx", "shoot"), 0.12, current_weapon.get("sfx_pitch", 1.0))
 	var base_dir := (target.global_position - global_position).normalized()
 	var count: int = current_weapon["pellet_count"] + Events.upgrade_multi_bullet
 	var spread: float = current_weapon["spread"]
