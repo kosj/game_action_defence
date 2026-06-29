@@ -41,7 +41,7 @@ func _build_ui() -> void:
 
 	# 게임 타이틀(브랜드) — 번역하지 않는다.
 	var title := Label.new()
-	title.text = "ACTION DEFENCE"
+	title.text = "DeadLine"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 44)
 	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))

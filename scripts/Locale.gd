@@ -53,6 +53,8 @@ const STRINGS: Dictionary = {
 	"menu_new_game":   {"en": "New Game",   "ko": "새 게임",   "ja": "ニューゲーム"},
 	"menu_continue":   {"en": "Continue",   "ko": "이어하기",  "ja": "つづける"},
 	"menu_language":   {"en": "Language",   "ko": "언어",      "ja": "言語"},
+	"title_tagline":   {"en": "SURVIVE THE OUTBREAK", "ko": "감염에서 살아남아라", "ja": "アウトブレイクを生き延びろ"},
+	"title_tap":       {"en": "TAP TO START", "ko": "화면을 터치해 시작", "ja": "タップしてスタート"},
 	"diff_easy":       {"en": "Easy",       "ko": "쉬움",      "ja": "イージー"},
 	"diff_normal":     {"en": "Normal",     "ko": "보통",      "ja": "ノーマル"},
 	"diff_hard":       {"en": "Hard",       "ko": "어려움",    "ja": "ハード"},
