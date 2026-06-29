@@ -11,9 +11,8 @@ var _timer: float = 0.0
 
 
 func _physics_process(delta: float) -> void:
-	var interval := BASE_INTERVAL * pow(0.82, maxi(Events.upgrade_lightning - 1, 0))
 	_timer += delta
-	if _timer >= interval:
+	if _timer >= BASE_INTERVAL:
 		_timer = 0.0
 		_strike()
 
@@ -26,8 +25,8 @@ func _strike() -> void:
 	if candidates.is_empty():
 		return
 
-	# 동시에 때리는 번개 가닥 수(업그레이드로 증가). 서로 다른 적을 무작위로 노린다.
-	var bolts := 1 + Events.upgrade_lightning_count
+	# 동시에 때리는 번개 가닥 수 = 번개 업그레이드 레벨. 서로 다른 적을 무작위로 노린다.
+	var bolts := maxi(1, Events.upgrade_lightning_count)
 	candidates.shuffle()
 	var hits := mini(bolts, candidates.size())
 	var dmg := 2 + Events.upgrade_lightning_damage

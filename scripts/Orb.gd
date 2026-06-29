@@ -3,8 +3,8 @@ extends Node2D
 ## 돌아오기를 반복한다(넓은 영역을 휩쓰는 공격 연출). 외형은 빠르게 자전하는 이중 칼날.
 
 const ORBIT_MIN := 70.0     # 수축 시 궤도 반경
-const ORBIT_MAX := 158.0    # 확장 시 궤도 반경(넓게 휩쓸기)
-const PULSE_PERIOD := 2.2   # 한 번 확장→복귀에 걸리는 시간(초)
+const ORBIT_MAX := 300.0    # 확장 시 궤도 반경(이전의 약 2배 — 훨씬 멀리 휩쓸고 복귀)
+const PULSE_PERIOD := 2.6   # 한 번 확장→복귀에 걸리는 시간(초, 더 먼 거리라 약간 여유롭게)
 const ORBIT_SPEED := 2.6    # 플레이어 주위를 도는 각속도(rad/s)
 const SPIN_SPEED := 15.0    # 칼날 자전 각속도(rad/s) — 공격적인 회전 느낌
 const HIT_COOLDOWN := 0.6   # 같은 적 재타격 간격

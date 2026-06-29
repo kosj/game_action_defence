@@ -257,7 +257,7 @@ func _update_orbs() -> void:
 
 
 func _update_lightning() -> void:
-	var owned := Events.upgrade_lightning > 0
+	var owned := Events.upgrade_lightning_count > 0
 	if owned and _lightning == null:
 		_lightning = _LightningClass.new()
 		add_child(_lightning)
