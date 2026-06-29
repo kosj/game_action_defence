@@ -56,13 +56,14 @@ func _spawn_intro() -> void:
 	fx.max_radius = 90.0
 	fx.duration = 0.5
 	get_tree().current_scene.add_child(fx)
-	fx.global_position = global_position
+	fx.global_position = global_position	
+	_FXBurst.spawn(get_tree().current_scene, global_position, Color(0.9, 0.2, 0.2), 90.0, 0.5)
 
 
 func _physics_process(_delta: float) -> void:
 	if not _alive:
 		return
-	var player := get_tree().get_first_node_in_group("player")
+	var player: Node2D = get_tree().get_first_node_in_group("player")
 	if not is_instance_valid(player):
 		return
 	var dir := (player.global_position - global_position).normalized()
@@ -120,18 +121,24 @@ func _die() -> void:
 	Events.add_score(score_value)
 	Events.boss_died.emit()
 
-	# 큰 폭발 연출
-	var fx := _FXBurst.new()
-	fx.color = Color(1.0, 0.35, 0.15)
-	fx.max_radius = 120.0
-	fx.duration = 0.6
-	get_tree().current_scene.add_child(fx)
-	fx.global_position = global_position
+	# 다중 충격파 — 흰 섬광 → 황금 링 → 주황 링이 시간차로 번지며 터진다.
+	_burst(Color(1.0, 1.0, 0.85), 70.0,  0.28, 0.0)    # 중심 흰 섬광
+	_burst(Color(1.0, 0.82, 0.25), 150.0, 0.6,  0.0)    # 큰 황금 링
+	_burst(Color(1.0, 0.45, 0.15), 120.0, 0.5,  0.12)   # 주황 2차 파동
+	_burst(Color(1.0, 0.88, 0.35), 190.0, 0.7,  0.24)   # 넓게 퍼지는 마지막 황금 링
 
-	# 다량의 골드 분출
+	# 황금 동전 분수 — 보스 중심에서 사방으로 튀어 흩어졌다가 착지(시간차 분출).
 	for i in range(gold_drop):
 		var g := Pool.acquire(GOLD, get_tree().current_scene)
-		var off := Vector2.from_angle(randf() * TAU) * randf_range(10.0, 70.0)
-		g.global_position = global_position + off
+		g.global_position = global_position
+		var landing := global_position + Vector2.from_angle(randf() * TAU) * randf_range(45.0, 135.0)
+		g.launch(landing, randf() * 0.18)
 
 	queue_free()
+
+
+## 지정한 지연 후 한 번 터지는 확산 파동(FXBurst). 보스 처치 연출용 헬퍼.
+## FXBurst 가 start_delay 로 스스로 시간차 재생하므로(타이머·콜백 불필요) 보스가 곧바로
+## 해제돼도 안전하다 — 파동 노드는 현재 씬에 독립적으로 붙는다.
+func _burst(c: Color, radius: float, dur: float, delay: float) -> void:
+	_FXBurst.spawn(get_tree().current_scene, global_position, c, radius, dur, delay)
