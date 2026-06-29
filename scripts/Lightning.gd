@@ -26,17 +26,25 @@ func _strike() -> void:
 	if candidates.is_empty():
 		return
 
-	var target: Node2D = candidates[randi() % candidates.size()]
+	# 동시에 때리는 번개 가닥 수(업그레이드로 증가). 서로 다른 적을 무작위로 노린다.
+	var bolts := 1 + Events.upgrade_lightning_count
+	candidates.shuffle()
+	var hits := mini(bolts, candidates.size())
 	var dmg := 2 + Events.upgrade_lightning_damage
-	target.take_damage(dmg)
-	_spawn_fx(target.global_position)
-
 	var splash_dmg := maxi(1, dmg / 2)
-	for z in candidates:
-		if z == target or not is_instance_valid(z):
+
+	for i in range(hits):
+		var target: Node2D = candidates[i]
+		if not is_instance_valid(target):
 			continue
-		if z.global_position.distance_squared_to(target.global_position) < SPLASH_RADIUS * SPLASH_RADIUS:
-			z.take_damage(splash_dmg)
+		target.take_damage(dmg)
+		_spawn_fx(target.global_position)
+		# 각 낙뢰 지점 주변 스플래시
+		for z in candidates:
+			if z == target or not is_instance_valid(z):
+				continue
+			if z.global_position.distance_squared_to(target.global_position) < SPLASH_RADIUS * SPLASH_RADIUS:
+				z.take_damage(splash_dmg)
 
 
 func _spawn_fx(world_pos: Vector2) -> void:

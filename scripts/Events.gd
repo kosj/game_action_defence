@@ -65,6 +65,7 @@ var upgrade_max_health: int = 0
 var upgrade_multi_bullet: int = 0
 var upgrade_orbs: int = 0
 var upgrade_lightning: int = 0
+var upgrade_lightning_count: int = 0   # 낙뢰 1회당 동시에 때리는 번개 가닥 수(+1 per level)
 
 
 func add_gold(amount: int = 1) -> void:
@@ -128,5 +129,6 @@ func reset() -> void:
 	upgrade_multi_bullet = 0
 	upgrade_orbs = 0
 	upgrade_lightning = 0
+	upgrade_lightning_count = 0
 	gold_changed.emit(total_gold)
 	score_changed.emit(score)
