@@ -36,7 +36,7 @@ const ZOMBIE_TYPES: Array = [
 	{"speed": 108, "max_health": 5,  "modulate": Color(0.90, 0.80, 0.55), "score": 25, "scale": 1.05, "contact": 2, "texture": preload("res://assets/sprites/zombie_charger.png")},
 	{"speed": 32,  "max_health": 16, "modulate": Color(1.00, 0.65, 0.35), "score": 60, "scale": 1.45, "contact": 2, "texture": preload("res://assets/sprites/zombie_juggernaut.png")},
 	{"speed": 80,  "max_health": 3,  "modulate": Color(0.40, 0.95, 0.95), "score": 18, "scale": 0.95, "contact": 1, "behavior": "weaver",  "texture": preload("res://assets/sprites/zombie_runner.png")},
-	{"speed": 55,  "max_health": 3,  "modulate": Color(0.95, 0.45, 0.95), "score": 35, "scale": 1.00, "contact": 1, "behavior": "spitter", "texture": preload("res://assets/sprites/zombie_charger.png")},
+	{"speed": 55,  "max_health": 3,  "modulate": Color(0.95, 0.45, 0.95), "score": 35, "scale": 0.90, "contact": 1, "behavior": "spitter", "texture": preload("res://assets/sprites/zombie_spitter.png")},
 	{"speed": 90,  "max_health": 2,  "modulate": Color(1.00, 0.50, 0.20), "score": 30, "scale": 1.10, "contact": 2, "behavior": "bomber",  "texture": preload("res://assets/sprites/zombie_swarmling.png")},
 ]
 

@@ -54,6 +54,7 @@ func _check_swept_hit(from: Vector2, to: Vector2) -> void:
 	var space := get_world_2d().direct_space_state
 	var q := PhysicsRayQueryParameters2D.create(from, to, 2)   # 마스크 2 = 좀비/보스 레이어
 	q.collide_with_areas = false
+	q.hit_from_inside = true   # 총알이 이미 적 충돌 도형 안에서 출발해도 명중으로 인정(누락 방지)
 	var hit := space.intersect_ray(q)
 	if hit.is_empty():
 		return
