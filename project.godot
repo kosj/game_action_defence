@@ -20,6 +20,13 @@ AdManager="*res://scripts/AdManager.gd"
 Locale="*res://scripts/Locale.gd"
 UITheme="*res://scripts/UITheme.gd"
 
+[gui]
+
+; 전역 기본 폰트를 엔진 레벨에서 CJK 폰트로 지정 — 씬 로드 이전에 적용되므로 웹 빌드에서도
+; 모든 라벨/버튼에 한글·일본어가 정상 렌더된다. (런타임 root.theme 의 default_font 는 웹에서
+; 적용이 누락돼, 폰트 오버라이드를 쓰지 않은 일반 라벨/버튼의 CJK 글리프가 깨지던 문제 해결.)
+theme/custom_font="res://assets/fonts/NotoSansCJK-Subset.otf"
+
 [display]
 
 ; 모바일 세로 화면 기준 (필요시 가로로 바꾸세요)
