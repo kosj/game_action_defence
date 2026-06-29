@@ -53,12 +53,7 @@ func _draw() -> void:
 
 
 func _impact() -> void:
-	var fx := _FXBurst.new()
-	fx.color = color
-	fx.max_radius = 22.0
-	fx.duration = 0.22
-	get_tree().current_scene.add_child(fx)
-	fx.global_position = global_position
+	_FXBurst.spawn(get_tree().current_scene, global_position, color, 22.0, 0.22)
 	_despawn()
 
 
