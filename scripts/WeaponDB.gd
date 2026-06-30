@@ -70,7 +70,11 @@ static func _build_stats(archetype: Dictionary, tier: Dictionary) -> Dictionary:
 	stats["tier_mult"] = mult
 	stats["damage"] = maxi(1, int(round(archetype["base_damage"] * mult)))
 	stats["bullet_scale"] = archetype["bullet_scale"] * (1.0 + (mult - 1.0) * 0.5)
-	stats["splash_radius"] = archetype["splash_radius"] * mult + (mult - 1.0) * 14.0
+	# 스플래시는 원래 폭발형 무기(로켓·플라스마)에만 부여한다. 과거엔 모든 무기에 (mult-1)*14 를
+	# 더해, 비폭발 무기(권총·샷건 등)가 Common 외 티어에서 작은 스플래시(예: 레어 7px)를 얻었고,
+	# Bullet 이 직격 대신 그 좁은 범위 피해로 처리해 정작 명중한 적에게 데미지가 0 이 되는 버그가 있었다.
+	var base_splash: float = archetype["splash_radius"]
+	stats["splash_radius"] = (base_splash * mult + (mult - 1.0) * 14.0) if base_splash > 0.0 else 0.0
 	stats["color"] = base_color.lerp(tier["color"], 0.4)
 	# 사용 시간: 기본 무기(권총·Common)는 무한(0), 그 외 필드 무기는 티어에 비례해 만료된다.
 	var is_basic: bool = archetype["id"] == "pistol" and tier["id"] == "common"
