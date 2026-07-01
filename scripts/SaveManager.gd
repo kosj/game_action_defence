@@ -4,7 +4,7 @@ extends Node
 ## 이어하기는 마지막 체크포인트의 골드/업그레이드/체력/장착 무기로 새 웨이브를 시작한다.
 
 const SAVE_PATH := "user://save.json"
-const HIGHSCORE_PATH := "user://highscore.save"   # 체크포인트와 분리 — 사망해도 유지
+const HIGHSCORE_PATH := "user://highscore.save"   # 구버전 단일 최고점 — 이제 RankingManager 가 모드별로 관리
 const DIFFICULTY_PATH := "user://difficulty.save" # 난이도 설정 — 세션 간 보존
 
 var pending_continue: bool = false
@@ -14,16 +14,9 @@ var pending_weapon_tier_id: String = "common"
 
 
 func _ready() -> void:
-	# 시작 시 최고 점수를 불러와 Events 에 주입 (autoload 순서상 Events 는 이미 준비됨)
-	Events.set_high_score(_read_high_score())
-	# 저장된 난이도 설정 복원 (없으면 Normal)
+	# 저장된 난이도 설정 복원 (없으면 Normal). 최고 점수는 RankingManager 가 모드별로 관리하며,
+	# autoload 순서상 SaveManager 다음에 로드돼 여기서 복원한 난이도를 그대로 사용한다.
 	Events.difficulty = _read_difficulty()
-	# 사망/판 종료 시 최고 점수를 디스크에 보존
-	Events.player_died.connect(save_high_score)
-	# 신기록이 갱신되는 즉시 보존 — 죽지 않고 창을 닫거나(에디터 정지 포함) 종료해도
-	# 최고 점수가 유실되지 않도록 한다. high_score_changed 는 점수가 실제로 갱신될 때만
-	# 발생하므로(부팅 시 주입분은 위 set_high_score 이후 연결돼 제외) 디스크 쓰기 빈도는 낮다.
-	Events.high_score_changed.connect(func(_h: int) -> void: save_high_score())
 
 
 func save_difficulty() -> void:
@@ -44,14 +37,8 @@ func _read_difficulty() -> int:
 	return clampi(int(text), 0, 2) if text.is_valid_int() else 1
 
 
-func save_high_score() -> void:
-	var f := FileAccess.open(HIGHSCORE_PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(str(Events.high_score))
-		f.close()
-
-
-func _read_high_score() -> int:
+## 구버전 단일 최고점 파일(있으면) 값을 반환 — RankingManager 가 모드별로 1회 이관하는 데 쓴다.
+func read_legacy_high_score() -> int:
 	if not FileAccess.file_exists(HIGHSCORE_PATH):
 		return 0
 	var f := FileAccess.open(HIGHSCORE_PATH, FileAccess.READ)
@@ -60,6 +47,12 @@ func _read_high_score() -> int:
 	var text := f.get_as_text().strip_edges()
 	f.close()
 	return int(text) if text.is_valid_int() else 0
+
+
+## 이관 완료 후 구버전 최고점 파일 제거(중복 이관 방지).
+func clear_legacy_high_score() -> void:
+	if FileAccess.file_exists(HIGHSCORE_PATH):
+		DirAccess.remove_absolute(HIGHSCORE_PATH)
 
 
 func has_save() -> bool:

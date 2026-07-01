@@ -60,6 +60,16 @@ const STRINGS: Dictionary = {
 	"sound_off":       {"en": "Off",         "ko": "꺼짐",      "ja": "オフ"},
 	"menu_options":    {"en": "Options",     "ko": "옵션",      "ja": "オプション"},
 	"menu_close":      {"en": "Close",       "ko": "닫기",      "ja": "閉じる"},
+	"menu_ranking":    {"en": "Ranking",     "ko": "랭킹",      "ja": "ランキング"},
+
+	# ── 랭킹 오버레이 ─────────────────────────────────────────────────────
+	"rank_title":      {"en": "RANKING",     "ko": "랭킹",      "ja": "ランキング"},
+	"rank_local_note": {"en": "Best score per mode (this device)",
+						"ko": "모드별 최고 점수 (이 기기)",
+						"ja": "モード別ハイスコア（この端末）"},
+	"rank_online":     {"en": "View Google Play Leaderboard",
+						"ko": "Google Play 랭킹 보기",
+						"ja": "Google Play ランキングを見る"},
 	"diff_easy":       {"en": "Easy",       "ko": "쉬움",      "ja": "イージー"},
 	"diff_normal":     {"en": "Normal",     "ko": "보통",      "ja": "ノーマル"},
 	"diff_hard":       {"en": "Hard",       "ko": "어려움",    "ja": "ハード"},
