@@ -16,15 +16,43 @@ signal rewarded_granted(placement: String)
 ## 광고가 보상 없이 닫힘(중도 종료) 또는 노출 실패.
 signal rewarded_dismissed(placement: String)
 
-## true 면 SDK 없이 내장 더미 광고로 동작(개발/웹 프리뷰용).
-## 실제 SDK 연동 시 false 로 바꾸고 _show_real_rewarded() / _real_rewarded_ready() 를 구현한다.
+## true 면 SDK 없이 내장 더미 광고로 동작(개발/웹/에디터 프리뷰용).
+## 안드로이드 실광고 빌드에서만 false 로 바꾼다(SETUP_ADS.md 참고). 웹/PC 는 계속 true 권장.
 const USE_STUB := true
+
+## ── AdMob 설정 (자세한 절차는 SETUP_ADS.md) ─────────────────────────────
+## 개발 중엔 반드시 true = 구글 공식 테스트 광고(자기 광고 클릭/노출로 인한 정지 위험 없음).
+## 출시 시 false + 아래 REAL ID 를 실제 값으로 채운다.
+const USE_TEST_ADS := true
+## AdMob 앱 ID — AndroidManifest 의 meta-data 값과 반드시 동일해야 한다.
+const ADMOB_APP_ID_TEST := "ca-app-pub-3940256099942544~3347511713"   # 구글 테스트 App ID
+const ADMOB_APP_ID_REAL := "ca-app-pub-0000000000000000~0000000000"   # TODO: 내 AdMob 앱 ID
+## 보상형 광고 단위 ID
+const REWARDED_UNIT_TEST := "ca-app-pub-3940256099942544/5224354917"  # 구글 테스트 rewarded
+const REWARDED_UNIT_REAL := "ca-app-pub-0000000000000000/0000000000"  # TODO: 내 보상형 광고단위
 
 ## 더미 광고 강제 시청 시간(초). 보상형의 "끝까지 봐야 보상" 흐름을 흉내.
 const STUB_WATCH_SECONDS := 3
 
 var _busy := false
 var _placement := ""
+
+# ── 실 SDK 상태 ──────────────────────────────────────────────────────
+var _rewarded_loaded := false   # rewarded 광고 로드 완료 여부
+var _consent_ok := true         # UMP 동의 절차 완료(개인화/비개인화 결정) 여부
+
+
+static func admob_app_id() -> String:
+	return ADMOB_APP_ID_TEST if USE_TEST_ADS else ADMOB_APP_ID_REAL
+
+
+static func rewarded_unit_id() -> String:
+	return REWARDED_UNIT_TEST if USE_TEST_ADS else REWARDED_UNIT_REAL
+
+
+func _ready() -> void:
+	if not USE_STUB:
+		_admob_init()   # 실광고 빌드에서만 SDK 초기화 + 동의 + 첫 로드
 
 # 더미 광고 오버레이 (지연 생성). 오토로드 하위에 두면 씬 전환과 무관하게 유지된다.
 var _layer: CanvasLayer
@@ -54,21 +82,52 @@ func show_rewarded(placement: String) -> void:
 
 
 # ───────────────────────── 실제 SDK 연동 지점 ─────────────────────────
-# 아래 두 함수만 채우면 된다. 보상은 _grant(), 보상 없는 닫힘/실패는 _dismiss() 로 통일.
+# 실 SDK 연동은 아래 _admob_* 4개 메서드에만 존재한다(SETUP_ADS.md 의 스니펫으로 채운다).
+# 이 함수들은 그 위의 얇은 어댑터라, 호출부(HUD·상점)와 공통 종료 처리(_grant/_dismiss)는
+# SDK 유무를 전혀 몰라도 된다.
 
 func _real_rewarded_ready() -> bool:
-	# TODO: SDK 의 isRewardedReady() 결과를 반환.
-	#   예) return _admob_rewarded != null and _admob_rewarded.is_loaded()
-	return false
+	# UMP 동의가 끝나고 rewarded 광고 로드가 완료돼야 노출 가능.
+	return _consent_ok and _admob_is_loaded()
 
 
 func _show_real_rewarded(placement: String) -> void:
-	# TODO: 여기서 실제 SDK 의 rewarded.show() 호출 후 콜백을 연결한다.
-	#   AdMob(poing-studios/godot-admob-android) 예시:
-	#     _admob_rewarded.user_earned_rewarded.connect(func(_t, _a): _grant(placement), CONNECT_ONE_SHOT)
-	#     _admob_rewarded.rewarded_ad_dismissed_full_screen_content.connect(func(): _dismiss(placement), CONNECT_ONE_SHOT)
-	#     _admob_rewarded.show()
-	# SDK 미연동 상태이므로 안전하게 보상 없이 종료한다.
+	# 로드가 안 됐으면 즉시 보상 없이 닫고(_dismiss) 다음 광고를 미리 로드한다.
+	if not _admob_is_loaded():
+		_dismiss(placement)
+		return
+	_admob_show_rewarded(placement)
+
+
+# ───────────────────────── AdMob(poing-studios) 어댑터 ─────────────────────────
+# 플러그인이 미설치여도 스크립트가 파싱되도록, 여기서는 플러그인 클래스를 "직접 참조하지 않는다".
+# 안드로이드 실광고 빌드에서 addon 을 설치한 뒤 SETUP_ADS.md 의 스니펫으로 아래 본문을 채운다.
+# 채울 때 지켜야 할 계약:
+#   · 보상 획득 콜백 → _grant(placement)   · 닫힘/노출 실패 콜백 → _dismiss(placement)
+#   · 로드 완료 시 _rewarded_loaded = true, 노출/실패 후에는 _admob_load_rewarded() 로 재로드
+#   · 두 종료 콜백 모두 CONNECT_ONE_SHOT 으로 연결(placement 별 중복 지급/닫힘 방지)
+
+func _admob_init() -> void:
+	# TODO(SETUP_ADS.md): MobileAds 초기화 + UMP 동의 요청. 동의 확정 시 _consent_ok = true 후
+	# _admob_load_rewarded() 호출. 미연동 상태에선 아무 것도 하지 않아 스텁처럼 안전하다.
+	pass
+
+
+func _admob_load_rewarded() -> void:
+	# TODO(SETUP_ADS.md): LoadAdRequest 로 rewarded_unit_id() 로드. 성공 콜백에서
+	# _rewarded_loaded = true. 이 골격에서는 로드가 없으므로 항상 미로드로 남는다.
+	pass
+
+
+func _admob_is_loaded() -> bool:
+	return _rewarded_loaded
+
+
+func _admob_show_rewarded(placement: String) -> void:
+	# TODO(SETUP_ADS.md): 로드된 rewarded 인스턴스에 콜백 연결 후 show().
+	#   user_earned_reward     → _grant(placement)
+	#   dismissed / show 실패   → _dismiss(placement)
+	# 미연동 골격에서는 절대 여기 도달하지 않지만(위에서 미로드로 걸러짐) 안전하게 닫는다.
 	_dismiss(placement)
 
 
@@ -115,6 +174,10 @@ func _dismiss(placement: String) -> void:
 func _finish() -> void:
 	_busy = false
 	_placement = ""
+	# 실광고: 방금 소비한 rewarded 를 즉시 다음 노출용으로 다시 로드해 둔다(광고는 1회용).
+	if not USE_STUB:
+		_rewarded_loaded = false
+		_admob_load_rewarded()
 
 
 # ───────────────────────── 더미 오버레이 UI (코드로 생성) ─────────────────────────
