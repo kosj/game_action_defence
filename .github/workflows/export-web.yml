@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  export-web:
-    name: Build WebGL & Deploy
+  build:
+    name: Build WebGL
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:4.3
@@ -32,12 +32,26 @@ jobs:
           mkdir -p build/web
           godot --headless --export-release "Web" build/web/index.html
 
-      - name: Upload WebGL ZIP (always downloadable)
+      - name: Upload WebGL build (artifact for deploy + manual download)
         uses: actions/upload-artifact@v4
         with:
           name: webgl-build
           path: build/web
           retention-days: 30
+
+  deploy:
+    name: Deploy to external Pages repo
+    needs: build
+    # 배포는 Godot 컨테이너가 아닌 "호스트 러너"에서 수행한다. godot-ci 이미지에는 ssh-agent
+    # (openssh-client)가 없어 peaceiris 의 SSH 배포가 'ssh-agent ENOENT' 로 실패하기 때문.
+    # ubuntu-latest 호스트에는 ssh-agent·git 이 기본 포함돼 있다.
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download WebGL build
+        uses: actions/download-artifact@v4
+        with:
+          name: webgl-build
+          path: build/web
 
       # 빌드 결과를 별도 배포 저장소(game_action_defence_deploy)의 gh-pages 브랜치로 push.
       # 인증은 Deploy Key(SSH) — 이 저장소의 DEPLOY_KEY 시크릿(개인키)과
