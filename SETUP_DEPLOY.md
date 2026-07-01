@@ -77,6 +77,7 @@ ssh-keygen -t ed25519 -C "game_action_defence deploy" -f deploy_key -N ""
 | 증상 | 원인/해결 |
 | --- | --- |
 | `Permission denied (publickey)` | 공개키의 **Allow write access** 미체크, 또는 DEPLOY_KEY 개인키 불일치 |
-| `DEPLOY_KEY` 관련 빈 값 오류 | 시크릿 이름 오타 / 소스 저장소가 아닌 곳에 등록 |
+| `not found deploy key or tokens` | `DEPLOY_KEY` 시크릿이 비어 있음 — 이름 오타(`DEPLOY_KEY`) / **소스** 저장소 `Actions` 시크릿이 아닌 곳(배포 저장소·Environment·Dependabot)에 등록 |
+| `spawnSync ssh-agent ENOENT` | Godot 컨테이너에 ssh-agent 없음 — 배포는 별도 `deploy` 잡(호스트 `ubuntu-latest`)에서 실행하도록 분리됨(현재 워크플로) |
 | Pages 404 | Pages Source 가 `gh-pages` 로 설정됐는지, 배포가 한 번 이상 성공했는지 확인 |
 | 화면 흰색/로드 실패 | `.nojekyll` 누락 → 워크플로 `enable_jekyll: false` 가 자동 생성(기본값) |
