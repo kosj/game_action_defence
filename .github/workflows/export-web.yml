@@ -2,7 +2,7 @@ name: Export Web (Godot 4)
 
 on:
   push:
-    branches: [main, claude/todo-implementation-ag08aw]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   export-web:
-    name: Build WebGL
+    name: Build WebGL & Deploy
     runs-on: ubuntu-latest
     container:
       image: barichello/godot-ci:4.3
@@ -39,22 +39,16 @@ jobs:
           path: build/web
           retention-days: 30
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+      # 빌드 결과를 별도 배포 저장소(game_action_defence_deploy)의 gh-pages 브랜치로 push.
+      # 인증은 Deploy Key(SSH) — 이 저장소의 DEPLOY_KEY 시크릿(개인키)과
+      # 배포 저장소의 Deploy Key(공개키, write 허용)가 짝을 이룬다. (SETUP_DEPLOY.md 참고)
+      - name: Deploy to external Pages repo
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: build/web
-
-  deploy:
-    name: Deploy to GitHub Pages
-    needs: export-web
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
-    steps:
-      - name: Deploy
-        id: deploy
-        uses: actions/deploy-pages@v4
+          deploy_key: ${{ secrets.DEPLOY_KEY }}
+          external_repository: kosj/game_action_defence_deploy
+          publish_branch: gh-pages
+          publish_dir: ./build/web
+          # Godot 웹 export 산출물이 Jekyll 로 걸러지지 않도록 .nojekyll 자동 생성(기본값).
+          enable_jekyll: false
+          commit_message: "deploy: ${{ github.sha }}"
