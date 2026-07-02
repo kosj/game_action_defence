@@ -170,6 +170,7 @@ func _shoot_at(target: Node2D) -> void:
 		b.scale = Vector2.ONE * current_weapon["bullet_scale"]
 		b.trail_color = current_weapon["color"]
 		b.splash_radius = current_weapon["splash_radius"]
+		b.queue_redraw()   # 트레일은 발사 시 1회만 그린다(Bullet 은 매 프레임 redraw 하지 않음)
 	# muzzle flash — 무기 등급이 높을수록 더 크고 화려하게
 	_FXBurst.spawn(get_tree().current_scene, muzzle.global_position, current_weapon["color"], \
 		14.0 * (1.0 + (current_weapon["tier_mult"] - 1.0) * 0.35), 0.1)
@@ -180,11 +181,13 @@ func _is_live_target(t: Node2D) -> bool:
 	return is_instance_valid(t) and t.is_in_group("zombies")
 
 
-## 그룹 순회로 최근접 적 탐색. distance_squared 로 sqrt 비용 제거.
+## 최근접 적 탐색 — Events.live_zombies() 프레임 공유 스냅샷 사용. distance_squared 로 sqrt 제거.
 func _get_nearest_zombie() -> Node2D:
 	var nearest: Node2D = null
 	var min_d := attack_range * attack_range
-	for z in get_tree().get_nodes_in_group("zombies"):
+	for z in Events.live_zombies():
+		if not is_instance_valid(z) or not z.is_in_group("zombies"):
+			continue
 		var d := global_position.distance_squared_to(z.global_position)
 		if d < min_d:
 			min_d = d

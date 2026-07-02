@@ -153,6 +153,7 @@ func _spit(dir: Vector2) -> void:
 	p.speed = SPIT_PROJ_SPEED
 	p.damage = 1
 	p.color = _type_color
+	p.queue_redraw()   # 색 주입 후 1회 그리기(EnemyBullet 은 매 프레임 redraw 하지 않음)
 
 
 ## 자폭: 플레이어에게 돌진 → 근접 시 점화(점멸) → 폭발로 광역 피해 후 사망.

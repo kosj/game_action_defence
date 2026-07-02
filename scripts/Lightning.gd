@@ -19,8 +19,9 @@ func _physics_process(delta: float) -> void:
 
 func _strike() -> void:
 	var candidates: Array = []
-	for z in get_tree().get_nodes_in_group("zombies"):
-		if is_instance_valid(z) and global_position.distance_squared_to(z.global_position) < STRIKE_RADIUS * STRIKE_RADIUS:
+	for z in Events.live_zombies():
+		if is_instance_valid(z) and z.is_in_group("zombies") \
+				and global_position.distance_squared_to(z.global_position) < STRIKE_RADIUS * STRIKE_RADIUS:
 			candidates.append(z)
 	if candidates.is_empty():
 		return

@@ -13,9 +13,11 @@ const BOSS_EVERY: int = 5
 
 ## 웨이브 테이블: total=이 웨이브에서 처치해야 할 총 좀비 수, max_z=최대 동시 출현 수.
 ## weights 의 인덱스는 ZOMBIE_TYPES 와 1:1 대응 — 후반 웨이브일수록 강한 종을 더 많이 섞는다.
+## 1~2웨이브는 짧게(권총만 있는 초반이 늘어지지 않게), 6웨이브 이후에는 테이블이 고정되는 대신
+## Events.wave_pressure_mult() 가 적 체력을 복리로 올려 무한히 어려워진다.
 const WAVES: Array = [
-	{"total": 80,  "max_z": 32,  "interval": 0.9,  "weights": [10, 0, 0, 0, 0, 0, 0, 0, 0]},
-	{"total": 120, "max_z": 48,  "interval": 0.70, "weights": [8,  2, 0, 2, 0, 0, 1, 0, 0]},
+	{"total": 60,  "max_z": 32,  "interval": 0.9,  "weights": [10, 0, 0, 0, 0, 0, 0, 0, 0]},
+	{"total": 100, "max_z": 48,  "interval": 0.70, "weights": [8,  2, 0, 2, 0, 0, 1, 0, 0]},
 	{"total": 180, "max_z": 64,  "interval": 0.55, "weights": [6,  3, 1, 3, 1, 0, 2, 1, 1]},
 	{"total": 240, "max_z": 80,  "interval": 0.45, "weights": [5,  3, 2, 3, 2, 1, 2, 2, 2]},
 	{"total": 320, "max_z": 100, "interval": 0.35, "weights": [4,  4, 2, 3, 3, 1, 2, 2, 2]},
@@ -49,6 +51,7 @@ var _wave_num: int = 1     # 표시용 웨이브 번호 (계속 증가)
 var _spawned: int = 0      # 현재 웨이브에서 스폰한 수
 var _killed: int = 0       # 현재 웨이브에서 처치한 수
 var _wave_active: bool = false
+var _wave_total: int = 0   # 이번 웨이브의 실효 킬 목표(난이도 배수 적용)
 var _game_over: bool = false
 ## 살아있는 일반 좀비 수. 매 프레임 get_nodes_in_group() O(n) 스캔을 피하려고
 ## 스폰 시 +1 / 처치 시 -1 로 직접 추적한다(대량 좀비 환경 최적화). 보스는 별도.
@@ -85,12 +88,13 @@ func _start_wave() -> void:
 	_boss_spawned = false
 	_boss_alive = false
 	_escort_accum = 0.0
-	var total: int = WAVES[_wave_idx]["total"]
+	# Easy 는 킬 목표를 줄여 웨이브가 늘어지지 않게 한다(스폰도 느려 총 시간이 길어지던 문제).
+	_wave_total = maxi(1, int(round(float(WAVES[_wave_idx]["total"]) * Events.diff_total_mult())))
 	Events.current_wave = _wave_num
 	Events.wave_kill_progress = 0
-	Events.wave_kill_total = total
+	Events.wave_kill_total = _wave_total
 	Events.wave_changed.emit(_wave_num)
-	Events.wave_progress_changed.emit(0, total)
+	Events.wave_progress_changed.emit(0, _wave_total)
 
 
 func _process(delta: float) -> void:
@@ -109,7 +113,7 @@ func _process(delta: float) -> void:
 	var wave: Dictionary = WAVES[_wave_idx]
 
 	# 아직 스폰할 좀비가 남아있으면 스폰 시도
-	if _spawned < wave["total"]:
+	if _spawned < _wave_total:
 		if _start_delay > 0.0:
 			_start_delay -= delta
 		else:
@@ -128,7 +132,7 @@ func _process(delta: float) -> void:
 				_spawn_one(_pick_type(wave["weights"]))
 
 	# 웨이브 완료 판정
-	if _killed >= wave["total"]:
+	if _killed >= _wave_total:
 		if _is_boss_wave:
 			# 킬 목표 달성 → 보스 소환 (1회). 보스를 잡아야 완료.
 			if not _boss_spawned:
@@ -155,9 +159,8 @@ func _on_zombie_killed() -> void:
 	_killed += 1
 	Events.total_kills += 1
 	# 보스 웨이브의 호위 좀비 처치로 목표 초과 표시되지 않도록 진행도는 목표치로 클램프
-	var total: int = WAVES[_wave_idx]["total"]
-	Events.wave_kill_progress = mini(_killed, total)
-	Events.wave_progress_changed.emit(mini(_killed, total), total)
+	Events.wave_kill_progress = mini(_killed, _wave_total)
+	Events.wave_progress_changed.emit(mini(_killed, _wave_total), _wave_total)
 
 
 func _wave_complete() -> void:
@@ -181,10 +184,11 @@ func _spawn_one(type_data: Dictionary) -> void:
 		return
 	var z := Pool.acquire(ZOMBIE, get_tree().current_scene)
 	z.global_position = _random_spawn_pos()
-	# 난이도에 따라 체력/속도를 배수 적용 (원본 상수 테이블을 훼손하지 않도록 복제본 사용).
+	# 난이도 배수 + 6웨이브 이후 복리 압박 배수 적용 (원본 상수 테이블은 복제본으로 보호).
 	var d := type_data.duplicate()
-	d["max_health"] = maxi(1, int(round(float(type_data["max_health"]) * Events.diff_enemy_hp_mult())))
-	d["speed"] = float(type_data["speed"]) * Events.diff_enemy_speed_mult()
+	var hp_mult := Events.diff_enemy_hp_mult() * Events.wave_pressure_mult(_wave_num)
+	d["max_health"] = maxi(1, int(round(float(type_data["max_health"]) * hp_mult)))
+	d["speed"] = float(type_data["speed"]) * Events.diff_enemy_speed_mult() * Events.wave_speed_pressure(_wave_num)
 	z.setup(d)
 	_alive_zombies += 1
 
@@ -201,7 +205,8 @@ func _spawn_boss() -> void:
 	get_tree().current_scene.add_child(boss)
 	boss.global_position = _random_spawn_pos()
 	# 보스는 플레이어(이속 220)를 압박할 수 있도록 일반 좀비보다 빠르게 — 회차/난이도에 따라 가속.
-	var boss_hp := int(round(float(80 + 60 * (boss_count - 1)) * Events.diff_boss_hp_mult()))
+	var boss_hp := int(round(float(80 + 60 * (boss_count - 1)) * Events.diff_boss_hp_mult() \
+		* Events.wave_pressure_mult(_wave_num)))
 	boss.setup({
 		"max_health": boss_hp,
 		"speed": (104.0 + 9.0 * boss_count) * Events.diff_enemy_speed_mult(),

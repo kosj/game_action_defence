@@ -19,11 +19,23 @@ var _active: bool = false
 var _touch_index: int = -1
 var _origin: Vector2 = Vector2.ZERO
 var _knob_pos: Vector2 = Vector2.ZERO
+var _alpha: float = 0.0   # 표시 알파 — 터치 시 빠르게 나타나고 놓으면 부드럽게 사라진다
 
 
 func _ready() -> void:
 	add_to_group("joystick")
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+
+## 등장/퇴장 페이드 — 갑자기 나타났다 뚝 끊기는 대신 짧게 스미듯 전환해 터치감을 높인다.
+func _process(delta: float) -> void:
+	var target := 1.0 if _active else 0.0
+	if absf(_alpha - target) > 0.01:
+		_alpha = move_toward(_alpha, target, delta * (10.0 if _active else 4.0))
+		queue_redraw()
+	elif _alpha != target:
+		_alpha = target
+		queue_redraw()
 
 
 func get_value() -> Vector2:
@@ -89,10 +101,11 @@ func _reset() -> void:
 
 
 func _draw() -> void:
-	if not _active:
+	if _alpha <= 0.01:
 		return
 	var base_sz := Vector2(base_radius * 2, base_radius * 2)
 	var knob_sz := Vector2(knob_radius * 2, knob_radius * 2)
 	# 반투명하게 그려 게임 화면을 가리지 않도록 한다(베이스는 더 흐리게, 노브는 또렷하게).
-	draw_texture_rect(_BASE_TEX, Rect2(_origin - base_sz * 0.5, base_sz), false, Color(1, 1, 1, 0.40))
-	draw_texture_rect(_KNOB_TEX, Rect2(_knob_pos - knob_sz * 0.5, knob_sz), false, Color(1, 1, 1, 0.65))
+	# _alpha 로 등장/퇴장을 페이드 — 놓은 자리에서 잔상이 스르륵 사라진다.
+	draw_texture_rect(_BASE_TEX, Rect2(_origin - base_sz * 0.5, base_sz), false, Color(1, 1, 1, 0.40 * _alpha))
+	draw_texture_rect(_KNOB_TEX, Rect2(_knob_pos - knob_sz * 0.5, knob_sz), false, Color(1, 1, 1, 0.65 * _alpha))
