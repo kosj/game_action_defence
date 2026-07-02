@@ -51,6 +51,9 @@ var _go_medal: UIIcon = null
 var _go_record: Label = null
 var _go_vals: Dictionary = {}   # "score"/"best"/"wave"/"kills"/"time" -> Label
 
+# 웨이브 진행 바(상단 바 하단의 얇은 채움 바) — 코드로 생성.
+var _wave_fill: ColorRect = null
+
 
 func _ready() -> void:
 	# 게임오버로 트리를 일시정지해도 HUD(게임오버 패널·버튼·블러)는 계속 동작해야 한다.
@@ -64,6 +67,7 @@ func _ready() -> void:
 	main_menu_button.text = Locale.t("go_menu")
 	_build_revive_button()
 	_build_hud_icons()
+	_build_wave_bar()
 	_build_gameover_stats()
 	_build_blur_overlay()
 	UITheme.heading(wave_clear_label)
@@ -274,6 +278,29 @@ func _on_wave_progress_changed(killed: int, total: int) -> void:
 		progress_label.text = "%d / %d" % [killed, total]
 	else:
 		progress_label.text = ""
+	# 진행 바 — 채워질수록 금색→초록으로 물들어 "곧 클리어"가 한눈에 읽힌다.
+	if _wave_fill:
+		var ratio := clampf(float(killed) / float(maxi(total, 1)), 0.0, 1.0)
+		_wave_fill.anchor_right = ratio
+		_wave_fill.color = Color(1.0, 0.72, 0.20, 0.95).lerp(Color(0.45, 0.90, 0.45, 0.95), ratio)
+
+
+## 상단 바 하단에 얇은 웨이브 진행 바(킬 목표 대비 진행률)를 코드로 생성.
+## 숫자 라벨(progress_label)은 유지하고, 시각적 진행감은 바가 담당한다.
+func _build_wave_bar() -> void:
+	var bg := ColorRect.new()
+	bg.color = Color(0.0, 0.0, 0.0, 0.45)
+	bg.anchor_right = 1.0
+	bg.offset_top = 132.0
+	bg.offset_bottom = 137.0
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bg)
+	_wave_fill = ColorRect.new()
+	_wave_fill.color = Color(1.0, 0.72, 0.20, 0.95)
+	_wave_fill.anchor_right = 0.0
+	_wave_fill.anchor_bottom = 1.0
+	_wave_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bg.add_child(_wave_fill)
 
 
 func _on_wave_complete(wave: int) -> void:

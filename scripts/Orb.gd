@@ -45,11 +45,12 @@ func _physics_process(delta: float) -> void:
 		if _timers[id] <= 0.0:
 			_timers.erase(id)
 
-	# 칼날 리치 안의 좀비에게 피해(확장 시 더 넓은 영역을 휩쓴다)
+	# 칼날 리치 안의 좀비에게 피해(확장 시 더 넓은 영역을 휩쓴다).
+	# 좀비 목록은 프레임 공유 스냅샷(Events.live_zombies) — 오브 수만큼 그룹 스캔을 반복하지 않는다.
 	var dmg := 1 + Events.upgrade_orb_damage
 	var r_sq := HIT_RADIUS * HIT_RADIUS
-	for z in get_tree().get_nodes_in_group("zombies"):
-		if not is_instance_valid(z):
+	for z in Events.live_zombies():
+		if not is_instance_valid(z) or not z.is_in_group("zombies"):
 			continue
 		if global_position.distance_squared_to(z.global_position) < r_sq:
 			var id := z.get_instance_id()

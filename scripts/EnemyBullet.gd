@@ -40,8 +40,7 @@ func _physics_process(delta: float) -> void:
 			if _player.has_method("take_hit"):
 				_player.take_hit(damage)
 			_impact()
-			return
-	queue_redraw()
+	# 그리기는 로컬 좌표에서 정적 — 매 프레임 redraw 불필요(스폰/색 주입 시 1회면 충분).
 
 
 func _draw() -> void:

@@ -4,17 +4,20 @@ extends CanvasLayer
 const _UIStyle := preload("res://scripts/UIStyle.gd")
 const _COIN_ICON := preload("res://assets/ui/ui_coin.png")
 
+# 비용 곡선은 골드 수입(킬당 1골드, 웨이브당 60~400킬)에 맞춰 조정됐다.
+# 과거 곡선은 너무 싸서 3웨이브쯤이면 DPS 가 스폰 압박을 압도해(포화도 <0.2) 이후 내내
+# 지루해졌다 — 약 1.8배 가파른 곡선으로 중반까지 "무엇을 살지" 선택이 유지되게 한다.
 const UPGRADES: Array = [
-	{"section": "WEAPON",    "id": "speed",            "label": "Move Speed",    "desc": "+30 move speed",           "costs": [10, 15, 20, 25, 32, 40, 50, 62, 76, 92]},
-	{"section": "WEAPON",    "id": "atk_speed",        "label": "Atk Speed",     "desc": "-15% fire delay",          "costs": [15, 22, 30, 40, 52, 66, 82, 100, 120, 142]},
-	{"section": "WEAPON",    "id": "bullet_damage",    "label": "Bullet Dmg",    "desc": "+1 bullet damage",         "costs": [20, 30, 45, 60, 80, 105, 135, 170, 210, 255]},
-	{"section": "WEAPON",    "id": "multi_bullet",     "label": "Multi-Shot",    "desc": "+1 extra bullet",          "costs": [30, 50, 80, 120, 170, 230]},
-	{"section": "ORB",       "id": "orbs",             "label": "Orb Shield",    "desc": "+1 orbiting orb",          "costs": [25, 40, 60, 80, 105, 135, 170, 210]},
-	{"section": "ORB",       "id": "orb_damage",       "label": "Orb Dmg",       "desc": "+1 orb damage",            "costs": [20, 30, 45, 60, 80, 105, 135, 170]},
-	{"section": "LIGHTNING", "id": "lightning_count",  "label": "Lightning Count","desc": "+1 lightning bolt",        "costs": [40, 65, 95, 130, 180, 240, 310]},
-	{"section": "LIGHTNING", "id": "lightning_damage", "label": "Lightning Dmg", "desc": "+1 lightning damage",      "costs": [20, 30, 45, 60, 80, 105, 135, 170]},
-	{"section": "SURVIVAL",  "id": "max_health",       "label": "Max HP",        "desc": "+1 heart (heals)",         "costs": [12, 18, 26, 35, 46, 58, 72, 88, 106, 126]},
-	{"section": "SURVIVAL",  "id": "heal",             "label": "Heal HP",       "desc": "Full HP restore",          "costs": [8,  8,  8,  8]},
+	{"section": "WEAPON",    "id": "speed",            "label": "Move Speed",    "desc": "+30 move speed",           "costs": [15, 25, 40, 55, 75, 95, 120, 150, 185, 225]},
+	{"section": "WEAPON",    "id": "atk_speed",        "label": "Atk Speed",     "desc": "-15% fire delay",          "costs": [20, 35, 55, 80, 110, 145, 185, 230, 280, 335]},
+	{"section": "WEAPON",    "id": "bullet_damage",    "label": "Bullet Dmg",    "desc": "+1 bullet damage",         "costs": [25, 45, 75, 115, 165, 225, 300, 390, 495, 615]},
+	{"section": "WEAPON",    "id": "multi_bullet",     "label": "Multi-Shot",    "desc": "+1 extra bullet",          "costs": [50, 90, 150, 230, 330, 450]},
+	{"section": "ORB",       "id": "orbs",             "label": "Orb Shield",    "desc": "+1 orbiting orb",          "costs": [40, 70, 110, 160, 220, 290, 370, 460]},
+	{"section": "ORB",       "id": "orb_damage",       "label": "Orb Dmg",       "desc": "+1 orb damage",            "costs": [30, 55, 85, 125, 170, 225, 285, 355]},
+	{"section": "LIGHTNING", "id": "lightning_count",  "label": "Lightning Count","desc": "+1 lightning bolt",        "costs": [60, 110, 170, 245, 335, 440, 560]},
+	{"section": "LIGHTNING", "id": "lightning_damage", "label": "Lightning Dmg", "desc": "+1 lightning damage",      "costs": [30, 55, 85, 125, 170, 225, 285, 355]},
+	{"section": "SURVIVAL",  "id": "max_health",       "label": "Max HP",        "desc": "+1 heart (heals)",         "costs": [15, 25, 40, 55, 75, 95, 120, 145, 175, 210]},
+	{"section": "SURVIVAL",  "id": "heal",             "label": "Heal HP",       "desc": "Full HP restore",          "costs": [10, 15, 20, 25]},
 ]
 
 const SECTION_COLORS: Dictionary = {
