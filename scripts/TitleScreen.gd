@@ -29,6 +29,9 @@ var _fade: ColorRect
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# 타이틀 BGM — 메뉴와 같은 트랙이라 메뉴로 넘어가도 끊기지 않는다.
+	# (웹은 브라우저 정책상 첫 입력 전까지 무음일 수 있고, 첫 터치에 자동 재개된다.)
+	SoundManager.play_music("title")
 	_build()
 	_play_intro()
 
