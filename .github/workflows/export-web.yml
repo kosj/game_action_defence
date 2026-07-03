@@ -22,8 +22,11 @@ jobs:
       # (에셋 import 이전에 써야 export 에 포함된다.)
       - name: Stamp build info
         run: |
+          # godot-ci 컨테이너는 스텝을 POSIX sh(dash)로 실행하므로 bash 전용 문법
+          # (${VAR:0:7})은 "Bad substitution"이 난다. cut 으로 7자리를 잘라 sh 호환으로 처리.
+          SHA=$(printf '%s' "$GITHUB_SHA" | cut -c1-7)
           printf '{"sha":"%s","date":"%s","ref":"%s"}\n' \
-            "${GITHUB_SHA:0:7}" "$(date -u '+%Y-%m-%d %H:%M UTC')" "${GITHUB_REF_NAME:-?}" \
+            "$SHA" "$(date -u '+%Y-%m-%d %H:%M UTC')" "${GITHUB_REF_NAME:-?}" \
             > build_info.json
           cat build_info.json
 
