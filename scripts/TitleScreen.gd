@@ -98,9 +98,9 @@ func _build() -> void:
 	_tap_label = _make_centered_label(Locale.t("title_tap"), 26, Color(0.95, 0.93, 0.95, 1.0), 1030.0)
 	UITheme.heading(_tap_label)
 
-	# 버전 표시(우하단)
+	# 버전 표시(우하단) — 배포 빌드 식별용 SHA·시각 포함
 	var ver := Label.new()
-	ver.text = Events.VERSION
+	ver.text = Events.build_label()
 	ver.anchor_left = 1.0
 	ver.anchor_right = 1.0
 	ver.anchor_top = 1.0

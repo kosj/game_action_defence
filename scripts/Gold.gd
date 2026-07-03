@@ -10,6 +10,13 @@ extends Area2D
 const COLLECT_SCALE := Vector2(0.4, 0.4)   # tscn 에서 설정한 기본 크기
 const COLLECT_POP := 0.08                  # 수집 시 톡 커지는 연출 시간(초)
 
+# 흡인(빨려들기) 물리 — 거리로 속도를 즉석 계산하지 않고 "속도를 누적(가속)"해서
+# 시간이 갈수록 점점 빨라지며 확 빨려드는 느낌을 만든다(중력 우물).
+const PULL_ACCEL := 2400.0    # 기본 흡인 가속(px/s^2) — 가까울수록 더 강해진다
+const PULL_MAX := 1600.0      # 최대 흡인 속도(px/s)
+const PULL_SWIRL := 0.30      # 초반 접선(소용돌이) 성분 비율 — 가까울수록 사라진다
+const PULL_STEER := 0.14      # 속도 방향을 플레이어 쪽으로 재정렬하는 정도(플레이어 이동 추적)
+
 @onready var body: Sprite2D = $Body
 
 var player: Node2D = null
@@ -17,6 +24,8 @@ var _alive: bool = false
 var _launching: bool = false   # 분출 연출 중에는 자석 흡수를 멈춘다(보스 동전 폭발 등)
 var _collecting: bool = false  # 수집 팝 연출 중 — Tween 대신 타이머로 처리(대량 수집 시 Tween 폭증 방지)
 var _collect_t: float = 0.0
+var _pull_vel: Vector2 = Vector2.ZERO   # 누적 흡인 속도(가속되며 커진다)
+var _captured: bool = false             # 자석에 걸려 빨려드는 중
 
 
 func _ready() -> void:
@@ -28,6 +37,8 @@ func on_spawn() -> void:
 	_alive = true
 	_launching = false
 	_collecting = false
+	_captured = false
+	_pull_vel = Vector2.ZERO
 	body.scale = COLLECT_SCALE   # 수집 애니메이션 후 리셋
 	if player == null or not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
@@ -72,23 +83,30 @@ func _physics_process(delta: float) -> void:
 	if dist_sq <= collect_radius * collect_radius:
 		_collect()
 		return
-	# 자석 버프 중에는 거리와 무관하게 끌려온다(자동 줍기).
+	# 자석 버프 중이거나 자석 범위 안에 들어오면 "포획" — 이후로는 속도를 누적하며 빨려든다.
 	if Events.gold_magnet_active or dist_sq <= magnet_radius * magnet_radius:
+		_captured = true
+	if _captured:
 		var dist := sqrt(dist_sq)
 		var dir := (player.global_position - global_position) / dist   # 정규화(이미 dist 계산됨)
-		var t := clampf(1.0 - dist / magnet_radius, 0.0, 1.0)   # 가까울수록 0→1
-		# "빨려 들어가는" 흡인 연출:
-		#  · 속도가 거리 제곱 곡선으로 가속 — 처음엔 스르륵, 마지막엔 확 빨려든다
-		#  · 멀리서는 접선(소용돌이) 성분이 섞여 휘어 들어오다 가까울수록 직진 흡인
-		#  · 가까워질수록 동전이 작아져 소용돌이 중심으로 사라지는 느낌
+		var t := clampf(1.0 - dist / magnet_radius, 0.0, 1.0)   # 멀리 0 → 가까이 1
 		if Events.gold_magnet_active:
-			t = maxf(t, 0.65)   # 자석 버프: 멀리 있어도 이미 강하게 끌리는 상태로 취급
-		var spd := move_speed * (0.22 + 1.9 * t * t)
-		var swirl := dir.orthogonal() * spd * 0.45 * (1.0 - t)
-		global_position += (dir * spd + swirl) * delta
-		body.scale = COLLECT_SCALE * clampf(dist / 90.0, 0.45, 1.0)
+			t = maxf(t, 0.5)
+		# 가속: 가까울수록 더 세게 당긴다. 속도가 프레임마다 "쌓여" 점점 빨라진다.
+		var accel := PULL_ACCEL * (0.45 + 1.4 * t)
+		_pull_vel += dir * accel * delta
+		# 접선 소용돌이(멀리서 휘어 들어옴, 가까울수록 사라짐)
+		_pull_vel += dir.orthogonal() * accel * PULL_SWIRL * (1.0 - t) * delta
+		# 플레이어가 움직여도 빨려들도록 속도 방향을 조금씩 플레이어 쪽으로 재정렬
+		_pull_vel = _pull_vel.lerp(dir * _pull_vel.length(), PULL_STEER)
+		if _pull_vel.length() > PULL_MAX:
+			_pull_vel = _pull_vel.normalized() * PULL_MAX
+		global_position += _pull_vel * delta
+		# 빨려들수록(가까울수록) 작아져 중심으로 사라지는 느낌
+		body.scale = COLLECT_SCALE * clampf(dist / 90.0, 0.4, 1.0)
 	else:
-		body.scale = COLLECT_SCALE   # 자석 범위를 벗어나면 원래 크기로
+		_pull_vel = Vector2.ZERO
+		body.scale = COLLECT_SCALE   # 자석 범위 밖에서는 정지·원래 크기
 
 
 func _collect() -> void:

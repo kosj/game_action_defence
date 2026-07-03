@@ -179,9 +179,9 @@ func _build_ui() -> void:
 	_options_btn.pressed.connect(_on_options_pressed)
 	box.add_child(_options_btn)
 
-	# 버전 표시(하단)
+	# 버전 표시(하단) — 배포 빌드 식별용 SHA·시각 포함(어떤 빌드가 라이브인지 확인)
 	var ver := Label.new()
-	ver.text = Events.VERSION
+	ver.text = Events.build_label()
 	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	ver.add_theme_font_size_override("font_size", 14)
 	ver.add_theme_color_override("font_color", Color(0.55, 0.58, 0.65, 0.8))
