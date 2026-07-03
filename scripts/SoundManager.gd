@@ -80,6 +80,17 @@ func _on_music_finished() -> void:
 		_music_player.play()
 
 
+## 앱이 백그라운드로 가면(모바일 홈 버튼 / 웹 탭 전환 / 창 포커스 아웃) 소리를 전부 끄고,
+## 돌아오면 복구한다. 마스터 버스 음소거라 효과음·배경음악이 한 번에 조용해지고,
+## 옵션의 사운드 On/Off 설정(muted)과는 독립적으로 동작한다.
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_APPLICATION_FOCUS_OUT, NOTIFICATION_APPLICATION_PAUSED:
+			AudioServer.set_bus_mute(0, true)
+		NOTIFICATION_APPLICATION_FOCUS_IN, NOTIFICATION_APPLICATION_RESUMED:
+			AudioServer.set_bus_mute(0, false)
+
+
 ## base_pitch: 무기 특성별 기준 음높이(1.0=원음). pitch_vary: 매 발 랜덤 변주(반복 단조로움 방지).
 func play(sound: String, pitch_vary: float = 0.1, base_pitch: float = 1.0) -> void:
 	if muted:
