@@ -21,6 +21,13 @@ var _pulse_t: float = 0.0
 var _timers: Dictionary = {}
 
 
+func _ready() -> void:
+	# 물리 처리·그리기를 명시적으로 보장(어떤 상태에서 생성돼도 즉시 공전·렌더되도록).
+	set_physics_process(true)
+	z_index = 5   # 지면/좀비 위로 확실히 보이게
+	queue_redraw()
+
+
 ## 여러 칼날을 각도만 균등 분산하고 확장 위상은 동기화 — 모두 같은 박자로 캐릭터를 중심으로
 ## 일정하게 멀어졌다 돌아오게 한다(깔끔한 맥동 링).
 func init_angle(a: float) -> void:
