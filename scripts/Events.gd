@@ -4,6 +4,33 @@ extends Node
 ## 게임 버전 — 타이틀/메뉴에 표시.
 const VERSION := "v1.0.0"
 
+## 배포마다 CI 가 build_info.json 에 커밋 SHA·시각을 기록한다(로컬은 "dev build").
+## 타이틀/메뉴에 함께 표시해 "지금 라이브가 어떤 빌드인지"를 눈으로 확인할 수 있게 한다.
+const _BUILD_INFO_PATH := "res://build_info.json"
+var _build_stamp_cache := ""
+
+
+## 예: "v1.0.0 · a1b2c3d · 2026-07-03 10:00 UTC" (배포 빌드) / "v1.0.0 · dev build" (로컬)
+func build_label() -> String:
+	if _build_stamp_cache == "":
+		_build_stamp_cache = _read_build_stamp()
+	return "%s · %s" % [VERSION, _build_stamp_cache]
+
+
+func _read_build_stamp() -> String:
+	if not FileAccess.file_exists(_BUILD_INFO_PATH):
+		return "dev build"
+	var f := FileAccess.open(_BUILD_INFO_PATH, FileAccess.READ)
+	if f == null:
+		return "dev build"
+	var parsed = JSON.parse_string(f.get_as_text())
+	f.close()
+	if typeof(parsed) != TYPE_DICTIONARY:
+		return "dev build"
+	var sha: String = parsed.get("sha", "dev")
+	var date: String = parsed.get("date", "")
+	return ("%s · %s" % [sha, date]) if date != "" else sha
+
 signal gold_changed(total: int)
 signal player_health_changed(health: int, max_health: int)
 signal player_died
