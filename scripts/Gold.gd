@@ -76,11 +76,19 @@ func _physics_process(delta: float) -> void:
 	if Events.gold_magnet_active or dist_sq <= magnet_radius * magnet_radius:
 		var dist := sqrt(dist_sq)
 		var dir := (player.global_position - global_position) / dist   # 정규화(이미 dist 계산됨)
-		var t := clampf(1.0 - dist / magnet_radius, 0.0, 1.0)   # 가까울수록 가속
-		var spd := move_speed * (0.3 + t)
+		var t := clampf(1.0 - dist / magnet_radius, 0.0, 1.0)   # 가까울수록 0→1
+		# "빨려 들어가는" 흡인 연출:
+		#  · 속도가 거리 제곱 곡선으로 가속 — 처음엔 스르륵, 마지막엔 확 빨려든다
+		#  · 멀리서는 접선(소용돌이) 성분이 섞여 휘어 들어오다 가까울수록 직진 흡인
+		#  · 가까워질수록 동전이 작아져 소용돌이 중심으로 사라지는 느낌
 		if Events.gold_magnet_active:
-			spd = maxf(spd, move_speed)   # 멀리 있어도 빠르게 흡수
-		global_position += dir * spd * delta
+			t = maxf(t, 0.65)   # 자석 버프: 멀리 있어도 이미 강하게 끌리는 상태로 취급
+		var spd := move_speed * (0.22 + 1.9 * t * t)
+		var swirl := dir.orthogonal() * spd * 0.45 * (1.0 - t)
+		global_position += (dir * spd + swirl) * delta
+		body.scale = COLLECT_SCALE * clampf(dist / 90.0, 0.45, 1.0)
+	else:
+		body.scale = COLLECT_SCALE   # 자석 범위를 벗어나면 원래 크기로
 
 
 func _collect() -> void:
