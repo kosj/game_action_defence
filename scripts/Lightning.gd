@@ -7,7 +7,9 @@ const BASE_INTERVAL := 4.0
 
 const _FXLightning := preload("res://scripts/FXLightning.gd")
 
-var _timer: float = 0.0
+# 구매(생성) 직후 첫 낙뢰가 최대 4초나 늦어 "산 게 효과가 없다"고 느껴지지 않도록,
+# 첫 타이머는 거의 찬 상태로 시작해 ~0.8초 안에 첫 번개가 떨어지게 한다.
+var _timer: float = BASE_INTERVAL - 0.8
 
 
 func _physics_process(delta: float) -> void:

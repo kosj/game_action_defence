@@ -317,7 +317,13 @@ func _refresh_buttons() -> void:
 		var btn: Button = _buttons[i]
 		var cost := _get_cost(upg)
 
-		if id != "heal" and cost == -1:
+		var gate := _gate_hint(id)
+		if gate != "":
+			# 기반 아이템이 없으면 강화가 아무 효과도 못 낸다(오브 0개에 오브 데미지 등).
+			# "샀는데 이펙트가 안 나온다"는 헛구매를 원천 차단하고 선행 조건을 안내한다.
+			btn.text = "%s\n%s" % [_upg_name(upg), Locale.t(gate)]
+			btn.disabled = true
+		elif id != "heal" and cost == -1:
 			btn.text = "%s  [%s]\n%s" % [_upg_name(upg), Locale.t("shop_max"), _upg_desc(upg)]
 			btn.disabled = true
 		else:
@@ -328,14 +334,25 @@ func _refresh_buttons() -> void:
 			btn.disabled = Events.total_gold < cost
 
 
+## 효과가 실제로 나타나려면 먼저 사야 하는 기반 아이템이 있는 강화의 잠금 안내 키.
+## 잠겨 있으면 해당 Locale 키를, 구매 가능하면 "" 를 반환.
+func _gate_hint(id: String) -> String:
+	if id == "orb_damage" and Events.upgrade_orbs == 0:
+		return "upg_requires_orbs"
+	if id == "lightning_damage" and Events.upgrade_lightning_count == 0:
+		return "upg_requires_lightning"
+	return ""
+
+
 func _on_upgrade_pressed(id: String) -> void:
 	var matches := UPGRADES.filter(func(u: Dictionary) -> bool: return u["id"] == id)
 	if matches.is_empty():
 		return
 	var upg: Dictionary = matches[0]
 	var cost := _get_cost(upg)
-	if cost == -1 or not Events.spend_gold(cost):
+	if _gate_hint(id) != "" or cost == -1 or not Events.spend_gold(cost):
 		return
+	SoundManager.play("gold", 0.03, 1.25)   # 구매 확정 피드백(띠링)
 
 	match id:
 		"speed":            Events.upgrade_speed += 1
