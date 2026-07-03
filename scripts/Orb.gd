@@ -26,6 +26,12 @@ var _timers: Dictionary = {}
 func init_angle(a: float) -> void:
 	_orbit_angle = a
 	_pulse_t = 0.0
+	# 상점(일시정지) 중 구매 직후에는 _physics_process 가 돌지 않아 위치가 (0,0)
+	# = 플레이어 스프라이트 위에 겹쳐 보이지 않았다. 생성 즉시 궤도 위에 배치해
+	# 상점을 닫는 순간부터(그리고 정지 중에도) 칼날이 제대로 보이게 한다.
+	position = Vector2.from_angle(a) * ORBIT_MIN
+	rotation = a
+	queue_redraw()
 
 
 func _physics_process(delta: float) -> void:

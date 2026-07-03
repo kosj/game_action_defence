@@ -125,6 +125,9 @@ const STRINGS: Dictionary = {
 	"upg_max_health_desc":       {"en": "+1 heart (heals)","ko": "+1 하트 (회복)","ja": "+1 ハート（回復）"},
 	"upg_heal_name":             {"en": "Heal HP",        "ko": "체력 회복",    "ja": "HP回復"},
 	"upg_heal_desc":             {"en": "Full HP restore","ko": "체력 전부 회복","ja": "HP全回復"},
+	# 기반 아이템 없이 강화만 사는 헛구매 방지용 잠금 안내
+	"upg_requires_orbs":      {"en": "Buy Orb Shield first",      "ko": "오브 실드를 먼저 구매하세요",  "ja": "先にオーブシールドを購入"},
+	"upg_requires_lightning": {"en": "Buy Lightning Count first", "ko": "번개 갯수를 먼저 구매하세요",  "ja": "先に稲妻の数を購入"},
 
 	# ── 보상형 광고 오버레이 ──────────────────────────────────────────────
 	"ad_title":      {"en": "REWARDED AD", "ko": "보상형 광고", "ja": "リワード広告"},

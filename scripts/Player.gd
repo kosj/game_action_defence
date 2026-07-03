@@ -245,6 +245,9 @@ func apply_upgrades() -> void:
 
 
 func _update_orbs() -> void:
+	# 어떤 경로로든 해제된 오브 참조가 남아 있으면 개수 계산이 틀어져
+	# "샀는데 오브가 안 생기는" 문제가 되므로 먼저 정리한다(방어적).
+	_orbs = _orbs.filter(func(o) -> bool: return is_instance_valid(o))
 	var desired := Events.upgrade_orbs
 	while _orbs.size() > desired:
 		var orb = _orbs.pop_back()
