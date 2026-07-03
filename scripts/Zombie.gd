@@ -27,6 +27,12 @@ const _SHADOW_BASE := 0.32   # 크기 1.0 좀비 기준 그림자 스케일(Zomb
 const _HIT_FLASH := 0.12     # 피격 잔광 지속(초)
 const _HIT_COLOR := Color(1.0, 0.45, 0.45)
 
+# 걷기 애니메이션(스프라이트 시트 없이 절차적) — 이동 거리에 비례해 위상이 진행하므로
+# 멈추면 자동으로 멈춘다. 좌우로 뒤뚱(tilt) + 발 딛는 스쿼시(squash) 로 살아있는 움직임을 준다.
+const _WALK_FREQ := 0.085    # 이동 픽셀당 걸음 위상 증가(라디안)
+const _WALK_TILT := 0.11     # 좌우 흔들림 진폭(라디안, ≈6°)
+const _WALK_SQUASH := 0.085  # 발 딛을 때 눌리는 정도
+
 var health: int
 var player: Node2D = null
 var _alive: bool = false
@@ -39,6 +45,8 @@ var _fire_timer: float = 0.0     # spitter 발사 쿨다운
 var _fuse_active: bool = false   # bomber 점화 여부
 var _fuse_timer: float = 0.0
 var _flash: float = 0.0      # 피격 잔광 잔여 시간 — 매 프레임 Tween 생성 대신 직접 감쇠
+var _walk_phase: float = 0.0     # 걷기 애니메이션 위상(이동 거리로 진행)
+var _body_base_scale: float = 1.0   # 종류별 기본 스프라이트 스케일(스쿼시는 이 값을 기준으로)
 
 
 func _ready() -> void:
@@ -82,6 +90,8 @@ func setup(type_data: Dictionary) -> void:
 		body.texture = type_data["texture"]   # 종류별 캐릭터 스프라이트
 	body.modulate = Color.WHITE              # 스프라이트 본연의 색을 그대로 노출
 	var s := float(type_data.get("scale", 1.0))
+	_body_base_scale = s
+	_walk_phase = randf() * TAU              # 개체마다 위상을 달리해 군집이 똑같이 움직이지 않게
 	body.scale = Vector2.ONE * s
 	shadow.scale = Vector2.ONE * (_SHADOW_BASE * s)   # 큰 좀비일수록 그림자도 크게
 
@@ -101,11 +111,29 @@ func _physics_process(delta: float) -> void:
 	if _flash > 0.0:
 		_flash = maxf(0.0, _flash - delta)
 		body.modulate = Color.WHITE.lerp(_HIT_COLOR, _flash / _HIT_FLASH)
+	var prev_pos := global_position
 	match _behavior:
 		"weaver":  _behave_weaver(delta)
 		"spitter": _behave_spitter(delta)
 		"bomber":  _behave_bomber(delta)
 		_:         _behave_chase(delta)
+	# 이번 프레임 이동량으로 걷기 애니메이션을 진행(behave 가 매 프레임 body.rotation 을
+	# 진행 방향으로 재설정하므로, 그 위에 좌우 흔들림·스쿼시를 더한다).
+	_animate_walk(global_position.distance_to(prev_pos))
+
+
+## 절차적 걷기: 이동 거리에 비례해 위상을 진행시켜, 좌우로 뒤뚱거리고(tilt) 발을 딛을 때마다
+## 살짝 눌리는(squash) 움직임을 준다. 멈추면(이동량 0) 위상이 멈춰 자연스럽게 정지 포즈가 된다.
+## behave 함수가 이미 body.rotation 을 진행 방향으로 절대값 설정했으므로, 여기서는 그 위에 더한다.
+func _animate_walk(moved: float) -> void:
+	if moved <= 0.01:
+		body.scale = Vector2.ONE * _body_base_scale   # 정지 시 기본 자세로 복귀
+		return
+	_walk_phase += moved * _WALK_FREQ
+	body.rotation += sin(_walk_phase) * _WALK_TILT
+	# 발 딛는 스쿼시(위상 2배 주파수): 세로로 눌리고 가로로 살짝 퍼진다.
+	var squash := absf(sin(_walk_phase)) * _WALK_SQUASH
+	body.scale = Vector2(_body_base_scale * (1.0 + squash * 0.5), _body_base_scale * (1.0 - squash))
 
 
 ## 기본: 플레이어를 향해 직진 추격.

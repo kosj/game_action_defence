@@ -79,6 +79,10 @@ func _physics_process(delta: float) -> void:
 		body.modulate.a = 1.0
 	_check_contact_damage()
 	_handle_move()
+	# 오브 개수 자가 복구 — 시그널 누락·이어하기/부활 타이밍 등 어떤 이유로든 실제 오브 수가
+	# 구매 레벨과 어긋나면(예: "레벨 3인데 오브가 없다") 즉시 재생성한다. 평소엔 정수 비교 1회뿐.
+	if _orbs.size() != Events.upgrade_orbs:
+		_update_orbs()
 	# 최근접 적은 짧은 주기로만 재탐색하고(대상 소멸 시 즉시 재탐색) 그 외엔 캐시 재사용.
 	# 죽은 좀비는 풀로 반납돼도 is_instance_valid 는 참이므로(트리에서 분리될 뿐) "zombies"
 	# 그룹 소속까지 확인한다 — 좀비는 사망 즉시 그룹에서 빠진다.
