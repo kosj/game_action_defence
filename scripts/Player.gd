@@ -79,9 +79,10 @@ func _physics_process(delta: float) -> void:
 		body.modulate.a = 1.0
 	_check_contact_damage()
 	_handle_move()
-	# 오브 개수 자가 복구 — 시그널 누락·이어하기/부활 타이밍 등 어떤 이유로든 실제 오브 수가
-	# 구매 레벨과 어긋나면(예: "레벨 3인데 오브가 없다") 즉시 재생성한다. 평소엔 정수 비교 1회뿐.
-	if _orbs.size() != Events.upgrade_orbs:
+	# 오브 자가 복구 — "살아있고 씬 트리에 있는" 오브 수가 구매 레벨과 다르면 재생성한다.
+	# 과거엔 _orbs.size() (배열 길이) 만 봤는데, 오브가 해제(freed)돼도 배열엔 죽은 참조가
+	# 남아 개수가 맞아떨어져(2==2) 복구가 안 되던 버그가 있었다(트리 밖이라 렌더/공전 정지).
+	if _live_orb_count() != Events.upgrade_orbs:
 		_update_orbs()
 	# 최근접 적은 짧은 주기로만 재탐색하고(대상 소멸 시 즉시 재탐색) 그 외엔 캐시 재사용.
 	# 죽은 좀비는 풀로 반납돼도 is_instance_valid 는 참이므로(트리에서 분리될 뿐) "zombies"
@@ -248,10 +249,20 @@ func apply_upgrades() -> void:
 	_update_lightning()
 
 
+## 살아있고(is_instance_valid) 씬 트리에 실제로 붙어있는(is_inside_tree) 오브만 센다.
+## 해제됐거나 트리에서 떨어져 나간 오브는 렌더/공전하지 못하므로 "없는 것"으로 취급한다.
+func _live_orb_count() -> int:
+	var n := 0
+	for o in _orbs:
+		if is_instance_valid(o) and o.is_inside_tree():
+			n += 1
+	return n
+
+
 func _update_orbs() -> void:
-	# 어떤 경로로든 해제된 오브 참조가 남아 있으면 개수 계산이 틀어져
-	# "샀는데 오브가 안 생기는" 문제가 되므로 먼저 정리한다(방어적).
-	_orbs = _orbs.filter(func(o) -> bool: return is_instance_valid(o))
+	# 해제됐거나 트리에서 떨어진 오브 참조를 먼저 걷어낸다. 이 정리가 없으면 죽은 참조 때문에
+	# 개수가 맞아떨어져 "샀는데 안 보이는" 오브가 영영 복구되지 않는다.
+	_orbs = _orbs.filter(func(o) -> bool: return is_instance_valid(o) and o.is_inside_tree())
 	var desired := Events.upgrade_orbs
 	while _orbs.size() > desired:
 		var orb = _orbs.pop_back()
