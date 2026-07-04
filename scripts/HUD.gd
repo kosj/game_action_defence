@@ -100,6 +100,30 @@ func _ready() -> void:
 	_on_wave_progress_changed(Events.wave_kill_progress, Events.wave_kill_total)
 	_on_score_changed(Events.score)
 	_on_high_score_changed(Events.high_score)
+	_build_debug_label()
+
+
+# [임시 디버그] 오브 상태를 화면 좌측에 노란 글씨로 표시 — 스크린샷으로 원인 규명.
+var _dbg_label: Label = null
+
+func _build_debug_label() -> void:
+	_dbg_label = Label.new()
+	_dbg_label.position = Vector2(12, 150)
+	_dbg_label.add_theme_font_size_override("font_size", 18)
+	_dbg_label.add_theme_color_override("font_color", Color(1, 1, 0))
+	_dbg_label.add_theme_color_override("font_outline_color", Color(0, 0, 0))
+	_dbg_label.add_theme_constant_override("outline_size", 4)
+	add_child(_dbg_label)
+
+
+func _process(_delta: float) -> void:
+	if _dbg_label == null:
+		return
+	var p := get_tree().get_first_node_in_group("player")
+	if p and p.has_method("debug_orb_info"):
+		_dbg_label.text = "DBG " + p.debug_orb_info()
+	else:
+		_dbg_label.text = "DBG no player"
 
 
 ## 둥근 패널/라벨이 자신의 중심을 기준으로 스케일되도록 pivot 보정 (레이아웃 확정 후 1회).
