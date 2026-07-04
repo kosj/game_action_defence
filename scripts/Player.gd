@@ -293,7 +293,10 @@ func _update_orbs() -> void:
 			orb.queue_free()
 	while _orbs.size() < desired:
 		var orb := _OrbClass.new()
-		add_child(orb)
+		orb.host = self
+		# Player 의 자식이 아니라 "씬의 자식"으로 붙인다 — Player 자식으로 두면 오브가 생성
+		# 즉시 해제되던 문제(val0 churn)를 우회. 총알·번개FX 와 동일한 검증된 부모.
+		get_tree().current_scene.add_child(orb)
 		_orbs.append(orb)
 	for i in _orbs.size():
 		if is_instance_valid(_orbs[i]):

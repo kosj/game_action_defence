@@ -19,6 +19,9 @@ var _orbit_angle: float = 0.0
 var _spin: float = 0.0
 var _pulse_t: float = 0.0
 var _timers: Dictionary = {}
+## 공전 중심(플레이어). 오브는 Player 의 자식이 아니라 "씬의 자식"으로 붙고 매 프레임 이 노드를
+## 따라다닌다 — Player 자식으로 붙였을 때 오브가 즉시 해제되던 문제를 우회(총알·번개FX 와 동일 패턴).
+var host: Node2D = null
 
 
 func _ready() -> void:
@@ -33,15 +36,18 @@ func _ready() -> void:
 func init_angle(a: float) -> void:
 	_orbit_angle = a
 	_pulse_t = 0.0
-	# 상점(일시정지) 중 구매 직후에는 _physics_process 가 돌지 않아 위치가 (0,0)
-	# = 플레이어 스프라이트 위에 겹쳐 보이지 않았다. 생성 즉시 궤도 위에 배치해
-	# 상점을 닫는 순간부터(그리고 정지 중에도) 칼날이 제대로 보이게 한다.
-	position = Vector2.from_angle(a) * ORBIT_MIN
+	# 생성 즉시 궤도 위(중심 기준)에 배치 — 상점 정지 중에도 바로 보이게.
+	if is_instance_valid(host):
+		global_position = host.global_position + Vector2.from_angle(a) * ORBIT_MIN
 	rotation = a
 	queue_redraw()
 
 
 func _physics_process(delta: float) -> void:
+	# 중심(플레이어)이 사라졌으면 스스로 정리.
+	if not is_instance_valid(host):
+		queue_free()
+		return
 	_orbit_angle += ORBIT_SPEED * delta
 	_spin += SPIN_SPEED * delta
 	_pulse_t += delta
@@ -49,7 +55,8 @@ func _physics_process(delta: float) -> void:
 	# 0→1→0 으로 부드럽게 오갔다 돌아오는 확장 계수
 	var pulse := 0.5 - 0.5 * cos(_pulse_t * TAU / PULSE_PERIOD)
 	var radius := ORBIT_MIN + (ORBIT_MAX - ORBIT_MIN) * pulse
-	position = Vector2.from_angle(_orbit_angle) * radius
+	# 씬의 자식이므로 전역 좌표로 플레이어를 중심에 둔다.
+	global_position = host.global_position + Vector2.from_angle(_orbit_angle) * radius
 	rotation = _spin
 
 	# 재타격 쿨다운 감쇠
