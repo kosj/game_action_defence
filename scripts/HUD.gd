@@ -121,9 +121,9 @@ func _process(_delta: float) -> void:
 		return
 	var p := get_tree().get_first_node_in_group("player")
 	if p and p.has_method("debug_orb_info"):
-		_dbg_label.text = "DBG " + p.debug_orb_info()
+		_dbg_label.text = "DBG %s  %s" % [Events.build_sha(), p.debug_orb_info()]
 	else:
-		_dbg_label.text = "DBG no player"
+		_dbg_label.text = "DBG %s  no player" % Events.build_sha()
 
 
 ## 둥근 패널/라벨이 자신의 중심을 기준으로 스케일되도록 pivot 보정 (레이아웃 확정 후 1회).

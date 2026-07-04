@@ -43,6 +43,14 @@ var _orbs: Array = []
 var _lightning: Node2D = null
 var current_weapon: Dictionary = _WeaponDB.default_weapon()
 
+# 이동 걷기 애니메이션(절차적, 좀비와 동일 방식) — 이동 거리로 위상이 진행해 좌우 뒤뚱 + 발딛기
+# 스쿼시를 준다. 멈추면 위상이 멈춰 자연스러운 정지 자세. facing 회전 위에 얹힌다.
+const _WALK_FREQ := 0.085
+const _WALK_TILT := 0.10     # 좌우 흔들림(라디안)
+const _WALK_SQUASH := 0.08   # 발 딛을 때 눌림
+var _walk_phase: float = 0.0
+var _body_base_scale: Vector2 = Vector2.ONE
+
 # 임시 무기 사용 시간 / 골드 자석 버프 타이머 (초 단위 변화 시에만 HUD 로 신호)
 var _weapon_time_left: float = 0.0
 var _weapon_duration: float = 0.0
@@ -53,6 +61,7 @@ var _magnet_last_sec: int = -1
 
 func _ready() -> void:
 	add_to_group("player")
+	_body_base_scale = body.scale   # 걷기 스쿼시는 이 기본 스케일을 기준으로 오간다
 	_base_move_speed = move_speed
 	_base_attack_cooldown = attack_cooldown
 	_base_max_health = max_health
@@ -94,6 +103,7 @@ func _physics_process(delta: float) -> void:
 	var target := _target
 	_handle_attack(delta, target)
 	_update_facing(target)
+	_animate_walk(velocity.length() * delta)   # 이동량 기반 걷기 연출(스프라이트만)
 
 	# 주기적 자동저장(체크포인트 사이 진행 보존). 사망 시엔 위에서 이미 return.
 	_autosave_accum += delta
@@ -147,6 +157,19 @@ func _update_facing(target: Node2D) -> void:
 		body.rotation = (target.global_position - global_position).angle()
 	elif velocity.length() > 1.0:
 		body.rotation = velocity.angle()
+
+
+## 절차적 걷기 — 이동 거리에 비례해 위상을 올려 좌우 뒤뚱(tilt) + 발딛기 스쿼시.
+## _update_facing 이 body.rotation 을 절대값으로 설정한 뒤 그 위에 흔들림을 더한다.
+func _animate_walk(moved: float) -> void:
+	if moved <= 0.01:
+		_walk_phase = 0.0
+		body.scale = _body_base_scale
+		return
+	_walk_phase += moved * _WALK_FREQ
+	body.rotation += sin(_walk_phase) * _WALK_TILT
+	var squash := absf(sin(_walk_phase)) * _WALK_SQUASH
+	body.scale = Vector2(_body_base_scale.x * (1.0 + squash * 0.5), _body_base_scale.y * (1.0 - squash))
 
 
 func _shoot_at(target: Node2D) -> void:
@@ -280,15 +303,17 @@ func _update_orbs() -> void:
 ## [임시 디버그] 오브 내부 상태 문자열 — HUD 가 화면에 찍어 원인 규명에 쓴다.
 ## 형식: "orbs <실제개수>/<구매레벨> in_tree<트리에포함수> p0(<첫오브 로컬좌표>)"
 func debug_orb_info() -> String:
+	var valid := 0
 	var in_tree := 0
 	var p0 := "-"
 	for o in _orbs:
 		if is_instance_valid(o):
+			valid += 1
 			if o.is_inside_tree():
 				in_tree += 1
 			if p0 == "-":
 				p0 = "(%.0f,%.0f)" % [o.position.x, o.position.y]
-	return "orbs %d/%d tree%d %s" % [_orbs.size(), Events.upgrade_orbs, in_tree, p0]
+	return "orbs %d/%d val%d tree%d %s" % [_orbs.size(), Events.upgrade_orbs, valid, in_tree, p0]
 
 
 func _update_lightning() -> void:
