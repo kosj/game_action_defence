@@ -266,6 +266,20 @@ func _update_orbs() -> void:
 			_orbs[i].init_angle(TAU * i / max(_orbs.size(), 1))
 
 
+## [임시 디버그] 오브 내부 상태 문자열 — HUD 가 화면에 찍어 원인 규명에 쓴다.
+## 형식: "orbs <실제개수>/<구매레벨> in_tree<트리에포함수> p0(<첫오브 로컬좌표>)"
+func debug_orb_info() -> String:
+	var in_tree := 0
+	var p0 := "-"
+	for o in _orbs:
+		if is_instance_valid(o):
+			if o.is_inside_tree():
+				in_tree += 1
+			if p0 == "-":
+				p0 = "(%.0f,%.0f)" % [o.position.x, o.position.y]
+	return "orbs %d/%d tree%d %s" % [_orbs.size(), Events.upgrade_orbs, in_tree, p0]
+
+
 func _update_lightning() -> void:
 	var owned := Events.upgrade_lightning_count > 0
 	if owned and _lightning == null:
