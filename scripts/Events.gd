@@ -31,6 +31,20 @@ func _read_build_stamp() -> String:
 	var date: String = parsed.get("date", "")
 	return ("%s · %s" % [sha, date]) if date != "" else sha
 
+
+## 커밋 SHA(7자리)만 — 화면 디버그 표시에 "지금 이 빌드가 뭔지" 붙이는 용도.
+func build_sha() -> String:
+	if not FileAccess.file_exists(_BUILD_INFO_PATH):
+		return "dev"
+	var f := FileAccess.open(_BUILD_INFO_PATH, FileAccess.READ)
+	if f == null:
+		return "dev"
+	var parsed = JSON.parse_string(f.get_as_text())
+	f.close()
+	if typeof(parsed) == TYPE_DICTIONARY:
+		return str(parsed.get("sha", "dev"))
+	return "dev"
+
 signal gold_changed(total: int)
 signal player_health_changed(health: int, max_health: int)
 signal player_died
