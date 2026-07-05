@@ -10,6 +10,7 @@ extends CharacterBody2D
 @export var contact_radius: float = 26.0    # 실제 접촉으로 인정할 중심간 거리(스프라이트가 겹쳤을 때만 피해)
 
 const BULLET := preload("res://scenes/Bullet.tscn")
+const _OrbClass := preload("res://scripts/Orb.gd")
 const _LightningClass := preload("res://scripts/Lightning.gd")
 const _FXBurst  := preload("res://scripts/FXBurst.gd")
 const _WeaponDB := preload("res://scripts/WeaponDB.gd")
@@ -38,25 +39,9 @@ const AUTOSAVE_INTERVAL := 4.0
 var _base_move_speed: float
 var _base_attack_cooldown: float
 var _base_max_health: int
+var _orbs: Array = []
 var _lightning: Node2D = null
 var current_weapon: Dictionary = _WeaponDB.default_weapon()
-
-# 공전 칼날(오브) — 별도 Orb 노드를 만들지 않고 "플레이어가 직접 그리고 갱신"한다.
-# 오브 노드가 생성 즉시 무효화/정지되던 문제(원인 불명)를 원천 제거: 노드가 없으니 잃을 것도 없다.
-# 개수 = Events.upgrade_orbs. 카메라가 플레이어를 따라오므로 로컬 오프셋으로 그려도 공전으로 보인다.
-const _ORB_MIN := 68.0        # 수축 반경
-const _ORB_MAX := 240.0       # 확장 반경
-const _ORB_PULSE := 2.6       # 확장→복귀 주기(초)
-const _ORB_ORBIT_SPD := 2.6   # 공전 각속도(rad/s)
-const _ORB_SPIN_SPD := 15.0   # 칼날 자전(rad/s)
-const _ORB_HIT_CD := 0.6      # 같은 적 재타격 간격
-const _ORB_HIT_R := 30.0      # 피해 판정 반경
-const _ORB_BLADE := 26.0
-const _ORB_BW := 8.0
-var _orb_orbit: float = 0.0
-var _orb_spin: float = 0.0
-var _orb_pulse: float = 0.0
-var _orb_hit: Dictionary = {}   # zombie_id -> 재타격 쿨다운
 
 # 이동 걷기 애니메이션(절차적, 좀비와 동일 방식) — 이동 거리로 위상이 진행해 좌우 뒤뚱 + 발딛기
 # 스쿼시를 준다. 멈추면 위상이 멈춰 자연스러운 정지 자세. facing 회전 위에 얹힌다.
@@ -76,7 +61,6 @@ var _magnet_last_sec: int = -1
 
 func _ready() -> void:
 	add_to_group("player")
-	z_index = 1   # 플레이어(및 직접 그리는 오브)를 좀비 레이어 위로
 	_body_base_scale = body.scale   # 걷기 스쿼시는 이 기본 스케일을 기준으로 오간다
 	_base_move_speed = move_speed
 	_base_attack_cooldown = attack_cooldown
@@ -104,7 +88,6 @@ func _physics_process(delta: float) -> void:
 		body.modulate.a = 1.0
 	_check_contact_damage()
 	_handle_move()
-	_update_orb_field(delta)   # 오브 공전·피해·그리기(별도 노드 없음)
 	# 최근접 적은 짧은 주기로만 재탐색하고(대상 소멸 시 즉시 재탐색) 그 외엔 캐시 재사용.
 	# 죽은 좀비는 풀로 반납돼도 is_instance_valid 는 참이므로(트리에서 분리될 뿐) "zombies"
 	# 그룹 소속까지 확인한다 — 좀비는 사망 즉시 그룹에서 빠진다.
@@ -280,66 +263,23 @@ func apply_upgrades() -> void:
 		health += new_max - max_health   # 늘어난 만큼 즉시 회복
 		max_health = new_max
 		Events.update_player_health(health, max_health)
-	_update_lightning()   # 오브는 매 프레임 Events.upgrade_orbs 를 보고 그리므로 별도 갱신 불필요
+	_update_orbs()
+	_update_lightning()
 
 
-## 공전 칼날 갱신 — 각도/맥동 진행 + 리치 안 좀비 피해. 그리기는 _draw() 가 담당.
-func _update_orb_field(delta: float) -> void:
-	var n := Events.upgrade_orbs
-	if n <= 0:
-		return
-	_orb_orbit += _ORB_ORBIT_SPD * delta
-	_orb_spin += _ORB_SPIN_SPD * delta
-	_orb_pulse += delta
-	for id in _orb_hit.keys():
-		_orb_hit[id] -= delta
-		if _orb_hit[id] <= 0.0:
-			_orb_hit.erase(id)
-	var pulse := 0.5 - 0.5 * cos(_orb_pulse * TAU / _ORB_PULSE)
-	var radius := _ORB_MIN + (_ORB_MAX - _ORB_MIN) * pulse
-	var dmg := 1 + Events.upgrade_orb_damage
-	var r_sq := _ORB_HIT_R * _ORB_HIT_R
-	for i in n:
-		var opos := global_position + Vector2.from_angle(_orb_orbit + TAU * i / n) * radius
-		for z in Events.live_zombies():
-			if not is_instance_valid(z) or not z.is_in_group("zombies"):
-				continue
-			if opos.distance_squared_to(z.global_position) < r_sq:
-				var zid := z.get_instance_id()
-				if not _orb_hit.has(zid):
-					z.take_damage(dmg)
-					_orb_hit[zid] = _ORB_HIT_CD
-					_FXBurst.spawn(get_tree().current_scene, z.global_position, Color(0.75, 0.9, 1.0), 20.0, 0.2)
-	queue_redraw()
-
-
-## 오브를 플레이어 로컬 좌표에 직접 그린다(별도 노드 없음). 검증된 프리미티브
-## (draw_line/draw_circle/draw_arc)만 사용해 폴리곤 렌더 이슈까지 회피한다.
-func _draw() -> void:
-	var n := Events.upgrade_orbs
-	if n <= 0:
-		return
-	var pulse := 0.5 - 0.5 * cos(_orb_pulse * TAU / _ORB_PULSE)
-	var radius := _ORB_MIN + (_ORB_MAX - _ORB_MIN) * pulse
-	for i in n:
-		var opos := Vector2.from_angle(_orb_orbit + TAU * i / n) * radius
-		draw_set_transform(opos, _orb_spin, Vector2.ONE)
-		_draw_orb_blade()
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-
-func _draw_orb_blade() -> void:
-	draw_arc(Vector2.ZERO, _ORB_HIT_R, 0.0, TAU, 20, Color(0.70, 0.88, 1.0, 0.16), 2.0)
-	# 십자 이중 칼날 = 두꺼운 선 2개(회전 표창 느낌)
-	draw_line(Vector2(-_ORB_BLADE * 0.42, 0.0), Vector2(_ORB_BLADE, 0.0), Color(0.88, 0.94, 1.0, 0.96), _ORB_BW * 1.4, true)
-	draw_line(Vector2(0.0, -_ORB_BLADE * 0.42), Vector2(0.0, _ORB_BLADE), Color(0.62, 0.74, 0.92, 0.95), _ORB_BW * 1.2, true)
-	draw_circle(Vector2.ZERO, 5.0, Color(0.97, 0.98, 1.0, 1.0))
-	draw_circle(Vector2.ZERO, 2.5, Color(0.45, 0.6, 0.85, 1.0))
-
-
-## [임시 디버그] 오브 개수 표시(노드가 없으니 개수만).
-func debug_orb_info() -> String:
-	return "orbs %d (in-player)" % Events.upgrade_orbs
+func _update_orbs() -> void:
+	var desired := Events.upgrade_orbs
+	while _orbs.size() > desired:
+		var orb = _orbs.pop_back()
+		if is_instance_valid(orb):
+			orb.queue_free()
+	while _orbs.size() < desired:
+		var orb := _OrbClass.new()
+		add_child(orb)
+		_orbs.append(orb)
+	for i in _orbs.size():
+		if is_instance_valid(_orbs[i]):
+			_orbs[i].init_angle(TAU * i / max(_orbs.size(), 1))
 
 
 func _update_lightning() -> void:

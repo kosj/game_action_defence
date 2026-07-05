@@ -19,16 +19,6 @@ var _orbit_angle: float = 0.0
 var _spin: float = 0.0
 var _pulse_t: float = 0.0
 var _timers: Dictionary = {}
-## 공전 중심(플레이어). 오브는 Player 의 자식이 아니라 "씬의 자식"으로 붙고 매 프레임 이 노드를
-## 따라다닌다 — Player 자식으로 붙였을 때 오브가 즉시 해제되던 문제를 우회(총알·번개FX 와 동일 패턴).
-var host: Node2D = null
-
-
-func _ready() -> void:
-	# 물리 처리·그리기를 명시적으로 보장(어떤 상태에서 생성돼도 즉시 공전·렌더되도록).
-	set_physics_process(true)
-	z_index = 5   # 지면/좀비 위로 확실히 보이게
-	queue_redraw()
 
 
 ## 여러 칼날을 각도만 균등 분산하고 확장 위상은 동기화 — 모두 같은 박자로 캐릭터를 중심으로
@@ -36,18 +26,9 @@ func _ready() -> void:
 func init_angle(a: float) -> void:
 	_orbit_angle = a
 	_pulse_t = 0.0
-	# 생성 즉시 궤도 위(중심 기준)에 배치 — 상점 정지 중에도 바로 보이게.
-	if is_instance_valid(host):
-		global_position = host.global_position + Vector2.from_angle(a) * ORBIT_MIN
-	rotation = a
-	queue_redraw()
 
 
 func _physics_process(delta: float) -> void:
-	# 중심(플레이어)이 사라졌으면 스스로 정리.
-	if not is_instance_valid(host):
-		queue_free()
-		return
 	_orbit_angle += ORBIT_SPEED * delta
 	_spin += SPIN_SPEED * delta
 	_pulse_t += delta
@@ -55,8 +36,7 @@ func _physics_process(delta: float) -> void:
 	# 0→1→0 으로 부드럽게 오갔다 돌아오는 확장 계수
 	var pulse := 0.5 - 0.5 * cos(_pulse_t * TAU / PULSE_PERIOD)
 	var radius := ORBIT_MIN + (ORBIT_MAX - ORBIT_MIN) * pulse
-	# 씬의 자식이므로 전역 좌표로 플레이어를 중심에 둔다.
-	global_position = host.global_position + Vector2.from_angle(_orbit_angle) * radius
+	position = Vector2.from_angle(_orbit_angle) * radius
 	rotation = _spin
 
 	# 재타격 쿨다운 감쇠
@@ -65,12 +45,11 @@ func _physics_process(delta: float) -> void:
 		if _timers[id] <= 0.0:
 			_timers.erase(id)
 
-	# 칼날 리치 안의 좀비에게 피해(확장 시 더 넓은 영역을 휩쓴다).
-	# 좀비 목록은 프레임 공유 스냅샷(Events.live_zombies) — 오브 수만큼 그룹 스캔을 반복하지 않는다.
+	# 칼날 리치 안의 좀비에게 피해(확장 시 더 넓은 영역을 휩쓴다)
 	var dmg := 1 + Events.upgrade_orb_damage
 	var r_sq := HIT_RADIUS * HIT_RADIUS
-	for z in Events.live_zombies():
-		if not is_instance_valid(z) or not z.is_in_group("zombies"):
+	for z in get_tree().get_nodes_in_group("zombies"):
+		if not is_instance_valid(z):
 			continue
 		if global_position.distance_squared_to(z.global_position) < r_sq:
 			var id := z.get_instance_id()
@@ -83,11 +62,6 @@ func _physics_process(delta: float) -> void:
 
 
 func _draw() -> void:
-	# [임시 디버그] 오브가 "렌더되는지"를 육안으로 확실히 확인하기 위한 큰 마젠타 링.
-	# draw_arc 는 총알에서도 쓰는 검증된 프리미티브라, 오브가 생성·배치돼 있으면 반드시 보인다.
-	# → 이 링이 캐릭터 주위를 도는 게 보이면 "렌더는 정상, 칼날 모양만 안 보였던 것".
-	#   링도 안 보이면 오브가 아예 생성/배치 안 된 것(HUD 의 DBG 숫자로 교차 확인).
-	draw_arc(Vector2.ZERO, 30.0, 0.0, TAU, 28, Color(1.0, 0.15, 1.0, 0.95), 5.0)
 	# 모션 잔상(휩쓰는 공격 영역) — 확장 시 더 크게 보이도록 리치 반경을 옅게 깐다.
 	draw_circle(Vector2.ZERO, HIT_RADIUS, Color(0.70, 0.88, 1.0, 0.08))
 
