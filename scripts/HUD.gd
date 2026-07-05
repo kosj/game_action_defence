@@ -176,7 +176,11 @@ func _on_player_health_changed(health: int, max_health: int) -> void:
 
 
 func _rebuild_hearts(max_health: int) -> void:
+	# remove_child 로 자식 목록에서 "즉시" 뺀다. queue_free 만 하면 삭제가 프레임 끝까지
+	# 지연돼, 직후의 _update_hearts() 가 옛 하트까지 세어 새 하트를 빈 칸으로 칠해버린다
+	# (최대 체력 업그레이드 후 "체력은 찼는데 UI는 안 채워짐" 버그의 원인).
 	for child in heart_row.get_children():
+		heart_row.remove_child(child)
 		child.queue_free()
 	for i in range(max_health):
 		var tr := TextureRect.new()
@@ -199,15 +203,21 @@ func _flash_hurt() -> void:
 	tw.tween_property(flash_overlay, "color", Color(1, 0, 0, 0.0), 0.4)
 
 
-## 체력이 1일 때 화면 가장자리를 붉게 점멸시켜 위험을 경고.
+## 체력이 1일 때 화면 가장자리를 붉게 경고. 껌뻑이는 점멸(1초 주기·0→0.30)은 눈이 피로해서,
+## 은은한 저강도 글로우가 사인 곡선으로 천천히 "숨쉬는" 연출로 바꿨다(밝기·빈도 모두 완화).
+const _LOW_HP_MIN_A := 0.06   # 완전히 꺼지지 않고 낮게 유지 → 깜박임이 아닌 은은한 상시 경고
+const _LOW_HP_MAX_A := 0.22   # 피크도 낮춰 눈부심 완화(이전 0.30)
+const _LOW_HP_HALF := 1.3     # 한 방향(밝아짐/어두워짐) 시간 — 느려서 껌뻑임 빈도가 낮다
+
 func _update_low_hp_warning(health: int) -> void:
 	var should_pulse := health == 1
 	if should_pulse and _low_hp_tween == null:
-		low_hp_overlay.color.a = 0.0
+		low_hp_overlay.color.a = _LOW_HP_MIN_A
 		_low_hp_tween = create_tween()
 		_low_hp_tween.set_loops()
-		_low_hp_tween.tween_property(low_hp_overlay, "color:a", 0.30, 0.5)
-		_low_hp_tween.tween_property(low_hp_overlay, "color:a", 0.0, 0.5)
+		_low_hp_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+		_low_hp_tween.tween_property(low_hp_overlay, "color:a", _LOW_HP_MAX_A, _LOW_HP_HALF)
+		_low_hp_tween.tween_property(low_hp_overlay, "color:a", _LOW_HP_MIN_A, _LOW_HP_HALF)
 	elif not should_pulse and _low_hp_tween != null:
 		_low_hp_tween.kill()
 		_low_hp_tween = null
