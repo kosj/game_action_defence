@@ -50,3 +50,5 @@ static func apply_button_style(btn: Button, bg: Color, border: Color, radius: in
 	btn.add_theme_stylebox_override("pressed", pressed)
 	btn.add_theme_stylebox_override("disabled", disabled)
 	btn.add_theme_color_override("font_disabled_color", Color(0.5, 0.5, 0.55))
+	# 포커스 시 그려지는 기본 흰색 아웃라인 제거(터치 UI 라 키보드 포커스 테두리가 불필요·거슬림).
+	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())

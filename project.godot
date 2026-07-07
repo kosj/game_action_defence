@@ -10,6 +10,10 @@ config/name="Action Defence"
 run/main_scene="res://scenes/TitleScreen.tscn"
 config/features=PackedStringArray("4.1", "GL Compatibility")
 
+; 최초 구동 시 고도 엔진 로고(부팅 스플래시) 이미지를 숨긴다 — 배경색만 잠깐 보이고 바로 게임으로.
+boot_splash/show_image=false
+boot_splash/bg_color=Color(0, 0, 0, 1)
+
 [autoload]
 
 Events="*res://scripts/Events.gd"
