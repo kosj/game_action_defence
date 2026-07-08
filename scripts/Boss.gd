@@ -4,9 +4,12 @@ extends CharacterBody2D
 ## 별도의 체력바·강화된 외형·다량의 보상을 가진다. 풀링하지 않고 등장 시마다 인스턴스화.
 ##
 ## 아키타입(archetype) 으로 고유 행동을 분기한다(Zombie.gd 의 behavior 분기와 동일한 방식):
-##   melee  — 근접 돌격(브루트, 기존 동작 그대로)
-##   gunner — 거리 유지하며 조준 사격(총 쏘는 보스) — 텔레그래프 후 스프레드/방사 발사
-## (summoner/bomber/berserk 는 후속 단계에서 추가)
+##   melee    — 근접 돌격(브루트)
+##   gunner   — 거리 유지하며 조준 사격(총 쏘는 보스) — 텔레그래프 후 스프레드/방사 발사
+##   summoner — 유지 거리에서 호위 좀비 주기 소환(스포너가 처리)
+##   bomber   — 원거리에서 지연 폭발 탄착 표식(BossShell) 포격
+##   berserk  — 느린 추적 ↔ 텔레그래프 후 초고속 대시 순환
+## 모든 특수 공격은 HP 50% 이하에서 격노(페이즈)로 격화된다.
 
 const GOLD := preload("res://scenes/Gold.tscn")
 const _FXBurst := preload("res://scripts/FXBurst.gd")
@@ -56,6 +59,17 @@ const BOMB_DAMAGE := 2             # 폭발 피해
 const BOMB_SHELLS := 2             # 1회 포격 탄 수(격노 시 +2)
 var _bomb_cd: float = 0.0
 
+# ── 버서커(berserk) 전용 상태 ────────────────────────────────────────
+# 느린 추적(stalk) → 예비 동작(wind, 대시 방향 고정) → 초고속 대시(dash) → 경직(recover) 순환.
+# 대시 중 접촉 피해는 기존 접촉 시스템(높은 contact)이 그대로 처리한다.
+const BERSERK_STALK_TIME := 1.3
+const BERSERK_WIND := 0.5          # 대시 예비 동작(텔레그래프) 시간
+const BERSERK_DASH_SPEED := 640.0  # 대시 속도(플레이어 이속 220 대비 압도적 — 예측 회피 요구)
+const BERSERK_DASH_TIME := 0.4
+const BERSERK_RECOVER := 0.7
+var _bstate: String = "stalk"
+var _bt: float = 0.0               # 현재 상태 경과 시간
+
 
 func _ready() -> void:
 	add_to_group("zombies")
@@ -80,6 +94,8 @@ func setup(stats: Dictionary) -> void:
 	_summon_cd = SUMMON_COOLDOWN * 0.5
 	_summon_tel = 0.0
 	_bomb_cd = BOMB_COOLDOWN * 0.5
+	_bstate = "stalk"
+	_bt = 0.0
 	body.modulate = _base_color
 	# HUD 가 체력바 위에 표시할 보스 이름(타입). 시그널 시그니처 변경 없이 Events 에 실어 보낸다.
 	Events.boss_display_name = stats.get("name", "BOSS")
@@ -112,6 +128,7 @@ func _physics_process(delta: float) -> void:
 		"gunner":   _behave_gunner(delta, player)
 		"summoner": _behave_summoner(delta, player)
 		"bomber":   _behave_bomber(delta, player)
+		"berserk":  _behave_berserk(delta, player)
 		_:          _behave_melee(player)   # melee 및 아직 미구현 아키타입의 기본 동작
 
 
@@ -248,6 +265,39 @@ func _fire_barrage(player: Node2D) -> void:
 		_BossShell.spawn(scene, target, BOMB_WARN, BOMB_RADIUS, BOMB_DAMAGE, _proj_color)
 
 
+## 돌진형(버서커) — 느린 추적 → 텔레그래프 → 초고속 대시 → 경직 순환.
+## HP 50% 이하 격노 시 추적/경직 단축·대시 가속으로 압박이 격화된다.
+func _behave_berserk(delta: float, player: Node2D) -> void:
+	var to_p := player.global_position - global_position
+	var dir := to_p / maxf(to_p.length(), 0.001)
+	var haste := 0.65 if _enraged else 1.0
+	_bt += delta
+	match _bstate:
+		"stalk":
+			velocity = dir * speed * 0.5
+			body.rotation = dir.angle()
+			move_and_slide()
+			if _bt >= BERSERK_STALK_TIME * haste:
+				_bstate = "wind"; _bt = 0.0
+		"wind":
+			velocity = Vector2.ZERO
+			_aim_dir = dir              # 대시 직전까지 플레이어를 조준(발사 순간 방향 고정)
+			body.rotation = dir.angle()
+			if _bt >= BERSERK_WIND * haste:
+				_bstate = "dash"; _bt = 0.0
+				body.rotation = _aim_dir.angle()
+		"dash":
+			velocity = _aim_dir * (BERSERK_DASH_SPEED * (1.15 if _enraged else 1.0))
+			move_and_slide()
+			if _bt >= BERSERK_DASH_TIME:
+				_bstate = "recover"; _bt = 0.0
+		"recover":
+			velocity = velocity * 0.85   # 관성 감쇠(급정지 대신 미끄러짐)
+			move_and_slide()
+			if _bt >= BERSERK_RECOVER * haste:
+				_bstate = "stalk"; _bt = 0.0
+
+
 func _process(delta: float) -> void:
 	if not _alive:
 		return
@@ -279,6 +329,14 @@ func _draw() -> void:
 		var end := _aim_dir * (half_h * 0.9 + 260.0)
 		draw_line(start, end, Color(1.0, 0.85, 0.3, a), 3.0, true)
 		draw_circle(end, 7.0, Color(1.0, 0.6, 0.2, a * 0.8))
+
+	# 버서커 대시 예비 동작 — 돌진 경로를 붉게 예고(두꺼운 화살 라인).
+	if _archetype == "berserk" and _bstate == "wind":
+		var ba := 0.4 + 0.4 * absf(sin(_pulse * 26.0))
+		var bstart := _aim_dir * (half_h * 0.9)
+		var bend := _aim_dir * (half_h * 0.9 + 360.0)
+		draw_line(bstart, bend, Color(1.0, 0.25, 0.3, ba), 6.0, true)
+		draw_circle(bend, 10.0, Color(1.0, 0.3, 0.25, ba * 0.8))
 
 	# 서머너 소환 예비 동작 — 발밑에 확장하는 초록 소환진(경고).
 	if _summon_tel > 0.0:
