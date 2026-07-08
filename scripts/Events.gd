@@ -72,6 +72,9 @@ var player_health: int = 0
 var player_max_health: int = 0
 var current_wave: int = 1
 var elapsed_time: float = 0.0
+
+# 현재 보스의 표시 이름(타입) — HUD 체력바 라벨용. 보스가 setup() 에서 채우고 boss_spawned 직후 읽힌다.
+var boss_display_name: String = "BOSS"
 var wave_kill_progress: int = 0
 var wave_kill_total: int = 0
 

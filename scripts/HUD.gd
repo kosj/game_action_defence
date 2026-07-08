@@ -19,6 +19,7 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var low_hp_overlay: ColorRect = $LowHpOverlay
 @onready var boss_bar: Control = $BossBar
 @onready var boss_fill: ColorRect = $BossBar/BarFill
+@onready var boss_name_label: Label = $BossBar/BossName
 @onready var wave_clear_bg: Panel = $WaveClearBg
 @onready var wave_clear_label: Label = $WaveClearLabel
 @onready var game_over_panel: Panel = $GameOverPanel
@@ -144,6 +145,7 @@ func _on_high_score_changed(high: int) -> void:
 
 func _on_boss_spawned(max_health: int) -> void:
 	_boss_max = maxi(max_health, 1)
+	boss_name_label.text = Events.boss_display_name   # 보스 타입 이름 표시(BRUTE/GUNNER…)
 	boss_fill.size.x = BOSS_BAR_W
 	boss_bar.visible = true
 	boss_bar.modulate.a = 0.0
