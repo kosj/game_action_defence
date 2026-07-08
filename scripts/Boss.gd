@@ -10,6 +10,7 @@ extends CharacterBody2D
 
 const GOLD := preload("res://scenes/Gold.tscn")
 const _FXBurst := preload("res://scripts/FXBurst.gd")
+const _BossShell := preload("res://scripts/BossShell.gd")
 const ENEMY_BULLET := preload("res://scenes/EnemyBullet.tscn")
 
 @onready var body: Node2D = $Body
@@ -46,6 +47,15 @@ const SUMMON_COUNT := 3            # 1회 소환 수(격노 시 +2)
 var _summon_cd: float = 0.0
 var _summon_tel: float = 0.0       # >0 이면 소환 예비 동작 중
 
+# ── 바머(bomber) 전용 상태 ───────────────────────────────────────────
+const BOMB_KEEP_DIST := 340.0      # 유지 거리(멀리서 포격)
+const BOMB_COOLDOWN := 3.2         # 포격 간격(초)
+const BOMB_WARN := 1.0             # 탄착 경고→폭발 지연(초) — 보고 피할 여지
+const BOMB_RADIUS := 88.0          # 폭발 반경
+const BOMB_DAMAGE := 2             # 폭발 피해
+const BOMB_SHELLS := 2             # 1회 포격 탄 수(격노 시 +2)
+var _bomb_cd: float = 0.0
+
 
 func _ready() -> void:
 	add_to_group("zombies")
@@ -69,6 +79,7 @@ func setup(stats: Dictionary) -> void:
 	_telegraph_t = 0.0
 	_summon_cd = SUMMON_COOLDOWN * 0.5
 	_summon_tel = 0.0
+	_bomb_cd = BOMB_COOLDOWN * 0.5
 	body.modulate = _base_color
 	# HUD 가 체력바 위에 표시할 보스 이름(타입). 시그널 시그니처 변경 없이 Events 에 실어 보낸다.
 	Events.boss_display_name = stats.get("name", "BOSS")
@@ -100,6 +111,7 @@ func _physics_process(delta: float) -> void:
 	match _archetype:
 		"gunner":   _behave_gunner(delta, player)
 		"summoner": _behave_summoner(delta, player)
+		"bomber":   _behave_bomber(delta, player)
 		_:          _behave_melee(player)   # melee 및 아직 미구현 아키타입의 기본 동작
 
 
@@ -199,6 +211,41 @@ func _do_summon() -> void:
 	_FXBurst.spawn(get_tree().current_scene, global_position, Color(0.4, 1.0, 0.5), 70.0, 0.35)
 	# 소환은 스포너가 처리(살아있는 좀비 카운터·과밀 상한 일관성 유지).
 	Events.boss_summon.emit(SUMMON_COUNT + (2 if _enraged else 0))
+
+
+## 포격형(바머) — 멀리서 거리를 유지하며, 플레이어 주변에 지연 폭발 탄을 투하.
+## 탄착 표식(BossShell)이 곧 텔레그래프 — 이동으로 회피. HP 50% 이하 격노 시 포격 격화.
+func _behave_bomber(delta: float, player: Node2D) -> void:
+	var to_p := player.global_position - global_position
+	var dist := maxf(to_p.length(), 0.001)
+	var dir := to_p / dist
+	if dist < BOMB_KEEP_DIST - 60.0:
+		velocity = -dir * speed
+	elif dist > BOMB_KEEP_DIST + 60.0:
+		velocity = dir * speed * 0.6
+	else:
+		velocity = dir.orthogonal() * speed * 0.4
+	body.rotation = dir.angle()
+	move_and_slide()
+
+	_bomb_cd -= delta
+	if _bomb_cd <= 0.0:
+		_bomb_cd = BOMB_COOLDOWN * (0.6 if _enraged else 1.0)
+		_fire_barrage(player)
+
+
+## 플레이어 현재 위치 + 주변 무작위 지점에 탄착 표식을 뿌린다(첫 발은 발밑 조준).
+func _fire_barrage(player: Node2D) -> void:
+	if not _alive:
+		return
+	SoundManager.play("zombie_hit")
+	var scene := get_tree().current_scene
+	var shells := BOMB_SHELLS + (2 if _enraged else 0)
+	for i in range(shells):
+		var target := player.global_position
+		if i > 0:
+			target += Vector2.from_angle(randf() * TAU) * randf_range(60.0, 180.0)
+		_BossShell.spawn(scene, target, BOMB_WARN, BOMB_RADIUS, BOMB_DAMAGE, _proj_color)
 
 
 func _process(delta: float) -> void:
