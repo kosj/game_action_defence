@@ -11,6 +11,16 @@ const BOSS := preload("res://scenes/Boss.tscn")
 ## 몇 웨이브마다 보스가 등장하는지 (5, 10, 15, ...)
 const BOSS_EVERY: int = 5
 
+## 보스 아키타입 테이블. archetype 은 Boss.gd 의 행동 분기 키.
+##   hp_mul/speed_mul — 타입별 균형(원거리 거너는 안전하므로 HP·이속 낮춤).
+##   tint — 보스 몸체 색(타입 구분). proj — 발사체 색. name — HUD 라벨.
+const BOSS_TYPES: Dictionary = {
+	"brute":  {"archetype": "melee",  "name": "BRUTE",  "hp_mul": 1.00, "speed_mul": 1.00, "contact": 2, "tint": Color(0.55, 0.12, 0.14), "proj": Color(1, 1, 1)},
+	"gunner": {"archetype": "gunner", "name": "GUNNER", "hp_mul": 0.78, "speed_mul": 0.80, "contact": 1, "tint": Color(0.16, 0.34, 0.62), "proj": Color(0.55, 0.85, 1.0)},
+}
+## 등장 순서 풀 — 구현된 아키타입만 포함(회차별로 순환). 서머너/바머/버서커는 구현 후 추가된다.
+const BOSS_SEQUENCE: Array = ["brute", "gunner"]
+
 ## 웨이브 테이블: total=이 웨이브에서 처치해야 할 총 좀비 수, max_z=최대 동시 출현 수.
 ## weights 의 인덱스는 ZOMBIE_TYPES 와 1:1 대응 — 후반 웨이브일수록 강한 종을 더 많이 섞는다.
 ## 1~2웨이브는 짧게(권총만 있는 초반이 늘어지지 않게), 6웨이브 이후에는 테이블이 고정되는 대신
@@ -201,18 +211,25 @@ func _spawn_boss() -> void:
 	_boss_alive = true
 	var boss_count := _wave_num / BOSS_EVERY   # 1, 2, 3, ...
 
+	# 회차별로 아키타입을 순환 — 1차 브루트, 2차 거너, 이후 반복(구현되면 풀 확장).
+	var bt: Dictionary = BOSS_TYPES[BOSS_SEQUENCE[(boss_count - 1) % BOSS_SEQUENCE.size()]]
+
 	var boss := BOSS.instantiate()
 	get_tree().current_scene.add_child(boss)
 	boss.global_position = _random_spawn_pos()
-	# 보스는 플레이어(이속 220)를 압박할 수 있도록 일반 좀비보다 빠르게 — 회차/난이도에 따라 가속.
+	# 보스는 플레이어(이속 220)를 압박할 수 있도록 일반 좀비보다 빠르게 — 회차/난이도/타입에 따라 가속.
 	var boss_hp := int(round(float(80 + 60 * (boss_count - 1)) * Events.diff_boss_hp_mult() \
-		* Events.wave_pressure_mult(_wave_num)))
+		* Events.wave_pressure_mult(_wave_num) * float(bt["hp_mul"])))
 	boss.setup({
 		"max_health": boss_hp,
-		"speed": (104.0 + 9.0 * boss_count) * Events.diff_enemy_speed_mult(),
-		"contact_damage": 2 + (1 if Events.difficulty == 2 else 0),
+		"speed": (104.0 + 9.0 * boss_count) * Events.diff_enemy_speed_mult() * float(bt["speed_mul"]),
+		"contact_damage": int(bt["contact"]) + (1 if Events.difficulty == 2 else 0),
 		"score": 200 * boss_count,
 		"gold": 12 + 4 * boss_count,
+		"archetype": bt["archetype"],
+		"tint": bt["tint"],
+		"proj_color": bt["proj"],
+		"name": bt["name"],
 	})
 
 	# 호위 정예 좀비 — 빠른/탱커 혼합 (보스 회차가 높을수록 더 많이)

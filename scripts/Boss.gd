@@ -2,9 +2,15 @@ extends CharacterBody2D
 ## 보스: 웨이브 종료 시 등장하는 강력한 단일 적.
 ## 일반 좀비와 같은 "zombies" 그룹에 속해 총알/접촉 데미지 시스템을 그대로 재사용하되,
 ## 별도의 체력바·강화된 외형·다량의 보상을 가진다. 풀링하지 않고 등장 시마다 인스턴스화.
+##
+## 아키타입(archetype) 으로 고유 행동을 분기한다(Zombie.gd 의 behavior 분기와 동일한 방식):
+##   melee  — 근접 돌격(브루트, 기존 동작 그대로)
+##   gunner — 거리 유지하며 조준 사격(총 쏘는 보스) — 텔레그래프 후 스프레드/방사 발사
+## (summoner/bomber/berserk 는 후속 단계에서 추가)
 
 const GOLD := preload("res://scenes/Gold.tscn")
 const _FXBurst := preload("res://scripts/FXBurst.gd")
+const ENEMY_BULLET := preload("res://scenes/EnemyBullet.tscn")
 
 @onready var body: Node2D = $Body
 
@@ -16,8 +22,21 @@ var score_value: int = 200
 var gold_drop: int = 12
 
 var _alive: bool = false
+var _archetype: String = "melee"
 var _base_color: Color = Color(0.55, 0.12, 0.14)
+var _proj_color: Color = Color(0.55, 0.8, 1.0)
 var _pulse: float = 0.0
+var _enraged: bool = false      # HP 50% 이하 격노 진입 여부(1회성 트리거)
+
+# ── 거너(gunner) 전용 상태 ────────────────────────────────────────────
+const GUNNER_RANGE := 520.0        # 발사 사거리
+const GUNNER_KEEP_DIST := 300.0    # 유지하려는 거리(카이팅)
+const GUNNER_COOLDOWN := 2.0       # 발사 간격(초)
+const GUNNER_TELEGRAPH := 0.45     # 발사 예비 동작(총구 점멸) 시간 — 보고 피할 여지
+const GUNNER_PROJ_SPEED := 300.0   # 투사체 속도(플레이어 이속 220 대비 회피 가능)
+var _fire_cd: float = 0.0
+var _telegraph_t: float = 0.0      # >0 이면 발사 예비 동작 중
+var _aim_dir: Vector2 = Vector2.RIGHT
 
 
 func _ready() -> void:
@@ -25,7 +44,7 @@ func _ready() -> void:
 	add_to_group("boss")
 
 
-## 스포너가 인스턴스 직후 호출 — 등장 회차에 따른 스탯 주입 후 등장 연출.
+## 스포너가 인스턴스 직후 호출 — 등장 회차/타입에 따른 스탯 주입 후 등장 연출.
 func setup(stats: Dictionary) -> void:
 	max_health = stats.get("max_health", 80)
 	health = max_health
@@ -33,8 +52,16 @@ func setup(stats: Dictionary) -> void:
 	contact_damage = stats.get("contact_damage", 2)
 	score_value = stats.get("score", 200)
 	gold_drop = stats.get("gold", 12)
+	_archetype = stats.get("archetype", "melee")
+	_base_color = stats.get("tint", Color(0.55, 0.12, 0.14))
+	_proj_color = stats.get("proj_color", Color(0.55, 0.8, 1.0))
 	_alive = true
+	_enraged = false
+	_fire_cd = GUNNER_COOLDOWN * 0.6   # 등장 직후 즉시 난사 방지
+	_telegraph_t = 0.0
 	body.modulate = _base_color
+	# HUD 가 체력바 위에 표시할 보스 이름(타입). 시그널 시그니처 변경 없이 Events 에 실어 보낸다.
+	Events.boss_display_name = stats.get("name", "BOSS")
 	Events.boss_spawned.emit(max_health)
 	Events.boss_health_changed.emit(health, max_health)
 	_spawn_intro()
@@ -54,16 +81,78 @@ func _spawn_intro() -> void:
 	_FXBurst.spawn(get_tree().current_scene, global_position, Color(0.9, 0.2, 0.2), 90.0, 0.5)
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if not _alive:
 		return
 	var player: Node2D = get_tree().get_first_node_in_group("player")
 	if not is_instance_valid(player):
 		return
+	match _archetype:
+		"gunner": _behave_gunner(delta, player)
+		_:       _behave_melee(player)   # melee 및 아직 미구현 아키타입의 기본 동작
+
+
+## 근접 돌격(브루트) — 플레이어를 향해 직진. 기존 동작 그대로.
+func _behave_melee(player: Node2D) -> void:
 	var dir := (player.global_position - global_position).normalized()
 	velocity = dir * speed
 	body.rotation = dir.angle()
 	move_and_slide()
+
+
+## 사격형(거너) — 유지 거리를 두고 카이팅하며, 텔레그래프 후 조준 사격.
+## HP 50% 이하 격노 시 발사 간격 단축 + 방사형 난사로 격화(페이즈).
+func _behave_gunner(delta: float, player: Node2D) -> void:
+	var to_p := player.global_position - global_position
+	var dist := maxf(to_p.length(), 0.001)
+	var dir := to_p / dist
+	# 카이팅: 너무 가까우면 물러나고, 너무 멀면 접근, 적정 거리면 측면 스트레이프.
+	if dist < GUNNER_KEEP_DIST - 50.0:
+		velocity = -dir * speed
+	elif dist > GUNNER_KEEP_DIST + 50.0:
+		velocity = dir * speed
+	else:
+		velocity = dir.orthogonal() * speed * 0.6
+	body.rotation = dir.angle()
+	move_and_slide()
+
+	if _telegraph_t > 0.0:
+		# 예비 동작 중 — 조준 방향을 계속 갱신하다 종료 시 발사.
+		_aim_dir = dir
+		_telegraph_t -= delta
+		if _telegraph_t <= 0.0:
+			_fire_volley()
+	else:
+		_fire_cd -= delta
+		if _fire_cd <= 0.0 and dist <= GUNNER_RANGE:
+			_aim_dir = dir
+			_telegraph_t = GUNNER_TELEGRAPH
+			_fire_cd = GUNNER_COOLDOWN * (0.6 if _enraged else 1.0)
+
+
+## 조준 방향 기준 스프레드 발사. 평상시 3발(±14°), 격노 시 방사형 9발.
+func _fire_volley() -> void:
+	if not _alive:
+		return
+	SoundManager.play("zombie_hit")
+	if _enraged:
+		var n := 9
+		for i in range(n):
+			_fire_bullet(Vector2.from_angle(_aim_dir.angle() + TAU * i / n))
+	else:
+		var spread := deg_to_rad(14.0)
+		for off in [-spread, 0.0, spread]:
+			_fire_bullet(_aim_dir.rotated(off))
+
+
+func _fire_bullet(dir: Vector2) -> void:
+	var p := Pool.acquire(ENEMY_BULLET, get_tree().current_scene)
+	p.global_position = global_position + dir * 24.0
+	p.direction = dir
+	p.speed = GUNNER_PROJ_SPEED
+	p.damage = 1
+	p.color = _proj_color
+	p.queue_redraw()   # 색 주입 후 1회 그리기(EnemyBullet 은 매 프레임 redraw 하지 않음)
 
 
 func _process(delta: float) -> void:
@@ -73,7 +162,7 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-## 머리 위 체력바 + 위협적인 오라 링.
+## 머리 위 체력바 + 위협적인 오라 링 + (거너) 발사 예비 조준선.
 func _draw() -> void:
 	if not _alive:
 		return
@@ -83,8 +172,20 @@ func _draw() -> void:
 		half_h = body.texture.get_size().y * body.scale.y * 0.5
 
 	# 맥동하는 오라 링 — 보스 외곽을 감싸도록 스프라이트 크기에 맞춘다.
+	var aura := Color(0.95, 0.25, 0.2, 0.5)
+	if _enraged:
+		aura = Color(1.0, 0.5, 0.1, 0.6)   # 격노 시 더 강렬한 오라
 	var r := half_h * 0.98 + sin(_pulse * 4.0) * 4.0
-	draw_arc(Vector2.ZERO, r, 0.0, TAU, 48, Color(0.95, 0.25, 0.2, 0.5), 3.0, true)
+	draw_arc(Vector2.ZERO, r, 0.0, TAU, 48, aura, 3.0, true)
+
+	# 거너 발사 예비 조준선 — 텔레그래프 동안 점멸하는 경고 라인(로컬 좌표).
+	if _telegraph_t > 0.0:
+		# 보스 루트(this)는 회전하지 않으므로 월드 방향 _aim_dir 이 곧 로컬 방향이다.
+		var a := 0.35 + 0.45 * absf(sin(_pulse * 22.0))
+		var start := _aim_dir * (half_h * 0.9)
+		var end := _aim_dir * (half_h * 0.9 + 260.0)
+		draw_line(start, end, Color(1.0, 0.85, 0.3, a), 3.0, true)
+		draw_circle(end, 7.0, Color(1.0, 0.6, 0.2, a * 0.8))
 
 	# 체력바 — 스프라이트 머리 위쪽에 확실히 떨어뜨려 그린다(겹침 방지).
 	var bar_w := 96.0
@@ -108,8 +209,17 @@ func take_damage(amount: int) -> void:
 	body.modulate = Color(1, 1, 1)
 	var tw := create_tween()
 	tw.tween_property(body, "modulate", _base_color, 0.12)
+	# 페이즈 전환: 체력 50% 이하로 처음 내려가면 격노(공격 격화 + 오라 강화 + 섬광).
+	if not _enraged and health > 0 and float(health) / float(max_health) <= 0.5:
+		_enter_enrage()
 	if health <= 0:
 		_die()
+
+
+func _enter_enrage() -> void:
+	_enraged = true
+	_fire_cd = minf(_fire_cd, 0.4)   # 격노 진입 직후 빠르게 반격
+	_FXBurst.spawn(get_tree().current_scene, global_position, Color(1.0, 0.5, 0.15), 80.0, 0.35)
 
 
 func _die() -> void:
