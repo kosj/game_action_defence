@@ -35,9 +35,19 @@ const _DUCK_DB := -14.0         # 사망 시 음악을 낮추는 상대량(dB)
 
 const SETTING_PATH := "user://sound.save"
 
-# 연속 재생 스로틀 — 자석으로 동전을 한꺼번에 먹을 때 같은 사운드가 겹쳐 지저분해지는 것을 막는다.
-# 사운드별 최소 재생 간격(ms). 간격 내 재호출은 무시한다.
-const _MIN_INTERVAL := {"gold": 110}
+# 연속 재생 스로틀 — 같은 프레임에 대량으로 몰리는 효과음(스플래시 다중 피격·다중 총알·군집
+# 사망·동전 자석 흡수)은 프레임당 play() 호출이 수십 번 터져 특히 웹에서 프레임 드랍을 유발한다.
+# 사운드별 최소 재생 간격(ms)을 둬 그 안의 재호출은 건너뛴다 — 소리도 깔끔해지고 부하도 준다.
+# (예: zombie_hit 55ms ⇒ 초당 최대 ~18회. 청감상 연속처럼 들리면서 호출 폭주는 막힌다.)
+const _MIN_INTERVAL := {
+	"gold": 110,
+	"zombie_hit": 55,
+	"zombie_die": 70,
+	"shoot": 45,
+	"boom": 60,
+	"laser": 45,
+	"player_hurt": 90,
+}
 const _COMBO_WINDOW := 380   # ms — 이 안에 연속되면 콤보로 보고 음을 살짝 올린다(마리오 동전 느낌)
 
 var _players: Dictionary = {}
@@ -104,10 +114,11 @@ func play(sound: String, pitch_vary: float = 0.1, base_pitch: float = 1.0) -> vo
 		var now := Time.get_ticks_msec()
 		var last: int = _last_play.get(sound, -100000)
 		if now - last < min_iv:
-			return   # 너무 빠른 연속 재생은 건너뛰어 사운드가 겹치지 않게 한다
-		# 콤보: 연속 수집이면 음을 단계적으로 올렸다가, 끊기면 리셋(상쾌한 상승음)
-		_combo[sound] = (_combo.get(sound, 0) + 1) if (now - last < _COMBO_WINDOW) else 0
-		base_pitch *= 1.0 + mini(_combo[sound], 10) * 0.04
+			return   # 간격 내 재호출은 건너뛰어 겹침·호출 폭주를 막는다(성능·청감)
+		# 콤보 상승음은 동전 수집에만 — 피격/사망/발사음이 음이 올라가면 어색하다.
+		if sound == "gold":
+			_combo[sound] = (_combo.get(sound, 0) + 1) if (now - last < _COMBO_WINDOW) else 0
+			base_pitch *= 1.0 + mini(_combo[sound], 10) * 0.04
 		_last_play[sound] = now
 
 	p.pitch_scale = max(0.05, base_pitch * (1.0 + randf_range(-pitch_vary, pitch_vary)))
