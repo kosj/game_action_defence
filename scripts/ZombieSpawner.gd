@@ -15,11 +15,15 @@ const BOSS_EVERY: int = 5
 ##   hp_mul/speed_mul — 타입별 균형(원거리 거너는 안전하므로 HP·이속 낮춤).
 ##   tint — 보스 몸체 색(타입 구분). proj — 발사체 색. name — HUD 라벨.
 const BOSS_TYPES: Dictionary = {
-	"brute":  {"archetype": "melee",  "name": "BRUTE",  "hp_mul": 1.00, "speed_mul": 1.00, "contact": 2, "tint": Color(0.55, 0.12, 0.14), "proj": Color(1, 1, 1)},
-	"gunner": {"archetype": "gunner", "name": "GUNNER", "hp_mul": 0.78, "speed_mul": 0.80, "contact": 1, "tint": Color(0.16, 0.34, 0.62), "proj": Color(0.55, 0.85, 1.0)},
+	"brute":    {"archetype": "melee",    "name": "BRUTE",    "hp_mul": 1.00, "speed_mul": 1.00, "contact": 2, "tint": Color(0.55, 0.12, 0.14), "proj": Color(1, 1, 1)},
+	"gunner":   {"archetype": "gunner",   "name": "GUNNER",   "hp_mul": 0.78, "speed_mul": 0.80, "contact": 1, "tint": Color(0.16, 0.34, 0.62), "proj": Color(0.55, 0.85, 1.0)},
+	"summoner": {"archetype": "summoner", "name": "SUMMONER", "hp_mul": 0.92, "speed_mul": 0.55, "contact": 2, "tint": Color(0.24, 0.52, 0.28), "proj": Color(0.5, 1.0, 0.6)},
 }
-## 등장 순서 풀 — 구현된 아키타입만 포함(회차별로 순환). 서머너/바머/버서커는 구현 후 추가된다.
-const BOSS_SEQUENCE: Array = ["brute", "gunner"]
+## 등장 순서 풀 — 구현된 아키타입만 포함(회차별로 순환). 바머/버서커는 구현 후 추가된다.
+const BOSS_SEQUENCE: Array = ["brute", "gunner", "summoner"]
+
+## 서머너 소환 시 전장 과밀 상한 — 이 수를 넘겨 살아있으면 소환을 억제한다(성능·공정성).
+const SUMMON_ALIVE_CAP: int = 44
 
 ## 웨이브 테이블: total=이 웨이브에서 처치해야 할 총 좀비 수, max_z=최대 동시 출현 수.
 ## weights 의 인덱스는 ZOMBIE_TYPES 와 1:1 대응 — 후반 웨이브일수록 강한 종을 더 많이 섞는다.
@@ -81,6 +85,7 @@ func _ready() -> void:
 	Events.player_revived.connect(func(): _game_over = false)   # 부활 시 스폰/웨이브 진행 재개
 	Events.zombie_killed.connect(_on_zombie_killed)
 	Events.boss_died.connect(_on_boss_died)
+	Events.boss_summon.connect(_on_boss_summon)
 	Events.shop_closed.connect(_start_wave)
 	# 이어하기 시 저장된 웨이브/경과시간부터 재개 (새 게임은 Events.reset() 직후라 1 / 0.0).
 	_elapsed = Events.elapsed_time
@@ -236,6 +241,17 @@ func _spawn_boss() -> void:
 	var escorts := 3 + boss_count
 	for i in range(escorts):
 		_spawn_one(ZOMBIE_TYPES[1] if i % 2 == 0 else ZOMBIE_TYPES[2])
+
+
+## 서머너 보스의 소환 요청 처리 — 스포너가 직접 스폰해 살아있는 좀비 카운터를 일관 유지.
+## 과밀 시(SUMMON_ALIVE_CAP 초과) 억제. 빠르고 약한 종(스웜링/러너)을 섞어 압박만 준다.
+func _on_boss_summon(count: int) -> void:
+	if not _boss_alive or _game_over:
+		return
+	var room := maxi(0, SUMMON_ALIVE_CAP - _alive_zombies)
+	var n := mini(count, room)
+	for i in range(n):
+		_spawn_one(ZOMBIE_TYPES[3] if i % 2 == 0 else ZOMBIE_TYPES[1])
 
 
 func _on_boss_died() -> void:

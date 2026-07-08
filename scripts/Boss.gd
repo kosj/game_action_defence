@@ -38,6 +38,14 @@ var _fire_cd: float = 0.0
 var _telegraph_t: float = 0.0      # >0 이면 발사 예비 동작 중
 var _aim_dir: Vector2 = Vector2.RIGHT
 
+# ── 서머너(summoner) 전용 상태 ───────────────────────────────────────
+const SUMMON_KEEP_DIST := 260.0    # 유지 거리(플레이어에게서 물러나며 소환)
+const SUMMON_COOLDOWN := 5.0       # 소환 간격(초)
+const SUMMON_TELEGRAPH := 0.6      # 소환 예비 동작(소환진 점멸) 시간
+const SUMMON_COUNT := 3            # 1회 소환 수(격노 시 +2)
+var _summon_cd: float = 0.0
+var _summon_tel: float = 0.0       # >0 이면 소환 예비 동작 중
+
 
 func _ready() -> void:
 	add_to_group("zombies")
@@ -59,6 +67,8 @@ func setup(stats: Dictionary) -> void:
 	_enraged = false
 	_fire_cd = GUNNER_COOLDOWN * 0.6   # 등장 직후 즉시 난사 방지
 	_telegraph_t = 0.0
+	_summon_cd = SUMMON_COOLDOWN * 0.5
+	_summon_tel = 0.0
 	body.modulate = _base_color
 	# HUD 가 체력바 위에 표시할 보스 이름(타입). 시그널 시그니처 변경 없이 Events 에 실어 보낸다.
 	Events.boss_display_name = stats.get("name", "BOSS")
@@ -88,8 +98,9 @@ func _physics_process(delta: float) -> void:
 	if not is_instance_valid(player):
 		return
 	match _archetype:
-		"gunner": _behave_gunner(delta, player)
-		_:       _behave_melee(player)   # melee 및 아직 미구현 아키타입의 기본 동작
+		"gunner":   _behave_gunner(delta, player)
+		"summoner": _behave_summoner(delta, player)
+		_:          _behave_melee(player)   # melee 및 아직 미구현 아키타입의 기본 동작
 
 
 ## 근접 돌격(브루트) — 플레이어를 향해 직진. 기존 동작 그대로.
@@ -155,6 +166,41 @@ func _fire_bullet(dir: Vector2) -> void:
 	p.queue_redraw()   # 색 주입 후 1회 그리기(EnemyBullet 은 매 프레임 redraw 하지 않음)
 
 
+## 소환형(서머너) — 유지 거리를 두고 천천히 물러나며, 주기적으로 호위 좀비를 소환.
+## HP 50% 이하 격노 시 소환 간격 단축 + 소환 수 증가(페이즈).
+func _behave_summoner(delta: float, player: Node2D) -> void:
+	var to_p := player.global_position - global_position
+	var dist := maxf(to_p.length(), 0.001)
+	var dir := to_p / dist
+	if dist < SUMMON_KEEP_DIST - 40.0:
+		velocity = -dir * speed          # 너무 가까우면 물러난다
+	elif dist > SUMMON_KEEP_DIST + 60.0:
+		velocity = dir * speed * 0.5     # 너무 멀면 느리게 접근
+	else:
+		velocity = dir.orthogonal() * speed * 0.4
+	body.rotation = dir.angle()
+	move_and_slide()
+
+	if _summon_tel > 0.0:
+		_summon_tel -= delta
+		if _summon_tel <= 0.0:
+			_do_summon()
+	else:
+		_summon_cd -= delta
+		if _summon_cd <= 0.0:
+			_summon_tel = SUMMON_TELEGRAPH
+			_summon_cd = SUMMON_COOLDOWN * (0.6 if _enraged else 1.0)
+
+
+func _do_summon() -> void:
+	if not _alive:
+		return
+	SoundManager.play("zombie_hit")
+	_FXBurst.spawn(get_tree().current_scene, global_position, Color(0.4, 1.0, 0.5), 70.0, 0.35)
+	# 소환은 스포너가 처리(살아있는 좀비 카운터·과밀 상한 일관성 유지).
+	Events.boss_summon.emit(SUMMON_COUNT + (2 if _enraged else 0))
+
+
 func _process(delta: float) -> void:
 	if not _alive:
 		return
@@ -186,6 +232,12 @@ func _draw() -> void:
 		var end := _aim_dir * (half_h * 0.9 + 260.0)
 		draw_line(start, end, Color(1.0, 0.85, 0.3, a), 3.0, true)
 		draw_circle(end, 7.0, Color(1.0, 0.6, 0.2, a * 0.8))
+
+	# 서머너 소환 예비 동작 — 발밑에 확장하는 초록 소환진(경고).
+	if _summon_tel > 0.0:
+		var sa := 0.3 + 0.4 * absf(sin(_pulse * 16.0))
+		draw_arc(Vector2.ZERO, half_h * 1.25, 0.0, TAU, 40, Color(0.4, 1.0, 0.55, sa), 4.0, true)
+		draw_arc(Vector2.ZERO, half_h * 0.75, 0.0, TAU, 32, Color(0.5, 1.0, 0.6, sa * 0.7), 2.5, true)
 
 	# 체력바 — 스프라이트 머리 위쪽에 확실히 떨어뜨려 그린다(겹침 방지).
 	var bar_w := 96.0

@@ -61,6 +61,7 @@ signal high_score_changed(high_score: int)
 signal boss_spawned(max_health: int)
 signal boss_health_changed(health: int, max_health: int)
 signal boss_died
+signal boss_summon(count: int)   # 서머너 보스가 호위 좀비 소환 요청 — 스포너가 처리(카운터 일관성)
 
 # 필드 버프 상태
 signal weapon_timer_changed(time_left: float, total: float)   # 임시 무기 남은 사용 시간
