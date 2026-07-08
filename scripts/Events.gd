@@ -87,15 +87,15 @@ var _prev_high: int = 0
 # Events.reset() 으로 초기화되지 않는다(판이 바뀌어도 유지되는 설정값).
 var difficulty: int = 1
 const DIFFICULTY_NAMES: Array = ["Easy", "Normal", "Hard"]
-const _DIFF_ENEMY_HP: Array    = [0.70, 1.00, 1.55]   # 좀비 체력 배수(Hard 는 아래 램프 참고)
-const _DIFF_ENEMY_SPEED: Array = [0.90, 1.00, 1.18]   # 좀비 이동속도 배수
-const _DIFF_SPAWN_MULT: Array  = [1.15, 1.00, 0.78]   # 스폰 간격 배수(낮을수록 빠르게 몰림)
-const _DIFF_BOSS_HP: Array     = [0.70, 1.00, 1.60]   # 보스 체력 배수
-const _DIFF_TOTAL_MULT: Array  = [0.75, 1.00, 1.00]   # 웨이브 킬 목표 배수 — Easy 는 짧고 가볍게
-const _DIFF_SCORE_MULT: Array  = [0.80, 1.00, 1.30]   # 점수 배수 — 위험(Hard)에 보상
-# Hard 초반 완화 램프: 1웨이브 스파이크(권총 DPS 고정 구간) 방지를 위해
-# 체력 배수를 1~5웨이브에 걸쳐 1.15 → 1.55 로 서서히 올린다.
-const _HARD_HP_RAMP_START := 1.15
+const _DIFF_ENEMY_HP: Array    = [0.70, 1.25, 1.90]   # 좀비 체력 배수(Hard 는 아래 램프 참고)
+const _DIFF_ENEMY_SPEED: Array = [0.90, 1.10, 1.30]   # 좀비 이동속도 배수
+const _DIFF_SPAWN_MULT: Array  = [1.15, 0.85, 0.62]   # 스폰 간격 배수(낮을수록 빠르게 몰림)
+const _DIFF_BOSS_HP: Array     = [0.70, 1.30, 2.10]   # 보스 체력 배수
+const _DIFF_TOTAL_MULT: Array  = [0.75, 1.15, 1.35]   # 웨이브 킬 목표 배수 — Easy 는 짧게, Hard 는 길고 험하게
+const _DIFF_SCORE_MULT: Array  = [0.80, 1.10, 1.55]   # 점수 배수 — 위험(Normal·Hard)에 더 큰 보상
+# Hard 초반 완화 램프: 1웨이브 스파이크(권총 DPS 고정 구간)를 막되, 이제 초반부터 체감되도록
+# 체력 배수를 1~5웨이브에 걸쳐 1.30 → 1.90 으로 서서히 올린다.
+const _HARD_HP_RAMP_START := 1.30
 
 ## 무한 스케일링: 테이블이 끝나는 6웨이브 이후 매 웨이브 +12% 체력(복리).
 ## 업그레이드가 만렙에 도달해도 언젠가는 반드시 한계가 오도록 하는 점수 러시 장치.
