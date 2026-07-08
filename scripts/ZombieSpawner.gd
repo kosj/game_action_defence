@@ -19,9 +19,10 @@ const BOSS_TYPES: Dictionary = {
 	"gunner":   {"archetype": "gunner",   "name": "GUNNER",   "hp_mul": 0.78, "speed_mul": 0.80, "contact": 1, "tint": Color(0.16, 0.34, 0.62), "proj": Color(0.55, 0.85, 1.0)},
 	"summoner": {"archetype": "summoner", "name": "SUMMONER", "hp_mul": 0.92, "speed_mul": 0.55, "contact": 2, "tint": Color(0.24, 0.52, 0.28), "proj": Color(0.5, 1.0, 0.6)},
 	"bomber":   {"archetype": "bomber",   "name": "BOMBER",   "hp_mul": 0.85, "speed_mul": 0.65, "contact": 1, "tint": Color(0.62, 0.40, 0.14), "proj": Color(1.0, 0.55, 0.15)},
+	"berserk":  {"archetype": "berserk",  "name": "BERSERKER","hp_mul": 1.05, "speed_mul": 1.00, "contact": 3, "tint": Color(0.60, 0.14, 0.34), "proj": Color(1, 1, 1)},
 }
-## 등장 순서 풀 — 구현된 아키타입만 포함(회차별로 순환). 버서커는 구현 후 추가된다.
-const BOSS_SEQUENCE: Array = ["brute", "gunner", "summoner", "bomber"]
+## 등장 순서 풀 — 5종 전 아키타입(회차별로 순환).
+const BOSS_SEQUENCE: Array = ["brute", "gunner", "summoner", "bomber", "berserk"]
 
 ## 서머너 소환 시 전장 과밀 상한 — 이 수를 넘겨 살아있으면 소환을 억제한다(성능·공정성).
 const SUMMON_ALIVE_CAP: int = 44
