@@ -140,6 +140,9 @@ func _animate_walk(moved: float) -> void:
 ## 직선 적분 이동: 좀비끼리 상호 충돌을 해소하는 move_and_slide() 는 개체 수의 제곱에 비례해
 ## 비싸진다. 위치를 직접 갱신해 좀비당 비용을 O(1) 로 낮춘다(스프라이트끼리 겹칠 수 있으나
 ## 대규모 디펜스에선 일반적). 충돌 도형(레이어2)은 남아 총알 명중·플레이어 접촉 판정에 쓰인다.
+## 좀비의 collision_mask 는 0 이다(Zombie.tscn) — move_and_slide 를 안 쓰므로 좀비끼리 충돌
+## 감지가 불필요한데, mask 를 켜두면 물리 엔진이 매 프레임 좀비×좀비 충돌쌍을 O(n²) 로 계산해
+## 낭비한다. mask=0 으로 그 비용을 제거한다(레이어2 는 남아 총알·플레이어 감지는 그대로).
 func _behave_chase(delta: float) -> void:
 	var dir := (player.global_position - global_position).normalized()
 	body.rotation = dir.angle()
