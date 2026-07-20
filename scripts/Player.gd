@@ -19,6 +19,13 @@ const BASE_BULLET_SPEED := 700.0
 @onready var body: Node2D = $Body
 @onready var muzzle: Marker2D = $Body/Muzzle
 @onready var hurtbox: Area2D = $Hurtbox
+@onready var camera: Camera2D = $Camera2D
+
+# 화면 흔들림(타격감): Events.screen_shake_requested 로 세기를 누적하고 매 프레임 감쇠하며
+# 카메라에 랜덤 오프셋을 준다. 멀미 방지를 위해 상한을 두고, 큰 이벤트에서만 흔든다.
+const SHAKE_MAX := 13.0
+const SHAKE_DECAY := 34.0
+var _shake: float = 0.0
 
 var joystick: Node = null
 var health: int
@@ -71,9 +78,23 @@ func _ready() -> void:
 	Events.update_player_health(health, max_health)
 	Events.shop_closed.connect(apply_upgrades)
 	Events.shop_closed.connect(_autosave)
+	Events.screen_shake_requested.connect(_on_screen_shake)
 	Events.wave_complete.connect(func(_wave: int): _autosave())
 	if SaveManager.pending_continue:
 		_load_saved_state()
+
+
+## 카메라 흔들림은 렌더 프레임(_process)에서 감쇠·적용해 부드럽게 보이게 한다.
+func _process(delta: float) -> void:
+	if _shake > 0.05:
+		_shake = maxf(0.0, _shake - SHAKE_DECAY * delta)
+		camera.offset = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * _shake
+	elif camera.offset != Vector2.ZERO:
+		camera.offset = Vector2.ZERO
+
+
+func _on_screen_shake(amount: float) -> void:
+	_shake = minf(SHAKE_MAX, _shake + amount)
 
 
 func _physics_process(delta: float) -> void:
@@ -228,6 +249,7 @@ func take_hit(amount: int) -> void:
 func _take_damage(amount: int) -> void:
 	_hurt_timer = contact_cooldown
 	SoundManager.play("player_hurt")
+	Events.shake(7.0)   # 피격 타격감 — 화면을 확 흔든다
 	health = max(0, health - amount)
 	Events.update_player_health(health, max_health)
 	if health <= 0:

@@ -49,6 +49,7 @@ func _explode() -> void:
 	_exploded = true
 	_FXBurst.spawn(get_tree().current_scene, global_position, color, blast_radius, 0.4)
 	SoundManager.play("zombie_die")
+	Events.shake(4.0)   # 포격 착탄 타격감
 	var player := get_tree().get_first_node_in_group("player")
 	if is_instance_valid(player) and player.has_method("take_hit"):
 		if global_position.distance_squared_to(player.global_position) <= blast_radius * blast_radius:
