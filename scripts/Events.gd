@@ -73,6 +73,10 @@ signal screen_shake_requested(amount: float)
 # 스웜 이벤트 경고 — 한 무리가 곧 몰려온다(HUD 가 배너로 경고). elite=엘리트 팩 여부.
 signal swarm_incoming(elite: bool)
 
+# 인게임 레벨업(뱀서식 성장). 코인 수집으로 경험치가 쌓이고, 임계 도달 시 레벨업 → 강화 카드 선택.
+signal xp_changed(xp: int, xp_to_next: int, level: int)
+signal level_up(level: int)
+
 var total_gold: int = 0
 var total_kills: int = 0
 var player_health: int = 0
@@ -92,6 +96,27 @@ var gold_magnet_active: bool = false
 var score: int = 0
 var high_score: int = 0
 var _prev_high: int = 0
+
+# 인게임 레벨: 코인 수집으로 xp 누적 → xp_to_next 도달 시 레벨업(강화 카드 선택). 판마다 초기화.
+var xp: int = 0
+var level: int = 1
+var xp_to_next: int = 12
+
+
+## 다음 레벨까지 필요한 경험치 곡선 — 초반은 자주, 갈수록 뜸하게(레벨업 연출 과다 방지).
+func _xp_curve(lvl: int) -> int:
+	return int(round(10.0 + (lvl - 1) * 8.0 + pow(float(lvl), 1.5) * 2.0))
+
+
+## 코인 수집 시 호출(코인 1개 = 경험치 1). 임계 도달 시 레벨업 신호(연속 레벨업도 처리).
+func add_xp(amount: int) -> void:
+	xp += amount
+	while xp >= xp_to_next:
+		xp -= xp_to_next
+		level += 1
+		xp_to_next = _xp_curve(level)
+		level_up.emit(level)
+	xp_changed.emit(xp, xp_to_next, level)
 
 # 난이도 (0=Easy, 1=Normal, 2=Hard) — 메인 메뉴에서 선택하며 디스크에 보존된다.
 # Events.reset() 으로 초기화되지 않는다(판이 바뀌어도 유지되는 설정값).
@@ -241,6 +266,9 @@ func reset() -> void:
 	gold_magnet_active = false
 	score = 0
 	_prev_high = high_score   # 이번 판이 깨야 할 기준점 = 현재 최고점 (high_score 는 유지)
+	xp = 0
+	level = 1
+	xp_to_next = 12
 	upgrade_speed = 0
 	upgrade_atk_speed = 0
 	upgrade_bullet_damage = 0
@@ -253,3 +281,4 @@ func reset() -> void:
 	upgrade_lightning_count = 0
 	gold_changed.emit(total_gold)
 	score_changed.emit(score)
+	xp_changed.emit(xp, xp_to_next, level)

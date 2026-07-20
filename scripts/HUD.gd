@@ -59,6 +59,10 @@ var _wave_fill: ColorRect = null
 var _swarm_banner: Label = null
 var _swarm_tween: Tween = null
 
+# 인게임 레벨 표시 — 코드로 생성. 웨이브 바 아래 얇은 경험치 바 + 좌측 레벨 라벨.
+var _xp_fill: ColorRect = null
+var _level_label: Label = null
+
 
 func _ready() -> void:
 	# 게임오버로 트리를 일시정지해도 HUD(게임오버 패널·버튼·블러)는 계속 동작해야 한다.
@@ -73,6 +77,7 @@ func _ready() -> void:
 	_build_revive_button()
 	_build_hud_icons()
 	_build_wave_bar()
+	_build_xp_bar()
 	_build_swarm_banner()
 	_build_gameover_stats()
 	_build_blur_overlay()
@@ -96,6 +101,7 @@ func _ready() -> void:
 	Events.boss_health_changed.connect(_on_boss_health_changed)
 	Events.boss_died.connect(_on_boss_died)
 	Events.swarm_incoming.connect(_on_swarm_incoming)
+	Events.xp_changed.connect(_on_xp_changed)
 	restart_button.pressed.connect(_on_restart_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
 	AdManager.rewarded_granted.connect(_on_rewarded_granted)
@@ -107,6 +113,7 @@ func _ready() -> void:
 	_on_wave_progress_changed(Events.wave_kill_progress, Events.wave_kill_total)
 	_on_score_changed(Events.score)
 	_on_high_score_changed(Events.high_score)
+	_on_xp_changed(Events.xp, Events.xp_to_next, Events.level)
 
 
 ## 둥근 패널/라벨이 자신의 중심을 기준으로 스케일되도록 pivot 보정 (레이아웃 확정 후 1회).
@@ -352,6 +359,39 @@ func _build_wave_bar() -> void:
 	_wave_fill.anchor_bottom = 1.0
 	_wave_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.add_child(_wave_fill)
+
+
+## 경험치 바(웨이브 바 바로 아래) + 좌측 레벨 라벨 — 코드로 생성.
+func _build_xp_bar() -> void:
+	var bg := ColorRect.new()
+	bg.color = Color(0.0, 0.0, 0.0, 0.45)
+	bg.anchor_right = 1.0
+	bg.offset_top = 139.0
+	bg.offset_bottom = 145.0
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bg)
+	_xp_fill = ColorRect.new()
+	_xp_fill.color = Color(0.45, 0.80, 1.0, 0.95)
+	_xp_fill.anchor_right = 0.0
+	_xp_fill.anchor_bottom = 1.0
+	_xp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bg.add_child(_xp_fill)
+
+	_level_label = Label.new()
+	_level_label.anchor_left = 0.0
+	_level_label.offset_left = 8.0
+	_level_label.offset_top = 146.0
+	_level_label.add_theme_font_size_override("font_size", 14)
+	_level_label.add_theme_color_override("font_color", Color(0.6, 0.85, 1.0))
+	_level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_level_label)
+
+
+func _on_xp_changed(xp: int, xp_to_next: int, level: int) -> void:
+	if _xp_fill:
+		_xp_fill.anchor_right = clampf(float(xp) / float(maxi(xp_to_next, 1)), 0.0, 1.0)
+	if _level_label:
+		_level_label.text = "Lv.%d" % level
 
 
 func _on_wave_complete(wave: int) -> void:

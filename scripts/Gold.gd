@@ -112,6 +112,7 @@ func _physics_process(delta: float) -> void:
 func _collect() -> void:
 	_alive = false
 	Events.add_gold(value)
+	Events.add_xp(value)   # 코인은 골드이자 경험치 — 수집이 곧 인게임 성장(레벨업) 동력
 	SoundManager.play("gold", 0.05)
 	# 잠깐 커졌다가 풀로 반납(스파클 효과) — _physics_process 에서 타이머로 진행
 	_collecting = true
