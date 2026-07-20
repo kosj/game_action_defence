@@ -55,6 +55,10 @@ var _go_vals: Dictionary = {}   # "score"/"best"/"wave"/"kills"/"time" -> Label
 # 웨이브 진행 바(상단 바 하단의 얇은 채움 바) — 코드로 생성.
 var _wave_fill: ColorRect = null
 
+# 스웜 경고 배너 — 코드로 생성. 무리/엘리트 팩 등장 직전 화면 중앙 상단에 붉게 번쩍.
+var _swarm_banner: Label = null
+var _swarm_tween: Tween = null
+
 
 func _ready() -> void:
 	# 게임오버로 트리를 일시정지해도 HUD(게임오버 패널·버튼·블러)는 계속 동작해야 한다.
@@ -69,6 +73,7 @@ func _ready() -> void:
 	_build_revive_button()
 	_build_hud_icons()
 	_build_wave_bar()
+	_build_swarm_banner()
 	_build_gameover_stats()
 	_build_blur_overlay()
 	UITheme.heading(wave_clear_label)
@@ -90,6 +95,7 @@ func _ready() -> void:
 	Events.boss_spawned.connect(_on_boss_spawned)
 	Events.boss_health_changed.connect(_on_boss_health_changed)
 	Events.boss_died.connect(_on_boss_died)
+	Events.swarm_incoming.connect(_on_swarm_incoming)
 	restart_button.pressed.connect(_on_restart_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
 	AdManager.rewarded_granted.connect(_on_rewarded_granted)
@@ -164,6 +170,39 @@ func _on_boss_died() -> void:
 	var tw := create_tween()
 	tw.tween_property(boss_bar, "modulate:a", 0.0, 0.4)
 	tw.tween_callback(func(): boss_bar.visible = false)
+
+
+## 스웜 경고 배너 — 화면 상단 중앙에 코드로 생성(씬 수정 없이).
+func _build_swarm_banner() -> void:
+	_swarm_banner = Label.new()
+	_swarm_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_swarm_banner.offset_top = 190.0
+	_swarm_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_swarm_banner.add_theme_font_size_override("font_size", 30)
+	_swarm_banner.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25))
+	_swarm_banner.add_theme_color_override("font_outline_color", Color(0.4, 0.05, 0.05))
+	_swarm_banner.add_theme_constant_override("outline_size", 6)
+	_swarm_banner.modulate.a = 0.0
+	_swarm_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_swarm_banner)
+
+
+## 무리/엘리트 팩 경고를 배너로 번쩍인다(등장 직전 대비 시간).
+func _on_swarm_incoming(elite: bool) -> void:
+	if _swarm_banner == null:
+		return
+	_swarm_banner.text = "⚠ ELITE PACK" if elite else "⚠ SWARM"
+	_swarm_banner.add_theme_color_override("font_color", Color(1.0, 0.55, 0.25) if elite else Color(1.0, 0.85, 0.25))
+	if _swarm_tween and _swarm_tween.is_valid():
+		_swarm_tween.kill()
+	_swarm_banner.modulate.a = 0.0
+	_swarm_banner.scale = Vector2(0.7, 0.7)
+	_swarm_banner.pivot_offset = _swarm_banner.size * 0.5
+	_swarm_tween = create_tween()
+	_swarm_tween.tween_property(_swarm_banner, "modulate:a", 1.0, 0.18)
+	_swarm_tween.parallel().tween_property(_swarm_banner, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_swarm_tween.tween_interval(0.7)
+	_swarm_tween.tween_property(_swarm_banner, "modulate:a", 0.0, 0.4)
 
 
 func _on_player_health_changed(health: int, max_health: int) -> void:

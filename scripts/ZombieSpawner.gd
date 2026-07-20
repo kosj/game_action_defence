@@ -27,6 +27,20 @@ const BOSS_SEQUENCE: Array = ["brute", "gunner", "summoner", "bomber", "berserk"
 ## 서머너 소환 시 전장 과밀 상한 — 이 수를 넘겨 살아있으면 소환을 억제한다(성능·공정성).
 const SUMMON_ALIVE_CAP: int = 44
 
+## 스웜 이벤트: 웨이브 도중 한 무리가 한 방향에서 떼로 몰려온다(뱀서식 긴장 스파이크).
+## 텔레그래프(경고) 후 클러스터로 스폰. 일부는 엘리트 팩(더 크고 강하고 보상 큼).
+const SWARM_MIN_INTERVAL := 15.0
+const SWARM_MAX_INTERVAL := 24.0
+const SWARM_TELEGRAPH := 1.0        # 경고 배너~실제 등장까지 여유(대비 시간)
+const SWARM_COUNT := 12             # 한 번에 몰려오는 수
+const SWARM_ELITE_CHANCE := 0.35    # 엘리트 팩 확률
+const SWARM_SPREAD := 70.0          # 클러스터 산개 반경
+const SWARM_ELITE_HP_MULT := 1.7
+const SWARM_ELITE_SCALE := 1.35
+var _swarm_cd: float = 0.0
+var _swarm_tel: float = -1.0        # >0 이면 경고 후 등장 대기 중
+var _swarm_elite: bool = false
+
 ## 웨이브 테이블: total=이 웨이브에서 처치해야 할 총 좀비 수, max_z=최대 동시 출현 수.
 ## weights 의 인덱스는 ZOMBIE_TYPES 와 1:1 대응 — 후반 웨이브일수록 강한 종을 더 많이 섞는다.
 ## 1~2웨이브는 짧게(권총만 있는 초반이 늘어지지 않게), 6웨이브 이후에는 테이블이 고정되는 대신
@@ -107,6 +121,8 @@ func _start_wave() -> void:
 	_boss_spawned = false
 	_boss_alive = false
 	_escort_accum = 0.0
+	_swarm_cd = randf_range(SWARM_MIN_INTERVAL, SWARM_MAX_INTERVAL)
+	_swarm_tel = -1.0
 	# Easy 는 킬 목표를 줄여 웨이브가 늘어지지 않게 한다(스폰도 느려 총 시간이 길어지던 문제).
 	_wave_total = maxi(1, int(round(float(WAVES[_wave_idx]["total"]) * Events.diff_total_mult())))
 	Events.current_wave = _wave_num
@@ -149,6 +165,9 @@ func _process(delta: float) -> void:
 			_escort_accum = 0.0
 			if _alive_zombies < wave["max_z"]:
 				_spawn_one(_pick_type(wave["weights"]))
+
+	# 스웜 이벤트(비-보스 웨이브, 2웨이브부터) — 주기적으로 한 무리가 떼로 몰려온다.
+	_tick_swarm(delta, wave)
 
 	# 웨이브 완료 판정
 	if _killed >= _wave_total:
@@ -210,6 +229,50 @@ func _spawn_one(type_data: Dictionary) -> void:
 	d["speed"] = float(type_data["speed"]) * Events.diff_enemy_speed_mult() * Events.wave_speed_pressure(_wave_num)
 	z.setup(d)
 	_alive_zombies += 1
+
+
+## 스웜 이벤트 틱: 경고(swarm_incoming) → SWARM_TELEGRAPH 후 클러스터 등장.
+## 보스 웨이브·1웨이브에서는 발동하지 않고, 막판(킬 목표 85% 도달)엔 새 무리를 부르지 않는다.
+func _tick_swarm(delta: float, wave: Dictionary) -> void:
+	if _is_boss_wave or _wave_num < 2:
+		return
+	if _swarm_tel > 0.0:
+		_swarm_tel -= delta
+		if _swarm_tel <= 0.0:
+			_spawn_swarm(wave)
+		return
+	if _killed >= int(_wave_total * 0.85):
+		return
+	_swarm_cd -= delta
+	if _swarm_cd <= 0.0 and _alive_zombies < wave["max_z"]:
+		_swarm_cd = randf_range(SWARM_MIN_INTERVAL, SWARM_MAX_INTERVAL)
+		_swarm_elite = randf() < SWARM_ELITE_CHANCE
+		_swarm_tel = SWARM_TELEGRAPH
+		Events.swarm_incoming.emit(_swarm_elite)
+
+
+## 한 방향(off-screen 한 지점 근처)에서 한 종을 떼로 스폰. 엘리트면 더 크고 강하며 보상도 크다.
+func _spawn_swarm(wave: Dictionary) -> void:
+	if not is_instance_valid(player):
+		return
+	var base_type: Dictionary = _pick_type(wave["weights"])
+	var center := _random_spawn_pos()
+	var hp_pressure := Events.wave_pressure_mult(_wave_num)
+	for i in range(SWARM_COUNT):
+		var z := Pool.acquire(ZOMBIE, get_tree().current_scene)
+		z.global_position = center + Vector2(randf_range(-SWARM_SPREAD, SWARM_SPREAD), randf_range(-SWARM_SPREAD, SWARM_SPREAD))
+		var d := base_type.duplicate()
+		var hp_mult := Events.diff_enemy_hp_mult() * hp_pressure
+		if _swarm_elite:
+			hp_mult *= SWARM_ELITE_HP_MULT
+			d["scale"] = float(base_type.get("scale", 1.0)) * SWARM_ELITE_SCALE
+			d["score"] = int(base_type.get("score", 10)) * 3
+			d["contact"] = int(base_type.get("contact", 1)) + 1
+		d["max_health"] = maxi(1, int(round(float(base_type["max_health"]) * hp_mult)))
+		d["speed"] = float(base_type["speed"]) * Events.diff_enemy_speed_mult() * Events.wave_speed_pressure(_wave_num)
+		z.setup(d)
+		_alive_zombies += 1
+	Events.shake(4.0)   # 무리 등장 진동
 
 
 ## 보스 소환 + 호위 정예 좀비. 보스 처치 시까지 웨이브 완료가 보류된다.
