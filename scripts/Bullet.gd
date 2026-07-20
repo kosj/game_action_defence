@@ -16,6 +16,7 @@ var _alive: bool = false
 
 const _ZOMBIE_RADIUS := 14.0   # Zombie.tscn 충돌 반경
 const _BOSS_RADIUS := 38.0     # Boss.tscn 충돌 반경
+const _KNOCKBACK := 135.0      # 직격 시 좀비를 진행 방향으로 살짝 밀어내는 세기(타격감)
 
 
 func _ready() -> void:
@@ -88,6 +89,8 @@ func _resolve_hit(c: Node, pos: Vector2) -> void:
 		_splash_hit()
 	elif c.has_method("take_damage"):
 		c.take_damage(damage)
+		if c.has_method("apply_knockback"):   # 좀비만 넉백(보스는 메서드가 없어 면역)
+			c.apply_knockback(direction, _KNOCKBACK)
 	_despawn()
 
 
