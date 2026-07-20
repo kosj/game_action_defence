@@ -31,13 +31,15 @@ const SUMMON_ALIVE_CAP: int = 44
 ## weights 의 인덱스는 ZOMBIE_TYPES 와 1:1 대응 — 후반 웨이브일수록 강한 종을 더 많이 섞는다.
 ## 1~2웨이브는 짧게(권총만 있는 초반이 늘어지지 않게), 6웨이브 이후에는 테이블이 고정되는 대신
 ## Events.wave_pressure_mult() 가 적 체력을 복리로 올려 무한히 어려워진다.
+## max_z 상향: 좀비끼리 물리 충돌쌍 제거(collision_mask=0) 후 동시 개체 여유가 생겨,
+## 화면을 더 빽빽하게 채워 "물량 압박" 긴장감을 준다(뱀서식 스웜). 값은 밸런스 손잡이.
 const WAVES: Array = [
-	{"total": 60,  "max_z": 32,  "interval": 0.9,  "weights": [10, 0, 0, 0, 0, 0, 0, 0, 0]},
-	{"total": 100, "max_z": 48,  "interval": 0.70, "weights": [8,  2, 0, 2, 0, 0, 1, 0, 0]},
-	{"total": 180, "max_z": 64,  "interval": 0.55, "weights": [6,  3, 1, 3, 1, 0, 2, 1, 1]},
-	{"total": 240, "max_z": 80,  "interval": 0.45, "weights": [5,  3, 2, 3, 2, 1, 2, 2, 2]},
-	{"total": 320, "max_z": 100, "interval": 0.35, "weights": [4,  4, 2, 3, 3, 1, 2, 2, 2]},
-	{"total": 400, "max_z": 120, "interval": 0.25, "weights": [3,  4, 3, 3, 3, 2, 3, 3, 3]},
+	{"total": 60,  "max_z": 42,  "interval": 0.9,  "weights": [10, 0, 0, 0, 0, 0, 0, 0, 0]},
+	{"total": 100, "max_z": 64,  "interval": 0.70, "weights": [8,  2, 0, 2, 0, 0, 1, 0, 0]},
+	{"total": 180, "max_z": 88,  "interval": 0.55, "weights": [6,  3, 1, 3, 1, 0, 2, 1, 1]},
+	{"total": 240, "max_z": 112, "interval": 0.45, "weights": [5,  3, 2, 3, 2, 1, 2, 2, 2]},
+	{"total": 320, "max_z": 140, "interval": 0.35, "weights": [4,  4, 2, 3, 3, 1, 2, 2, 2]},
+	{"total": 400, "max_z": 170, "interval": 0.25, "weights": [3,  4, 3, 3, 3, 2, 3, 3, 3]},
 ]
 
 ## 좀비 종류 테이블. 0~5 는 근접 추격형, 6~8 은 고유 행동 패턴(behavior: weaver/spitter/bomber).

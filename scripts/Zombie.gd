@@ -212,6 +212,7 @@ func _explode() -> void:
 		if player.has_method("take_hit"):
 			player.take_hit(_contact_damage)
 	_FXBurst.spawn(get_tree().current_scene, global_position, Color(1.0, 0.45, 0.15), BOMB_RADIUS, 0.4)
+	Events.shake(5.0)   # 자폭 폭발 타격감
 	_die()   # 처치로 집계 — 웨이브 진행/골드 드랍 처리
 
 

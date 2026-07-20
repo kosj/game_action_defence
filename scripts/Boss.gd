@@ -386,6 +386,8 @@ func _die() -> void:
 	SoundManager.play("zombie_die")
 	Events.add_score(score_value)
 	Events.boss_died.emit()
+	Events.shake(11.0)      # 보스 폭사 — 강한 화면 흔들림
+	Events.hit_stop()       # 순간 정지로 한 방의 무게감
 
 	# 다중 충격파 — 흰 섬광 → 황금 링 → 주황 링이 시간차로 번지며 터진다.
 	_burst(Color(1.0, 1.0, 0.85), 70.0,  0.28, 0.0)    # 중심 흰 섬광
