@@ -48,6 +48,12 @@ var _flash: float = 0.0      # 피격 잔광 잔여 시간 — 매 프레임 Twe
 var _walk_phase: float = 0.0     # 걷기 애니메이션 위상(이동 거리로 진행)
 var _body_base_scale: float = 1.0   # 종류별 기본 스프라이트 스케일(스쿼시는 이 값을 기준으로)
 
+# 넉백(피격 반응): 총알 직격 시 잠깐 뒤로 밀린다 — "총알이 박히는" 타격감.
+# 빠르게 감쇠해 순 이동은 미미(밸런스 영향 최소). 누적 상한으로 폭주 방지.
+const KNOCKBACK_DECAY := 1400.0   # 감쇠 가속(px/s^2) — 클수록 금방 멈춘다
+const KNOCKBACK_MAX := 170.0      # 넉백 속도 상한(px/s)
+var _knockback: Vector2 = Vector2.ZERO
+
 
 func _ready() -> void:
 	add_to_group("zombies")
@@ -58,6 +64,7 @@ func on_spawn() -> void:
 	health = max_health
 	velocity = Vector2.ZERO
 	_flash = 0.0
+	_knockback = Vector2.ZERO
 	_alive = true
 	if player == null or not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
@@ -120,6 +127,10 @@ func _physics_process(delta: float) -> void:
 	# 이번 프레임 이동량으로 걷기 애니메이션을 진행(behave 가 매 프레임 body.rotation 을
 	# 진행 방향으로 재설정하므로, 그 위에 좌우 흔들림·스쿼시를 더한다).
 	_animate_walk(global_position.distance_to(prev_pos))
+	# 넉백은 걷기 애니메이션에 반영하지 않고 순수 위치 이동으로만 적용(빠르게 감쇠).
+	if _knockback != Vector2.ZERO:
+		global_position += _knockback * delta
+		_knockback = _knockback.move_toward(Vector2.ZERO, KNOCKBACK_DECAY * delta)
 
 
 ## 절차적 걷기: 이동 거리에 비례해 위상을 진행시켜, 좌우로 뒤뚱거리고(tilt) 발을 딛을 때마다
@@ -216,6 +227,13 @@ func _explode() -> void:
 	_die()   # 처치로 집계 — 웨이브 진행/골드 드랍 처리
 
 
+## 총알 직격 방향으로 잠깐 밀어낸다(Bullet 이 호출). 보스는 이 메서드가 없어 자연히 면역.
+func apply_knockback(dir: Vector2, force: float) -> void:
+	if not _alive:
+		return
+	_knockback = (_knockback + dir * force).limit_length(KNOCKBACK_MAX)
+
+
 func take_damage(amount: int) -> void:
 	if not _alive:
 		return
@@ -233,7 +251,10 @@ func _die() -> void:
 	remove_from_group("zombies")
 	Events.zombie_killed.emit()
 	Events.add_score(_score_value)
-	_FXBurst.spawn(get_tree().current_scene, global_position, _type_color, 38.0, 0.38)
+	var scene := get_tree().current_scene
+	# 피 스플랫(어두운 적색) + 종류색 파편 — 터질 때 "우수수" 쾌감. FX 는 풀링돼 부하 최소.
+	_FXBurst.spawn(scene, global_position, Color(0.58, 0.05, 0.06), 44.0, 0.32)
+	_FXBurst.spawn(scene, global_position, _type_color, 34.0, 0.30)
 	var g := Pool.acquire(GOLD, get_tree().current_scene)
 	g.global_position = global_position
 	Pool.release(self)
