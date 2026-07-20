@@ -14,6 +14,7 @@ extends CharacterBody2D
 const GOLD := preload("res://scenes/Gold.tscn")
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 const _BossShell := preload("res://scripts/BossShell.gd")
+const _DamageNumber := preload("res://scripts/DamageNumber.gd")
 const ENEMY_BULLET := preload("res://scenes/EnemyBullet.tscn")
 
 @onready var body: Node2D = $Body
@@ -361,6 +362,8 @@ func take_damage(amount: int) -> void:
 	if not _alive:
 		return
 	health = max(0, health - amount)
+	# 보스 피해 숫자는 크게·노랗게, 프레임 상한과 무관하게 항상 표시(한 방의 강조).
+	_DamageNumber.spawn(get_tree().current_scene, global_position + Vector2(0, -40), amount, true, Color(1.0, 0.85, 0.3))
 	Events.boss_health_changed.emit(health, max_health)
 	SoundManager.play("zombie_hit")
 	body.modulate = Color(1, 1, 1)
