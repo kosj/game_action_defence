@@ -8,6 +8,7 @@ extends CharacterBody2D
 const GOLD := preload("res://scenes/Gold.tscn")
 const ENEMY_BULLET := preload("res://scenes/EnemyBullet.tscn")
 const _FXBurst := preload("res://scripts/FXBurst.gd")
+const _DamageNumber := preload("res://scripts/DamageNumber.gd")
 
 # 행동 패턴 파라미터
 const WEAVE_FREQ := 6.5          # weaver 좌우 흔들림 주파수
@@ -238,6 +239,7 @@ func take_damage(amount: int) -> void:
 	if not _alive:
 		return
 	health -= amount
+	_DamageNumber.spawn(get_tree().current_scene, global_position, amount)
 	SoundManager.play("zombie_hit")
 	body.modulate = _HIT_COLOR   # 피격 순간 붉게 번쩍 — 이후 _physics_process 에서 흰색으로 감쇠
 	_flash = _HIT_FLASH
