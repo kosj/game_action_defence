@@ -166,6 +166,7 @@ var upgrade_speed: int = 0
 var upgrade_atk_speed: int = 0
 var upgrade_bullet_damage: int = 0
 var upgrade_orb_damage: int = 0
+var upgrade_orb_speed: int = 0         # 오브 공전 회전속도 (+35%/레벨)
 var upgrade_lightning_damage: int = 0
 var upgrade_max_health: int = 0
 var upgrade_multi_bullet: int = 0
@@ -273,6 +274,7 @@ func reset() -> void:
 	upgrade_atk_speed = 0
 	upgrade_bullet_damage = 0
 	upgrade_orb_damage = 0
+	upgrade_orb_speed = 0
 	upgrade_lightning_damage = 0
 	upgrade_max_health = 0
 	upgrade_multi_bullet = 0
