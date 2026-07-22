@@ -3,6 +3,7 @@ extends CanvasLayer
 
 const HEART_FULL := preload("res://assets/ui/ui_heart_full.png")
 const HEART_EMPTY := preload("res://assets/ui/ui_heart_empty.png")
+const FOG_TEX := preload("res://assets/ui/fog_vision.png")   # 주변 시야 제한 오버레이(방사형 암전)
 const _UIStyle := preload("res://scripts/UIStyle.gd")
 
 @onready var top_bg: Panel = $TopBg
@@ -74,6 +75,7 @@ func _ready() -> void:
 	_UIStyle.apply_button_style(main_menu_button, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
 	restart_button.text = Locale.t("go_retry")
 	main_menu_button.text = Locale.t("go_menu")
+	_build_fog()
 	_build_revive_button()
 	_build_hud_icons()
 	_build_wave_bar()
@@ -359,6 +361,19 @@ func _build_wave_bar() -> void:
 	_wave_fill.anchor_bottom = 1.0
 	_wave_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.add_child(_wave_fill)
+
+
+## 주변 시야 제한 오버레이 — 화면 중앙(카메라가 플레이어를 중앙 고정)만 선명하고 바깥은 암전.
+## HUD(월드 위 CanvasLayer)의 "가장 아래" 자식으로 깔아, 월드는 가리되 HUD 위젯은 그 위에 보이게 한다.
+func _build_fog() -> void:
+	var fog := TextureRect.new()
+	fog.texture = FOG_TEX
+	fog.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fog.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	fog.stretch_mode = TextureRect.STRETCH_SCALE
+	fog.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(fog)
+	move_child(fog, 0)   # 최하단으로 — 월드 위, 모든 HUD 위젯 아래
 
 
 ## 경험치 바(웨이브 바 바로 아래) + 좌측 레벨 라벨 — 코드로 생성.

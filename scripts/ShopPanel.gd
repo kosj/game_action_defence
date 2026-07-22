@@ -14,6 +14,7 @@ const UPGRADES: Array = [
 	{"section": "WEAPON",    "id": "multi_bullet",     "label": "Multi-Shot",    "desc": "+1 extra bullet",          "costs": [50, 90, 150, 230, 330, 450]},
 	{"section": "ORB",       "id": "orbs",             "label": "Orb Shield",    "desc": "+1 orbiting orb",          "costs": [40, 70, 110, 160, 220, 290, 370, 460]},
 	{"section": "ORB",       "id": "orb_damage",       "label": "Orb Dmg",       "desc": "+1 orb damage",            "costs": [30, 55, 85, 125, 170, 225, 285, 355]},
+	{"section": "ORB",       "id": "orb_speed",        "label": "Orb Speed",     "desc": "+35% orbit speed",         "costs": [30, 55, 85, 125, 170, 225, 285]},
 	{"section": "LIGHTNING", "id": "lightning_count",  "label": "Lightning Count","desc": "+1 lightning bolt",        "costs": [60, 110, 170, 245, 335, 440, 560]},
 	{"section": "LIGHTNING", "id": "lightning_damage", "label": "Lightning Dmg", "desc": "+1 lightning damage",      "costs": [30, 55, 85, 125, 170, 225, 285, 355]},
 	{"section": "SURVIVAL",  "id": "max_health",       "label": "Max HP",        "desc": "+1 heart (heals)",         "costs": [15, 25, 40, 55, 75, 95, 120, 145, 175, 210]},
@@ -261,6 +262,7 @@ func _get_level(id: String) -> int:
 		"atk_speed":        return Events.upgrade_atk_speed
 		"bullet_damage":    return Events.upgrade_bullet_damage
 		"orb_damage":       return Events.upgrade_orb_damage
+		"orb_speed":        return Events.upgrade_orb_speed
 		"lightning_damage": return Events.upgrade_lightning_damage
 		"multi_bullet":     return Events.upgrade_multi_bullet
 		"orbs":             return Events.upgrade_orbs
@@ -337,7 +339,7 @@ func _refresh_buttons() -> void:
 ## 효과가 실제로 나타나려면 먼저 사야 하는 기반 아이템이 있는 강화의 잠금 안내 키.
 ## 잠겨 있으면 해당 Locale 키를, 구매 가능하면 "" 를 반환.
 func _gate_hint(id: String) -> String:
-	if id == "orb_damage" and Events.upgrade_orbs == 0:
+	if (id == "orb_damage" or id == "orb_speed") and Events.upgrade_orbs == 0:
 		return "upg_requires_orbs"
 	if id == "lightning_damage" and Events.upgrade_lightning_count == 0:
 		return "upg_requires_lightning"
@@ -359,6 +361,7 @@ func _on_upgrade_pressed(id: String) -> void:
 		"atk_speed":        Events.upgrade_atk_speed += 1
 		"bullet_damage":    Events.upgrade_bullet_damage += 1
 		"orb_damage":       Events.upgrade_orb_damage += 1
+		"orb_speed":        Events.upgrade_orb_speed += 1
 		"lightning_damage": Events.upgrade_lightning_damage += 1
 		"multi_bullet":     Events.upgrade_multi_bullet += 1
 		"orbs":             Events.upgrade_orbs += 1

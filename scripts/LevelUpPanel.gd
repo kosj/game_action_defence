@@ -18,6 +18,7 @@ const PERKS: Array = [
 	{"id": "multi_bullet",     "label": "Multi-Shot",   "desc": "+1 추가 발사",     "color": _WEAPON, "max": 6},
 	{"id": "orbs",             "label": "Orb Shield",   "desc": "+1 공전 오브",     "color": _ORB,    "max": 8},
 	{"id": "orb_damage",       "label": "Orb DMG",      "desc": "+1 오브 데미지",   "color": _ORB,    "max": 8, "gate": "orbs"},
+	{"id": "orb_speed",        "label": "Orb Speed",    "desc": "+35% 회전 속도",   "color": _ORB,    "max": 7, "gate": "orbs"},
 	{"id": "lightning_count",  "label": "Lightning",    "desc": "+1 낙뢰 가닥",     "color": _LIGHT,  "max": 7},
 	{"id": "lightning_damage", "label": "Lightning DMG","desc": "+1 낙뢰 데미지",   "color": _LIGHT,  "max": 8, "gate": "lightning_count"},
 	{"id": "max_health",       "label": "Max HP",       "desc": "+1 하트 (회복)",   "color": _SURV,   "max": 10},
@@ -164,6 +165,7 @@ func _apply(id: String) -> void:
 		"multi_bullet":     Events.upgrade_multi_bullet += 1
 		"orbs":             Events.upgrade_orbs += 1
 		"orb_damage":       Events.upgrade_orb_damage += 1
+		"orb_speed":        Events.upgrade_orb_speed += 1
 		"lightning_count":  Events.upgrade_lightning_count += 1
 		"lightning_damage": Events.upgrade_lightning_damage += 1
 		"max_health":       Events.upgrade_max_health += 1
@@ -177,6 +179,7 @@ func _perk_level(id: String) -> int:
 		"multi_bullet":     return Events.upgrade_multi_bullet
 		"orbs":             return Events.upgrade_orbs
 		"orb_damage":       return Events.upgrade_orb_damage
+		"orb_speed":        return Events.upgrade_orb_speed
 		"lightning_count":  return Events.upgrade_lightning_count
 		"lightning_damage": return Events.upgrade_lightning_damage
 		"max_health":       return Events.upgrade_max_health

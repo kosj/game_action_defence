@@ -1,14 +1,13 @@
 extends Node2D
-## 공전 칼날: 플레이어를 중심으로 돌면서, 궤도 반경이 주기적으로 넓게 확장됐다가 다시
-## 돌아오기를 반복한다(넓은 영역을 휩쓰는 공격 연출). 외형은 빠르게 자전하는 이중 칼날.
+## 공전 칼날: 플레이어를 중심으로 "적당한 고정 거리"에서 회전만 한다(맥동 확장 없음).
+## 외형은 빠르게 자전하는 이중 칼날. 회전속도는 orb_speed 업그레이드로 빨라진다.
 
-const ORBIT_MIN := 70.0     # 수축 시 궤도 반경
-const ORBIT_MAX := 300.0    # 확장 시 궤도 반경(이전의 약 2배 — 훨씬 멀리 휩쓸고 복귀)
-const PULSE_PERIOD := 2.6   # 한 번 확장→복귀에 걸리는 시간(초, 더 먼 거리라 약간 여유롭게)
-const ORBIT_SPEED := 2.6    # 플레이어 주위를 도는 각속도(rad/s)
-const SPIN_SPEED := 15.0    # 칼날 자전 각속도(rad/s) — 공격적인 회전 느낌
-const HIT_COOLDOWN := 0.6   # 같은 적 재타격 간격
-const HIT_RADIUS := 28.0    # 피해 판정 반경(칼날 리치)
+const ORBIT_RADIUS := 120.0   # 캐릭터로부터의 고정 공전 반경(적당한 거리)
+const ORBIT_SPEED := 2.6      # 기본 공전 각속도(rad/s)
+const ORB_SPEED_STEP := 0.35  # orb_speed 업그레이드 1레벨당 공전 각속도 +35%
+const SPIN_SPEED := 15.0      # 칼날 자전 각속도(rad/s) — 공격적인 회전 느낌
+const HIT_COOLDOWN := 0.6     # 같은 적 재타격 간격
+const HIT_RADIUS := 28.0      # 피해 판정 반경(칼날 리치)
 
 const BLADE_LEN := 24.0
 const BLADE_W := 7.5
@@ -17,26 +16,21 @@ const _FXBurst := preload("res://scripts/FXBurst.gd")
 
 var _orbit_angle: float = 0.0
 var _spin: float = 0.0
-var _pulse_t: float = 0.0
 var _timers: Dictionary = {}
 
 
-## 여러 칼날을 각도만 균등 분산하고 확장 위상은 동기화 — 모두 같은 박자로 캐릭터를 중심으로
-## 일정하게 멀어졌다 돌아오게 한다(깔끔한 맥동 링).
+## 여러 칼날을 각도만 균등 분산 — 모두 고정 반경에서 같은 속도로 캐릭터를 중심으로 회전한다.
 func init_angle(a: float) -> void:
 	_orbit_angle = a
-	_pulse_t = 0.0
 
 
 func _physics_process(delta: float) -> void:
-	_orbit_angle += ORBIT_SPEED * delta
+	# 회전속도 업그레이드(orb_speed) 반영 — 레벨당 +35%.
+	var orbit_speed := ORBIT_SPEED * (1.0 + ORB_SPEED_STEP * Events.upgrade_orb_speed)
+	_orbit_angle += orbit_speed * delta
 	_spin += SPIN_SPEED * delta
-	_pulse_t += delta
 
-	# 0→1→0 으로 부드럽게 오갔다 돌아오는 확장 계수
-	var pulse := 0.5 - 0.5 * cos(_pulse_t * TAU / PULSE_PERIOD)
-	var radius := ORBIT_MIN + (ORBIT_MAX - ORBIT_MIN) * pulse
-	position = Vector2.from_angle(_orbit_angle) * radius
+	position = Vector2.from_angle(_orbit_angle) * ORBIT_RADIUS
 	rotation = _spin
 
 	# 재타격 쿨다운 감쇠
@@ -45,7 +39,7 @@ func _physics_process(delta: float) -> void:
 		if _timers[id] <= 0.0:
 			_timers.erase(id)
 
-	# 칼날 리치 안의 좀비에게 피해(확장 시 더 넓은 영역을 휩쓴다)
+	# 칼날 리치 안의 좀비에게 피해
 	var dmg := 1 + Events.upgrade_orb_damage
 	var r_sq := HIT_RADIUS * HIT_RADIUS
 	for z in get_tree().get_nodes_in_group("zombies"):
