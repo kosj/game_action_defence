@@ -22,6 +22,9 @@ const PERKS: Array = [
 	{"id": "lightning_count",  "label": "Lightning",    "desc": "+1 낙뢰 가닥",     "color": _LIGHT,  "max": 7},
 	{"id": "lightning_damage", "label": "Lightning DMG","desc": "+1 낙뢰 데미지",   "color": _LIGHT,  "max": 8, "gate": "lightning_count"},
 	{"id": "max_health",       "label": "Max HP",       "desc": "+1 하트 (회복)",   "color": _SURV,   "max": 10},
+	{"id": "crit",             "label": "Crit Chance",  "desc": "+8% 크리(2배)",    "color": _WEAPON, "max": 7},
+	{"id": "regen",            "label": "HP Regen",     "desc": "시간당 체력 회복", "color": _SURV,   "max": 6},
+	{"id": "pickup_range",     "label": "Pickup Range", "desc": "+30% 자석 범위",   "color": _SURV,   "max": 6},
 ]
 
 var _dim: ColorRect
@@ -169,6 +172,9 @@ func _apply(id: String) -> void:
 		"lightning_count":  Events.upgrade_lightning_count += 1
 		"lightning_damage": Events.upgrade_lightning_damage += 1
 		"max_health":       Events.upgrade_max_health += 1
+		"crit":             Events.upgrade_crit += 1
+		"regen":            Events.upgrade_regen += 1
+		"pickup_range":     Events.upgrade_pickup_range += 1
 
 
 func _perk_level(id: String) -> int:
@@ -183,4 +189,7 @@ func _perk_level(id: String) -> int:
 		"lightning_count":  return Events.upgrade_lightning_count
 		"lightning_damage": return Events.upgrade_lightning_damage
 		"max_health":       return Events.upgrade_max_health
+		"crit":             return Events.upgrade_crit
+		"regen":            return Events.upgrade_regen
+		"pickup_range":     return Events.upgrade_pickup_range
 	return 0
