@@ -90,6 +90,12 @@ var _game_over: bool = false
 var _alive_zombies: int = 0
 var _start_delay: float = 5.0   # first-wave spawn delay matches player grace period
 
+## 웨이브 간 자동 진행(뱀서식 연속 플레이): 상점을 없앤 대신, 웨이브 목표 달성 후 짧은
+## 브레이크(클리어 배너를 보여줄 시간)를 두고 다음 웨이브를 자동으로 시작한다. 일시정지는
+## 하지 않아 남은 좀비와 전투가 이어진다(연속 생존).
+const WAVE_BREAK := 1.6
+var _wave_break: float = 0.0
+
 # 보스 웨이브 상태
 var _is_boss_wave: bool = false
 var _boss_spawned: bool = false   # 이번 보스 웨이브에서 보스를 이미 소환했는가
@@ -143,6 +149,11 @@ func _process(delta: float) -> void:
 	_tick_elapsed()
 
 	if not _wave_active:
+		# 웨이브 클리어 후 브레이크가 끝나면 다음 웨이브를 자동으로 시작(상점 없이 연속 진행).
+		if _wave_break > 0.0:
+			_wave_break -= delta
+			if _wave_break <= 0.0:
+				_start_wave()
 		return
 
 	var wave: Dictionary = WAVES[_wave_idx]
@@ -203,6 +214,7 @@ func _on_zombie_killed() -> void:
 
 func _wave_complete() -> void:
 	_wave_active = false
+	_wave_break = WAVE_BREAK   # 짧은 브레이크 후 _process 에서 다음 웨이브 자동 시작
 	Events.wave_complete.emit(_wave_num)
 	_wave_num += 1
 	_wave_idx = mini(_wave_idx + 1, WAVES.size() - 1)

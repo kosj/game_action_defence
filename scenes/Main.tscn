@@ -1,10 +1,9 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/Main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2"]
 [ext_resource type="Script" path="res://scripts/ZombieSpawner.gd" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/HUD.tscn" id="4"]
-[ext_resource type="PackedScene" path="res://scenes/ShopPanel.tscn" id="5"]
 [ext_resource type="Script" path="res://scripts/Ground.gd" id="6"]
 [ext_resource type="Script" path="res://scripts/WeaponPickupSpawner.gd" id="7"]
 [ext_resource type="Script" path="res://scripts/ItemPickupSpawner.gd" id="8"]
@@ -38,7 +37,5 @@ script = ExtResource("7")
 script = ExtResource("8")
 
 [node name="HUD" parent="." instance=ExtResource("4")]
-
-[node name="ShopPanel" parent="." instance=ExtResource("5")]
 
 [node name="LevelUpPanel" parent="." instance=ExtResource("9")]

@@ -9,8 +9,8 @@ extends Node2D
 static var _pool: Array = []
 static var _frame: int = -1
 static var _spawned_this_frame: int = 0
-const MAX_PER_FRAME := 10        # 일반 숫자 프레임당 상한(초과분은 생략 — 피해엔 영향 없음)
-const LIFE := 0.55
+const MAX_PER_FRAME := 14        # 일반 숫자 프레임당 상한(초과분은 생략 — 피해엔 영향 없음)
+const LIFE := 0.6
 
 var _amount: int = 0
 var _t: float = 0.0
@@ -81,7 +81,7 @@ func _draw() -> void:
 	var t := clampf(_t / LIFE, 0.0, 1.0)
 	var a := 1.0 - t * t   # 끝으로 갈수록 빠르게 투명
 	var font := ThemeDB.fallback_font
-	var fsize := 34 if _big else 19
+	var fsize := 34 if _big else 24
 	var txt := str(_amount)
 	var half_w := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x * 0.5
 	var pos := Vector2(-half_w, 0.0)
