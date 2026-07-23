@@ -227,7 +227,9 @@ func _shoot_at(target: Node2D) -> void:
 		# 크리티컬(crit) 업그레이드: 레벨당 +8% 확률(상한 60%)로 데미지 2배. 탄마다 개별 판정.
 		var base_dmg: int = current_weapon["damage"] + Events.upgrade_bullet_damage
 		var crit_chance := minf(0.08 * Events.upgrade_crit, 0.6)
-		b.damage = (base_dmg * 2) if randf() < crit_chance else base_dmg
+		var is_crit_hit := crit_chance > 0.0 and randf() < crit_chance
+		b.damage = (base_dmg * 2) if is_crit_hit else base_dmg
+		b.is_crit = is_crit_hit
 		b.scale = Vector2.ONE * current_weapon["bullet_scale"]
 		b.trail_color = current_weapon["color"]
 		b.splash_radius = current_weapon["splash_radius"]

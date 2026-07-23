@@ -358,12 +358,13 @@ func _draw() -> void:
 	draw_rect(Rect2(-bar_w * 0.5, bar_y, bar_w * ratio, bar_h), fill)
 
 
-func take_damage(amount: int) -> void:
+func take_damage(amount: int, is_crit: bool = false) -> void:
 	if not _alive:
 		return
 	health = max(0, health - amount)
-	# 보스 피해 숫자는 크게·노랗게, 프레임 상한과 무관하게 항상 표시(한 방의 강조).
-	_DamageNumber.spawn(get_tree().current_scene, global_position + Vector2(0, -40), amount, true, Color(1.0, 0.85, 0.3))
+	# 보스 피해 숫자는 크게, 프레임 상한과 무관하게 항상 표시. 크리티컬은 주황으로 더 강조.
+	var num_col := Color(1.0, 0.45, 0.12) if is_crit else Color(1.0, 0.85, 0.3)
+	_DamageNumber.spawn(get_tree().current_scene, global_position + Vector2(0, -40), amount, true, num_col, true)
 	Events.boss_health_changed.emit(health, max_health)
 	SoundManager.play("zombie_hit")
 	body.modulate = Color(1, 1, 1)
