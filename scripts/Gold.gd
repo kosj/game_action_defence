@@ -84,12 +84,14 @@ func _physics_process(delta: float) -> void:
 		_collect()
 		return
 	# 자석 버프 중이거나 자석 범위 안에 들어오면 "포획" — 이후로는 속도를 누적하며 빨려든다.
-	if Events.gold_magnet_active or dist_sq <= magnet_radius * magnet_radius:
+	# 자석 범위 업그레이드(pickup_range): 레벨당 +30%.
+	var mag_r := magnet_radius * (1.0 + 0.30 * Events.upgrade_pickup_range)
+	if Events.gold_magnet_active or dist_sq <= mag_r * mag_r:
 		_captured = true
 	if _captured:
 		var dist := sqrt(dist_sq)
 		var dir := (player.global_position - global_position) / dist   # 정규화(이미 dist 계산됨)
-		var t := clampf(1.0 - dist / magnet_radius, 0.0, 1.0)   # 멀리 0 → 가까이 1
+		var t := clampf(1.0 - dist / mag_r, 0.0, 1.0)   # 멀리 0 → 가까이 1
 		if Events.gold_magnet_active:
 			t = maxf(t, 0.5)
 		# 가속: 가까울수록 더 세게 당긴다. 속도가 프레임마다 "쌓여" 점점 빨라진다.

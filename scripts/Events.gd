@@ -173,6 +173,9 @@ var upgrade_multi_bullet: int = 0
 var upgrade_orbs: int = 0
 var upgrade_lightning: int = 0
 var upgrade_lightning_count: int = 0   # 낙뢰 1회당 동시에 때리는 번개 가닥 수(+1 per level)
+var upgrade_pickup_range: int = 0      # 코인 자석 범위 (+30%/레벨)
+var upgrade_regen: int = 0             # 체력 재생 속도 (레벨 높을수록 빠름)
+var upgrade_crit: int = 0              # 크리티컬 확률 (+8%/레벨, 데미지 2배)
 
 
 # ── 좀비 스냅샷 캐시 ─────────────────────────────────────────────────
@@ -281,6 +284,9 @@ func reset() -> void:
 	upgrade_orbs = 0
 	upgrade_lightning = 0
 	upgrade_lightning_count = 0
+	upgrade_pickup_range = 0
+	upgrade_regen = 0
+	upgrade_crit = 0
 	gold_changed.emit(total_gold)
 	score_changed.emit(score)
 	xp_changed.emit(xp, xp_to_next, level)

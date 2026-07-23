@@ -17,7 +17,10 @@ const UPGRADES: Array = [
 	{"section": "ORB",       "id": "orb_speed",        "label": "Orb Speed",     "desc": "+35% orbit speed",         "costs": [30, 55, 85, 125, 170, 225, 285]},
 	{"section": "LIGHTNING", "id": "lightning_count",  "label": "Lightning Count","desc": "+1 lightning bolt",        "costs": [60, 110, 170, 245, 335, 440, 560]},
 	{"section": "LIGHTNING", "id": "lightning_damage", "label": "Lightning Dmg", "desc": "+1 lightning damage",      "costs": [30, 55, 85, 125, 170, 225, 285, 355]},
+	{"section": "WEAPON",    "id": "crit",             "label": "Crit Chance",   "desc": "+8% double damage",        "costs": [35, 60, 95, 140, 195, 260, 335]},
 	{"section": "SURVIVAL",  "id": "max_health",       "label": "Max HP",        "desc": "+1 heart (heals)",         "costs": [15, 25, 40, 55, 75, 95, 120, 145, 175, 210]},
+	{"section": "SURVIVAL",  "id": "regen",            "label": "HP Regen",      "desc": "Regen HP over time",       "costs": [40, 70, 110, 160, 220, 290]},
+	{"section": "SURVIVAL",  "id": "pickup_range",     "label": "Pickup Range",  "desc": "+30% magnet range",        "costs": [20, 35, 55, 80, 110, 145]},
 	{"section": "SURVIVAL",  "id": "heal",             "label": "Heal HP",       "desc": "Full HP restore",          "costs": [10, 15, 20, 25]},
 ]
 
@@ -268,6 +271,9 @@ func _get_level(id: String) -> int:
 		"orbs":             return Events.upgrade_orbs
 		"lightning_count":  return Events.upgrade_lightning_count
 		"max_health":       return Events.upgrade_max_health
+		"crit":             return Events.upgrade_crit
+		"regen":            return Events.upgrade_regen
+		"pickup_range":     return Events.upgrade_pickup_range
 	return 0
 
 
@@ -367,6 +373,9 @@ func _on_upgrade_pressed(id: String) -> void:
 		"orbs":             Events.upgrade_orbs += 1
 		"lightning_count":  Events.upgrade_lightning_count += 1
 		"max_health":       Events.upgrade_max_health += 1
+		"crit":             Events.upgrade_crit += 1
+		"regen":            Events.upgrade_regen += 1
+		"pickup_range":     Events.upgrade_pickup_range += 1
 		"heal":
 			var player := get_tree().get_first_node_in_group("player")
 			if player and player.has_method("heal_full"):

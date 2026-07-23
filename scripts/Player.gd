@@ -32,6 +32,7 @@ var health: int
 var _attack_accum: float = 0.0
 var _hurt_timer: float = 0.0
 var _dead: bool = false
+var _regen_accum: float = 0.0   # 체력 재생(regen) 업그레이드 누적 타이머
 
 # 최근접 적 캐시: _get_nearest_zombie() 는 좀비 그룹 전체를 순회하므로(O(n)) 매 프레임
 # 돌리면 대량 좀비 환경에서 비싸다. 짧은 주기로만 갱신하고 그 사이에는 캐시를 재사용한다.
@@ -102,6 +103,7 @@ func _physics_process(delta: float) -> void:
 	if _dead:
 		return
 	_tick_buffs(delta)
+	_tick_regen(delta)
 	# 무적 중 깜빡임 — 플레이어가 언제까지 안전한지 시각적으로 표시
 	if _hurt_timer > 0.0:
 		body.modulate.a = 1.0 if fmod(_hurt_timer, 0.4) > 0.2 else 0.35
@@ -126,6 +128,18 @@ func _physics_process(delta: float) -> void:
 	if _autosave_accum >= AUTOSAVE_INTERVAL:
 		_autosave_accum = 0.0
 		_autosave()
+
+
+## 체력 재생(regen) 업그레이드 — 레벨이 높을수록 빠르게 1씩 회복(최대 체력까지).
+func _tick_regen(delta: float) -> void:
+	if Events.upgrade_regen <= 0 or health >= max_health:
+		return
+	_regen_accum += delta
+	var interval := 5.0 / float(Events.upgrade_regen)   # Lv1=5초/회복, Lv5=1초/회복
+	if _regen_accum >= interval:
+		_regen_accum = 0.0
+		health = mini(max_health, health + 1)
+		Events.update_player_health(health, max_health)
 
 
 func _check_contact_damage() -> void:
@@ -210,7 +224,10 @@ func _shoot_at(target: Node2D) -> void:
 		b.direction = dir
 		b.rotation = dir.angle() + PI / 2
 		b.speed = BASE_BULLET_SPEED * current_weapon["bullet_speed_mult"]
-		b.damage = current_weapon["damage"] + Events.upgrade_bullet_damage
+		# 크리티컬(crit) 업그레이드: 레벨당 +8% 확률(상한 60%)로 데미지 2배. 탄마다 개별 판정.
+		var base_dmg: int = current_weapon["damage"] + Events.upgrade_bullet_damage
+		var crit_chance := minf(0.08 * Events.upgrade_crit, 0.6)
+		b.damage = (base_dmg * 2) if randf() < crit_chance else base_dmg
 		b.scale = Vector2.ONE * current_weapon["bullet_scale"]
 		b.trail_color = current_weapon["color"]
 		b.splash_radius = current_weapon["splash_radius"]
