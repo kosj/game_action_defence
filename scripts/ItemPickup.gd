@@ -8,7 +8,7 @@ const _FXBurst := preload("res://scripts/FXBurst.gd")
 @export var collect_radius: float = 34.0
 @export var lifetime: float = 22.0
 @export var fade_time: float = 3.0
-@export var magnet_duration: float = 10.0   # 획득 시 부여되는 자동 줍기 지속 시간(초)
+@export var magnet_duration: float = 16.0   # 획득 시 부여되는 자동 줍기 지속 시간(초)
 
 const ICON_COLOR := Color(1.0, 0.85, 0.2)
 

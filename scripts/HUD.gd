@@ -185,7 +185,7 @@ func _on_boss_died() -> void:
 func _build_swarm_banner() -> void:
 	_swarm_banner = Label.new()
 	_swarm_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_swarm_banner.offset_top = 190.0
+	_swarm_banner.offset_top = 300.0   # 무기/버프 라벨(y188~252)·보스 바와 겹치지 않게 아래로
 	_swarm_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_swarm_banner.add_theme_font_size_override("font_size", 30)
 	_swarm_banner.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25))
@@ -376,13 +376,14 @@ func _build_fog() -> void:
 	move_child(fog, 0)   # 최하단으로 — 월드 위, 모든 HUD 위젯 아래
 
 
-## 경험치 바(웨이브 바 바로 아래) + 좌측 레벨 라벨 — 코드로 생성.
+## 경험치 바 — 화면 "최상단 엣지"(전 너비)로 배치해 보스 체력바(y138~)와 겹치지 않게 한다.
+## 레벨 라벨은 상단 바의 빈 중앙(골드=좌, 웨이브=우 사이)에 둔다.
 func _build_xp_bar() -> void:
 	var bg := ColorRect.new()
-	bg.color = Color(0.0, 0.0, 0.0, 0.45)
+	bg.color = Color(0.0, 0.0, 0.0, 0.5)
 	bg.anchor_right = 1.0
-	bg.offset_top = 139.0
-	bg.offset_bottom = 145.0
+	bg.offset_top = 0.0
+	bg.offset_bottom = 5.0
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 	_xp_fill = ColorRect.new()
@@ -393,11 +394,16 @@ func _build_xp_bar() -> void:
 	bg.add_child(_xp_fill)
 
 	_level_label = Label.new()
-	_level_label.anchor_left = 0.0
-	_level_label.offset_left = 8.0
-	_level_label.offset_top = 146.0
-	_level_label.add_theme_font_size_override("font_size", 14)
-	_level_label.add_theme_color_override("font_color", Color(0.6, 0.85, 1.0))
+	_level_label.anchor_left = 0.5
+	_level_label.anchor_right = 0.5
+	_level_label.offset_left = -70.0
+	_level_label.offset_right = 70.0
+	_level_label.offset_top = 8.0
+	_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_level_label.add_theme_font_size_override("font_size", 20)
+	_level_label.add_theme_color_override("font_color", Color(0.62, 0.86, 1.0))
+	_level_label.add_theme_color_override("font_outline_color", Color(0.02, 0.05, 0.09))
+	_level_label.add_theme_constant_override("outline_size", 4)
 	_level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_level_label)
 
