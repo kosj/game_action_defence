@@ -11,6 +11,7 @@ const _FXBurst := preload("res://scripts/FXBurst.gd")
 var direction: Vector2 = Vector2.RIGHT
 var trail_color: Color = Color(1.0, 0.30, 0.10)
 var splash_radius: float = 0.0
+var is_crit: bool = false          # 이 탄이 크리티컬인지(Player._shoot_at 에서 주입) — 명중 시 강조 피드백
 var _age: float = 0.0
 var _alive: bool = false
 
@@ -29,6 +30,7 @@ func on_spawn() -> void:
 	scale = Vector2.ONE
 	trail_color = Color(1.0, 0.30, 0.10)
 	splash_radius = 0.0
+	is_crit = false
 
 
 func on_despawn() -> void:
@@ -88,7 +90,7 @@ func _resolve_hit(c: Node, pos: Vector2) -> void:
 	if splash_radius > 0.0:
 		_splash_hit()
 	elif c.has_method("take_damage"):
-		c.take_damage(damage)
+		c.take_damage(damage, is_crit)
 		if c.has_method("apply_knockback"):   # 좀비만 넉백(보스는 메서드가 없어 면역)
 			c.apply_knockback(direction, _KNOCKBACK)
 	_despawn()
@@ -114,7 +116,7 @@ func _on_body_entered(body: Node) -> void:
 		if splash_radius > 0.0:
 			_splash_hit()
 		elif body.has_method("take_damage"):
-			body.take_damage(damage)
+			body.take_damage(damage, is_crit)
 		_despawn()
 
 
@@ -125,7 +127,7 @@ func _splash_hit() -> void:
 		if not is_instance_valid(z):
 			continue
 		if global_position.distance_squared_to(z.global_position) <= r_sq and z.has_method("take_damage"):
-			z.take_damage(damage)
+			z.take_damage(damage, is_crit)
 	_FXBurst.spawn(get_tree().current_scene, global_position, trail_color, splash_radius, 0.3)
 
 

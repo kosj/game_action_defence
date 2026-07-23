@@ -12,19 +12,19 @@ const _SURV := Color(0.45, 0.85, 0.50)
 
 # 강화 카드 풀. max=이 판에서 카드로 올릴 수 있는 상한. gate=선행 강화가 있어야 등장.
 const PERKS: Array = [
-	{"id": "bullet_damage",    "label": "Bullet DMG",   "desc": "+1 총알 데미지",   "color": _WEAPON, "max": 15},
-	{"id": "atk_speed",        "label": "Fire Rate",    "desc": "-15% 발사 간격",   "color": _WEAPON, "max": 10},
-	{"id": "speed",            "label": "Move Speed",   "desc": "+30 이동 속도",    "color": _WEAPON, "max": 10},
-	{"id": "multi_bullet",     "label": "Multi-Shot",   "desc": "+1 추가 발사",     "color": _WEAPON, "max": 6},
-	{"id": "orbs",             "label": "Orb Shield",   "desc": "+1 공전 오브",     "color": _ORB,    "max": 8},
-	{"id": "orb_damage",       "label": "Orb DMG",      "desc": "+1 오브 데미지",   "color": _ORB,    "max": 8, "gate": "orbs"},
-	{"id": "orb_speed",        "label": "Orb Speed",    "desc": "+35% 회전 속도",   "color": _ORB,    "max": 7, "gate": "orbs"},
-	{"id": "lightning_count",  "label": "Lightning",    "desc": "+1 낙뢰 가닥",     "color": _LIGHT,  "max": 7},
-	{"id": "lightning_damage", "label": "Lightning DMG","desc": "+1 낙뢰 데미지",   "color": _LIGHT,  "max": 8, "gate": "lightning_count"},
-	{"id": "max_health",       "label": "Max HP",       "desc": "+1 하트 (회복)",   "color": _SURV,   "max": 10},
-	{"id": "crit",             "label": "Crit Chance",  "desc": "+8% 크리(2배)",    "color": _WEAPON, "max": 7},
-	{"id": "regen",            "label": "HP Regen",     "desc": "시간당 체력 회복", "color": _SURV,   "max": 6},
-	{"id": "pickup_range",     "label": "Pickup Range", "desc": "+30% 자석 범위",   "color": _SURV,   "max": 6},
+	{"id": "bullet_damage",    "label": "Bullet Dmg",     "desc": "+1 bullet damage",   "color": _WEAPON, "max": 15},
+	{"id": "atk_speed",        "label": "Atk Speed",      "desc": "-15% fire delay",    "color": _WEAPON, "max": 10},
+	{"id": "speed",            "label": "Move Speed",     "desc": "+30 move speed",     "color": _WEAPON, "max": 10},
+	{"id": "multi_bullet",     "label": "Multi-Shot",     "desc": "+1 extra bullet",    "color": _WEAPON, "max": 6},
+	{"id": "crit",             "label": "Crit Chance",    "desc": "+8% double damage",  "color": _WEAPON, "max": 7},
+	{"id": "orbs",             "label": "Orb Shield",     "desc": "+1 orbiting orb",    "color": _ORB,    "max": 8},
+	{"id": "orb_damage",       "label": "Orb Dmg",        "desc": "+1 orb damage",      "color": _ORB,    "max": 8, "gate": "orbs"},
+	{"id": "orb_speed",        "label": "Orb Speed",      "desc": "+35% orbit speed",   "color": _ORB,    "max": 7, "gate": "orbs"},
+	{"id": "lightning_count",  "label": "Lightning Count","desc": "+1 lightning bolt",  "color": _LIGHT,  "max": 7},
+	{"id": "lightning_damage", "label": "Lightning Dmg",  "desc": "+1 lightning damage","color": _LIGHT,  "max": 8, "gate": "lightning_count"},
+	{"id": "max_health",       "label": "Max HP",         "desc": "+1 heart (heals)",   "color": _SURV,   "max": 10},
+	{"id": "regen",            "label": "HP Regen",       "desc": "Regen HP over time", "color": _SURV,   "max": 6},
+	{"id": "pickup_range",     "label": "Pickup Range",   "desc": "+30% magnet range",  "color": _SURV,   "max": 6},
 ]
 
 var _dim: ColorRect
@@ -101,7 +101,7 @@ func _present() -> void:
 
 
 func _refresh() -> void:
-	_title.text = "LEVEL %d  ·  강화 선택" % Events.level
+	_title.text = "LEVEL %d  ·  CHOOSE AN UPGRADE" % Events.level
 	for c in _card_box.get_children():
 		_card_box.remove_child(c)
 		c.queue_free()

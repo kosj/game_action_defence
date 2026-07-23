@@ -20,13 +20,14 @@ var _color: Color = Color.WHITE
 var _vel: Vector2 = Vector2(0, -50)
 
 
-## big=true 는 상한을 무시하고 항상 표시(보스·크리티컬 등 강조할 한 방).
-static func spawn(parent: Node, pos: Vector2, amount: int, big: bool = false, color: Color = Color(1, 1, 1)) -> void:
+## big=true 는 큰 글씨(강조). bypass_cap=true 는 프레임 상한을 무시하고 항상 표시(보스처럼 드문 한 방).
+## 크리티컬은 big=true·주황색으로 크게 보이되, 대량 발생 가능하므로 상한은 지킨다(bypass_cap=false).
+static func spawn(parent: Node, pos: Vector2, amount: int, big: bool = false, color: Color = Color(1, 1, 1), bypass_cap: bool = false) -> void:
 	var f := Engine.get_physics_frames()
 	if f != _frame:
 		_frame = f
 		_spawned_this_frame = 0
-	if not big:
+	if not bypass_cap:
 		if _spawned_this_frame >= MAX_PER_FRAME:
 			return
 		_spawned_this_frame += 1
@@ -80,7 +81,7 @@ func _draw() -> void:
 	var t := clampf(_t / LIFE, 0.0, 1.0)
 	var a := 1.0 - t * t   # 끝으로 갈수록 빠르게 투명
 	var font := ThemeDB.fallback_font
-	var fsize := 30 if _big else 19
+	var fsize := 34 if _big else 19
 	var txt := str(_amount)
 	var half_w := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x * 0.5
 	var pos := Vector2(-half_w, 0.0)

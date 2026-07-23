@@ -235,14 +235,23 @@ func apply_knockback(dir: Vector2, force: float) -> void:
 	_knockback = (_knockback + dir * force).limit_length(KNOCKBACK_MAX)
 
 
-func take_damage(amount: int) -> void:
+const _CRIT_COLOR := Color(1.0, 0.55, 0.1)
+
+func take_damage(amount: int, is_crit: bool = false) -> void:
 	if not _alive:
 		return
 	health -= amount
-	_DamageNumber.spawn(get_tree().current_scene, global_position, amount)
-	SoundManager.play("zombie_hit")
+	if is_crit:
+		# 크리티컬 피드백: 큰 주황 데미지 숫자 + 더 오래/강하게 번쩍 + 짧은 스파크.
+		_DamageNumber.spawn(get_tree().current_scene, global_position, amount, true, _CRIT_COLOR)
+		_FXBurst.spawn(get_tree().current_scene, global_position, _CRIT_COLOR, 26.0, 0.22)
+		SoundManager.play("zombie_hit", 0.1, 1.5)   # 살짝 높은 음으로 타격감 강조
+		_flash = _HIT_FLASH * 2.2
+	else:
+		_DamageNumber.spawn(get_tree().current_scene, global_position, amount)
+		SoundManager.play("zombie_hit")
+		_flash = _HIT_FLASH
 	body.modulate = _HIT_COLOR   # 피격 순간 붉게 번쩍 — 이후 _physics_process 에서 흰색으로 감쇠
-	_flash = _HIT_FLASH
 	if health <= 0:
 		_die()
 

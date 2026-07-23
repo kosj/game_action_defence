@@ -21,7 +21,6 @@ const UPGRADES: Array = [
 	{"section": "SURVIVAL",  "id": "max_health",       "label": "Max HP",        "desc": "+1 heart (heals)",         "costs": [15, 25, 40, 55, 75, 95, 120, 145, 175, 210]},
 	{"section": "SURVIVAL",  "id": "regen",            "label": "HP Regen",      "desc": "Regen HP over time",       "costs": [40, 70, 110, 160, 220, 290]},
 	{"section": "SURVIVAL",  "id": "pickup_range",     "label": "Pickup Range",  "desc": "+30% magnet range",        "costs": [20, 35, 55, 80, 110, 145]},
-	{"section": "SURVIVAL",  "id": "heal",             "label": "Heal HP",       "desc": "Full HP restore",          "costs": [10, 15, 20, 25]},
 ]
 
 const SECTION_COLORS: Dictionary = {
@@ -331,13 +330,13 @@ func _refresh_buttons() -> void:
 			# "샀는데 이펙트가 안 나온다"는 헛구매를 원천 차단하고 선행 조건을 안내한다.
 			btn.text = "%s\n%s" % [_upg_name(upg), Locale.t(gate)]
 			btn.disabled = true
-		elif id != "heal" and cost == -1:
+		elif cost == -1:
 			btn.text = "%s  [%s]\n%s" % [_upg_name(upg), Locale.t("shop_max"), _upg_desc(upg)]
 			btn.disabled = true
 		else:
 			var lvl := _get_level(id)
 			var max_lvl: int = upg["costs"].size()
-			var lvl_str := ("  (%d/%d)" % [lvl, max_lvl]) if id != "heal" else ""
+			var lvl_str := "  (%d/%d)" % [lvl, max_lvl]
 			btn.text = "%s%s\n-%dG   %s" % [_upg_name(upg), lvl_str, cost, _upg_desc(upg)]
 			btn.disabled = Events.total_gold < cost
 
@@ -376,15 +375,10 @@ func _on_upgrade_pressed(id: String) -> void:
 		"crit":             Events.upgrade_crit += 1
 		"regen":            Events.upgrade_regen += 1
 		"pickup_range":     Events.upgrade_pickup_range += 1
-		"heal":
-			var player := get_tree().get_first_node_in_group("player")
-			if player and player.has_method("heal_full"):
-				player.heal_full()
 
-	if id != "heal":
-		var player := get_tree().get_first_node_in_group("player")
-		if player and player.has_method("apply_upgrades"):
-			player.apply_upgrades()
+	var player := get_tree().get_first_node_in_group("player")
+	if player and player.has_method("apply_upgrades"):
+		player.apply_upgrades()
 
 	_refresh_buttons()
 
