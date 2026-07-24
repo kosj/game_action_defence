@@ -1,14 +1,14 @@
 extends CanvasLayer
 ## HUD: 골드·체력·웨이브·경과시간을 Events 시그널로 받아 실시간 갱신. 게임오버 패널 제어.
 
-const HEART_FULL := preload("res://assets/ui/ui_heart_full.png")
-const HEART_EMPTY := preload("res://assets/ui/ui_heart_empty.png")
 const FOG_TEX := preload("res://assets/ui/fog_vision.png")   # 주변 시야 제한 오버레이(방사형 암전)
 const _UIStyle := preload("res://scripts/UIStyle.gd")
 
 @onready var top_bg: Panel = $TopBg
 @onready var gold_label: Label = $GoldLabel
-@onready var heart_row: HBoxContainer = $HeartRow
+@onready var hp_bar: Control = $HpBar
+@onready var hp_fill: ColorRect = $HpBar/BarFill
+@onready var hp_label: Label = $HpBar/HpLabel
 @onready var weapon_label: Label = $WeaponLabel
 @onready var buff_label: Label = $BuffLabel
 @onready var wave_label: Label = $WaveLabel
@@ -30,6 +30,7 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var main_menu_button: Button = $GameOverPanel/Margin/VBoxContainer/MainMenuButton
 
 const BOSS_BAR_W := 400.0
+const HP_BAR_W := 176.0   # 체력 게이지 채움부의 최대 폭(씬의 BarFill 28~204)
 
 var _prev_health: int = -1
 var _prev_gold: int = -1
@@ -225,36 +226,31 @@ func _on_swarm_incoming(elite: bool) -> void:
 
 
 func _on_player_health_changed(health: int, max_health: int) -> void:
-	if max_health != _max_health:
-		_max_health = max_health
-		_rebuild_hearts(max_health)
-	_update_hearts(health)
+	_max_health = max_health
+	_update_hp_bar(health, max_health)
 	if _prev_health > 0 and health < _prev_health and health > 0:
 		_flash_hurt()
 	_update_low_hp_warning(health)
 	_prev_health = health
 
 
-func _rebuild_hearts(max_health: int) -> void:
-	# remove_child 로 자식 목록에서 "즉시" 뺀다. queue_free 만 하면 삭제가 프레임 끝까지
-	# 지연돼, 직후의 _update_hearts() 가 옛 하트까지 세어 새 하트를 빈 칸으로 칠해버린다
-	# (최대 체력 업그레이드 후 "체력은 찼는데 UI는 안 채워짐" 버그의 원인).
-	for child in heart_row.get_children():
-		heart_row.remove_child(child)
-		child.queue_free()
-	for i in range(max_health):
-		var tr := TextureRect.new()
-		tr.custom_minimum_size = Vector2(30, 30)
-		tr.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		tr.texture = HEART_FULL
-		heart_row.add_child(tr)
+## 체력을 하트 개수 대신 연속 게이지로 표시. 비율에 따라 초록→노랑→빨강으로 색이 바뀌고,
+## 폭은 부드럽게 트윈된다. 라벨은 "현재 / 최대" 숫자를 함께 보여준다.
+func _update_hp_bar(health: int, max_health: int) -> void:
+	var mx := maxi(max_health, 1)
+	var cur := clampi(health, 0, mx)
+	var ratio := float(cur) / float(mx)
+	hp_label.text = "%d / %d" % [cur, mx]
+	var tw := create_tween()
+	tw.tween_property(hp_fill, "size:x", HP_BAR_W * ratio, 0.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	hp_fill.color = _hp_color(ratio)
 
 
-func _update_hearts(health: int) -> void:
-	var children := heart_row.get_children()
-	for i in range(children.size()):
-		children[i].texture = HEART_FULL if i < health else HEART_EMPTY
+## 체력 비율에 따른 게이지 색: 높음=초록, 중간=노랑, 낮음=빨강(선형 보간).
+func _hp_color(ratio: float) -> Color:
+	if ratio > 0.5:
+		return Color(0.85, 0.75, 0.2).lerp(Color(0.3, 0.85, 0.35), (ratio - 0.5) * 2.0)
+	return Color(0.9, 0.25, 0.2).lerp(Color(0.85, 0.75, 0.2), ratio * 2.0)
 
 
 func _flash_hurt() -> void:
@@ -270,7 +266,8 @@ const _LOW_HP_MAX_A := 0.22   # 피크도 낮춰 눈부심 완화(이전 0.30)
 const _LOW_HP_HALF := 1.3     # 한 방향(밝아짐/어두워짐) 시간 — 느려서 껌뻑임 빈도가 낮다
 
 func _update_low_hp_warning(health: int) -> void:
-	var should_pulse := health == 1
+	# 최대 체력이 커질 수 있으므로 절대값(==1)이 아닌 비율로 위급 판정(≤20%, 최소 1 이상).
+	var should_pulse := health > 0 and float(health) / float(maxi(_max_health, 1)) <= 0.2
 	if should_pulse and _low_hp_tween == null:
 		low_hp_overlay.color.a = _LOW_HP_MIN_A
 		_low_hp_tween = create_tween()
