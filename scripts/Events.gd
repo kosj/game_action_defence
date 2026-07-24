@@ -102,6 +102,20 @@ var xp: int = 0
 var level: int = 1
 var xp_to_next: int = 12
 
+# 인벤토리(뱀서식 슬롯 성장): 무기/패시브 아이템의 보유 레벨. gun 은 시작 시 Lv1 보유.
+# ItemDB.recompute 가 이 인벤토리를 upgrade_* 로 반영한다(전투 코드는 upgrade_* 만 읽는다).
+var weapons: Dictionary = {"gun": 1}
+var passives: Dictionary = {}
+
+
+## 레벨업 카드 선택 — 무기/패시브 아이템 1레벨 획득 후 스탯 재계산.
+func grant_item(id: String) -> void:
+	if ItemDB.is_weapon(id):
+		weapons[id] = int(weapons.get(id, 0)) + 1
+	else:
+		passives[id] = int(passives.get(id, 0)) + 1
+	ItemDB.recompute(weapons, passives)
+
 
 ## 다음 레벨까지 필요한 경험치 곡선 — 초반은 자주, 갈수록 뜸하게(레벨업 연출 과다 방지).
 func _xp_curve(lvl: int) -> int:
@@ -287,6 +301,9 @@ func reset() -> void:
 	upgrade_pickup_range = 0
 	upgrade_regen = 0
 	upgrade_crit = 0
+	weapons = {"gun": 1}         # 시작 무기(자동총 Lv1)만 보유
+	passives = {}
+	ItemDB.recompute(weapons, passives)   # 인벤토리 → upgrade_* 정합화
 	gold_changed.emit(total_gold)
 	score_changed.emit(score)
 	xp_changed.emit(xp, xp_to_next, level)
