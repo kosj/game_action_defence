@@ -70,7 +70,8 @@
       제시(무기 슬롯6·패시브 슬롯6), 세이브/로드에 인벤토리 반영. 전투 코드는 무변경.
       무기: Auto Gun(시작)·Orb Shield·Lightning / 패시브: Haste·Crit·Swift·Armor·Regen·Magnet.
       (HUD 장착 아이템 아이콘 표시는 후속.)
-- [ ] B. 신규 무기 다양화
+- [~] **B. 신규 무기 다양화** — Garlic Aura(주변 지속 오라)·Holy Water(무작위 광역 착탄) 추가.
+      기존 live_zombies·FXBurst·Orb/Lightning 관리 패턴 재사용, 전투 코어 무변경. (부메랑·빙결 등 추가 여지)
 - [ ] C. 무기 진화
 - [ ] D. 상자·픽업 등급화
 - [ ] E. 메타 성장(영구 강화)
