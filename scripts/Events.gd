@@ -77,6 +77,7 @@ signal swarm_incoming(elite: bool)
 # 인게임 레벨업(뱀서식 성장). 코인 수집으로 경험치가 쌓이고, 임계 도달 시 레벨업 → 강화 카드 선택.
 signal xp_changed(xp: int, xp_to_next: int, level: int)
 signal level_up(level: int)
+signal inventory_changed        # 무기/패시브 인벤토리 변경 — HUD 장착 표시 갱신
 
 var total_gold: int = 0
 var total_kills: int = 0
@@ -120,6 +121,7 @@ func grant_item(id: String) -> void:
 	else:
 		passives[id] = int(passives.get(id, 0)) + 1
 	ItemDB.recompute(weapons, passives)
+	inventory_changed.emit()
 
 
 ## 진화: 원본 무기를 제거하고 진화 무기(Lv1)로 교체 후 재계산. 패시브는 유지된다.
@@ -127,6 +129,7 @@ func evolve(base_id: String, into_id: String) -> void:
 	weapons.erase(base_id)
 	weapons[into_id] = 1
 	ItemDB.recompute(weapons, passives)
+	inventory_changed.emit()
 
 
 ## 다음 레벨까지 필요한 경험치 곡선 — 초반은 자주, 갈수록 뜸하게(레벨업 연출 과다 방지).
@@ -326,3 +329,4 @@ func reset() -> void:
 	gold_changed.emit(total_gold)
 	score_changed.emit(score)
 	xp_changed.emit(xp, xp_to_next, level)
+	inventory_changed.emit()

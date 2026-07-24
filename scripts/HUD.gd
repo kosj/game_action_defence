@@ -65,6 +65,10 @@ var _swarm_tween: Tween = null
 var _xp_fill: ColorRect = null
 var _level_label: Label = null
 
+# 장착 로드아웃(무기/패시브) 표시 + 목표 힌트 — 코드로 생성.
+var _loadout_box: VBoxContainer = null
+var _goal_label: Label = null
+
 
 func _ready() -> void:
 	# 게임오버로 트리를 일시정지해도 HUD(게임오버 패널·버튼·블러)는 계속 동작해야 한다.
@@ -82,6 +86,8 @@ func _ready() -> void:
 	_build_wave_bar()
 	_build_xp_bar()
 	_build_swarm_banner()
+	_build_loadout()
+	_build_goal_hint()
 	_build_gameover_stats()
 	_build_blur_overlay()
 	UITheme.heading(wave_clear_label)
@@ -105,6 +111,7 @@ func _ready() -> void:
 	Events.boss_died.connect(_on_boss_died)
 	Events.swarm_incoming.connect(_on_swarm_incoming)
 	Events.xp_changed.connect(_on_xp_changed)
+	Events.inventory_changed.connect(_on_inventory_changed)
 	Events.game_won.connect(_on_game_won)
 	restart_button.pressed.connect(_on_restart_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
@@ -118,6 +125,7 @@ func _ready() -> void:
 	_on_score_changed(Events.score)
 	_on_high_score_changed(Events.high_score)
 	_on_xp_changed(Events.xp, Events.xp_to_next, Events.level)
+	_on_inventory_changed()
 
 
 ## 둥근 패널/라벨이 자신의 중심을 기준으로 스케일되도록 pivot 보정 (레이아웃 확정 후 1회).
@@ -415,6 +423,59 @@ func _on_xp_changed(xp: int, xp_to_next: int, level: int) -> void:
 		_xp_fill.anchor_right = clampf(float(xp) / float(maxi(xp_to_next, 1)), 0.0, 1.0)
 	if _level_label:
 		_level_label.text = "Lv.%d" % level
+
+
+## 장착 로드아웃 — 화면 좌측에 무기/패시브를 아이템 색의 라벨로 세로 나열.
+func _build_loadout() -> void:
+	_loadout_box = VBoxContainer.new()
+	_loadout_box.add_theme_constant_override("separation", 2)
+	_loadout_box.offset_left = 8.0
+	_loadout_box.offset_top = 158.0
+	_loadout_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_loadout_box)
+
+
+func _on_inventory_changed() -> void:
+	if _loadout_box == null:
+		return
+	for c in _loadout_box.get_children():
+		_loadout_box.remove_child(c)
+		c.queue_free()
+	_add_loadout_lines(Events.weapons)
+	_add_loadout_lines(Events.passives)
+
+
+func _add_loadout_lines(inv: Dictionary) -> void:
+	for id in inv.keys():
+		var lv: int = int(inv[id])
+		if lv <= 0:
+			continue
+		var m := ItemDB.meta(String(id))
+		if m.is_empty():
+			continue
+		var lbl := Label.new()
+		lbl.text = "%s  %d" % [m["name"], lv]
+		lbl.add_theme_font_size_override("font_size", 14)
+		lbl.add_theme_color_override("font_color", m["color"])
+		lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+		lbl.add_theme_constant_override("outline_size", 4)
+		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_loadout_box.add_child(lbl)
+
+
+## 목표 힌트 — 화면 하단에 "최종 웨이브까지 생존" 안내(목표 명확화).
+func _build_goal_hint() -> void:
+	_goal_label = Label.new()
+	_goal_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_goal_label.offset_top = -44.0
+	_goal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_goal_label.text = "SURVIVE TO WAVE 20 → REAPER"
+	_goal_label.add_theme_font_size_override("font_size", 15)
+	_goal_label.add_theme_color_override("font_color", Color(0.85, 0.7, 0.75, 0.7))
+	_goal_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
+	_goal_label.add_theme_constant_override("outline_size", 3)
+	_goal_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_goal_label)
 
 
 func _on_wave_complete(wave: int) -> void:
