@@ -83,6 +83,8 @@ func save_game(player: Node) -> void:
 		"upgrade_orbs": Events.upgrade_orbs,
 		"upgrade_lightning": Events.upgrade_lightning,
 		"upgrade_lightning_count": Events.upgrade_lightning_count,
+		"weapons": Events.weapons,     # 뱀서식 인벤토리(무기/패시브 아이템 레벨)
+		"passives": Events.passives,
 		"weapon_id": player.current_weapon.get("id", "pistol"),
 		"weapon_tier_id": player.current_weapon.get("tier_id", "common"),
 	}
@@ -125,6 +127,14 @@ func apply_to_events(data: Dictionary) -> void:
 	Events.upgrade_orbs = data.get("upgrade_orbs", 0)
 	Events.upgrade_lightning = data.get("upgrade_lightning", 0)
 	Events.upgrade_lightning_count = data.get("upgrade_lightning_count", 0)
+	# 인벤토리 복원(뱀서식 슬롯). 신버전 세이브면 인벤토리로 upgrade_* 를 정합 재계산한다.
+	# (JSON 은 dict 값을 float 로 파싱하므로 int 로 변환해 보관.)
+	if data.has("weapons"):
+		Events.weapons = _to_int_dict(data.get("weapons", {}))
+		Events.passives = _to_int_dict(data.get("passives", {}))
+		if Events.weapons.is_empty():
+			Events.weapons = {"gun": 1}
+		ItemDB.recompute(Events.weapons, Events.passives)
 	Events.gold_changed.emit(Events.total_gold)
 	Events.score_changed.emit(Events.score)
 
@@ -132,3 +142,11 @@ func apply_to_events(data: Dictionary) -> void:
 	pending_player_health = data.get("player_health", 1)
 	pending_weapon_id = data.get("weapon_id", "pistol")
 	pending_weapon_tier_id = data.get("weapon_tier_id", "common")
+
+
+## JSON 이 숫자를 float 로 파싱하므로 인벤토리 dict 의 값(아이템 레벨)을 int 로 변환한다.
+func _to_int_dict(src: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for k in src.keys():
+		out[str(k)] = int(src[k])
+	return out

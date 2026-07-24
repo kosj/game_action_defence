@@ -1,31 +1,9 @@
 extends CanvasLayer
 ## 레벨업 카드 선택(뱀서식 인게임 성장). 코인 수집으로 레벨업하면 게임을 잠시 멈추고
-## 3개 강화 카드 중 하나를 고른다 → 즉시 적용되어 실시간으로 강해진다.
-## 웨이브 간 상점(골드 소비)과 별개로 함께 굴러간다(강화는 같은 upgrade_* 카운터에 누적).
+## 무기/패시브 아이템 3장 중 하나를 고른다(새 아이템 획득 또는 보유 아이템 레벨업).
+## 카탈로그·슬롯 규칙은 ItemDB, 인벤토리는 Events.weapons/passives.
 
 const _UIStyle := preload("res://scripts/UIStyle.gd")
-
-const _WEAPON := Color(1.00, 0.75, 0.20)
-const _ORB := Color(0.45, 0.82, 1.00)
-const _LIGHT := Color(0.65, 0.55, 1.00)
-const _SURV := Color(0.45, 0.85, 0.50)
-
-# 강화 카드 풀. max=이 판에서 카드로 올릴 수 있는 상한. gate=선행 강화가 있어야 등장.
-const PERKS: Array = [
-	{"id": "bullet_damage",    "label": "Bullet Dmg",     "desc": "+1 bullet damage",   "color": _WEAPON, "max": 15},
-	{"id": "atk_speed",        "label": "Atk Speed",      "desc": "-15% fire delay",    "color": _WEAPON, "max": 10},
-	{"id": "speed",            "label": "Move Speed",     "desc": "+30 move speed",     "color": _WEAPON, "max": 10},
-	{"id": "multi_bullet",     "label": "Multi-Shot",     "desc": "+1 extra bullet",    "color": _WEAPON, "max": 6},
-	{"id": "crit",             "label": "Crit Chance",    "desc": "+8% double damage",  "color": _WEAPON, "max": 7},
-	{"id": "orbs",             "label": "Orb Shield",     "desc": "+1 orbiting orb",    "color": _ORB,    "max": 8},
-	{"id": "orb_damage",       "label": "Orb Dmg",        "desc": "+1 orb damage",      "color": _ORB,    "max": 8, "gate": "orbs"},
-	{"id": "orb_speed",        "label": "Orb Speed",      "desc": "+35% orbit speed",   "color": _ORB,    "max": 7, "gate": "orbs"},
-	{"id": "lightning_count",  "label": "Lightning Count","desc": "+1 lightning bolt",  "color": _LIGHT,  "max": 7},
-	{"id": "lightning_damage", "label": "Lightning Dmg",  "desc": "+1 lightning damage","color": _LIGHT,  "max": 8, "gate": "lightning_count"},
-	{"id": "max_health",       "label": "Max HP",         "desc": "+1 heart (heals)",   "color": _SURV,   "max": 10},
-	{"id": "regen",            "label": "HP Regen",       "desc": "Regen HP over time", "color": _SURV,   "max": 6},
-	{"id": "pickup_range",     "label": "Pickup Range",   "desc": "+30% magnet range",  "color": _SURV,   "max": 6},
-]
 
 var _dim: ColorRect
 var _panel: PanelContainer
@@ -107,41 +85,49 @@ func _refresh() -> void:
 		c.queue_free()
 	var choices := _draw_choices(3)
 	if choices.is_empty():
-		# 올릴 강화가 없다(전부 상한) — 그냥 넘어간다.
+		# 올릴 아이템이 없다(전부 만렙·슬롯 꽉참) — 그냥 넘어간다.
 		_consume_and_advance()
 		return
-	for perk in choices:
-		_card_box.add_child(_make_card(perk))
+	for ch in choices:
+		_card_box.add_child(_make_card(ch))
 
 
-## 등장 가능한(상한 미만·선행 충족) 강화 중 무작위 n개.
+## 뽑기 후보: 보유 아이템(만렙 미만)은 "레벨업", 미보유 아이템은 슬롯 여유가 있으면 "새 아이템".
+## 각 후보 = {"item": 카탈로그 dict, "lv": 현재레벨, "is_new": bool}. 무작위 n개.
 func _draw_choices(n: int) -> Array:
 	var avail: Array = []
-	for perk in PERKS:
-		if _perk_level(perk["id"]) >= int(perk["max"]):
-			continue
-		if perk.has("gate") and _perk_level(perk["gate"]) <= 0:
-			continue
-		avail.append(perk)
+	_collect(ItemDB.WEAPONS, Events.weapons, Events.weapons.size() < ItemDB.MAX_WEAPON_SLOTS, avail)
+	_collect(ItemDB.PASSIVES, Events.passives, Events.passives.size() < ItemDB.MAX_PASSIVE_SLOTS, avail)
 	avail.shuffle()
 	return avail.slice(0, mini(n, avail.size()))
 
 
-func _make_card(perk: Dictionary) -> Button:
+func _collect(catalog: Array, inv: Dictionary, slot_free: bool, out: Array) -> void:
+	for item in catalog:
+		var lv: int = int(inv.get(item["id"], 0))
+		if lv > 0:
+			if lv < int(item["max"]):
+				out.append({"item": item, "lv": lv, "is_new": false})
+		elif slot_free:
+			out.append({"item": item, "lv": 0, "is_new": true})
+
+
+func _make_card(ch: Dictionary) -> Button:
+	var item: Dictionary = ch["item"]
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(0, 72)
+	btn.custom_minimum_size = Vector2(0, 74)
 	btn.add_theme_font_size_override("font_size", 22)
 	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	var lvl := _perk_level(perk["id"])
-	btn.text = "%s  (Lv.%d)\n%s" % [perk["label"], lvl + 1, perk["desc"]]
-	var col: Color = perk["color"]
+	var tag: String = "NEW!" if ch["is_new"] else "Lv.%d → %d" % [ch["lv"], int(ch["lv"]) + 1]
+	btn.text = "%s  (%s)\n%s" % [item["name"], tag, item["desc"]]
+	var col: Color = item["color"]
 	_UIStyle.apply_button_style(btn, Color(col.r * 0.28, col.g * 0.28, col.b * 0.28, 1.0), col)
-	btn.pressed.connect(_on_pick.bind(String(perk["id"])))
+	btn.pressed.connect(_on_pick.bind(String(item["id"])))
 	return btn
 
 
 func _on_pick(id: String) -> void:
-	_apply(id)
+	Events.grant_item(id)   # 인벤토리 레벨 +1 후 upgrade_* 재계산
 	var player := get_tree().get_first_node_in_group("player")
 	if is_instance_valid(player) and player.has_method("apply_upgrades"):
 		player.apply_upgrades()   # shop_closed 를 쓰지 않는다(그건 새 웨이브를 시작시킨다)
@@ -158,38 +144,3 @@ func _consume_and_advance() -> void:
 		visible = false
 		if _did_pause:
 			get_tree().paused = false
-
-
-func _apply(id: String) -> void:
-	match id:
-		"speed":            Events.upgrade_speed += 1
-		"atk_speed":        Events.upgrade_atk_speed += 1
-		"bullet_damage":    Events.upgrade_bullet_damage += 1
-		"multi_bullet":     Events.upgrade_multi_bullet += 1
-		"orbs":             Events.upgrade_orbs += 1
-		"orb_damage":       Events.upgrade_orb_damage += 1
-		"orb_speed":        Events.upgrade_orb_speed += 1
-		"lightning_count":  Events.upgrade_lightning_count += 1
-		"lightning_damage": Events.upgrade_lightning_damage += 1
-		"max_health":       Events.upgrade_max_health += 1
-		"crit":             Events.upgrade_crit += 1
-		"regen":            Events.upgrade_regen += 1
-		"pickup_range":     Events.upgrade_pickup_range += 1
-
-
-func _perk_level(id: String) -> int:
-	match id:
-		"speed":            return Events.upgrade_speed
-		"atk_speed":        return Events.upgrade_atk_speed
-		"bullet_damage":    return Events.upgrade_bullet_damage
-		"multi_bullet":     return Events.upgrade_multi_bullet
-		"orbs":             return Events.upgrade_orbs
-		"orb_damage":       return Events.upgrade_orb_damage
-		"orb_speed":        return Events.upgrade_orb_speed
-		"lightning_count":  return Events.upgrade_lightning_count
-		"lightning_damage": return Events.upgrade_lightning_damage
-		"max_health":       return Events.upgrade_max_health
-		"crit":             return Events.upgrade_crit
-		"regen":            return Events.upgrade_regen
-		"pickup_range":     return Events.upgrade_pickup_range
-	return 0
