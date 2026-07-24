@@ -92,6 +92,10 @@ var wave_kill_total: int = 0
 # 골드 자동 줍기(자석) 버프 활성 여부 — Gold 이 매 프레임 참조하는 일시 상태(저장 안 함).
 var gold_magnet_active: bool = false
 
+# 메타 성장(영구 강화) 배수 — 런 시작 시 MetaManager 가 설정. 골드/경험치 획득에 곱한다.
+var gold_mult: float = 1.0
+var xp_mult: float = 1.0
+
 # 점수: score=이번 판 점수, high_score=저장된 최고점, _prev_high=이번 판 시작 시점 최고점(갱신 판정용)
 var score: int = 0
 var high_score: int = 0
@@ -139,7 +143,7 @@ func bonus_level() -> void:
 
 ## 코인 수집 시 호출(코인 1개 = 경험치 1). 임계 도달 시 레벨업 신호(연속 레벨업도 처리).
 func add_xp(amount: int) -> void:
-	xp += amount
+	xp += maxi(1, int(round(amount * xp_mult)))   # 메타 '성장' 배수
 	while xp >= xp_to_next:
 		xp -= xp_to_next
 		level += 1
@@ -250,7 +254,7 @@ func _end_hit_stop() -> void:
 
 
 func add_gold(amount: int = 1) -> void:
-	total_gold += amount
+	total_gold += maxi(1, int(round(amount * gold_mult)))   # 메타 '탐욕' 배수
 	gold_changed.emit(total_gold)
 
 
@@ -322,7 +326,8 @@ func reset() -> void:
 	upgrade_holy = 0
 	weapons = {"gun": 1}         # 시작 무기(자동총 Lv1)만 보유
 	passives = {}
-	ItemDB.recompute(weapons, passives)   # 인벤토리 → upgrade_* 정합화
+	MetaManager.apply_run_start()         # 영구 강화 배수(골드/경험치) 설정
+	ItemDB.recompute(weapons, passives)   # 인벤토리 → upgrade_* 정합화(메타 시작 보정 포함)
 	gold_changed.emit(total_gold)
 	score_changed.emit(score)
 	xp_changed.emit(xp, xp_to_next, level)

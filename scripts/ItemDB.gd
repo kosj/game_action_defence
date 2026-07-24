@@ -105,6 +105,8 @@ static func recompute(weapons: Dictionary, passives: Dictionary) -> void:
 	if weapons.has("crucifix"):
 		Events.upgrade_holy = 9 + int(weapons["crucifix"])
 
+	MetaManager.add_bonuses()   # 메타 영구 강화(시작 데미지·체력·이속)를 인벤토리 위에 더한다
+
 	Events.upgrade_atk_speed = int(passives.get("haste", 0))
 	Events.upgrade_crit = int(passives.get("crit", 0))
 	Events.upgrade_speed = int(passives.get("swift", 0))
