@@ -72,7 +72,9 @@
       (HUD 장착 아이템 아이콘 표시는 후속.)
 - [~] **B. 신규 무기 다양화** — Garlic Aura(주변 지속 오라)·Holy Water(무작위 광역 착탄) 추가.
       기존 live_zombies·FXBurst·Orb/Lightning 관리 패턴 재사용, 전투 코어 무변경. (부메랑·빙결 등 추가 여지)
-- [ ] C. 무기 진화
+- [x] **C. 무기 진화** — 만렙 무기 + 특정 패시브 → 진화 무기(원본 대체·강화). 레벨업 시 조건 충족하면
+      금색 ★EVOLVE★ 카드 최우선 제시. 규칙: Gun+Crit→Railgun, Orb+Swift→Saw Storm,
+      Lightning+Crit→Thunderstorm, Garlic+Armor→Sanctuary, Holy+Haste→Crucifix.
 - [ ] D. 상자·픽업 등급화
 - [ ] E. 메타 성장(영구 강화)
 - [ ] F. 런 구조

@@ -117,6 +117,13 @@ func grant_item(id: String) -> void:
 	ItemDB.recompute(weapons, passives)
 
 
+## 진화: 원본 무기를 제거하고 진화 무기(Lv1)로 교체 후 재계산. 패시브는 유지된다.
+func evolve(base_id: String, into_id: String) -> void:
+	weapons.erase(base_id)
+	weapons[into_id] = 1
+	ItemDB.recompute(weapons, passives)
+
+
 ## 다음 레벨까지 필요한 경험치 곡선 — 초반은 자주, 갈수록 뜸하게(레벨업 연출 과다 방지).
 func _xp_curve(lvl: int) -> int:
 	return int(round(10.0 + (lvl - 1) * 8.0 + pow(float(lvl), 1.5) * 2.0))
