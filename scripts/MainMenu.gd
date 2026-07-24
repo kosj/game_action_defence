@@ -33,6 +33,13 @@ var _rank_rows: Array = []       # [{ "name": Label, "score": Label, "mode": Str
 var _rank_online_btn: Button
 var _rank_close_btn: Button
 
+# ── 메타 성장(PowerUp) 오버레이 ──
+var _power_btn: Button
+var _power_dim: ColorRect
+var _power_panel: PanelContainer
+var _power_gold_label: Label
+var _power_rows: Array = []      # [{ "btn": Button, "id": String }]
+
 
 func _ready() -> void:
 	get_tree().paused = false   # 게임오버/상점에서 정지된 채 메뉴로 돌아와도 메뉴가 멈추지 않도록
@@ -172,6 +179,14 @@ func _build_ui() -> void:
 	_rank_btn.pressed.connect(_on_ranking_pressed)
 	box.add_child(_rank_btn)
 
+	_power_btn = Button.new()
+	_power_btn.text = "PowerUp"
+	_power_btn.custom_minimum_size = Vector2(300, 56)
+	_power_btn.add_theme_font_size_override("font_size", 22)
+	_UIStyle.apply_button_style(_power_btn, Color(0.24, 0.14, 0.30), Color(0.72, 0.5, 1.0))
+	_power_btn.pressed.connect(_on_power_pressed)
+	box.add_child(_power_btn)
+
 	_options_btn = Button.new()
 	_options_btn.custom_minimum_size = Vector2(300, 56)
 	_options_btn.add_theme_font_size_override("font_size", 22)
@@ -189,6 +204,7 @@ func _build_ui() -> void:
 
 	_build_options_panel()
 	_build_ranking_panel()
+	_build_power_panel()
 
 
 ## 옵션 패널(언어 / 사운드 On/Off) — Option 버튼으로 열고 닫는 오버레이.
@@ -289,6 +305,121 @@ func _on_options_pressed() -> void:
 func _on_close_options() -> void:
 	_options_dim.visible = false
 	_options_panel.visible = false
+
+
+## 메타 성장(PowerUp) 오버레이 — 은행 골드로 영구 강화를 구매한다.
+func _build_power_panel() -> void:
+	_power_dim = ColorRect.new()
+	_power_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_power_dim.color = Color(0, 0, 0, 0.6)
+	_power_dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_power_dim.visible = false
+	_power_dim.gui_input.connect(_on_power_dim_input)
+	add_child(_power_dim)
+
+	_power_panel = PanelContainer.new()
+	_power_panel.anchor_left = 0.5
+	_power_panel.anchor_right = 0.5
+	_power_panel.anchor_top = 0.5
+	_power_panel.anchor_bottom = 0.5
+	_power_panel.offset_left = -235.0
+	_power_panel.offset_right = 235.0
+	_power_panel.offset_top = -300.0
+	_power_panel.offset_bottom = 300.0
+	_power_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.12, 0.08, 0.16, 0.98), Color(0.6, 0.45, 0.9)))
+	_power_panel.visible = false
+	add_child(_power_panel)
+
+	var margin := MarginContainer.new()
+	for m in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + m, 22)
+	_power_panel.add_child(margin)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 12)
+	margin.add_child(vb)
+
+	var title := Label.new()
+	title.text = "PERMANENT UPGRADES"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(0.85, 0.7, 1.0))
+	vb.add_child(title)
+
+	_power_gold_label = Label.new()
+	_power_gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_power_gold_label.add_theme_font_size_override("font_size", 20)
+	_power_gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	vb.add_child(_power_gold_label)
+
+	vb.add_child(HSeparator.new())
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 350)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	vb.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 8)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+
+	_power_rows.clear()
+	for u in MetaManager.UPGRADES:
+		var btn := Button.new()
+		btn.custom_minimum_size = Vector2(400, 62)
+		btn.add_theme_font_size_override("font_size", 18)
+		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_UIStyle.apply_button_style(btn, Color(0.22, 0.16, 0.28), Color(0.6, 0.45, 0.9))
+		btn.pressed.connect(_on_power_buy.bind(String(u["id"])))
+		list.add_child(btn)
+		_power_rows.append({"btn": btn, "u": u})
+
+	var close := Button.new()
+	close.text = "Close"
+	close.custom_minimum_size = Vector2(0, 52)
+	close.add_theme_font_size_override("font_size", 22)
+	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
+	close.pressed.connect(_on_power_close)
+	vb.add_child(close)
+
+
+func _on_power_pressed() -> void:
+	_refresh_power()
+	_power_dim.visible = true
+	_power_panel.visible = true
+
+
+func _on_power_close() -> void:
+	_power_dim.visible = false
+	_power_panel.visible = false
+
+
+func _on_power_dim_input(event: InputEvent) -> void:
+	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
+		_on_power_close()
+
+
+func _on_power_buy(id: String) -> void:
+	if MetaManager.buy(id):
+		SoundManager.play("gold", 0.03, 1.25)
+	_refresh_power()
+
+
+func _refresh_power() -> void:
+	_power_gold_label.text = "Gold: %d" % MetaManager.meta_gold
+	for row in _power_rows:
+		var u: Dictionary = row["u"]
+		var id: String = String(u["id"])
+		var lv := MetaManager.level(id)
+		var mx := int(u["max"])
+		var btn: Button = row["btn"]
+		if lv >= mx:
+			btn.text = "%s  (MAX)\n%s" % [u["name"], u["desc"]]
+			btn.disabled = true
+		else:
+			var c := MetaManager.cost(id)
+			btn.text = "%s  (%d/%d)\n%s   -%d G" % [u["name"], lv, mx, u["desc"], c]
+			btn.disabled = MetaManager.meta_gold < c
 
 
 ## 랭킹 오버레이 — 모드(난이도)별 최고 점수. 온라인 백엔드(안드로이드 PGS)면 네이티브 리더보드

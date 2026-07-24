@@ -623,6 +623,7 @@ func _on_player_died() -> void:
 
 func _on_restart_pressed() -> void:
 	get_tree().paused = false   # 새 판 시작 전 정지 해제
+	MetaManager.bank(Events.total_gold)   # 이번 판 골드를 영구 은행에 적립
 	Events.reset()
 	Pool.clear()
 	get_tree().reload_current_scene()
@@ -630,6 +631,7 @@ func _on_restart_pressed() -> void:
 
 func _on_main_menu_pressed() -> void:
 	get_tree().paused = false   # 씬 전환 전 정지 해제
+	MetaManager.bank(Events.total_gold)   # 이번 판 골드를 영구 은행에 적립
 	Events.reset()
 	Pool.clear()
 	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")

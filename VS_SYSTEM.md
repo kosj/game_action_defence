@@ -77,7 +77,9 @@
       Lightning+Crit→Thunderstorm, Garlic+Armor→Sanctuary, Holy+Haste→Crucifix.
 - [x] **D. 상자·픽업 등급화** — 강한 좀비일수록 값 큰 젬 드랍(청록/보라로 등급 구분, 골드·경험치↑),
       보스 처치 시 "상자"=무료 보너스 레벨업(강화/진화 카드 즉시 제시). (폭탄·빙결 소모품은 여지)
-- [ ] E. 메타 성장(영구 강화)
+- [x] **E. 메타 성장(영구 강화)** — `MetaManager`(user://meta.save): 런 종료 시 번 골드를 은행에 적립,
+      메인 메뉴 **PowerUp** 화면에서 영구 강화 구매(Might·Vitality·Swiftness·Greed·Growth).
+      매 런 시작 시 자동 적용(시작 스탯 보정 + 골드/경험치 배수). "죽어도 강해진다" 리텐션 루프.
 - [ ] F. 런 구조
 
 ## 저비용 vs 고비용
