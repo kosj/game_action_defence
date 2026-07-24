@@ -22,6 +22,21 @@ const WEAPONS: Array = [
 	{"id": "lightning", "name": "Lightning",   "desc": "Strikes nearby foes",    "color": _C_LIGHT, "max": 8},
 	{"id": "garlic",    "name": "Garlic Aura", "desc": "Damages foes around you", "color": _C_ORB,  "max": 8},
 	{"id": "holy",      "name": "Holy Water",  "desc": "Blasts random nearby spots", "color": _C_LIGHT, "max": 8},
+	# 진화 무기(evolved=true): 일반 카드로는 등장하지 않고, 진화로만 획득한다.
+	{"id": "railgun",      "name": "Railgun",      "desc": "Evolved Auto Gun",    "color": _C_ATK,   "max": 5, "evolved": true},
+	{"id": "sawstorm",     "name": "Saw Storm",    "desc": "Evolved Orb Shield",  "color": _C_ORB,   "max": 5, "evolved": true},
+	{"id": "thunderstorm", "name": "Thunderstorm", "desc": "Evolved Lightning",   "color": _C_LIGHT, "max": 5, "evolved": true},
+	{"id": "sanctuary",    "name": "Sanctuary",    "desc": "Evolved Garlic Aura", "color": _C_ORB,   "max": 5, "evolved": true},
+	{"id": "crucifix",     "name": "Crucifix",     "desc": "Evolved Holy Water",  "color": _C_LIGHT, "max": 5, "evolved": true},
+]
+
+## 진화 규칙: base 무기 만렙 + passive 보유(Lv1+) → into 진화 무기(원본을 대체).
+const EVOLUTIONS: Array = [
+	{"base": "gun",       "passive": "crit",  "into": "railgun"},
+	{"base": "orb",       "passive": "swift", "into": "sawstorm"},
+	{"base": "lightning", "passive": "crit",  "into": "thunderstorm"},
+	{"base": "garlic",    "passive": "armor", "into": "sanctuary"},
+	{"base": "holy",      "passive": "haste", "into": "crucifix"},
 ]
 
 ## 패시브: 유틸/스탯 강화. 각자 슬롯을 차지한다.
@@ -70,6 +85,25 @@ static func recompute(weapons: Dictionary, passives: Dictionary) -> void:
 
 	Events.upgrade_garlic = int(weapons.get("garlic", 0))   # 마늘/성수는 레벨을 그대로 무기가 읽는다
 	Events.upgrade_holy = int(weapons.get("holy", 0))
+
+	# 진화 무기 — 원본을 대체하며 강화된 수치로 덮어쓴다(원본은 인벤토리에서 제거됨).
+	if weapons.has("railgun"):
+		var rg: int = int(weapons["railgun"])
+		Events.upgrade_bullet_damage = 10 + rg * 2
+		Events.upgrade_multi_bullet = 3 + int(rg / 2)
+	if weapons.has("sawstorm"):
+		var sw: int = int(weapons["sawstorm"])
+		Events.upgrade_orbs = 6
+		Events.upgrade_orb_damage = 4 + sw
+		Events.upgrade_orb_speed = 3 + int(sw / 2)
+	if weapons.has("thunderstorm"):
+		var th: int = int(weapons["thunderstorm"])
+		Events.upgrade_lightning_count = 4 + int(th / 2)
+		Events.upgrade_lightning_damage = 4 + th
+	if weapons.has("sanctuary"):
+		Events.upgrade_garlic = 9 + int(weapons["sanctuary"])
+	if weapons.has("crucifix"):
+		Events.upgrade_holy = 9 + int(weapons["crucifix"])
 
 	Events.upgrade_atk_speed = int(passives.get("haste", 0))
 	Events.upgrade_crit = int(passives.get("crit", 0))
