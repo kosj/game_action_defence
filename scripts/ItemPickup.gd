@@ -10,11 +10,22 @@ const _FXBurst := preload("res://scripts/FXBurst.gd")
 @export var fade_time: float = 3.0
 @export var magnet_duration: float = 16.0   # 획득 시 부여되는 자동 줍기 지속 시간(초)
 
-const ICON_COLOR := Color(1.0, 0.85, 0.2)
+const MAGNET_COLOR := Color(1.0, 0.85, 0.2)
+const BOMB_COLOR := Color(1.0, 0.45, 0.15)
+const BOMB_DAMAGE := 40      # 폭탄: 화면 내 잡몹 일소(보스 제외)
 
+var kind: String = "magnet"  # "magnet" | "bomb" — 스포너가 스폰 시 지정
 var player: Node2D = null
 var _alive: bool = false
 var _t: float = 0.0
+
+
+func _icon_color() -> Color:
+	return BOMB_COLOR if kind == "bomb" else MAGNET_COLOR
+
+
+func _label() -> String:
+	return "Bomb" if kind == "bomb" else "Gold Magnet"
 
 
 func _ready() -> void:
@@ -55,11 +66,28 @@ func _process(delta: float) -> void:
 
 func _collect() -> void:
 	_alive = false
+	if kind == "bomb":
+		_collect_bomb()
+	else:
+		_collect_magnet()
+	_despawn()
+
+
+func _collect_magnet() -> void:
 	if is_instance_valid(player) and player.has_method("activate_gold_magnet"):
 		player.activate_gold_magnet(magnet_duration)
 	SoundManager.play("gold", 0.05)
-	_FXBurst.spawn(get_tree().current_scene, global_position, ICON_COLOR, 60.0, 0.4)
-	_despawn()
+	_FXBurst.spawn(get_tree().current_scene, global_position, MAGNET_COLOR, 60.0, 0.4)
+
+
+func _collect_bomb() -> void:
+	# 화면 내 잡몹 일소(보스 제외). 큰 폭발 이펙트 + 강한 화면 흔들림.
+	for z in Events.live_zombies():
+		if is_instance_valid(z) and z.is_in_group("zombies") and not z.is_in_group("boss"):
+			z.take_damage(BOMB_DAMAGE)
+	SoundManager.play("boom", 0.06)
+	_FXBurst.spawn(get_tree().current_scene, global_position, BOMB_COLOR, 420.0, 0.55)
+	Events.shake(9.0)
 
 
 func _despawn() -> void:
@@ -70,6 +98,7 @@ func _despawn() -> void:
 func _draw() -> void:
 	if not _alive:
 		return
+	var col := _icon_color()
 	var bob := sin(_t * 2.4) * 6.0
 	var center := Vector2(0.0, bob)
 	var pulse := 1.0 + sin(_t * 5.0) * 0.07
@@ -81,20 +110,20 @@ func _draw() -> void:
 
 	# 후광
 	var glow_r := 22.0 * pulse
-	draw_circle(center, glow_r, Color(ICON_COLOR.r, ICON_COLOR.g, ICON_COLOR.b, 0.30 * alpha))
-	draw_arc(center, glow_r * 0.8, 0.0, TAU, 28, Color(ICON_COLOR.r, ICON_COLOR.g, ICON_COLOR.b, 0.6 * alpha), 2.5, true)
+	draw_circle(center, glow_r, Color(col.r, col.g, col.b, 0.30 * alpha))
+	draw_arc(center, glow_r * 0.8, 0.0, TAU, 28, Color(col.r, col.g, col.b, 0.6 * alpha), 2.5, true)
 
-	# 끌어당김을 표현하는 회전 점들
+	# 끌어당김/폭발을 표현하는 회전 점들
 	for i in 6:
 		var a := _t * 2.0 + TAU * float(i) / 6.0
 		var p := center + Vector2.from_angle(a) * (glow_r + 4.0)
-		draw_circle(p, 2.2, Color(ICON_COLOR.r, ICON_COLOR.g, ICON_COLOR.b, 0.7 * alpha))
+		draw_circle(p, 2.2, Color(col.r, col.g, col.b, 0.7 * alpha))
 
-	# 코인 본체
+	# 본체
 	var r := 11.0 * pulse
-	draw_circle(center, r, Color(ICON_COLOR.r, ICON_COLOR.g, ICON_COLOR.b, 0.92 * alpha))
+	draw_circle(center, r, Color(col.r, col.g, col.b, 0.92 * alpha))
 	draw_circle(center, r * 0.55, Color(1.0, 1.0, 1.0, 0.85 * alpha))
 
 	# 라벨
 	var font := ThemeDB.fallback_font
-	draw_string(font, center + Vector2(-60.0, -glow_r - 14.0), "Gold Magnet", HORIZONTAL_ALIGNMENT_CENTER, 120.0, 14, Color(1.0, 1.0, 1.0, alpha))
+	draw_string(font, center + Vector2(-60.0, -glow_r - 14.0), _label(), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 14, Color(1.0, 1.0, 1.0, alpha))
