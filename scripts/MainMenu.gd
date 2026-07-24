@@ -128,25 +128,7 @@ func _build_ui() -> void:
 	_best_label.add_theme_color_override("font_color", Color(0.85, 0.88, 0.95))
 	box.add_child(_best_label)
 
-	# 난이도 선택 (Easy / Normal / Hard) — 선택 즉시 디스크에 보존되며 New Game/Continue 모두에 적용.
-	_diff_title = Label.new()
-	_diff_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_diff_title.add_theme_font_size_override("font_size", 18)
-	_diff_title.add_theme_color_override("font_color", Color(0.75, 0.80, 0.90))
-	box.add_child(_diff_title)
-
-	var diff_row := HBoxContainer.new()
-	diff_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	diff_row.add_theme_constant_override("separation", 10)
-	box.add_child(diff_row)
-	_diff_buttons.clear()
-	for i in Events.DIFFICULTY_NAMES.size():
-		var b := Button.new()
-		b.custom_minimum_size = Vector2(96, 50)
-		b.add_theme_font_size_override("font_size", 19)
-		b.pressed.connect(_on_difficulty_pressed.bind(i))
-		diff_row.add_child(b)
-		_diff_buttons.append(b)
+	# 난이도 모드 제거 — 단일 통합 모드(선택 UI 없음).
 
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 18)
@@ -551,7 +533,6 @@ func _on_dim_input(event: InputEvent) -> void:
 ## 현재 언어로 모든 라벨/버튼 텍스트를 갱신하고 선택 강조를 다시 칠한다.
 func _apply_language() -> void:
 	_refresh_best_label()
-	_diff_title.text = Locale.t("menu_difficulty")
 	_new_game_btn.text = Locale.t("menu_new_game")
 	_continue_btn.text = Locale.t("menu_continue")
 	_lang_title.text = Locale.t("menu_language")
@@ -565,9 +546,6 @@ func _apply_language() -> void:
 	_rank_online_btn.text = Locale.t("rank_online")
 	_rank_close_btn.text = Locale.t("menu_close")
 	_refresh_ranking_rows()
-	for i in _diff_buttons.size():
-		_diff_buttons[i].text = Locale.t(_DIFF_KEYS[i])
-	_refresh_difficulty_buttons()
 	_refresh_language_buttons()
 	_refresh_sound_button()
 
@@ -605,29 +583,9 @@ func _refresh_language_buttons() -> void:
 			_UIStyle.apply_button_style(b, Color(0.14, 0.15, 0.20), Color(0.30, 0.32, 0.40))
 
 
-func _on_difficulty_pressed(idx: int) -> void:
-	Events.difficulty = clampi(idx, 0, 2)
-	SaveManager.save_difficulty()
-	# 난이도가 곧 모드 — 선택한 모드의 최고점을 다시 불러와 표시(HUD/게임오버 기준점도 이 값).
-	Events.set_high_score(RankingManager.current_best())
-	_refresh_best_label()
-	_refresh_difficulty_buttons()
-
-
-## "최고 점수: N" — 현재 선택된 난이도(모드) 기준.
+## "최고 점수: N" — 단일 모드 기준.
 func _refresh_best_label() -> void:
 	_best_label.text = "%s: %d" % [Locale.t("menu_best"), RankingManager.current_best()]
-
-
-## 선택된 난이도만 강조색으로 표시(Easy=초록 / Normal=파랑 / Hard=빨강).
-func _refresh_difficulty_buttons() -> void:
-	var accents := [Color(0.40, 0.85, 0.45), Color(0.40, 0.60, 0.95), Color(0.95, 0.40, 0.35)]
-	for i in _diff_buttons.size():
-		var b: Button = _diff_buttons[i]
-		if i == Events.difficulty:
-			_UIStyle.apply_button_style(b, accents[i].darkened(0.25), accents[i])
-		else:
-			_UIStyle.apply_button_style(b, Color(0.14, 0.15, 0.20), Color(0.30, 0.32, 0.40))
 
 
 func _on_new_game_pressed() -> void:
@@ -639,6 +597,7 @@ func _start_new_game() -> void:
 	SaveManager.delete_save()
 	SaveManager.pending_continue = false
 	Events.reset()
+	Events.set_high_score(RankingManager.current_best())   # 이번 판 신기록 기준점(단일 모드)
 	get_tree().change_scene_to_file("res://scenes/Main.tscn")
 
 

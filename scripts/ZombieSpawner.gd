@@ -311,7 +311,7 @@ func _spawn_boss() -> void:
 	var stats := {
 		"max_health": boss_hp,
 		"speed": (104.0 + 9.0 * boss_count) * Events.diff_enemy_speed_mult() * float(bt["speed_mul"]),
-		"contact_damage": int(bt["contact"]) + (1 if Events.difficulty == 2 else 0),
+		"contact_damage": int(bt["contact"]),
 		"score": 200 * boss_count,
 		"gold": 12 + 4 * boss_count,
 		"archetype": bt["archetype"],
@@ -324,7 +324,7 @@ func _spawn_boss() -> void:
 	if _final_boss:
 		stats["max_health"] = boss_hp * 3
 		stats["archetype"] = "berserk"
-		stats["contact_damage"] = 4 + (1 if Events.difficulty == 2 else 0)
+		stats["contact_damage"] = 4
 		stats["tint"] = Color(0.48, 0.05, 0.12)
 		stats["proj_color"] = Color(1.0, 0.3, 0.3)
 		stats["score"] = 3000
