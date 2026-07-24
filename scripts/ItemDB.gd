@@ -20,6 +20,8 @@ const WEAPONS: Array = [
 	{"id": "gun",       "name": "Auto Gun",   "desc": "Damage & extra bullets", "color": _C_ATK,   "max": 8},
 	{"id": "orb",       "name": "Orb Shield",  "desc": "Orbiting blades",        "color": _C_ORB,   "max": 8},
 	{"id": "lightning", "name": "Lightning",   "desc": "Strikes nearby foes",    "color": _C_LIGHT, "max": 8},
+	{"id": "garlic",    "name": "Garlic Aura", "desc": "Damages foes around you", "color": _C_ORB,  "max": 8},
+	{"id": "holy",      "name": "Holy Water",  "desc": "Blasts random nearby spots", "color": _C_LIGHT, "max": 8},
 ]
 
 ## 패시브: 유틸/스탯 강화. 각자 슬롯을 차지한다.
@@ -65,6 +67,9 @@ static func recompute(weapons: Dictionary, passives: Dictionary) -> void:
 	var l: int = int(weapons.get("lightning", 0))
 	Events.upgrade_lightning_count = (1 + int(l / 2)) if l > 0 else 0
 	Events.upgrade_lightning_damage = int(l / 2)
+
+	Events.upgrade_garlic = int(weapons.get("garlic", 0))   # 마늘/성수는 레벨을 그대로 무기가 읽는다
+	Events.upgrade_holy = int(weapons.get("holy", 0))
 
 	Events.upgrade_atk_speed = int(passives.get("haste", 0))
 	Events.upgrade_crit = int(passives.get("crit", 0))

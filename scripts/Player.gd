@@ -12,6 +12,8 @@ extends CharacterBody2D
 const BULLET := preload("res://scenes/Bullet.tscn")
 const _OrbClass := preload("res://scripts/Orb.gd")
 const _LightningClass := preload("res://scripts/Lightning.gd")
+const _GarlicClass := preload("res://scripts/GarlicAura.gd")
+const _HolyClass := preload("res://scripts/HolyWater.gd")
 const _FXBurst  := preload("res://scripts/FXBurst.gd")
 const _WeaponDB := preload("res://scripts/WeaponDB.gd")
 const BASE_BULLET_SPEED := 700.0
@@ -49,6 +51,8 @@ var _base_attack_cooldown: float
 var _base_max_health: int
 var _orbs: Array = []
 var _lightning: Node2D = null
+var _garlic: Node2D = null
+var _holy: Node2D = null
 var current_weapon: Dictionary = _WeaponDB.default_weapon()
 
 # 이동 걷기 애니메이션(절차적, 좀비와 동일 방식) — 이동 거리로 위상이 진행해 좌우 뒤뚱 + 발딛기
@@ -306,6 +310,24 @@ func apply_upgrades() -> void:
 		Events.update_player_health(health, max_health)
 	_update_orbs()
 	_update_lightning()
+	_update_singleton_weapon("garlic")
+	_update_singleton_weapon("holy")
+
+
+## 단일 인스턴스 무기(마늘·성수 등) 보유 여부에 맞춰 노드를 생성/해제.
+func _update_singleton_weapon(id: String) -> void:
+	var owned: bool = (Events.upgrade_garlic > 0) if id == "garlic" else (Events.upgrade_holy > 0)
+	var node: Node2D = _garlic if id == "garlic" else _holy
+	if owned and node == null:
+		node = (_GarlicClass.new() if id == "garlic" else _HolyClass.new())
+		add_child(node)
+	elif not owned and node != null:
+		node.queue_free()
+		node = null
+	if id == "garlic":
+		_garlic = node
+	else:
+		_holy = node
 
 
 func _update_orbs() -> void:
