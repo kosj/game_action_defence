@@ -75,7 +75,8 @@
 - [x] **C. 무기 진화** — 만렙 무기 + 특정 패시브 → 진화 무기(원본 대체·강화). 레벨업 시 조건 충족하면
       금색 ★EVOLVE★ 카드 최우선 제시. 규칙: Gun+Crit→Railgun, Orb+Swift→Saw Storm,
       Lightning+Crit→Thunderstorm, Garlic+Armor→Sanctuary, Holy+Haste→Crucifix.
-- [ ] D. 상자·픽업 등급화
+- [x] **D. 상자·픽업 등급화** — 강한 좀비일수록 값 큰 젬 드랍(청록/보라로 등급 구분, 골드·경험치↑),
+      보스 처치 시 "상자"=무료 보너스 레벨업(강화/진화 카드 즉시 제시). (폭탄·빙결 소모품은 여지)
 - [ ] E. 메타 성장(영구 강화)
 - [ ] F. 런 구조
 

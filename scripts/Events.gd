@@ -129,6 +129,14 @@ func _xp_curve(lvl: int) -> int:
 	return int(round(10.0 + (lvl - 1) * 8.0 + pow(float(lvl), 1.5) * 2.0))
 
 
+## 보스 상자 보상 — 무료 레벨업 1회(경험치 소모 없이 강화 카드가 뜬다).
+func bonus_level() -> void:
+	level += 1
+	xp_to_next = _xp_curve(level)
+	level_up.emit(level)
+	xp_changed.emit(xp, xp_to_next, level)
+
+
 ## 코인 수집 시 호출(코인 1개 = 경험치 1). 임계 도달 시 레벨업 신호(연속 레벨업도 처리).
 func add_xp(amount: int) -> void:
 	xp += amount
