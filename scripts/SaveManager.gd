@@ -14,9 +14,8 @@ var pending_weapon_tier_id: String = "common"
 
 
 func _ready() -> void:
-	# 저장된 난이도 설정 복원 (없으면 Normal). 최고 점수는 RankingManager 가 모드별로 관리하며,
-	# autoload 순서상 SaveManager 다음에 로드돼 여기서 복원한 난이도를 그대로 사용한다.
-	Events.difficulty = _read_difficulty()
+	# 난이도 모드 제거 — 단일 통합 모드. difficulty 는 랭킹 키 호환용으로 0 고정.
+	Events.difficulty = 0
 
 
 func save_difficulty() -> void:

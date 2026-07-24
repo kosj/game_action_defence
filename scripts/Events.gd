@@ -152,19 +152,18 @@ func add_xp(amount: int) -> void:
 		level_up.emit(level)
 	xp_changed.emit(xp, xp_to_next, level)
 
-# 난이도 (0=Easy, 1=Normal, 2=Hard) — 메인 메뉴에서 선택하며 디스크에 보존된다.
-# Events.reset() 으로 초기화되지 않는다(판이 바뀌어도 유지되는 설정값).
-var difficulty: int = 1
-const DIFFICULTY_NAMES: Array = ["Easy", "Normal", "Hard"]
-const _DIFF_ENEMY_HP: Array    = [0.70, 1.25, 1.90]   # 좀비 체력 배수(Hard 는 아래 램프 참고)
-const _DIFF_ENEMY_SPEED: Array = [0.90, 1.10, 1.30]   # 좀비 이동속도 배수
-const _DIFF_SPAWN_MULT: Array  = [1.15, 0.85, 0.62]   # 스폰 간격 배수(낮을수록 빠르게 몰림)
-const _DIFF_BOSS_HP: Array     = [0.70, 1.30, 2.10]   # 보스 체력 배수
-const _DIFF_TOTAL_MULT: Array  = [0.75, 1.15, 1.35]   # 웨이브 킬 목표 배수 — Easy 는 짧게, Hard 는 길고 험하게
-const _DIFF_SCORE_MULT: Array  = [0.80, 1.10, 1.55]   # 점수 배수 — 위험(Normal·Hard)에 더 큰 보상
-# Hard 초반 완화 램프: 1웨이브 스파이크(권총 DPS 고정 구간)를 막되, 이제 초반부터 체감되도록
-# 체력 배수를 1~5웨이브에 걸쳐 1.30 → 1.90 으로 서서히 올린다.
-const _HARD_HP_RAMP_START := 1.30
+# 난이도 모드는 제거됨 — 단일 통합 모드(뱀서식, 시간이 갈수록 압박이 커지는 하나의 곡선).
+# difficulty 는 랭킹 모드 키 호환용으로만 남겨 항상 0 으로 고정한다.
+var difficulty: int = 0
+const DIFFICULTY_NAMES: Array = ["Standard"]
+
+# 단일 모드 밸런스 배수(고정). 하드/헬 없이 접근성 있는 중간 곡선 — 후반 압박은 wave_pressure 로.
+const _MODE_ENEMY_HP := 0.95
+const _MODE_ENEMY_SPEED := 0.98
+const _MODE_SPAWN := 1.02
+const _MODE_BOSS_HP := 1.00
+const _MODE_TOTAL := 0.95
+const _MODE_SCORE := 1.00
 
 ## 무한 스케일링: 테이블이 끝나는 6웨이브 이후 매 웨이브 +12% 체력(복리).
 ## 업그레이드가 만렙에 도달해도 언젠가는 반드시 한계가 오도록 하는 점수 러시 장치.
@@ -172,18 +171,13 @@ const _PRESSURE_PER_WAVE := 1.12
 const _PRESSURE_SPEED_CAP := 1.30   # 이속은 최대 +30% 까지만(반응 불가능해지지 않게)
 
 
-func diff_enemy_hp_mult() -> float:
-	if difficulty == 2:
-		var t := clampf(float(current_wave - 1) / 4.0, 0.0, 1.0)
-		return lerpf(_HARD_HP_RAMP_START, _DIFF_ENEMY_HP[2], t)
-	return _DIFF_ENEMY_HP[clampi(difficulty, 0, 2)]
-
-func diff_enemy_speed_mult() -> float: return _DIFF_ENEMY_SPEED[clampi(difficulty, 0, 2)]
-func diff_spawn_mult() -> float:       return _DIFF_SPAWN_MULT[clampi(difficulty, 0, 2)]
-func diff_boss_hp_mult() -> float:     return _DIFF_BOSS_HP[clampi(difficulty, 0, 2)]
-func diff_total_mult() -> float:       return _DIFF_TOTAL_MULT[clampi(difficulty, 0, 2)]
-func diff_score_mult() -> float:       return _DIFF_SCORE_MULT[clampi(difficulty, 0, 2)]
-func difficulty_name() -> String:      return DIFFICULTY_NAMES[clampi(difficulty, 0, 2)]
+func diff_enemy_hp_mult() -> float:    return _MODE_ENEMY_HP
+func diff_enemy_speed_mult() -> float: return _MODE_ENEMY_SPEED
+func diff_spawn_mult() -> float:       return _MODE_SPAWN
+func diff_boss_hp_mult() -> float:     return _MODE_BOSS_HP
+func diff_total_mult() -> float:       return _MODE_TOTAL
+func diff_score_mult() -> float:       return _MODE_SCORE
+func difficulty_name() -> String:      return "Standard"
 
 
 ## 6웨이브 이후 적 체력에 곱하는 복리 압박 배수(보스 포함).
