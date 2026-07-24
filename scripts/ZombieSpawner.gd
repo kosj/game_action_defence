@@ -11,6 +11,10 @@ const BOSS := preload("res://scenes/Boss.tscn")
 ## 몇 웨이브마다 보스가 등장하는지 (5, 10, 15, ...)
 const BOSS_EVERY: int = 5
 
+## 이 웨이브의 보스는 최종 보스 REAPER — 처치하면 런 클리어(승리). 명확한 목표/엔딩을 준다.
+const FINAL_WAVE: int = 20
+var _final_boss: bool = false
+
 ## 보스 아키타입 테이블. archetype 은 Boss.gd 의 행동 분기 키.
 ##   hp_mul/speed_mul — 타입별 균형(원거리 거너는 안전하므로 HP·이속 낮춤).
 ##   tint — 보스 몸체 색(타입 구분). proj — 발사체 색. name — HUD 라벨.
@@ -304,7 +308,7 @@ func _spawn_boss() -> void:
 	# 보스는 플레이어(이속 220)를 압박할 수 있도록 일반 좀비보다 빠르게 — 회차/난이도/타입에 따라 가속.
 	var boss_hp := int(round(float(80 + 60 * (boss_count - 1)) * Events.diff_boss_hp_mult() \
 		* Events.wave_pressure_mult(_wave_num) * float(bt["hp_mul"])))
-	boss.setup({
+	var stats := {
 		"max_health": boss_hp,
 		"speed": (104.0 + 9.0 * boss_count) * Events.diff_enemy_speed_mult() * float(bt["speed_mul"]),
 		"contact_damage": int(bt["contact"]) + (1 if Events.difficulty == 2 else 0),
@@ -314,7 +318,20 @@ func _spawn_boss() -> void:
 		"tint": bt["tint"],
 		"proj_color": bt["proj"],
 		"name": bt["name"],
-	})
+	}
+	# 최종 웨이브: 일반 보스 대신 REAPER — 압도적 체력·근접 광폭·강한 접촉. 처치 시 승리.
+	_final_boss = _wave_num >= FINAL_WAVE
+	if _final_boss:
+		stats["max_health"] = boss_hp * 3
+		stats["archetype"] = "berserk"
+		stats["contact_damage"] = 4 + (1 if Events.difficulty == 2 else 0)
+		stats["tint"] = Color(0.48, 0.05, 0.12)
+		stats["proj_color"] = Color(1.0, 0.3, 0.3)
+		stats["score"] = 3000
+		stats["gold"] = 80
+		stats["name"] = "REAPER"
+		stats["final"] = true
+	boss.setup(stats)
 
 	# 호위 정예 좀비 — 빠른/탱커 혼합 (보스 회차가 높을수록 더 많이)
 	var escorts := 3 + boss_count
@@ -335,6 +352,11 @@ func _on_boss_summon(count: int) -> void:
 
 func _on_boss_died() -> void:
 	_boss_alive = false
+	if _final_boss:
+		# REAPER 처치 — 런 클리어. 스포너를 멈추고 승리 신호(HUD 가 승리 패널 표시).
+		_final_boss = false
+		_game_over = true
+		Events.game_won.emit()
 
 
 func _pick_type(weights: Array) -> Dictionary:

@@ -24,6 +24,7 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var wave_clear_bg: Panel = $WaveClearBg
 @onready var wave_clear_label: Label = $WaveClearLabel
 @onready var game_over_panel: Panel = $GameOverPanel
+@onready var game_over_label: Label = $GameOverPanel/Margin/VBoxContainer/GameOverLabel
 @onready var stats_label: Label = $GameOverPanel/Margin/VBoxContainer/StatsLabel
 @onready var restart_button: Button = $GameOverPanel/Margin/VBoxContainer/RestartButton
 @onready var main_menu_button: Button = $GameOverPanel/Margin/VBoxContainer/MainMenuButton
@@ -104,6 +105,7 @@ func _ready() -> void:
 	Events.boss_died.connect(_on_boss_died)
 	Events.swarm_incoming.connect(_on_swarm_incoming)
 	Events.xp_changed.connect(_on_xp_changed)
+	Events.game_won.connect(_on_game_won)
 	restart_button.pressed.connect(_on_restart_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
 	AdManager.rewarded_granted.connect(_on_rewarded_granted)
@@ -583,14 +585,27 @@ func _on_player_died() -> void:
 	SaveManager.delete_save()   # 사망 시 진행 실패 — 체크포인트 무효화
 	# 부활 버튼은 아직 안 썼고 광고가 준비됐을 때만 노출.
 	_revive_btn.visible = not _revive_used and AdManager.is_rewarded_ready()
+	_show_end_panel(false)
+
+
+## REAPER 처치 → 승리. 게임오버 패널을 승리용으로 재사용(부활 없음).
+func _on_game_won() -> void:
+	SaveManager.delete_save()   # 런 종료 — 체크포인트 무효화
+	_revive_btn.visible = false
+	game_over_label.text = "VICTORY!"
+	game_over_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	_show_end_panel(true)
+
+
+func _show_end_panel(victory: bool) -> void:
 	boss_bar.visible = false
 	var m := int(Events.elapsed_time) / 60
 	var s := int(Events.elapsed_time) % 60
 
-	# 점수 등급별 메달 색
+	# 점수 등급별 메달 색 (승리는 무조건 금)
 	var medal := Color(0.80, 0.52, 0.32)   # bronze
-	if Events.score >= 2500: medal = Color(1.0, 0.82, 0.25)      # gold
-	elif Events.score >= 800: medal = Color(0.78, 0.80, 0.88)    # silver
+	if victory or Events.score >= 2500: medal = Color(1.0, 0.82, 0.25)   # gold
+	elif Events.score >= 800: medal = Color(0.78, 0.80, 0.88)            # silver
 	_go_medal.color = medal
 	_go_medal.queue_redraw()
 
