@@ -39,9 +39,22 @@ func on_spawn() -> void:
 	_collecting = false
 	_captured = false
 	_pull_vel = Vector2.ZERO
+	value = 1                     # 풀 재사용 대비 기본값 리셋(등급 젬은 set_value 로 덮어씀)
 	body.scale = COLLECT_SCALE   # 수집 애니메이션 후 리셋
+	body.modulate = Color(1, 1, 1)
 	if player == null or not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
+
+
+## 젬 등급 지정(강한 적일수록 큰 값). 값이 클수록 골드·경험치가 많고 색으로 구분된다.
+func set_value(v: int) -> void:
+	value = maxi(1, v)
+	if value >= 4:
+		body.modulate = Color(0.65, 0.55, 1.0)   # 보라 — 대형 젬
+	elif value >= 2:
+		body.modulate = Color(0.55, 0.9, 1.0)    # 청록 — 중형 젬
+	else:
+		body.modulate = Color(1, 1, 1)
 
 
 ## 한 지점에서 바깥으로 톡 튀어 흩어지는 분출 연출(보스 처치 동전 분수). 연출 동안에는

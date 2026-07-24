@@ -399,12 +399,16 @@ func _die() -> void:
 	_burst(Color(1.0, 0.45, 0.15), 120.0, 0.5,  0.12)   # 주황 2차 파동
 	_burst(Color(1.0, 0.88, 0.35), 190.0, 0.7,  0.24)   # 넓게 퍼지는 마지막 황금 링
 
-	# 황금 동전 분수 — 보스 중심에서 사방으로 튀어 흩어졌다가 착지(시간차 분출).
+	# 황금 동전 분수 — 보스 중심에서 사방으로 튀어 흩어졌다가 착지(시간차 분출). 보스 코인은 프리미엄(값2).
 	for i in range(gold_drop):
 		var g := Pool.acquire(GOLD, get_tree().current_scene)
 		g.global_position = global_position
+		g.set_value(2)
 		var landing := global_position + Vector2.from_angle(randf() * TAU) * randf_range(45.0, 135.0)
 		g.launch(landing, randf() * 0.18)
+
+	# 보스 상자 보상 — 무료 레벨업 1회(강화/진화 카드가 즉시 뜬다).
+	Events.bonus_level()
 
 	queue_free()
 

@@ -268,4 +268,5 @@ func _die() -> void:
 	_FXBurst.spawn(scene, global_position, _type_color, 34.0, 0.30)
 	var g := Pool.acquire(GOLD, get_tree().current_scene)
 	g.global_position = global_position
+	g.set_value(maxi(1, 1 + int(max_health / 6)))   # 튼튼한 좀비일수록 큰 젬(골드·경험치↑)
 	Pool.release(self)
