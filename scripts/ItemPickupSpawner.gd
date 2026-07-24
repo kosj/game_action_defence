@@ -42,6 +42,7 @@ func _process(delta: float) -> void:
 
 func _spawn_item() -> void:
 	var p := Pool.acquire(ITEM_PICKUP, get_tree().current_scene)
+	p.kind = "bomb" if randf() < 0.4 else "magnet"   # 40% 확률로 폭탄(화면 일소) 아이템
 	p.global_position = _random_spawn_pos()
 
 
