@@ -51,13 +51,14 @@ var _swarm_elite: bool = false
 ## Events.wave_pressure_mult() 가 적 체력을 복리로 올려 무한히 어려워진다.
 ## max_z 상향: 좀비끼리 물리 충돌쌍 제거(collision_mask=0) 후 동시 개체 여유가 생겨,
 ## 화면을 더 빽빽하게 채워 "물량 압박" 긴장감을 준다(뱀서식 스웜). 값은 밸런스 손잡이.
+## weights 인덱스: 0~8 기존 종, 9 Foreman 10 Toxic 11 Screamer 12 Nurse 13 Longneck.
 const WAVES: Array = [
-	{"total": 60,  "max_z": 42,  "interval": 0.9,  "weights": [10, 0, 0, 0, 0, 0, 0, 0, 0]},
-	{"total": 100, "max_z": 64,  "interval": 0.70, "weights": [8,  2, 0, 2, 0, 0, 1, 0, 0]},
-	{"total": 180, "max_z": 88,  "interval": 0.55, "weights": [6,  3, 1, 3, 1, 0, 2, 1, 1]},
-	{"total": 240, "max_z": 112, "interval": 0.45, "weights": [5,  3, 2, 3, 2, 1, 2, 2, 2]},
-	{"total": 320, "max_z": 140, "interval": 0.35, "weights": [4,  4, 2, 3, 3, 1, 2, 2, 2]},
-	{"total": 400, "max_z": 170, "interval": 0.25, "weights": [3,  4, 3, 3, 3, 2, 3, 3, 3]},
+	{"total": 60,  "max_z": 42,  "interval": 0.9,  "weights": [10, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0]},
+	{"total": 100, "max_z": 64,  "interval": 0.70, "weights": [8,  2, 0, 2, 0, 0, 1, 0, 0,  0, 0, 1, 0, 0]},
+	{"total": 180, "max_z": 88,  "interval": 0.55, "weights": [6,  3, 1, 3, 1, 0, 2, 1, 1,  1, 0, 2, 1, 0]},
+	{"total": 240, "max_z": 112, "interval": 0.45, "weights": [5,  3, 2, 3, 2, 1, 2, 2, 2,  1, 1, 2, 1, 1]},
+	{"total": 320, "max_z": 140, "interval": 0.35, "weights": [4,  4, 2, 3, 3, 1, 2, 2, 2,  2, 2, 2, 2, 1]},
+	{"total": 400, "max_z": 170, "interval": 0.25, "weights": [3,  4, 3, 3, 3, 2, 3, 3, 3,  2, 2, 3, 2, 2]},
 ]
 
 ## 좀비 종류 테이블. 0~5 는 근접 추격형, 6~8 은 고유 행동 패턴(behavior: weaver/spitter/bomber).
@@ -66,6 +67,8 @@ const WAVES: Array = [
 ## 기존 스프라이트를 재활용하되 behavior·FX색으로 구분).
 ##   0 Walker  1 Runner  2 Brute  3 Swarmling  4 Charger  5 Juggernaut
 ##   6 Weaver(지그재그)  7 Spitter(원거리)  8 Bomber(자폭)
+##   9 Foreman(공사장 탱커)  10 Toxic(방독면)  11 Screamer(비명·유리대포)
+##   12 Nurse(간호사)  13 Longneck(긴목·산성 원거리)
 const ZOMBIE_TYPES: Array = [
 	{"speed": 65,  "max_health": 3,  "modulate": Color(0.70, 0.95, 0.55), "score": 10, "scale": 1.00, "contact": 1, "texture": preload("res://assets/sprites/zombie_walker.png")},
 	{"speed": 130, "max_health": 1,  "modulate": Color(0.85, 0.85, 0.95), "score": 15, "scale": 0.90, "contact": 1, "texture": preload("res://assets/sprites/zombie_runner.png")},
@@ -76,6 +79,11 @@ const ZOMBIE_TYPES: Array = [
 	{"speed": 80,  "max_health": 3,  "modulate": Color(0.40, 0.95, 0.95), "score": 18, "scale": 0.95, "contact": 1, "behavior": "weaver",  "texture": preload("res://assets/sprites/zombie_runner.png")},
 	{"speed": 55,  "max_health": 3,  "modulate": Color(0.95, 0.45, 0.95), "score": 35, "scale": 0.90, "contact": 1, "behavior": "spitter", "texture": preload("res://assets/sprites/zombie_spitter.png")},
 	{"speed": 90,  "max_health": 2,  "modulate": Color(1.00, 0.50, 0.20), "score": 30, "scale": 1.10, "contact": 2, "behavior": "bomber",  "texture": preload("res://assets/sprites/zombie_swarmling.png")},
+	{"speed": 58,  "max_health": 7,  "modulate": Color(1.00, 0.60, 0.25), "score": 28, "scale": 1.15, "contact": 2, "texture": preload("res://assets/sprites/zombie_foreman.png")},
+	{"speed": 72,  "max_health": 4,  "modulate": Color(0.55, 0.95, 0.40), "score": 26, "scale": 1.05, "contact": 2, "texture": preload("res://assets/sprites/zombie_toxic.png")},
+	{"speed": 145, "max_health": 1,  "modulate": Color(0.80, 0.95, 0.80), "score": 16, "scale": 0.95, "contact": 1, "texture": preload("res://assets/sprites/zombie_screamer.png")},
+	{"speed": 85,  "max_health": 3,  "modulate": Color(0.50, 0.80, 0.95), "score": 20, "scale": 1.05, "contact": 1, "texture": preload("res://assets/sprites/zombie_nurse.png")},
+	{"speed": 50,  "max_health": 3,  "modulate": Color(0.50, 1.00, 0.30), "score": 34, "scale": 1.10, "contact": 1, "behavior": "spitter", "texture": preload("res://assets/sprites/zombie_longneck.png")},
 ]
 
 var player: Node2D = null
