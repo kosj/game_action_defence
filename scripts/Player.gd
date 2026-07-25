@@ -62,6 +62,7 @@ const _WALK_TILT := 0.10     # 좌우 흔들림(라디안)
 const _WALK_SQUASH := 0.08   # 발 딛을 때 눌림
 var _walk_phase: float = 0.0
 var _body_base_scale: Vector2 = Vector2.ONE
+var _facing: float = 1.0   # 사이드뷰 좌우 방향: 1=오른쪽, -1=왼쪽(회전 대신 수평 플립)
 
 # 임시 무기 사용 시간 / 골드 자석 버프 타이머 (초 단위 변화 시에만 HUD 로 신호)
 var _weapon_time_left: float = 0.0
@@ -185,25 +186,27 @@ func _handle_attack(delta: float, target: Node2D) -> void:
 		_shoot_at(target)
 
 
-## 조준 대상이 있으면 그쪽을, 없으면 이동 방향을 바라본다(스프라이트만 회전).
+## 사이드뷰: 조준 대상이 있으면 그쪽, 없으면 이동 방향의 수평 성분으로 좌우만 뒤집는다(회전 X).
 func _update_facing(target: Node2D) -> void:
+	var dx := 0.0
 	if target:
-		body.rotation = (target.global_position - global_position).angle()
+		dx = target.global_position.x - global_position.x
 	elif velocity.length() > 1.0:
-		body.rotation = velocity.angle()
+		dx = velocity.x
+	if absf(dx) > 0.02:
+		_facing = -1.0 if dx < 0.0 else 1.0
 
 
-## 절차적 걷기 — 이동 거리에 비례해 위상을 올려 좌우 뒤뚱(tilt) + 발딛기 스쿼시.
-## _update_facing 이 body.rotation 을 절대값으로 설정한 뒤 그 위에 흔들림을 더한다.
+## 절차적 걷기 — 이동 거리에 비례해 위상을 올려 발딛기 스쿼시. 좌우 방향은 _facing 으로 플립.
 func _animate_walk(moved: float) -> void:
+	var fx := _body_base_scale.x * _facing
 	if moved <= 0.01:
 		_walk_phase = 0.0
-		body.scale = _body_base_scale
+		body.scale = Vector2(fx, _body_base_scale.y)
 		return
 	_walk_phase += moved * _WALK_FREQ
-	body.rotation += sin(_walk_phase) * _WALK_TILT
 	var squash := absf(sin(_walk_phase)) * _WALK_SQUASH
-	body.scale = Vector2(_body_base_scale.x * (1.0 + squash * 0.5), _body_base_scale.y * (1.0 - squash))
+	body.scale = Vector2(fx * (1.0 + squash * 0.5), _body_base_scale.y * (1.0 - squash))
 
 
 func _shoot_at(target: Node2D) -> void:

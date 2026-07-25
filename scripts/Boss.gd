@@ -42,6 +42,8 @@ const GUNNER_PROJ_SPEED := 300.0   # 투사체 속도(플레이어 이속 220 �
 var _fire_cd: float = 0.0
 var _telegraph_t: float = 0.0      # >0 이면 발사 예비 동작 중
 var _aim_dir: Vector2 = Vector2.RIGHT
+var _facing: float = 1.0            # 사이드뷰 좌우 방향(회전 대신 수평 플립)
+var _intro_scale_lock: bool = true # 등장 확대 트윈 중에는 스케일 플립을 보류(트윈 충돌 방지)
 
 # ── 서머너(summoner) 전용 상태 ───────────────────────────────────────
 const SUMMON_KEEP_DIST := 260.0    # 유지 거리(플레이어에게서 물러나며 소환)
@@ -118,6 +120,7 @@ func _spawn_intro() -> void:
 	body.scale = Vector2.ZERO
 	var tw := create_tween()
 	tw.tween_property(body, "scale", target_scale, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func(): _intro_scale_lock = false)   # 확대 완료 후부터 좌우 플립 허용
 	_FXBurst.spawn(get_tree().current_scene, global_position, Color(0.9, 0.2, 0.2), 90.0, 0.5)
 
 
@@ -135,11 +138,19 @@ func _physics_process(delta: float) -> void:
 		_:          _behave_melee(player)   # melee 및 아직 미구현 아키타입의 기본 동작
 
 
+## 사이드뷰 좌우 방향 갱신 — 회전 대신 Body 스케일 x 부호로 플립. 등장 확대 중에는 보류.
+func _face(dir: Vector2) -> void:
+	if absf(dir.x) > 0.02:
+		_facing = -1.0 if dir.x < 0.0 else 1.0
+	if not _intro_scale_lock:
+		body.scale.x = absf(body.scale.x) * _facing
+
+
 ## 근접 돌격(브루트) — 플레이어를 향해 직진. 기존 동작 그대로.
 func _behave_melee(player: Node2D) -> void:
 	var dir := (player.global_position - global_position).normalized()
 	velocity = dir * speed
-	body.rotation = dir.angle()
+	_face(dir)
 	move_and_slide()
 
 
@@ -156,7 +167,7 @@ func _behave_gunner(delta: float, player: Node2D) -> void:
 		velocity = dir * speed
 	else:
 		velocity = dir.orthogonal() * speed * 0.6
-	body.rotation = dir.angle()
+	_face(dir)
 	move_and_slide()
 
 	if _telegraph_t > 0.0:
@@ -210,7 +221,7 @@ func _behave_summoner(delta: float, player: Node2D) -> void:
 		velocity = dir * speed * 0.5     # 너무 멀면 느리게 접근
 	else:
 		velocity = dir.orthogonal() * speed * 0.4
-	body.rotation = dir.angle()
+	_face(dir)
 	move_and_slide()
 
 	if _summon_tel > 0.0:
@@ -245,7 +256,7 @@ func _behave_bomber(delta: float, player: Node2D) -> void:
 		velocity = dir * speed * 0.6
 	else:
 		velocity = dir.orthogonal() * speed * 0.4
-	body.rotation = dir.angle()
+	_face(dir)
 	move_and_slide()
 
 	_bomb_cd -= delta
@@ -278,17 +289,17 @@ func _behave_berserk(delta: float, player: Node2D) -> void:
 	match _bstate:
 		"stalk":
 			velocity = dir * speed * 0.5
-			body.rotation = dir.angle()
+			_face(dir)
 			move_and_slide()
 			if _bt >= BERSERK_STALK_TIME * haste:
 				_bstate = "wind"; _bt = 0.0
 		"wind":
 			velocity = Vector2.ZERO
 			_aim_dir = dir              # 대시 직전까지 플레이어를 조준(발사 순간 방향 고정)
-			body.rotation = dir.angle()
+			_face(dir)
 			if _bt >= BERSERK_WIND * haste:
 				_bstate = "dash"; _bt = 0.0
-				body.rotation = _aim_dir.angle()
+				_face(_aim_dir)
 		"dash":
 			velocity = _aim_dir * (BERSERK_DASH_SPEED * (1.15 if _enraged else 1.0))
 			move_and_slide()

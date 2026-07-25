@@ -48,6 +48,7 @@ var _fuse_timer: float = 0.0
 var _flash: float = 0.0      # 피격 잔광 잔여 시간 — 매 프레임 Tween 생성 대신 직접 감쇠
 var _walk_phase: float = 0.0     # 걷기 애니메이션 위상(이동 거리로 진행)
 var _body_base_scale: float = 1.0   # 종류별 기본 스프라이트 스케일(스쿼시는 이 값을 기준으로)
+var _facing: float = 1.0            # 사이드뷰 좌우 방향: 1=오른쪽, -1=왼쪽(회전 대신 수평 플립)
 
 # 넉백(피격 반응): 총알 직격 시 잠깐 뒤로 밀린다 — "총알이 박히는" 타격감.
 # 빠르게 감쇠해 순 이동은 미미(밸런스 영향 최소). 누적 상한으로 폭주 방지.
@@ -78,6 +79,7 @@ func on_despawn() -> void:
 	remove_from_group("zombies")
 	body.modulate = Color.WHITE
 	body.scale = Vector2.ONE
+	body.rotation = 0.0
 	shadow.scale = Vector2.ONE * _SHADOW_BASE
 
 
@@ -100,6 +102,8 @@ func setup(type_data: Dictionary) -> void:
 	var s := float(type_data.get("scale", 1.0))
 	_body_base_scale = s
 	_walk_phase = randf() * TAU              # 개체마다 위상을 달리해 군집이 똑같이 움직이지 않게
+	_facing = 1.0
+	body.rotation = 0.0
 	body.scale = Vector2.ONE * s
 	shadow.scale = Vector2.ONE * (_SHADOW_BASE * s)   # 큰 좀비일수록 그림자도 크게
 
@@ -125,8 +129,8 @@ func _physics_process(delta: float) -> void:
 		"spitter": _behave_spitter(delta)
 		"bomber":  _behave_bomber(delta)
 		_:         _behave_chase(delta)
-	# 이번 프레임 이동량으로 걷기 애니메이션을 진행(behave 가 매 프레임 body.rotation 을
-	# 진행 방향으로 재설정하므로, 그 위에 좌우 흔들림·스쿼시를 더한다).
+	# 이번 프레임 이동량으로 걷기 애니메이션을 진행(behave 가 _face() 로 좌우 방향을 갱신하므로,
+	# 여기서는 그 방향(_facing)에 발딛기 스쿼시를 더한다).
 	_animate_walk(global_position.distance_to(prev_pos))
 	# 넉백은 걷기 애니메이션에 반영하지 않고 순수 위치 이동으로만 적용(빠르게 감쇠).
 	if _knockback != Vector2.ZERO:
@@ -136,16 +140,22 @@ func _physics_process(delta: float) -> void:
 
 ## 절차적 걷기: 이동 거리에 비례해 위상을 진행시켜, 좌우로 뒤뚱거리고(tilt) 발을 딛을 때마다
 ## 살짝 눌리는(squash) 움직임을 준다. 멈추면(이동량 0) 위상이 멈춰 자연스럽게 정지 포즈가 된다.
-## behave 함수가 이미 body.rotation 을 진행 방향으로 절대값 설정했으므로, 여기서는 그 위에 더한다.
+## 사이드뷰: 스프라이트를 회전시키지 않고 좌우로만 뒤집는다(_facing). 걷기는 발딛기 스쿼시로 표현.
 func _animate_walk(moved: float) -> void:
+	var fx := _body_base_scale * _facing
 	if moved <= 0.01:
-		body.scale = Vector2.ONE * _body_base_scale   # 정지 시 기본 자세로 복귀
+		body.scale = Vector2(fx, _body_base_scale)   # 정지 시 기본 자세(방향 유지)
 		return
 	_walk_phase += moved * _WALK_FREQ
-	body.rotation += sin(_walk_phase) * _WALK_TILT
 	# 발 딛는 스쿼시(위상 2배 주파수): 세로로 눌리고 가로로 살짝 퍼진다.
 	var squash := absf(sin(_walk_phase)) * _WALK_SQUASH
-	body.scale = Vector2(_body_base_scale * (1.0 + squash * 0.5), _body_base_scale * (1.0 - squash))
+	body.scale = Vector2(fx * (1.0 + squash * 0.5), _body_base_scale * (1.0 - squash))
+
+
+## 사이드뷰 좌우 방향 갱신 — 진행/추격 방향의 수평 성분으로만 판단(뱀서식 플립).
+func _face(dir: Vector2) -> void:
+	if absf(dir.x) > 0.02:
+		_facing = -1.0 if dir.x < 0.0 else 1.0
 
 
 ## 기본: 플레이어를 향해 직진 추격.
@@ -157,7 +167,7 @@ func _animate_walk(moved: float) -> void:
 ## 낭비한다. mask=0 으로 그 비용을 제거한다(레이어2 는 남아 총알·플레이어 감지는 그대로).
 func _behave_chase(delta: float) -> void:
 	var dir := (player.global_position - global_position).normalized()
-	body.rotation = dir.angle()
+	_face(dir)
 	global_position += dir * speed * delta
 
 
@@ -167,7 +177,7 @@ func _behave_weaver(delta: float) -> void:
 	var dir := (player.global_position - global_position).normalized()
 	var perp := Vector2(-dir.y, dir.x)
 	var vel := dir * speed + perp * (sin(_wt * WEAVE_FREQ) * speed * WEAVE_AMP_RATIO)
-	body.rotation = dir.angle()
+	_face(dir)
 	global_position += vel * delta
 
 
@@ -181,7 +191,7 @@ func _behave_spitter(delta: float) -> void:
 		vel = -dir * speed      # 너무 가까우면 물러난다
 	elif dist > SPIT_KEEP_DIST + 30.0:
 		vel = dir * speed       # 너무 멀면 접근
-	body.rotation = dir.angle()
+	_face(dir)
 	global_position += vel * delta
 	_fire_timer -= delta
 	if dist <= SPIT_RANGE and _fire_timer <= 0.0:
@@ -210,7 +220,7 @@ func _behave_bomber(delta: float) -> void:
 		return
 	var to_p := player.global_position - global_position
 	var dir := to_p.normalized()
-	body.rotation = dir.angle()
+	_face(dir)
 	global_position += dir * speed * delta
 	if to_p.length() <= BOMB_TRIGGER:
 		_fuse_active = true
