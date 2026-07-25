@@ -7,7 +7,8 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var top_bg: Panel = $TopBg
 @onready var gold_label: Label = $GoldLabel
 @onready var hp_bar: Control = $HpBar
-@onready var hp_fill: ColorRect = $HpBar/BarFill
+@onready var hp_bg: Panel = $HpBar/BarBg
+@onready var hp_fill: Panel = $HpBar/BarFill
 @onready var hp_label: Label = $HpBar/HpLabel
 @onready var weapon_label: Label = $WeaponLabel
 @onready var buff_label: Label = $BuffLabel
@@ -19,7 +20,8 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var flash_overlay: ColorRect = $FlashOverlay
 @onready var low_hp_overlay: ColorRect = $LowHpOverlay
 @onready var boss_bar: Control = $BossBar
-@onready var boss_fill: ColorRect = $BossBar/BarFill
+@onready var boss_bg: Panel = $BossBar/BarBg
+@onready var boss_fill: Panel = $BossBar/BarFill
 @onready var boss_name_label: Label = $BossBar/BossName
 @onready var wave_clear_bg: Panel = $WaveClearBg
 @onready var wave_clear_label: Label = $WaveClearLabel
@@ -30,13 +32,14 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var main_menu_button: Button = $GameOverPanel/Margin/VBoxContainer/MainMenuButton
 
 const BOSS_BAR_W := 400.0
-const HP_BAR_W := 176.0   # 체력 게이지 채움부의 최대 폭(씬의 BarFill 28~204)
+const HP_BAR_W := 204.0   # 체력 게이지 채움부의 최대 폭(씬의 BarFill 0~204)
 
 var _prev_health: int = -1
 var _prev_gold: int = -1
 var _prev_score: int = -1
 var _max_health: int = 0
 var _low_hp_tween: Tween = null
+var _hp_fill_sb: StyleBoxFlat = null   # 체력 게이지 채움부 스타일(색을 비율에 따라 갱신)
 var _boss_max: int = 1
 var _weapon_tween: Tween = null
 var _weapon_base_text: String = ""
@@ -79,6 +82,11 @@ func _ready() -> void:
 	game_over_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.05, 0.06, 0.96), Color(0.85, 0.25, 0.22), 22, 3))
 	_UIStyle.apply_button_style(restart_button, Color(0.55, 0.16, 0.16), Color(0.95, 0.35, 0.3))
 	_UIStyle.apply_button_style(main_menu_button, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
+	_style_bars()
+	# 전장 위에 뜨는 상단 라벨들에 어두운 외곽선을 넣어 가독성을 확보한다.
+	for lbl in [gold_label, score_label, wave_label, time_label, high_score_label, progress_label, hp_label]:
+		UITheme.outline_label(lbl)
+	UITheme.outline_label(boss_name_label, 6, Color(0.18, 0.0, 0.0, 0.75))
 	restart_button.text = Locale.t("go_retry")
 	main_menu_button.text = Locale.t("go_menu")
 	_build_fog()
@@ -240,10 +248,46 @@ func _update_hp_bar(health: int, max_health: int) -> void:
 	var mx := maxi(max_health, 1)
 	var cur := clampi(health, 0, mx)
 	var ratio := float(cur) / float(mx)
-	hp_label.text = "%d / %d" % [cur, mx]
+	hp_label.text = "HP %d / %d" % [cur, mx]
 	var tw := create_tween()
 	tw.tween_property(hp_fill, "size:x", HP_BAR_W * ratio, 0.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	hp_fill.color = _hp_color(ratio)
+	if _hp_fill_sb:
+		_hp_fill_sb.bg_color = _hp_color(ratio)
+
+
+## 체력/보스 게이지를 둥근 모서리·테두리의 StyleBoxFlat 로 스타일링(각진 ColorRect 대체).
+func _style_bars() -> void:
+	var hp_bg_sb := StyleBoxFlat.new()
+	hp_bg_sb.bg_color = Color(0.09, 0.03, 0.05, 0.9)
+	hp_bg_sb.set_corner_radius_all(7)
+	hp_bg_sb.corner_detail = 6
+	hp_bg_sb.anti_aliasing = true
+	hp_bg_sb.set_border_width_all(2)
+	hp_bg_sb.border_color = Color(0, 0, 0, 0.55)
+	hp_bg.add_theme_stylebox_override("panel", hp_bg_sb)
+
+	_hp_fill_sb = StyleBoxFlat.new()
+	_hp_fill_sb.bg_color = Color(0.3, 0.85, 0.35)
+	_hp_fill_sb.set_corner_radius_all(6)
+	_hp_fill_sb.corner_detail = 6
+	_hp_fill_sb.anti_aliasing = true
+	hp_fill.add_theme_stylebox_override("panel", _hp_fill_sb)
+
+	var boss_bg_sb := StyleBoxFlat.new()
+	boss_bg_sb.bg_color = Color(0.11, 0.02, 0.03, 0.9)
+	boss_bg_sb.set_corner_radius_all(6)
+	boss_bg_sb.corner_detail = 6
+	boss_bg_sb.anti_aliasing = true
+	boss_bg_sb.set_border_width_all(2)
+	boss_bg_sb.border_color = Color(0, 0, 0, 0.5)
+	boss_bg.add_theme_stylebox_override("panel", boss_bg_sb)
+
+	var boss_fill_sb := StyleBoxFlat.new()
+	boss_fill_sb.bg_color = Color(0.92, 0.22, 0.22)
+	boss_fill_sb.set_corner_radius_all(5)
+	boss_fill_sb.corner_detail = 6
+	boss_fill_sb.anti_aliasing = true
+	boss_fill.add_theme_stylebox_override("panel", boss_fill_sb)
 
 
 ## 체력 비율에 따른 게이지 색: 높음=초록, 중간=노랑, 낮음=빨강(선형 보간).

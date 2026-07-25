@@ -48,35 +48,23 @@ offset_right = 214.0
 offset_bottom = 82.0
 mouse_filter = 2
 
-[node name="HeartIcon" type="TextureRect" parent="HpBar"]
-offset_top = 2.0
-offset_right = 22.0
-offset_bottom = 24.0
+[node name="BarBg" type="Panel" parent="HpBar"]
+offset_right = 204.0
+offset_bottom = 26.0
 mouse_filter = 2
-texture = ExtResource("4")
-expand_mode = 1
-stretch_mode = 5
 
-[node name="BarBg" type="ColorRect" parent="HpBar"]
-offset_left = 28.0
+[node name="BarFill" type="Panel" parent="HpBar"]
 offset_right = 204.0
 offset_bottom = 26.0
-color = Color(0.12, 0.03, 0.04, 0.85)
-
-[node name="BarFill" type="ColorRect" parent="HpBar"]
-offset_left = 28.0
-offset_right = 204.0
-offset_bottom = 26.0
-color = Color(0.3, 0.85, 0.35, 1.0)
+mouse_filter = 2
 
 [node name="HpLabel" type="Label" parent="HpBar"]
-offset_left = 28.0
 anchor_right = 1.0
 offset_bottom = 26.0
 theme_override_font_sizes/font_size = 15
 horizontal_alignment = 1
 vertical_alignment = 1
-text = "5 / 5"
+text = "HP 5 / 5"
 
 [node name="ScoreLabel" type="Label" parent="."]
 offset_left = 10.0
@@ -195,17 +183,17 @@ theme_override_font_sizes/font_size = 18
 horizontal_alignment = 1
 text = "B O S S"
 
-[node name="BarBg" type="ColorRect" parent="BossBar"]
+[node name="BarBg" type="Panel" parent="BossBar"]
 offset_top = 24.0
 offset_right = 400.0
 offset_bottom = 40.0
-color = Color(0.15, 0.03, 0.04, 0.85)
+mouse_filter = 2
 
-[node name="BarFill" type="ColorRect" parent="BossBar"]
+[node name="BarFill" type="Panel" parent="BossBar"]
 offset_top = 24.0
 offset_right = 400.0
 offset_bottom = 40.0
-color = Color(0.9, 0.2, 0.2, 1.0)
+mouse_filter = 2
 
 [node name="WaveClearBg" type="Panel" parent="."]
 anchor_left = 0.5
