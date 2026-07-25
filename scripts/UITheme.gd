@@ -118,6 +118,12 @@ func heading(label: Label) -> void:
 		label.add_theme_font_override("font", b)
 
 
+## 라벨에 어두운 외곽선을 넣어 밝은 배경/전장 위에서도 글자가 또렷하게 읽히도록 한다.
+static func outline_label(label: Label, size: int = 5, col: Color = Color(0.0, 0.0, 0.0, 0.7)) -> void:
+	label.add_theme_constant_override("outline_size", size)
+	label.add_theme_color_override("font_outline_color", col)
+
+
 ## 세로 그라데이션 배경(TextureRect, 전체 앵커). 메뉴/상점 등 단색 배경 대체용.
 static func make_gradient_bg(top: Color, bottom: Color) -> TextureRect:
 	var g := Gradient.new()
