@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/Boss.gd" id="1"]
-[ext_resource type="Texture2D" path="res://assets/sprites/boss.png" id="2"]
+[ext_resource type="Texture2D" path="res://assets/sprites/boss_brute.png" id="2"]
 [ext_resource type="Texture2D" path="res://assets/sprites/shadow.png" id="3"]
 
 [sub_resource type="CircleShape2D" id="shape_boss"]
@@ -14,12 +14,12 @@ script = ExtResource("1")
 
 [node name="Shadow" type="Sprite2D" parent="."]
 modulate = Color(1, 1, 1, 0.5)
-position = Vector2(0, 22)
-scale = Vector2(1.25, 1.25)
+position = Vector2(0, 48)
+scale = Vector2(2.4, 2.4)
 texture = ExtResource("3")
 
 [node name="Body" type="Sprite2D" parent="."]
-scale = Vector2(2.7, 2.7)
+scale = Vector2(1.1, 1.1)
 texture = ExtResource("2")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
