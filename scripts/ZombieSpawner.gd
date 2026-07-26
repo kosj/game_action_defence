@@ -381,3 +381,61 @@ func _random_spawn_pos() -> Vector2:
 	var radius := vp.length() * 0.5 + spawn_margin
 	var angle := randf() * TAU
 	return player.global_position + Vector2.from_angle(angle) * radius
+
+
+# ── 몬스터 분리(anti-overlap) ─────────────────────────────────────────
+# 좀비끼리 물리 충돌(move_and_slide)은 O(n²)라 쓰지 않고, 공간 해시 그리드로 근접 이웃만
+# 훑어 살짝 밀어내 겹쳐 쌓이는 것을 막는다. 이웃 검사 수를 상한 처리해 대량에서도 O(n·k).
+const SEP_RADIUS := 26.0       # 유지하려는 최소 중심 간격
+const SEP_CELL := 26.0         # 그리드 셀 크기(= 분리 반경)
+const SEP_STRENGTH := 0.30     # 겹침량의 이 비율만큼 프레임당 보정
+const SEP_MAX_PUSH := 5.0      # 프레임당 최대 이동(px) — 떨림 방지
+const SEP_MAX_NEIGHBORS := 6   # 좀비당 이웃 검사 상한(성능 보장)
+
+
+func _physics_process(_delta: float) -> void:
+	if _game_over:
+		return
+	var zs := get_tree().get_nodes_in_group("zombies")
+	if zs.size() < 2:
+		return
+	# 1) 공간 해시 그리드에 버킷팅(보스 제외 — 보스는 밀리지 않는다).
+	var grid: Dictionary = {}
+	var pts: Array = []
+	for z in zs:
+		if not is_instance_valid(z) or z.is_in_group("boss"):
+			continue
+		var p: Vector2 = z.global_position
+		var key := Vector2i(int(floor(p.x / SEP_CELL)), int(floor(p.y / SEP_CELL)))
+		if not grid.has(key):
+			grid[key] = []
+		grid[key].append(pts.size())
+		pts.append([z, p])
+	# 2) 각 좀비: 인접 3x3 셀의 이웃 중 최소거리 미만이면 반대방향으로 밀어낸다.
+	for i in pts.size():
+		var p: Vector2 = pts[i][1]
+		var cx := int(floor(p.x / SEP_CELL))
+		var cy := int(floor(p.y / SEP_CELL))
+		var push := Vector2.ZERO
+		var checked := 0
+		for ox in range(-1, 2):
+			for oy in range(-1, 2):
+				var key := Vector2i(cx + ox, cy + oy)
+				if not grid.has(key):
+					continue
+				for j in grid[key]:
+					if j == i:
+						continue
+					var d: Vector2 = p - pts[j][1]
+					var dl := d.length()
+					if dl > 0.001 and dl < SEP_RADIUS:
+						push += (d / dl) * (SEP_RADIUS - dl)
+						checked += 1
+						if checked >= SEP_MAX_NEIGHBORS:
+							break
+				if checked >= SEP_MAX_NEIGHBORS:
+					break
+			if checked >= SEP_MAX_NEIGHBORS:
+				break
+		if push != Vector2.ZERO:
+			pts[i][0].global_position += (push * SEP_STRENGTH).limit_length(SEP_MAX_PUSH)

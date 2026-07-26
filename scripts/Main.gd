@@ -6,7 +6,6 @@ const ZOMBIE := preload("res://scenes/Zombie.tscn")
 const BULLET := preload("res://scenes/Bullet.tscn")
 const ENEMY_BULLET := preload("res://scenes/EnemyBullet.tscn")
 const GOLD := preload("res://scenes/Gold.tscn")
-const WEAPON_PICKUP := preload("res://scenes/WeaponPickup.tscn")
 const ITEM_PICKUP := preload("res://scenes/ItemPickup.tscn")
 
 
@@ -23,5 +22,4 @@ func _do_prewarm() -> void:
 	Pool.prewarm(BULLET, 50)
 	Pool.prewarm(ENEMY_BULLET, 10)
 	Pool.prewarm(GOLD, 60)
-	Pool.prewarm(WEAPON_PICKUP, 3)
 	Pool.prewarm(ITEM_PICKUP, 2)

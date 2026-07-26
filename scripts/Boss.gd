@@ -28,6 +28,7 @@ const _BOSS_TEX := {
 }
 
 @onready var body: Node2D = $Body
+@onready var shadow: Sprite2D = $Shadow
 
 var speed: float = 55.0
 var max_health: int = 80
@@ -104,6 +105,7 @@ func setup(stats: Dictionary) -> void:
 	_base_color = Color(1, 1, 1)
 	if body:
 		body.texture = _BOSS_TEX.get(_archetype, _BOSS_TEX["melee"])
+		_fit_shadow()   # 확대 트윈 전(스케일=씬 값)에 그림자를 발밑 크기로 배치
 	_proj_color = stats.get("proj_color", Color(0.55, 0.8, 1.0))
 	_alive = true
 	_enraged = false
@@ -149,6 +151,16 @@ func _physics_process(delta: float) -> void:
 		"bomber":   _behave_bomber(delta, player)
 		"berserk":  _behave_berserk(delta, player)
 		_:          _behave_melee(player)   # melee 및 아직 미구현 아키타입의 기본 동작
+
+
+## 그림자를 보스 스프라이트 폭에 맞춘 납작한 타원으로 발밑에 배치(shadow.png 128x72).
+func _fit_shadow() -> void:
+	if body == null or body.texture == null:
+		return
+	var tex := body.texture.get_size()
+	var sx := (tex.x * body.scale.x * 0.6) / 128.0
+	shadow.scale = Vector2(sx, sx * 0.5)
+	shadow.position = Vector2(0.0, tex.y * body.scale.y * 0.46)
 
 
 ## 사이드뷰 좌우 방향 갱신 — 회전 대신 Body 스케일 x 부호로 플립. 등장 확대 중에는 보류.

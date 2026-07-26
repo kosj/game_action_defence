@@ -22,6 +22,7 @@ scale = Vector2(0.4, 0.4)
 texture = ExtResource("3")
 
 [node name="Body" type="Sprite2D" parent="."]
+scale = Vector2(1.4, 1.4)
 texture = ExtResource("2")
 
 [node name="Muzzle" type="Marker2D" parent="Body"]
