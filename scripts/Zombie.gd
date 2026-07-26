@@ -31,8 +31,9 @@ const _HIT_COLOR := Color(1.0, 0.45, 0.45)
 # 걷기 애니메이션(스프라이트 시트 없이 절차적) — 이동 거리에 비례해 위상이 진행하므로
 # 멈추면 자동으로 멈춘다. 좌우로 뒤뚱(tilt) + 발 딛는 스쿼시(squash) 로 살아있는 움직임을 준다.
 const _WALK_FREQ := 0.085    # 이동 픽셀당 걸음 위상 증가(라디안)
-const _WALK_TILT := 0.11     # 좌우 흔들림 진폭(라디안, ≈6°)
 const _WALK_SQUASH := 0.085  # 발 딛을 때 눌리는 정도
+const _WALK_BOB := 2.8       # 발 딛을 때 살짝 뜨는 수직 바운스(px)
+const _WALK_SWAY := 0.05     # 좌우로 뒤뚱거리는 회전(라디안, ≈3°)
 
 var health: int
 var player: Node2D = null
@@ -80,6 +81,7 @@ func on_despawn() -> void:
 	body.modulate = Color.WHITE
 	body.scale = Vector2.ONE
 	body.rotation = 0.0
+	body.position = Vector2.ZERO
 	shadow.scale = Vector2.ONE * _SHADOW_BASE
 
 
@@ -104,6 +106,7 @@ func setup(type_data: Dictionary) -> void:
 	_walk_phase = randf() * TAU              # 개체마다 위상을 달리해 군집이 똑같이 움직이지 않게
 	_facing = 1.0
 	body.rotation = 0.0
+	body.position = Vector2.ZERO
 	body.scale = Vector2.ONE * s
 	_fit_shadow()   # 스프라이트 크기·발 위치에 맞춰 바닥 그림자 배치
 
@@ -140,16 +143,21 @@ func _physics_process(delta: float) -> void:
 
 ## 절차적 걷기: 이동 거리에 비례해 위상을 진행시켜, 좌우로 뒤뚱거리고(tilt) 발을 딛을 때마다
 ## 살짝 눌리는(squash) 움직임을 준다. 멈추면(이동량 0) 위상이 멈춰 자연스럽게 정지 포즈가 된다.
-## 사이드뷰: 스프라이트를 회전시키지 않고 좌우로만 뒤집는다(_facing). 걷기는 발딛기 스쿼시로 표현.
+## 사이드뷰 걷기: 회전 대신 좌우 플립(_facing) + 발딛기 스쿼시 + 수직 바운스 + 좌우 뒤뚱.
+## 이동량(moved) 기반으로 위상이 진행하므로 멈추면 자동으로 기본 자세로 복귀한다.
 func _animate_walk(moved: float) -> void:
 	var fx := _body_base_scale * _facing
 	if moved <= 0.01:
-		body.scale = Vector2(fx, _body_base_scale)   # 정지 시 기본 자세(방향 유지)
+		body.scale = Vector2(fx, _body_base_scale)
+		body.position.y = move_toward(body.position.y, 0.0, 0.6)
+		body.rotation = move_toward(body.rotation, 0.0, 0.02)
 		return
 	_walk_phase += moved * _WALK_FREQ
-	# 발 딛는 스쿼시(위상 2배 주파수): 세로로 눌리고 가로로 살짝 퍼진다.
-	var squash := absf(sin(_walk_phase)) * _WALK_SQUASH
-	body.scale = Vector2(fx * (1.0 + squash * 0.5), _body_base_scale * (1.0 - squash))
+	var s := sin(_walk_phase)
+	var squash := absf(s) * _WALK_SQUASH
+	body.scale = Vector2(fx * (1.0 + squash * 0.4), _body_base_scale * (1.0 - squash))
+	body.position.y = -absf(s) * _WALK_BOB   # 발 딛을 때 통통 튀는 느낌
+	body.rotation = s * _WALK_SWAY            # 좌우로 뒤뚱거림
 
 
 ## 사이드뷰 좌우 방향 갱신 — 진행/추격 방향의 수평 성분으로만 판단(뱀서식 플립).

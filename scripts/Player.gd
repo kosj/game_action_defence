@@ -199,16 +199,21 @@ func _fit_shadow() -> void:
 	shadow.position = Vector2(0.0, tex.y * _body_base_scale.y * 0.46)
 
 
-## 절차적 걷기 — 이동 거리에 비례해 위상을 올려 발딛기 스쿼시. 좌우 방향은 _facing 으로 플립.
+## 절차적 걷기 — 발딛기 스쿼시 + 수직 바운스 + 좌우 뒤뚱. 좌우 방향은 _facing 으로 플립.
 func _animate_walk(moved: float) -> void:
 	var fx := _body_base_scale.x * _facing
 	if moved <= 0.01:
 		_walk_phase = 0.0
 		body.scale = Vector2(fx, _body_base_scale.y)
+		body.position.y = move_toward(body.position.y, 0.0, 0.6)
+		body.rotation = move_toward(body.rotation, 0.0, 0.02)
 		return
 	_walk_phase += moved * _WALK_FREQ
-	var squash := absf(sin(_walk_phase)) * _WALK_SQUASH
-	body.scale = Vector2(fx * (1.0 + squash * 0.5), _body_base_scale.y * (1.0 - squash))
+	var s := sin(_walk_phase)
+	var squash := absf(s) * _WALK_SQUASH
+	body.scale = Vector2(fx * (1.0 + squash * 0.4), _body_base_scale.y * (1.0 - squash))
+	body.position.y = -absf(s) * 2.4   # 수직 바운스(플레이어는 다소 절제)
+	body.rotation = s * 0.04           # 좌우 뒤뚱(작게)
 
 
 ## 주어진 방향(base_dir, 정규화됨)으로 발사 — 다중발사는 그 방향 기준 부채꼴로 분산.

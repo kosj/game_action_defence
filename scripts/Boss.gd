@@ -55,6 +55,7 @@ var _telegraph_t: float = 0.0      # >0 이면 발사 예비 동작 중
 var _aim_dir: Vector2 = Vector2.RIGHT
 var _facing: float = 1.0            # 사이드뷰 좌우 방향(회전 대신 수평 플립)
 var _intro_scale_lock: bool = true # 등장 확대 트윈 중에는 스케일 플립을 보류(트윈 충돌 방지)
+var _walk_phase: float = 0.0        # 걷기 바운스 위상(이동 거리로 진행)
 
 # ── 서머너(summoner) 전용 상태 ───────────────────────────────────────
 const SUMMON_KEEP_DIST := 260.0    # 유지 거리(플레이어에게서 물러나며 소환)
@@ -151,6 +152,10 @@ func _physics_process(delta: float) -> void:
 		"bomber":   _behave_bomber(delta, player)
 		"berserk":  _behave_berserk(delta, player)
 		_:          _behave_melee(player)   # melee 및 아직 미구현 아키타입의 기본 동작
+	# 걷기 바운스 — 이동 속도에 비례해 위상을 올려 발 딛는 느낌(스케일 플립·확대와 독립).
+	if not _intro_scale_lock:
+		_walk_phase += velocity.length() * delta * 0.06
+		body.position.y = -absf(sin(_walk_phase)) * 3.5
 
 
 ## 그림자를 보스 스프라이트 폭에 맞춘 납작한 타원으로 발밑에 배치(shadow.png 128x72).
