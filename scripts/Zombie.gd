@@ -105,7 +105,7 @@ func setup(type_data: Dictionary) -> void:
 	_facing = 1.0
 	body.rotation = 0.0
 	body.scale = Vector2.ONE * s
-	shadow.scale = Vector2.ONE * (_SHADOW_BASE * s)   # 큰 좀비일수록 그림자도 크게
+	_fit_shadow()   # 스프라이트 크기·발 위치에 맞춰 바닥 그림자 배치
 
 
 ## 종류별 접촉 피해(차저/저거넛 등 강화 적은 더 큰 피해). Player 가 호출.
@@ -156,6 +156,17 @@ func _animate_walk(moved: float) -> void:
 func _face(dir: Vector2) -> void:
 	if absf(dir.x) > 0.02:
 		_facing = -1.0 if dir.x < 0.0 else 1.0
+
+
+## 그림자를 스프라이트 폭에 비례하는 납작한 타원으로, 캐릭터 발밑(스프라이트 하단)에 배치.
+## shadow.png 는 128x72. 그림자는 Body 플립과 무관하게 루트 자식이라 항상 고정.
+func _fit_shadow() -> void:
+	if body.texture == null:
+		return
+	var tex := body.texture.get_size()
+	var sx := (tex.x * _body_base_scale * 0.6) / 128.0
+	shadow.scale = Vector2(sx, sx * 0.5)
+	shadow.position = Vector2(0.0, tex.y * _body_base_scale * 0.46)
 
 
 ## 기본: 플레이어를 향해 직진 추격.

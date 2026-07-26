@@ -20,6 +20,7 @@ const BASE_BULLET_SPEED := 700.0
 
 @onready var body: Node2D = $Body
 @onready var muzzle: Marker2D = $Body/Muzzle
+@onready var shadow: Sprite2D = $Shadow
 @onready var hurtbox: Area2D = $Hurtbox
 @onready var camera: Camera2D = $Camera2D
 
@@ -75,6 +76,7 @@ var _magnet_last_sec: int = -1
 func _ready() -> void:
 	add_to_group("player")
 	_body_base_scale = body.scale   # 걷기 스쿼시는 이 기본 스케일을 기준으로 오간다
+	_fit_shadow()
 	_base_move_speed = move_speed
 	_base_attack_cooldown = attack_cooldown
 	_base_max_health = max_health
@@ -195,6 +197,16 @@ func _update_facing(target: Node2D) -> void:
 		dx = velocity.x
 	if absf(dx) > 0.02:
 		_facing = -1.0 if dx < 0.0 else 1.0
+
+
+## 그림자를 스프라이트 폭에 맞춘 납작한 타원으로 발밑에 배치(shadow.png 128x72).
+func _fit_shadow() -> void:
+	if body.texture == null:
+		return
+	var tex := body.texture.get_size()
+	var sx := (tex.x * _body_base_scale.x * 0.55) / 128.0
+	shadow.scale = Vector2(sx, sx * 0.5)
+	shadow.position = Vector2(0.0, tex.y * _body_base_scale.y * 0.46)
 
 
 ## 절차적 걷기 — 이동 거리에 비례해 위상을 올려 발딛기 스쿼시. 좌우 방향은 _facing 으로 플립.

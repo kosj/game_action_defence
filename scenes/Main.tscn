@@ -5,7 +5,6 @@
 [ext_resource type="Script" path="res://scripts/ZombieSpawner.gd" id="3"]
 [ext_resource type="PackedScene" path="res://scenes/HUD.tscn" id="4"]
 [ext_resource type="Script" path="res://scripts/Ground.gd" id="6"]
-[ext_resource type="Script" path="res://scripts/WeaponPickupSpawner.gd" id="7"]
 [ext_resource type="Script" path="res://scripts/ItemPickupSpawner.gd" id="8"]
 [ext_resource type="PackedScene" path="res://scenes/LevelUpPanel.tscn" id="9"]
 
@@ -29,9 +28,6 @@ position = Vector2(0, 0)
 
 [node name="ZombieSpawner" type="Node" parent="."]
 script = ExtResource("3")
-
-[node name="WeaponPickupSpawner" type="Node" parent="."]
-script = ExtResource("7")
 
 [node name="ItemPickupSpawner" type="Node" parent="."]
 script = ExtResource("8")
