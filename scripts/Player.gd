@@ -203,8 +203,8 @@ func _update_facing(target: Node2D) -> void:
 func _fit_shadow() -> void:
 	if body.texture == null:
 		return
-	var tex := body.texture.get_size()
-	var sx := (tex.x * _body_base_scale.x * 0.55) / 128.0
+	var tex: Vector2 = body.texture.get_size()
+	var sx: float = (tex.x * _body_base_scale.x * 0.55) / 128.0
 	shadow.scale = Vector2(sx, sx * 0.5)
 	shadow.position = Vector2(0.0, tex.y * _body_base_scale.y * 0.46)
 
