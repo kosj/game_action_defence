@@ -157,8 +157,8 @@ func _physics_process(delta: float) -> void:
 func _fit_shadow() -> void:
 	if body == null or body.texture == null:
 		return
-	var tex := body.texture.get_size()
-	var sx := (tex.x * body.scale.x * 0.6) / 128.0
+	var tex: Vector2 = body.texture.get_size()
+	var sx: float = (tex.x * body.scale.x * 0.6) / 128.0
 	shadow.scale = Vector2(sx, sx * 0.5)
 	shadow.position = Vector2(0.0, tex.y * body.scale.y * 0.46)
 
