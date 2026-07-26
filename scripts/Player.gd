@@ -121,13 +121,8 @@ func _physics_process(delta: float) -> void:
 	# 최근접 적은 짧은 주기로만 재탐색하고(대상 소멸 시 즉시 재탐색) 그 외엔 캐시 재사용.
 	# 죽은 좀비는 풀로 반납돼도 is_instance_valid 는 참이므로(트리에서 분리될 뿐) "zombies"
 	# 그룹 소속까지 확인한다 — 좀비는 사망 즉시 그룹에서 빠진다.
-	_target_accum += delta
-	if _target_accum >= TARGET_RESCAN or not _is_live_target(_target):
-		_target_accum = 0.0
-		_target = _get_nearest_zombie()
-	var target := _target
-	_handle_attack(delta, target)
-	_update_facing(target)
+	_update_facing()                 # 이동(좌우)으로 조준 방향 결정
+	_handle_attack(delta)            # 바라보는 방향으로 자동 발사
 	_animate_walk(velocity.length() * delta)   # 이동량 기반 걷기 연출(스프라이트만)
 
 	# 주기적 자동저장(체크포인트 사이 진행 보존). 사망 시엔 위에서 이미 return.
@@ -179,24 +174,19 @@ func _handle_move() -> void:
 	move_and_slide()
 
 
-func _handle_attack(delta: float, target: Node2D) -> void:
+func _handle_attack(delta: float) -> void:
 	_attack_accum += delta
 	if _attack_accum < attack_cooldown:
 		return
-	if target:
-		_attack_accum = 0.0
-		_shoot_at(target)
+	_attack_accum = 0.0
+	_shoot_dir(Vector2(_facing, 0.0))   # 바라보는 좌/우 방향으로 직선 발사
 
 
-## 사이드뷰: 조준 대상이 있으면 그쪽, 없으면 이동 방향의 수평 성분으로 좌우만 뒤집는다(회전 X).
-func _update_facing(target: Node2D) -> void:
-	var dx := 0.0
-	if target:
-		dx = target.global_position.x - global_position.x
-	elif velocity.length() > 1.0:
-		dx = velocity.x
-	if absf(dx) > 0.02:
-		_facing = -1.0 if dx < 0.0 else 1.0
+## 사이드뷰: 이동(좌우)으로 조준한다 — 수평 이동 방향으로 캐릭터를 뒤집고 그 방향으로 발사한다.
+## 위/아래로만 움직이면(velocity.x≈0) 방향은 마지막 좌/우 값을 유지한다.
+func _update_facing() -> void:
+	if absf(velocity.x) > 5.0:
+		_facing = -1.0 if velocity.x < 0.0 else 1.0
 
 
 ## 그림자를 스프라이트 폭에 맞춘 납작한 타원으로 발밑에 배치(shadow.png 128x72).
@@ -204,7 +194,7 @@ func _fit_shadow() -> void:
 	if body.texture == null:
 		return
 	var tex: Vector2 = body.texture.get_size()
-	var sx: float = (tex.x * _body_base_scale.x * 0.55) / 128.0
+	var sx: float = (tex.x * _body_base_scale.x * 0.9) / 128.0
 	shadow.scale = Vector2(sx, sx * 0.5)
 	shadow.position = Vector2(0.0, tex.y * _body_base_scale.y * 0.46)
 
@@ -221,9 +211,9 @@ func _animate_walk(moved: float) -> void:
 	body.scale = Vector2(fx * (1.0 + squash * 0.5), _body_base_scale.y * (1.0 - squash))
 
 
-func _shoot_at(target: Node2D) -> void:
+## 주어진 방향(base_dir, 정규화됨)으로 발사 — 다중발사는 그 방향 기준 부채꼴로 분산.
+func _shoot_dir(base_dir: Vector2) -> void:
 	SoundManager.play(current_weapon.get("sfx", "shoot"), 0.12, current_weapon.get("sfx_pitch", 1.0))
-	var base_dir := (target.global_position - global_position).normalized()
 	var count: int = current_weapon["pellet_count"] + Events.upgrade_multi_bullet
 	var spread: float = current_weapon["spread"]
 	if count > 1 and spread <= 0.0:
