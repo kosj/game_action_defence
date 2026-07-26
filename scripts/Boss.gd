@@ -17,6 +17,16 @@ const _BossShell := preload("res://scripts/BossShell.gd")
 const _DamageNumber := preload("res://scripts/DamageNumber.gd")
 const ENEMY_BULLET := preload("res://scenes/EnemyBullet.tscn")
 
+## 아키타입별 전용 보스 스프라이트(업로드된 실제 아트워크). bomber 는 gunner 아트를 재사용,
+## 최종 보스 REAPER(berserk)는 berserk 아트를 사용한다.
+const _BOSS_TEX := {
+	"melee":    preload("res://assets/sprites/boss_brute.png"),
+	"gunner":   preload("res://assets/sprites/boss_gunner.png"),
+	"summoner": preload("res://assets/sprites/boss_summoner.png"),
+	"bomber":   preload("res://assets/sprites/boss_gunner.png"),
+	"berserk":  preload("res://assets/sprites/boss_berserk.png"),
+}
+
 @onready var body: Node2D = $Body
 
 var speed: float = 55.0
@@ -90,7 +100,10 @@ func setup(stats: Dictionary) -> void:
 	gold_drop = stats.get("gold", 12)
 	_archetype = stats.get("archetype", "melee")
 	_is_final = stats.get("final", false)
-	_base_color = stats.get("tint", Color(0.55, 0.12, 0.14))
+	# 전용 아트워크 사용 — 타입별 틴트 대신 아키타입 스프라이트를 그대로 노출(피격 잔광은 흰색 복귀).
+	_base_color = Color(1, 1, 1)
+	if body:
+		body.texture = _BOSS_TEX.get(_archetype, _BOSS_TEX["melee"])
 	_proj_color = stats.get("proj_color", Color(0.55, 0.8, 1.0))
 	_alive = true
 	_enraged = false

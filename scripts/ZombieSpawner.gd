@@ -51,47 +51,35 @@ var _swarm_elite: bool = false
 ## Events.wave_pressure_mult() 가 적 체력을 복리로 올려 무한히 어려워진다.
 ## max_z 상향: 좀비끼리 물리 충돌쌍 제거(collision_mask=0) 후 동시 개체 여유가 생겨,
 ## 화면을 더 빽빽하게 채워 "물량 압박" 긴장감을 준다(뱀서식 스웜). 값은 밸런스 손잡이.
-## weights 인덱스: 0~8 기존 종, 9 Foreman 10 Toxic 11 Screamer 12 Nurse 13 Longneck,
-## 14 Bloater 15 Sprinter 16 Cop 17 Soldier 18 Suit.
+## weights 인덱스(11종): 0 Walker 1 Sprinter 2 Bloater 3 Gaunt 4 Foreman 5 Toxic
+## 6 Screamer 7 Cop 8 Soldier 9 Longneck 10 Suit.
 const WAVES: Array = [
-	{"total": 60,  "max_z": 42,  "interval": 0.9,  "weights": [10, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0,  0, 0, 0, 0, 0]},
-	{"total": 100, "max_z": 64,  "interval": 0.70, "weights": [8,  2, 0, 2, 0, 0, 1, 0, 0,  0, 0, 1, 0, 0,  0, 1, 0, 0, 1]},
-	{"total": 180, "max_z": 88,  "interval": 0.55, "weights": [6,  3, 1, 3, 1, 0, 2, 1, 1,  1, 0, 2, 1, 0,  1, 2, 1, 0, 2]},
-	{"total": 240, "max_z": 112, "interval": 0.45, "weights": [5,  3, 2, 3, 2, 1, 2, 2, 2,  1, 1, 2, 1, 1,  1, 2, 1, 1, 2]},
-	{"total": 320, "max_z": 140, "interval": 0.35, "weights": [4,  4, 2, 3, 3, 1, 2, 2, 2,  2, 2, 2, 2, 1,  1, 2, 2, 1, 2]},
-	{"total": 400, "max_z": 170, "interval": 0.25, "weights": [3,  4, 3, 3, 3, 2, 3, 3, 3,  2, 2, 3, 2, 2,  2, 2, 2, 2, 2]},
+	{"total": 60,  "max_z": 42,  "interval": 0.9,  "weights": [10, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1]},
+	{"total": 100, "max_z": 64,  "interval": 0.70, "weights": [8,  2, 0, 2, 1, 1, 1, 0, 0, 0, 2]},
+	{"total": 180, "max_z": 88,  "interval": 0.55, "weights": [6,  3, 1, 2, 2, 2, 1, 1, 1, 1, 2]},
+	{"total": 240, "max_z": 112, "interval": 0.45, "weights": [5,  3, 1, 2, 2, 2, 2, 2, 1, 1, 2]},
+	{"total": 320, "max_z": 140, "interval": 0.35, "weights": [4,  3, 2, 2, 2, 2, 2, 2, 2, 2, 2]},
+	{"total": 400, "max_z": 170, "interval": 0.25, "weights": [3,  3, 2, 2, 3, 2, 2, 3, 2, 2, 3]},
 ]
 
-## 좀비 종류 테이블. 0~5 는 근접 추격형, 6~8 은 고유 행동 패턴(behavior: weaver/spitter/bomber).
-## 각 종은 Kenney Top-down Shooter 팩의 캐릭터 스프라이트(texture)로 시각 구분되며,
-## modulate 는 사망 폭발 FX·투사체·피격 잔광 색으로 쓰인다(행동 타입은 전용 스프라이트가 없어
-## 기존 스프라이트를 재활용하되 behavior·FX색으로 구분).
-##   0 Walker  1 Runner  2 Brute  3 Swarmling  4 Charger  5 Juggernaut
-##   6 Weaver(지그재그)  7 Spitter(원거리)  8 Bomber(자폭)
-##   9 Foreman(공사장 탱커)  10 Toxic(방독면)  11 Screamer(비명·유리대포)
-##   12 Nurse(간호사)  13 Longneck(긴목·산성 원거리)
-##   14 Bloater(비만·초탱커)  15 Sprinter(트랙수트·초고속)  16 Cop(경찰·곤봉)
-##   17 Soldier(군인·소총 원거리)  18 Suit(회사원)
+## 좀비 종류 테이블(11종) — 업로드된 실제 아트워크 스프라이트로 교체.
+## modulate 는 사망 폭발 FX·투사체·피격 잔광 색으로만 쓰인다(스프라이트 자체는 Zombie.setup 에서
+## modulate=White 로 원본 색 그대로 노출). behavior 미지정은 근접 추격(chase).
+##   0 Walker  1 Sprinter(초고속)  2 Bloater(초탱커)  3 Gaunt(지그재그 weaver)
+##   4 Foreman(공사장 탱커)  5 Toxic(방독면)  6 Screamer(유리대포)  7 Cop(경찰)
+##   8 Soldier(군인·원거리 spitter)  9 Longneck(긴목·산성 원거리 spitter)  10 Suit(회사원)
 const ZOMBIE_TYPES: Array = [
 	{"speed": 65,  "max_health": 3,  "modulate": Color(0.70, 0.95, 0.55), "score": 10, "scale": 1.00, "contact": 1, "texture": preload("res://assets/sprites/zombie_walker.png")},
-	{"speed": 130, "max_health": 1,  "modulate": Color(0.85, 0.85, 0.95), "score": 15, "scale": 0.90, "contact": 1, "texture": preload("res://assets/sprites/zombie_runner.png")},
-	{"speed": 40,  "max_health": 8,  "modulate": Color(0.95, 0.70, 0.45), "score": 30, "scale": 1.25, "contact": 1, "texture": preload("res://assets/sprites/zombie_brute.png")},
-	{"speed": 95,  "max_health": 1,  "modulate": Color(1.00, 0.85, 0.70), "score": 8,  "scale": 0.70, "contact": 1, "texture": preload("res://assets/sprites/zombie_swarmling.png")},
-	{"speed": 108, "max_health": 5,  "modulate": Color(0.90, 0.80, 0.55), "score": 25, "scale": 1.05, "contact": 2, "texture": preload("res://assets/sprites/zombie_charger.png")},
-	{"speed": 32,  "max_health": 16, "modulate": Color(1.00, 0.65, 0.35), "score": 60, "scale": 1.45, "contact": 2, "texture": preload("res://assets/sprites/zombie_juggernaut.png")},
-	{"speed": 80,  "max_health": 3,  "modulate": Color(0.40, 0.95, 0.95), "score": 18, "scale": 0.95, "contact": 1, "behavior": "weaver",  "texture": preload("res://assets/sprites/zombie_runner.png")},
-	{"speed": 55,  "max_health": 3,  "modulate": Color(0.95, 0.45, 0.95), "score": 35, "scale": 0.90, "contact": 1, "behavior": "spitter", "texture": preload("res://assets/sprites/zombie_spitter.png")},
-	{"speed": 90,  "max_health": 2,  "modulate": Color(1.00, 0.50, 0.20), "score": 30, "scale": 1.10, "contact": 2, "behavior": "bomber",  "texture": preload("res://assets/sprites/zombie_swarmling.png")},
-	{"speed": 58,  "max_health": 7,  "modulate": Color(1.00, 0.60, 0.25), "score": 28, "scale": 1.15, "contact": 2, "texture": preload("res://assets/sprites/zombie_foreman.png")},
-	{"speed": 72,  "max_health": 4,  "modulate": Color(0.55, 0.95, 0.40), "score": 26, "scale": 1.05, "contact": 2, "texture": preload("res://assets/sprites/zombie_toxic.png")},
+	{"speed": 150, "max_health": 2,  "modulate": Color(1.00, 0.35, 0.35), "score": 18, "scale": 0.95, "contact": 1, "texture": preload("res://assets/sprites/zombie_sprinter.png")},
+	{"speed": 36,  "max_health": 20, "modulate": Color(0.60, 0.90, 0.50), "score": 55, "scale": 1.15, "contact": 3, "texture": preload("res://assets/sprites/zombie_bloater.png")},
+	{"speed": 85,  "max_health": 3,  "modulate": Color(0.80, 0.90, 0.95), "score": 18, "scale": 0.95, "contact": 1, "behavior": "weaver",  "texture": preload("res://assets/sprites/zombie_gaunt.png")},
+	{"speed": 58,  "max_health": 7,  "modulate": Color(1.00, 0.60, 0.25), "score": 28, "scale": 1.05, "contact": 2, "texture": preload("res://assets/sprites/zombie_foreman.png")},
+	{"speed": 72,  "max_health": 4,  "modulate": Color(0.55, 0.95, 0.40), "score": 26, "scale": 1.00, "contact": 2, "texture": preload("res://assets/sprites/zombie_toxic.png")},
 	{"speed": 145, "max_health": 1,  "modulate": Color(0.80, 0.95, 0.80), "score": 16, "scale": 0.95, "contact": 1, "texture": preload("res://assets/sprites/zombie_screamer.png")},
-	{"speed": 85,  "max_health": 3,  "modulate": Color(0.50, 0.80, 0.95), "score": 20, "scale": 1.05, "contact": 1, "texture": preload("res://assets/sprites/zombie_nurse.png")},
-	{"speed": 50,  "max_health": 3,  "modulate": Color(0.50, 1.00, 0.30), "score": 34, "scale": 1.10, "contact": 1, "behavior": "spitter", "texture": preload("res://assets/sprites/zombie_longneck.png")},
-	{"speed": 34,  "max_health": 20, "modulate": Color(0.60, 0.90, 0.50), "score": 55, "scale": 1.50, "contact": 3, "texture": preload("res://assets/sprites/zombie_bloater.png")},
-	{"speed": 155, "max_health": 2,  "modulate": Color(1.00, 0.35, 0.35), "score": 18, "scale": 0.95, "contact": 1, "texture": preload("res://assets/sprites/zombie_sprinter.png")},
-	{"speed": 80,  "max_health": 6,  "modulate": Color(0.45, 0.65, 1.00), "score": 30, "scale": 1.10, "contact": 2, "texture": preload("res://assets/sprites/zombie_cop.png")},
-	{"speed": 60,  "max_health": 5,  "modulate": Color(0.60, 0.80, 0.40), "score": 40, "scale": 1.05, "contact": 1, "behavior": "spitter", "texture": preload("res://assets/sprites/zombie_soldier.png")},
-	{"speed": 78,  "max_health": 3,  "modulate": Color(0.72, 0.78, 0.85), "score": 20, "scale": 1.05, "contact": 1, "texture": preload("res://assets/sprites/zombie_suit.png")},
+	{"speed": 80,  "max_health": 6,  "modulate": Color(0.45, 0.65, 1.00), "score": 30, "scale": 1.05, "contact": 2, "texture": preload("res://assets/sprites/zombie_cop.png")},
+	{"speed": 60,  "max_health": 5,  "modulate": Color(0.60, 0.80, 0.40), "score": 40, "scale": 1.00, "contact": 1, "behavior": "spitter", "texture": preload("res://assets/sprites/zombie_soldier.png")},
+	{"speed": 50,  "max_health": 3,  "modulate": Color(0.50, 1.00, 0.30), "score": 34, "scale": 1.05, "contact": 1, "behavior": "spitter", "texture": preload("res://assets/sprites/zombie_longneck.png")},
+	{"speed": 78,  "max_health": 3,  "modulate": Color(0.72, 0.78, 0.85), "score": 20, "scale": 1.00, "contact": 1, "texture": preload("res://assets/sprites/zombie_suit.png")},
 ]
 
 var player: Node2D = null
@@ -349,10 +337,10 @@ func _spawn_boss() -> void:
 		stats["final"] = true
 	boss.setup(stats)
 
-	# 호위 정예 좀비 — 빠른/탱커 혼합 (보스 회차가 높을수록 더 많이)
+	# 호위 정예 좀비 — 빠른(스프린터)/탱커(공사장) 혼합 (보스 회차가 높을수록 더 많이)
 	var escorts := 3 + boss_count
 	for i in range(escorts):
-		_spawn_one(ZOMBIE_TYPES[1] if i % 2 == 0 else ZOMBIE_TYPES[2])
+		_spawn_one(ZOMBIE_TYPES[1] if i % 2 == 0 else ZOMBIE_TYPES[4])
 
 
 ## 서머너 보스의 소환 요청 처리 — 스포너가 직접 스폰해 살아있는 좀비 카운터를 일관 유지.
