@@ -128,7 +128,7 @@ func _ready() -> void:
 	_on_gold_changed(Events.total_gold)
 	if Events.player_max_health > 0:
 		_on_player_health_changed(Events.player_health, Events.player_max_health)
-	_on_wave_changed(Events.current_wave)
+	_on_wave_changed(Events.total_kills)
 	_on_elapsed_changed(Events.elapsed_time)
 	_on_wave_progress_changed(Events.wave_kill_progress, Events.wave_kill_total)
 	_on_score_changed(Events.score)
@@ -374,8 +374,9 @@ func _on_gold_magnet_changed(active: bool, time_left: float) -> void:
 		_magnet_tween.tween_callback(func(): buff_label.visible = false)
 
 
-func _on_wave_changed(wave: int) -> void:
-	wave_label.text = Locale.t("hud_wave_fmt") % wave
+## 엔들리스 — "웨이브" 대신 누적 처치 수를 표시한다(신호는 wave_changed 를 재사용).
+func _on_wave_changed(kills: int) -> void:
+	wave_label.text = Locale.t("hud_kills_fmt") % kills
 
 
 func _on_elapsed_changed(seconds: float) -> void:
@@ -510,7 +511,7 @@ func _build_goal_hint() -> void:
 	_goal_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	_goal_label.offset_top = -44.0
 	_goal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_goal_label.text = "SURVIVE TO WAVE 20 → REAPER"
+	_goal_label.text = "ENDLESS  ·  SURVIVE  ·  NEXT BOSS →"
 	_goal_label.add_theme_font_size_override("font_size", 15)
 	_goal_label.add_theme_color_override("font_color", Color(0.85, 0.7, 0.75, 0.7))
 	_goal_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
@@ -613,7 +614,7 @@ func _build_hud_icons() -> void:
 	star.position = Vector2(score_label.offset_left, score_label.offset_top + 5)
 	add_child(star)
 	score_label.offset_left += 24   # 별 자리 확보를 위해 점수 텍스트를 오른쪽으로
-	_right_stat_icon("flag",   wave_label,       Color(0.70, 0.85, 1.0))
+	_right_stat_icon("skull",  wave_label,       Color(0.95, 0.6, 0.6))
 	_right_stat_icon("clock",  time_label,       Color(0.82, 0.86, 0.95))
 	_right_stat_icon("trophy", high_score_label, Color(1.0, 0.82, 0.3))
 
