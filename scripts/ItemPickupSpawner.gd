@@ -1,12 +1,12 @@
 extends Node
-## 필드 아이템 스포너(골드 자석 등) — 무기 픽업보다 드물게 플레이어 주변에 등장시킨다.
+## 필드 아이템 스포너: 보물상자(랜덤 골드) 위주로, 가끔 폭탄을 플레이어 주변에 등장시킨다.
 ## 동시에 존재하는 미수집 아이템 수를 제한한다("item_pickups" 그룹).
 
 const ITEM_PICKUP := preload("res://scenes/ItemPickup.tscn")
 
-@export var spawn_interval_min: float = 26.0
-@export var spawn_interval_max: float = 40.0
-@export var max_active: int = 1
+@export var spawn_interval_min: float = 13.0
+@export var spawn_interval_max: float = 22.0
+@export var max_active: int = 2
 @export var spawn_margin: float = 60.0
 
 var player: Node2D = null
@@ -42,7 +42,7 @@ func _process(delta: float) -> void:
 
 func _spawn_item() -> void:
 	var p := Pool.acquire(ITEM_PICKUP, get_tree().current_scene)
-	p.kind = "bomb" if randf() < 0.4 else "magnet"   # 40% 확률로 폭탄(화면 일소) 아이템
+	p.kind = "bomb" if randf() < 0.25 else "chest"   # 75% 보물상자, 25% 폭탄
 	p.global_position = _random_spawn_pos()
 
 

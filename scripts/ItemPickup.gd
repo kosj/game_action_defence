@@ -1,31 +1,31 @@
 extends Area2D
-## 골드 자석 아이템: 맵에 등장하며 주우면 일정 시간 동안 필드의 모든 골드가
-## 거리와 무관하게 플레이어에게 자동으로 빨려온다(자동 줍기). 방치 시 사라진다.
-## 무기 픽업과 동일하게 풀링되며 "item_pickups" 그룹으로 동시 등장 수를 제한한다.
+## 필드 픽업: 보물상자(먹으면 랜덤 골드) 또는 폭탄(화면 내 잡몹 일소). 방치 시 사라진다.
+## 풀링되며 "item_pickups" 그룹으로 동시 등장 수를 제한한다.
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 
 @export var collect_radius: float = 34.0
-@export var lifetime: float = 22.0
+@export var lifetime: float = 26.0
 @export var fade_time: float = 3.0
-@export var magnet_duration: float = 16.0   # 획득 시 부여되는 자동 줍기 지속 시간(초)
 
-const MAGNET_COLOR := Color(1.0, 0.85, 0.2)
+const CHEST_COLOR := Color(1.0, 0.82, 0.2)
 const BOMB_COLOR := Color(1.0, 0.45, 0.15)
-const BOMB_DAMAGE := 40      # 폭탄: 화면 내 잡몹 일소(보스 제외)
+const BOMB_DAMAGE := 40           # 폭탄: 화면 내 잡몹 일소(보스 제외)
+const CHEST_GOLD_MIN := 12        # 보물상자 골드 획득 범위
+const CHEST_GOLD_MAX := 55
 
-var kind: String = "magnet"  # "magnet" | "bomb" — 스포너가 스폰 시 지정
+var kind: String = "chest"   # "chest" | "bomb" — 스포너가 스폰 시 지정
 var player: Node2D = null
 var _alive: bool = false
 var _t: float = 0.0
 
 
 func _icon_color() -> Color:
-	return BOMB_COLOR if kind == "bomb" else MAGNET_COLOR
+	return BOMB_COLOR if kind == "bomb" else CHEST_COLOR
 
 
 func _label() -> String:
-	return "Bomb" if kind == "bomb" else "Gold Magnet"
+	return "Bomb" if kind == "bomb" else "Treasure"
 
 
 func _ready() -> void:
@@ -69,15 +69,16 @@ func _collect() -> void:
 	if kind == "bomb":
 		_collect_bomb()
 	else:
-		_collect_magnet()
+		_collect_chest()
 	_despawn()
 
 
-func _collect_magnet() -> void:
-	if is_instance_valid(player) and player.has_method("activate_gold_magnet"):
-		player.activate_gold_magnet(magnet_duration)
-	SoundManager.play("gold", 0.05)
-	_FXBurst.spawn(get_tree().current_scene, global_position, MAGNET_COLOR, 60.0, 0.4)
+func _collect_chest() -> void:
+	# 보물상자: 랜덤 골드 획득 + 금색 반짝임 연출.
+	Events.add_gold(randi_range(CHEST_GOLD_MIN, CHEST_GOLD_MAX))
+	SoundManager.play("gold", 0.05, 1.15)
+	_FXBurst.spawn(get_tree().current_scene, global_position, CHEST_COLOR, 90.0, 0.5)
+	Events.shake(3.0)
 
 
 func _collect_bomb() -> void:
@@ -98,32 +99,48 @@ func _despawn() -> void:
 func _draw() -> void:
 	if not _alive:
 		return
-	var col := _icon_color()
-	var bob := sin(_t * 2.4) * 6.0
+	var bob := sin(_t * 2.4) * 5.0
 	var center := Vector2(0.0, bob)
-	var pulse := 1.0 + sin(_t * 5.0) * 0.07
-
 	var alpha := 1.0
 	var remain := lifetime - _t
 	if remain < fade_time:
 		alpha = clampf(remain / fade_time, 0.0, 1.0)
+	if kind == "chest":
+		_draw_chest(center, alpha)
+	else:
+		_draw_bomb(center, alpha)
+	var font := ThemeDB.fallback_font
+	draw_string(font, center + Vector2(-60.0, -34.0), _label(), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 14, Color(1.0, 1.0, 1.0, alpha))
 
-	# 후광
+
+func _draw_chest(center: Vector2, alpha: float) -> void:
+	var pulse := 1.0 + sin(_t * 4.0) * 0.05
+	draw_circle(center, 20.0 * pulse, Color(1.0, 0.85, 0.3, 0.22 * alpha))   # 금빛 후광
+	var gold := Color(1.0, 0.82, 0.2, alpha)
+	var wood := Color(0.5, 0.32, 0.15, alpha)
+	var wood_d := Color(0.38, 0.24, 0.11, alpha)
+	var dark := Color(0.12, 0.08, 0.05, alpha)
+	var w := 15.0
+	draw_rect(Rect2(center + Vector2(-w, -2.0), Vector2(2.0 * w, 14.0)), wood)      # 몸통
+	draw_rect(Rect2(center + Vector2(-w, -11.0), Vector2(2.0 * w, 10.0)), wood_d)   # 뚜껑
+	draw_rect(Rect2(center + Vector2(-w, -2.0), Vector2(2.0 * w, 3.0)), gold)       # 중앙 금속 밴드
+	draw_rect(Rect2(center + Vector2(-w, 10.0), Vector2(2.0 * w, 2.0)), gold)       # 하단 밴드
+	draw_rect(Rect2(center + Vector2(-2.5, -11.0), Vector2(5.0, 23.0)), gold)       # 세로 밴드
+	draw_circle(center + Vector2(0.0, 4.0), 3.0, gold)                              # 자물쇠
+	draw_circle(center + Vector2(0.0, 4.0), 1.3, dark)
+	draw_rect(Rect2(center + Vector2(-w, -11.0), Vector2(2.0 * w, 23.0)), dark, false, 1.5)
+
+
+func _draw_bomb(center: Vector2, alpha: float) -> void:
+	var col := BOMB_COLOR
+	var pulse := 1.0 + sin(_t * 5.0) * 0.07
 	var glow_r := 22.0 * pulse
 	draw_circle(center, glow_r, Color(col.r, col.g, col.b, 0.30 * alpha))
 	draw_arc(center, glow_r * 0.8, 0.0, TAU, 28, Color(col.r, col.g, col.b, 0.6 * alpha), 2.5, true)
-
-	# 끌어당김/폭발을 표현하는 회전 점들
 	for i in 6:
 		var a := _t * 2.0 + TAU * float(i) / 6.0
 		var p := center + Vector2.from_angle(a) * (glow_r + 4.0)
 		draw_circle(p, 2.2, Color(col.r, col.g, col.b, 0.7 * alpha))
-
-	# 본체
 	var r := 11.0 * pulse
 	draw_circle(center, r, Color(col.r, col.g, col.b, 0.92 * alpha))
 	draw_circle(center, r * 0.55, Color(1.0, 1.0, 1.0, 0.85 * alpha))
-
-	# 라벨
-	var font := ThemeDB.fallback_font
-	draw_string(font, center + Vector2(-60.0, -glow_r - 14.0), _label(), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 14, Color(1.0, 1.0, 1.0, alpha))
