@@ -1,23 +1,14 @@
 extends Node
-## 좀비 스포너: 킬카운트 기반 웨이브. 웨이브 총 킬수 달성 시 wave_complete 신호 발생.
-## BOSS_EVERY 웨이브마다 보스 웨이브 — 킬 목표 달성 후 보스+호위 좀비가 등장하고
-## 보스를 처치해야 웨이브가 완료된다.
+## 좀비 스포너(엔들리스): 웨이브 개념 없이 연속으로 스폰하며, 총 처치 수(Events.total_kills)에
+## 따라 난이도가 계속 상승한다(스폰 간격↓·동시 출현↑·체력/이속↑·강한 종 비중↑).
+## 보스는 일정 처치 수 간격(BOSS_KILLS)마다 등장하며 아키타입을 순환한다(승리 조건 없음).
 
 const ZOMBIE := preload("res://scenes/Zombie.tscn")
 const BOSS := preload("res://scenes/Boss.tscn")
 
 @export var spawn_margin: float = 80.0
 
-## 몇 웨이브마다 보스가 등장하는지 (5, 10, 15, ...)
-const BOSS_EVERY: int = 5
-
-## 이 웨이브의 보스는 최종 보스 REAPER — 처치하면 런 클리어(승리). 명확한 목표/엔딩을 준다.
-const FINAL_WAVE: int = 20
-var _final_boss: bool = false
-
 ## 보스 아키타입 테이블. archetype 은 Boss.gd 의 행동 분기 키.
-##   hp_mul/speed_mul — 타입별 균형(원거리 거너는 안전하므로 HP·이속 낮춤).
-##   tint — 보스 몸체 색(타입 구분). proj — 발사체 색. name — HUD 라벨.
 const BOSS_TYPES: Dictionary = {
 	"brute":    {"archetype": "melee",    "name": "BRUTE",    "hp_mul": 1.00, "speed_mul": 1.00, "contact": 2, "tint": Color(0.55, 0.12, 0.14), "proj": Color(1, 1, 1)},
 	"gunner":   {"archetype": "gunner",   "name": "GUNNER",   "hp_mul": 0.78, "speed_mul": 0.80, "contact": 1, "tint": Color(0.16, 0.34, 0.62), "proj": Color(0.55, 0.85, 1.0)},
@@ -25,49 +16,50 @@ const BOSS_TYPES: Dictionary = {
 	"bomber":   {"archetype": "bomber",   "name": "BOMBER",   "hp_mul": 0.85, "speed_mul": 0.65, "contact": 1, "tint": Color(0.62, 0.40, 0.14), "proj": Color(1.0, 0.55, 0.15)},
 	"berserk":  {"archetype": "berserk",  "name": "BERSERKER","hp_mul": 1.05, "speed_mul": 1.00, "contact": 3, "tint": Color(0.60, 0.14, 0.34), "proj": Color(1, 1, 1)},
 }
-## 등장 순서 풀 — 5종 전 아키타입(회차별로 순환).
 const BOSS_SEQUENCE: Array = ["brute", "gunner", "summoner", "bomber", "berserk"]
 
-## 서머너 소환 시 전장 과밀 상한 — 이 수를 넘겨 살아있으면 소환을 억제한다(성능·공정성).
+## 몇 처치마다 보스가 등장하는지.
+const BOSS_KILLS: int = 80
+
+## 서머너 소환 시 전장 과밀 상한.
 const SUMMON_ALIVE_CAP: int = 44
 
-## 스웜 이벤트: 웨이브 도중 한 무리가 한 방향에서 떼로 몰려온다(뱀서식 긴장 스파이크).
-## 텔레그래프(경고) 후 클러스터로 스폰. 일부는 엘리트 팩(더 크고 강하고 보상 큼).
+## 스웜 이벤트: 주기적으로 한 무리가 한 방향에서 떼로 몰려온다(뱀서식 긴장 스파이크).
 const SWARM_MIN_INTERVAL := 15.0
 const SWARM_MAX_INTERVAL := 24.0
-const SWARM_TELEGRAPH := 1.0        # 경고 배너~실제 등장까지 여유(대비 시간)
-const SWARM_COUNT := 12             # 한 번에 몰려오는 수
-const SWARM_ELITE_CHANCE := 0.35    # 엘리트 팩 확률
-const SWARM_SPREAD := 70.0          # 클러스터 산개 반경
+const SWARM_TELEGRAPH := 1.0
+const SWARM_COUNT := 12
+const SWARM_ELITE_CHANCE := 0.35
+const SWARM_SPREAD := 70.0
 const SWARM_ELITE_HP_MULT := 1.7
 const SWARM_ELITE_SCALE := 1.35
+const SWARM_START_KILLS := 15      # 이 처치 수 이후부터 스웜 발동
 var _swarm_cd: float = 0.0
-var _swarm_tel: float = -1.0        # >0 이면 경고 후 등장 대기 중
+var _swarm_tel: float = -1.0
 var _swarm_elite: bool = false
 
-## 웨이브 테이블: total=이 웨이브에서 처치해야 할 총 좀비 수, max_z=최대 동시 출현 수.
-## weights 의 인덱스는 ZOMBIE_TYPES 와 1:1 대응 — 후반 웨이브일수록 강한 종을 더 많이 섞는다.
-## 1~2웨이브는 짧게(권총만 있는 초반이 늘어지지 않게), 6웨이브 이후에는 테이블이 고정되는 대신
-## Events.wave_pressure_mult() 가 적 체력을 복리로 올려 무한히 어려워진다.
-## max_z 상향: 좀비끼리 물리 충돌쌍 제거(collision_mask=0) 후 동시 개체 여유가 생겨,
-## 화면을 더 빽빽하게 채워 "물량 압박" 긴장감을 준다(뱀서식 스웜). 값은 밸런스 손잡이.
-## weights 인덱스(11종): 0 Walker 1 Sprinter 2 Bloater 3 Gaunt 4 Foreman 5 Toxic
-## 6 Screamer 7 Cop 8 Soldier 9 Longneck 10 Suit.
-const WAVES: Array = [
-	{"total": 60,  "max_z": 42,  "interval": 0.9,  "weights": [10, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1]},
-	{"total": 100, "max_z": 64,  "interval": 0.70, "weights": [8,  2, 0, 2, 1, 1, 1, 0, 0, 0, 2]},
-	{"total": 180, "max_z": 88,  "interval": 0.55, "weights": [6,  3, 1, 2, 2, 2, 1, 1, 1, 1, 2]},
-	{"total": 240, "max_z": 112, "interval": 0.45, "weights": [5,  3, 1, 2, 2, 2, 2, 2, 1, 1, 2]},
-	{"total": 320, "max_z": 140, "interval": 0.35, "weights": [4,  3, 2, 2, 2, 2, 2, 2, 2, 2, 2]},
-	{"total": 400, "max_z": 170, "interval": 0.25, "weights": [3,  3, 2, 2, 3, 2, 2, 3, 2, 2, 3]},
+## 난이도 곡선(총 처치 수 K 기준). WEIGHTS 는 K/KILLS_PER_TIER 로 티어를 골라 종 구성을 결정한다.
+##   0 Walker  1 Sprinter  2 Bloater  3 Gaunt(weaver)  4 Foreman  5 Toxic
+##   6 Screamer  7 Cop  8 Soldier(spitter)  9 Longneck(spitter)  10 Suit
+const WEIGHTS: Array = [
+	[10, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+	[8,  2, 0, 2, 1, 1, 1, 0, 0, 0, 2],
+	[6,  3, 1, 2, 2, 2, 1, 1, 1, 1, 2],
+	[5,  3, 1, 2, 2, 2, 2, 2, 1, 1, 2],
+	[4,  3, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+	[3,  3, 2, 2, 3, 2, 2, 3, 2, 2, 3],
 ]
+const KILLS_PER_TIER := 30      # 이 처치 수마다 종 구성 티어가 한 단계 올라간다
+const BASE_INTERVAL := 0.85     # 스폰 간격(초) 시작값
+const MIN_INTERVAL := 0.16      # 스폰 간격 하한
+const INTERVAL_DECAY := 0.0016  # 처치당 간격 감소량
+const BASE_MAXZ := 40           # 동시 출현 시작값
+const MAXZ_CAP := 175           # 동시 출현 상한
+const MAXZ_GROW := 0.42         # 처치당 동시 출현 증가
+const HP_GROW := 0.006          # 처치당 체력 배수 증가(선형·무한)
+const SPEED_GROW := 0.0006      # 처치당 이속 배수 증가
+const SPEED_CAP := 1.6          # 이속 배수 상한
 
-## 좀비 종류 테이블(11종) — 업로드된 실제 아트워크 스프라이트로 교체.
-## modulate 는 사망 폭발 FX·투사체·피격 잔광 색으로만 쓰인다(스프라이트 자체는 Zombie.setup 에서
-## modulate=White 로 원본 색 그대로 노출). behavior 미지정은 근접 추격(chase).
-##   0 Walker  1 Sprinter(초고속)  2 Bloater(초탱커)  3 Gaunt(지그재그 weaver)
-##   4 Foreman(공사장 탱커)  5 Toxic(방독면)  6 Screamer(유리대포)  7 Cop(경찰)
-##   8 Soldier(군인·원거리 spitter)  9 Longneck(긴목·산성 원거리 spitter)  10 Suit(회사원)
 const ZOMBIE_TYPES: Array = [
 	{"speed": 65,  "max_health": 3,  "modulate": Color(0.70, 0.95, 0.55), "score": 10, "scale": 1.00, "contact": 1, "texture": preload("res://assets/sprites/zombie_walker.png")},
 	{"speed": 150, "max_health": 2,  "modulate": Color(1.00, 0.35, 0.35), "score": 18, "scale": 0.95, "contact": 1, "texture": preload("res://assets/sprites/zombie_sprinter.png")},
@@ -86,64 +78,49 @@ var player: Node2D = null
 var _accum: float = 0.0
 var _elapsed: float = 0.0
 var _last_second: int = -1
-var _wave_idx: int = 0     # 설정 테이블 인덱스 (최대 WAVES.size()-1 로 고정)
-var _wave_num: int = 1     # 표시용 웨이브 번호 (계속 증가)
-var _spawned: int = 0      # 현재 웨이브에서 스폰한 수
-var _killed: int = 0       # 현재 웨이브에서 처치한 수
-var _wave_active: bool = false
-var _wave_total: int = 0   # 이번 웨이브의 실효 킬 목표(난이도 배수 적용)
 var _game_over: bool = false
-## 살아있는 일반 좀비 수. 매 프레임 get_nodes_in_group() O(n) 스캔을 피하려고
-## 스폰 시 +1 / 처치 시 -1 로 직접 추적한다(대량 좀비 환경 최적화). 보스는 별도.
+## 살아있는 일반 좀비 수(스폰 +1 / 처치 -1 로 직접 추적, get_nodes_in_group O(n) 스캔 회피). 보스 별도.
 var _alive_zombies: int = 0
-var _start_delay: float = 5.0   # first-wave spawn delay matches player grace period
+var _start_delay: float = 5.0   # 초반 유예(플레이어 무적 시간과 정렬)
 
-## 웨이브 간 자동 진행(뱀서식 연속 플레이): 상점을 없앤 대신, 웨이브 목표 달성 후 짧은
-## 브레이크(클리어 배너를 보여줄 시간)를 두고 다음 웨이브를 자동으로 시작한다. 일시정지는
-## 하지 않아 남은 좀비와 전투가 이어진다(연속 생존).
-const WAVE_BREAK := 1.6
-var _wave_break: float = 0.0
-
-# 보스 웨이브 상태
-var _is_boss_wave: bool = false
-var _boss_spawned: bool = false   # 이번 보스 웨이브에서 보스를 이미 소환했는가
-var _boss_alive: bool = false     # 소환된 보스가 아직 살아있는가
-var _escort_accum: float = 0.0    # 보스 전투 중 호위 좀비 트리클 타이머
+# 보스 상태
+var _boss_alive: bool = false
+var _boss_count: int = 0        # 지금까지 등장한 보스 수(아키타입 순환·강화에 사용)
+var _next_boss_at: int = BOSS_KILLS   # 이 처치 수에 도달하면 보스 등장
+var _escort_accum: float = 0.0
 
 
 func _ready() -> void:
 	player = get_tree().get_first_node_in_group("player")
 	Events.player_died.connect(func(): _game_over = true)
-	Events.player_revived.connect(func(): _game_over = false)   # 부활 시 스폰/웨이브 진행 재개
+	Events.player_revived.connect(func(): _game_over = false)
 	Events.zombie_killed.connect(_on_zombie_killed)
 	Events.boss_died.connect(_on_boss_died)
 	Events.boss_summon.connect(_on_boss_summon)
-	Events.shop_closed.connect(_start_wave)
-	# 이어하기 시 저장된 웨이브/경과시간부터 재개 (새 게임은 Events.reset() 직후라 1 / 0.0).
 	_elapsed = Events.elapsed_time
-	_wave_num = Events.current_wave
-	_wave_idx = mini(_wave_num - 1, WAVES.size() - 1)
-	_start_wave()
-
-
-func _start_wave() -> void:
-	_spawned = 0
-	_killed = 0
-	_accum = 0.0
-	_wave_active = true
-	_is_boss_wave = (_wave_num % BOSS_EVERY == 0)
-	_boss_spawned = false
-	_boss_alive = false
-	_escort_accum = 0.0
+	# 이어하기 대비: 이미 쌓인 처치 수 기준으로 다음 보스 시점·보스 회차를 정렬한다.
+	_boss_count = Events.total_kills / BOSS_KILLS
+	_next_boss_at = (_boss_count + 1) * BOSS_KILLS
 	_swarm_cd = randf_range(SWARM_MIN_INTERVAL, SWARM_MAX_INTERVAL)
-	_swarm_tel = -1.0
-	# Easy 는 킬 목표를 줄여 웨이브가 늘어지지 않게 한다(스폰도 느려 총 시간이 길어지던 문제).
-	_wave_total = maxi(1, int(round(float(WAVES[_wave_idx]["total"]) * Events.diff_total_mult())))
-	Events.current_wave = _wave_num
-	Events.wave_kill_progress = 0
-	Events.wave_kill_total = _wave_total
-	Events.wave_changed.emit(_wave_num)
-	Events.wave_progress_changed.emit(0, _wave_total)
+	Events.wave_changed.emit(Events.total_kills)          # HUD 킬 카운트 초기화
+	Events.wave_progress_changed.emit(0, BOSS_KILLS)      # HUD 다음-보스 진행 바 초기화
+
+
+# ── 난이도 곡선(총 처치 수 기준) ─────────────────────────────────────
+func _tier() -> int:
+	return clampi(Events.total_kills / KILLS_PER_TIER, 0, WEIGHTS.size() - 1)
+
+func _spawn_interval() -> float:
+	return maxf(MIN_INTERVAL, BASE_INTERVAL - float(Events.total_kills) * INTERVAL_DECAY)
+
+func _max_z() -> int:
+	return mini(MAXZ_CAP, BASE_MAXZ + int(float(Events.total_kills) * MAXZ_GROW))
+
+func _hp_mult() -> float:
+	return (1.0 + float(Events.total_kills) * HP_GROW) * Events.diff_enemy_hp_mult()
+
+func _speed_mult() -> float:
+	return minf(SPEED_CAP, 1.0 + float(Events.total_kills) * SPEED_GROW) * Events.diff_enemy_speed_mult()
 
 
 func _process(delta: float) -> void:
@@ -156,48 +133,30 @@ func _process(delta: float) -> void:
 	_elapsed += delta
 	_tick_elapsed()
 
-	if not _wave_active:
-		# 웨이브 클리어 후 브레이크가 끝나면 다음 웨이브를 자동으로 시작(상점 없이 연속 진행).
-		if _wave_break > 0.0:
-			_wave_break -= delta
-			if _wave_break <= 0.0:
-				_start_wave()
+	if _start_delay > 0.0:
+		_start_delay -= delta
 		return
 
-	var wave: Dictionary = WAVES[_wave_idx]
+	# 연속 스폰 — 간격과 동시 출현 상한은 총 처치 수에 따라 계속 강화된다.
+	_accum += delta
+	if _accum >= _spawn_interval():
+		if _alive_zombies < _max_z():
+			_accum = 0.0
+			_spawn_one(_pick_type(WEIGHTS[_tier()]))
 
-	# 아직 스폰할 좀비가 남아있으면 스폰 시도
-	if _spawned < _wave_total:
-		if _start_delay > 0.0:
-			_start_delay -= delta
-		else:
-			_accum += delta
-			if _accum >= wave["interval"] * Events.diff_spawn_mult():
-				if _alive_zombies < wave["max_z"]:
-					_accum = 0.0
-					_try_spawn()
+	# 보스 마일스톤 — 일정 처치 수마다 1마리(동시 1마리).
+	if not _boss_alive and Events.total_kills >= _next_boss_at:
+		_spawn_boss()
 
-	# 보스 전투 중에는 호위 좀비를 가볍게 계속 보충
+	# 보스 전투 중 호위 좀비 가벼운 보충.
 	if _boss_alive:
 		_escort_accum += delta
 		if _escort_accum >= 1.6:
 			_escort_accum = 0.0
-			if _alive_zombies < wave["max_z"]:
-				_spawn_one(_pick_type(wave["weights"]))
+			if _alive_zombies < _max_z():
+				_spawn_one(_pick_type(WEIGHTS[_tier()]))
 
-	# 스웜 이벤트(비-보스 웨이브, 2웨이브부터) — 주기적으로 한 무리가 떼로 몰려온다.
-	_tick_swarm(delta, wave)
-
-	# 웨이브 완료 판정
-	if _killed >= _wave_total:
-		if _is_boss_wave:
-			# 킬 목표 달성 → 보스 소환 (1회). 보스를 잡아야 완료.
-			if not _boss_spawned:
-				_spawn_boss()
-			elif not _boss_alive:
-				_wave_complete()
-		else:
-			_wave_complete()
+	_tick_swarm(delta)
 
 
 func _tick_elapsed() -> void:
@@ -209,142 +168,101 @@ func _tick_elapsed() -> void:
 
 
 func _on_zombie_killed() -> void:
-	# 살아있는 좀비 카운터는 웨이브 상태와 무관하게 항상 감소시켜야 한다.
 	_alive_zombies = maxi(0, _alive_zombies - 1)
-	if not _wave_active:
-		return
-	_killed += 1
 	Events.total_kills += 1
-	# 보스 웨이브의 호위 좀비 처치로 목표 초과 표시되지 않도록 진행도는 목표치로 클램프
-	Events.wave_kill_progress = mini(_killed, _wave_total)
-	Events.wave_progress_changed.emit(mini(_killed, _wave_total), _wave_total)
+	# HUD: 킬 카운트 + 다음 보스까지 진행 바.
+	Events.wave_changed.emit(Events.total_kills)
+	var since := BOSS_KILLS - clampi(_next_boss_at - Events.total_kills, 0, BOSS_KILLS)
+	Events.wave_progress_changed.emit(since, BOSS_KILLS)
 
 
-func _wave_complete() -> void:
-	_wave_active = false
-	_wave_break = WAVE_BREAK   # 짧은 브레이크 후 _process 에서 다음 웨이브 자동 시작
-	Events.wave_complete.emit(_wave_num)
-	_wave_num += 1
-	_wave_idx = mini(_wave_idx + 1, WAVES.size() - 1)
-
-
-func _try_spawn() -> void:
-	if not is_instance_valid(player):
-		return
-	var wave: Dictionary = WAVES[_wave_idx]
-	_spawn_one(_pick_type(wave["weights"]))
-	_spawned += 1
-
-
-## 좀비 1마리 스폰 (스폰 카운트와 무관 — 호위 좀비 보충에도 재사용).
+## 좀비 1마리 스폰. 체력/이속은 총 처치 수 기반 난이도 배수로 강화한다.
 func _spawn_one(type_data: Dictionary) -> void:
 	if not is_instance_valid(player):
 		return
 	var z := Pool.acquire(ZOMBIE, get_tree().current_scene)
 	z.global_position = _random_spawn_pos()
-	# 난이도 배수 + 6웨이브 이후 복리 압박 배수 적용 (원본 상수 테이블은 복제본으로 보호).
 	var d := type_data.duplicate()
-	var hp_mult := Events.diff_enemy_hp_mult() * Events.wave_pressure_mult(_wave_num)
-	d["max_health"] = maxi(1, int(round(float(type_data["max_health"]) * hp_mult)))
-	d["speed"] = float(type_data["speed"]) * Events.diff_enemy_speed_mult() * Events.wave_speed_pressure(_wave_num)
+	d["max_health"] = maxi(1, int(round(float(type_data["max_health"]) * _hp_mult())))
+	d["speed"] = float(type_data["speed"]) * _speed_mult()
 	z.setup(d)
 	_alive_zombies += 1
 
 
-## 스웜 이벤트 틱: 경고(swarm_incoming) → SWARM_TELEGRAPH 후 클러스터 등장.
-## 보스 웨이브·1웨이브에서는 발동하지 않고, 막판(킬 목표 85% 도달)엔 새 무리를 부르지 않는다.
-func _tick_swarm(delta: float, wave: Dictionary) -> void:
-	if _is_boss_wave or _wave_num < 2:
+## 스웜 이벤트 틱: 경고(swarm_incoming) → SWARM_TELEGRAPH 후 클러스터 등장. 보스 전투 중엔 발동 안 함.
+func _tick_swarm(delta: float) -> void:
+	if _boss_alive or Events.total_kills < SWARM_START_KILLS:
 		return
 	if _swarm_tel > 0.0:
 		_swarm_tel -= delta
 		if _swarm_tel <= 0.0:
-			_spawn_swarm(wave)
-		return
-	if _killed >= int(_wave_total * 0.85):
+			_spawn_swarm()
 		return
 	_swarm_cd -= delta
-	if _swarm_cd <= 0.0 and _alive_zombies < wave["max_z"]:
+	if _swarm_cd <= 0.0 and _alive_zombies < _max_z():
 		_swarm_cd = randf_range(SWARM_MIN_INTERVAL, SWARM_MAX_INTERVAL)
 		_swarm_elite = randf() < SWARM_ELITE_CHANCE
 		_swarm_tel = SWARM_TELEGRAPH
 		Events.swarm_incoming.emit(_swarm_elite)
 
 
-## 한 방향(off-screen 한 지점 근처)에서 한 종을 떼로 스폰. 엘리트면 더 크고 강하며 보상도 크다.
-func _spawn_swarm(wave: Dictionary) -> void:
+## 한 방향에서 한 종을 떼로 스폰. 엘리트면 더 크고 강하며 보상도 크다.
+func _spawn_swarm() -> void:
 	if not is_instance_valid(player):
 		return
-	var base_type: Dictionary = _pick_type(wave["weights"])
+	var base_type: Dictionary = _pick_type(WEIGHTS[_tier()])
 	var center := _random_spawn_pos()
-	var hp_pressure := Events.wave_pressure_mult(_wave_num)
 	for i in range(SWARM_COUNT):
 		var z := Pool.acquire(ZOMBIE, get_tree().current_scene)
 		z.global_position = center + Vector2(randf_range(-SWARM_SPREAD, SWARM_SPREAD), randf_range(-SWARM_SPREAD, SWARM_SPREAD))
 		var d := base_type.duplicate()
-		var hp_mult := Events.diff_enemy_hp_mult() * hp_pressure
+		var hp_mult := _hp_mult()
 		if _swarm_elite:
 			hp_mult *= SWARM_ELITE_HP_MULT
 			d["scale"] = float(base_type.get("scale", 1.0)) * SWARM_ELITE_SCALE
 			d["score"] = int(base_type.get("score", 10)) * 3
 			d["contact"] = int(base_type.get("contact", 1)) + 1
 		d["max_health"] = maxi(1, int(round(float(base_type["max_health"]) * hp_mult)))
-		d["speed"] = float(base_type["speed"]) * Events.diff_enemy_speed_mult() * Events.wave_speed_pressure(_wave_num)
+		d["speed"] = float(base_type["speed"]) * _speed_mult()
 		z.setup(d)
 		_alive_zombies += 1
-	Events.shake(4.0)   # 무리 등장 진동
+	Events.shake(4.0)
 
 
-## 보스 소환 + 호위 정예 좀비. 보스 처치 시까지 웨이브 완료가 보류된다.
+## 보스 소환 + 호위 정예 좀비. 처치 수·회차에 따라 강화, 아키타입은 순환. 승리 조건 없음(엔들리스).
 func _spawn_boss() -> void:
 	if not is_instance_valid(player):
 		return
-	_boss_spawned = true
 	_boss_alive = true
-	var boss_count := _wave_num / BOSS_EVERY   # 1, 2, 3, ...
+	_boss_count += 1
+	_next_boss_at += BOSS_KILLS
 
-	# 회차별로 아키타입을 순환 — 1차 브루트, 2차 거너, 이후 반복(구현되면 풀 확장).
-	var bt: Dictionary = BOSS_TYPES[BOSS_SEQUENCE[(boss_count - 1) % BOSS_SEQUENCE.size()]]
-
+	var bt: Dictionary = BOSS_TYPES[BOSS_SEQUENCE[(_boss_count - 1) % BOSS_SEQUENCE.size()]]
 	var boss := BOSS.instantiate()
 	get_tree().current_scene.add_child(boss)
 	boss.global_position = _random_spawn_pos()
-	# 보스는 플레이어(이속 220)를 압박할 수 있도록 일반 좀비보다 빠르게 — 회차/난이도/타입에 따라 가속.
-	var boss_hp := int(round(float(80 + 60 * (boss_count - 1)) * Events.diff_boss_hp_mult() \
-		* Events.wave_pressure_mult(_wave_num) * float(bt["hp_mul"])))
+	var kill_scale := 1.0 + float(Events.total_kills) * 0.004
+	var boss_hp := int(round(float(90 + 70 * (_boss_count - 1)) * Events.diff_boss_hp_mult() * kill_scale * float(bt["hp_mul"])))
 	var stats := {
 		"max_health": boss_hp,
-		"speed": (104.0 + 9.0 * boss_count) * Events.diff_enemy_speed_mult() * float(bt["speed_mul"]),
+		"speed": (104.0 + 9.0 * _boss_count) * Events.diff_enemy_speed_mult() * float(bt["speed_mul"]),
 		"contact_damage": int(bt["contact"]),
-		"score": 200 * boss_count,
-		"gold": 12 + 4 * boss_count,
+		"score": 200 * _boss_count,
+		"gold": 12 + 4 * _boss_count,
 		"archetype": bt["archetype"],
 		"tint": bt["tint"],
 		"proj_color": bt["proj"],
 		"name": bt["name"],
 	}
-	# 최종 웨이브: 일반 보스 대신 REAPER — 압도적 체력·근접 광폭·강한 접촉. 처치 시 승리.
-	_final_boss = _wave_num >= FINAL_WAVE
-	if _final_boss:
-		stats["max_health"] = boss_hp * 3
-		stats["archetype"] = "berserk"
-		stats["contact_damage"] = 4
-		stats["tint"] = Color(0.48, 0.05, 0.12)
-		stats["proj_color"] = Color(1.0, 0.3, 0.3)
-		stats["score"] = 3000
-		stats["gold"] = 80
-		stats["name"] = "REAPER"
-		stats["final"] = true
 	boss.setup(stats)
 
-	# 호위 정예 좀비 — 빠른(스프린터)/탱커(공사장) 혼합 (보스 회차가 높을수록 더 많이)
-	var escorts := 3 + boss_count
+	# 호위 정예 좀비 — 빠른(스프린터)/탱커(공사장) 혼합.
+	var escorts := 3 + _boss_count
 	for i in range(escorts):
 		_spawn_one(ZOMBIE_TYPES[1] if i % 2 == 0 else ZOMBIE_TYPES[4])
 
 
 ## 서머너 보스의 소환 요청 처리 — 스포너가 직접 스폰해 살아있는 좀비 카운터를 일관 유지.
-## 과밀 시(SUMMON_ALIVE_CAP 초과) 억제. 빠르고 약한 종(스웜링/러너)을 섞어 압박만 준다.
 func _on_boss_summon(count: int) -> void:
 	if not _boss_alive or _game_over:
 		return
@@ -355,12 +273,7 @@ func _on_boss_summon(count: int) -> void:
 
 
 func _on_boss_died() -> void:
-	_boss_alive = false
-	if _final_boss:
-		# REAPER 처치 — 런 클리어. 스포너를 멈추고 승리 신호(HUD 가 승리 패널 표시).
-		_final_boss = false
-		_game_over = true
-		Events.game_won.emit()
+	_boss_alive = false   # 엔들리스 — 승리 없이 계속 진행, 다음 마일스톤에 새 보스.
 
 
 func _pick_type(weights: Array) -> Dictionary:
@@ -386,11 +299,11 @@ func _random_spawn_pos() -> Vector2:
 # ── 몬스터 분리(anti-overlap) ─────────────────────────────────────────
 # 좀비끼리 물리 충돌(move_and_slide)은 O(n²)라 쓰지 않고, 공간 해시 그리드로 근접 이웃만
 # 훑어 살짝 밀어내 겹쳐 쌓이는 것을 막는다. 이웃 검사 수를 상한 처리해 대량에서도 O(n·k).
-const SEP_RADIUS := 26.0       # 유지하려는 최소 중심 간격
-const SEP_CELL := 26.0         # 그리드 셀 크기(= 분리 반경)
-const SEP_STRENGTH := 0.30     # 겹침량의 이 비율만큼 프레임당 보정
-const SEP_MAX_PUSH := 5.0      # 프레임당 최대 이동(px) — 떨림 방지
-const SEP_MAX_NEIGHBORS := 6   # 좀비당 이웃 검사 상한(성능 보장)
+const SEP_RADIUS := 26.0
+const SEP_CELL := 26.0
+const SEP_STRENGTH := 0.30
+const SEP_MAX_PUSH := 5.0
+const SEP_MAX_NEIGHBORS := 6
 
 
 func _physics_process(_delta: float) -> void:
@@ -399,7 +312,6 @@ func _physics_process(_delta: float) -> void:
 	var zs := get_tree().get_nodes_in_group("zombies")
 	if zs.size() < 2:
 		return
-	# 1) 공간 해시 그리드에 버킷팅(보스 제외 — 보스는 밀리지 않는다).
 	var grid: Dictionary = {}
 	var pts: Array = []
 	for z in zs:
@@ -411,7 +323,6 @@ func _physics_process(_delta: float) -> void:
 			grid[key] = []
 		grid[key].append(pts.size())
 		pts.append([z, p])
-	# 2) 각 좀비: 인접 3x3 셀의 이웃 중 최소거리 미만이면 반대방향으로 밀어낸다.
 	for i in pts.size():
 		var p: Vector2 = pts[i][1]
 		var cx := int(floor(p.x / SEP_CELL))

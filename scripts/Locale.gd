@@ -78,6 +78,7 @@ const STRINGS: Dictionary = {
 	"hud_score_fmt":   {"en": "Score %d",   "ko": "점수 %d",   "ja": "スコア %d"},
 	"hud_best_fmt":    {"en": "Best %d",    "ko": "최고 %d",   "ja": "ベスト %d"},
 	"hud_wave_fmt":    {"en": "Wave %d",    "ko": "웨이브 %d", "ja": "ウェーブ %d"},
+	"hud_kills_fmt":   {"en": "%d Kills",   "ko": "%d 처치",   "ja": "%d 体"},
 	"wave_clear_fmt":  {"en": "Wave %d Clear!", "ko": "웨이브 %d 클리어!", "ja": "ウェーブ %d クリア！"},
 	"hud_magnet_fmt":  {"en": "Gold Magnet  %ds", "ko": "골드 자석  %d초", "ja": "ゴールド磁石  %d秒"},
 	"hud_revive":      {"en": "REVIVE  (Watch Ad)", "ko": "부활  (광고 시청)", "ja": "復活（広告を視聴）"},
