@@ -1,6 +1,6 @@
 extends Area2D
-## 골드: 플레이어가 자석 범위 안에 들어오면 빨려 들어가며, 가까워질수록 가속.
-## 거리 계산만 사용(충돌 콜백 없음). 수집 시 스파클 연출 후 풀로 반납(재사용).
+## 경험치 젬(좀비 드랍): 플레이어가 자석 범위 안에 들어오면 빨려 들어가며, 가까워질수록 가속.
+## 수집 시 경험치를 준다(골드는 필드의 보물상자에서만). 거리 계산만 사용(충돌 콜백 없음).
 
 @export var magnet_radius: float = 130.0
 @export var collect_radius: float = 22.0
@@ -41,7 +41,7 @@ func on_spawn() -> void:
 	_pull_vel = Vector2.ZERO
 	value = 1                     # 풀 재사용 대비 기본값 리셋(등급 젬은 set_value 로 덮어씀)
 	body.scale = COLLECT_SCALE   # 수집 애니메이션 후 리셋
-	body.modulate = Color(1, 1, 1)
+	body.modulate = Color(0.5, 1.0, 0.55)   # 경험치 젬 — 초록
 	if player == null or not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
 
@@ -50,11 +50,11 @@ func on_spawn() -> void:
 func set_value(v: int) -> void:
 	value = maxi(1, v)
 	if value >= 4:
-		body.modulate = Color(0.65, 0.55, 1.0)   # 보라 — 대형 젬
+		body.modulate = Color(0.7, 1.0, 0.9)    # 밝은 청록 — 대형 경험치 젬
 	elif value >= 2:
-		body.modulate = Color(0.55, 0.9, 1.0)    # 청록 — 중형 젬
+		body.modulate = Color(0.45, 1.0, 0.8)   # 청록 — 중형 젬
 	else:
-		body.modulate = Color(1, 1, 1)
+		body.modulate = Color(0.5, 1.0, 0.55)   # 초록 — 기본 젬
 
 
 ## 한 지점에서 바깥으로 톡 튀어 흩어지는 분출 연출(보스 처치 동전 분수). 연출 동안에는
@@ -126,8 +126,7 @@ func _physics_process(delta: float) -> void:
 
 func _collect() -> void:
 	_alive = false
-	Events.add_gold(value)
-	Events.add_xp(value)   # 코인은 골드이자 경험치 — 수집이 곧 인게임 성장(레벨업) 동력
+	Events.add_xp(value)   # 좀비 드랍은 경험치 젬 — 수집이 곧 인게임 성장(레벨업). 골드는 보물상자에서.
 	SoundManager.play("gold", 0.05)
 	# 잠깐 커졌다가 풀로 반납(스파클 효과) — _physics_process 에서 타이머로 진행
 	_collecting = true
