@@ -16,7 +16,7 @@ func _ready() -> void:
 
 
 func _radius() -> float:
-	return BASE_RADIUS + RADIUS_PER_LV * float(maxi(1, Events.upgrade_garlic) - 1)
+	return (BASE_RADIUS + RADIUS_PER_LV * float(maxi(1, Events.upgrade_garlic) - 1)) * Events.area_mult()
 
 
 func _physics_process(delta: float) -> void:

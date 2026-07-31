@@ -33,5 +33,5 @@ func _deploy(lvl: int) -> void:
 	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1)
 	var turret := _TurretUnit.new()
 	get_tree().current_scene.add_child(turret)
-	turret.setup(pos, dmg, _data.proj_speed, _data.area_radius, _data.area_duration, _data.color)
+	turret.setup(pos, dmg, _data.proj_speed, _data.area_radius * Events.area_mult(), _data.area_duration, _data.color)
 	_turrets.append(turret)

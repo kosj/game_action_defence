@@ -14,7 +14,7 @@ func _ready() -> void:
 
 
 func _length() -> float:
-	return _data.area_radius * (1.0 + 0.05 * float(_level() - 1))
+	return _data.area_radius * (1.0 + 0.05 * float(_level() - 1)) * Events.area_mult()
 
 
 func _physics_process(delta: float) -> void:

@@ -99,9 +99,24 @@ static func recompute(weapons: Dictionary, passives: Dictionary) -> void:
 
 	MetaManager.add_bonuses()   # 메타 영구 강화(시작 데미지·체력·이속)를 인벤토리 위에 더한다
 
-	Events.upgrade_atk_speed = int(passives.get("haste", 0))
-	Events.upgrade_crit = int(passives.get("crit", 0))
-	Events.upgrade_speed = int(passives.get("swift", 0))
-	Events.upgrade_max_health = int(passives.get("armor", 0))
-	Events.upgrade_regen = int(passives.get("regen", 0))
-	Events.upgrade_pickup_range = int(passives.get("magnet", 0))
+	# 패시브 효과 — 데이터 구동(PassiveData.effect/per_level). effect 별로 per_level×레벨을 합산.
+	var acc: Dictionary = {}
+	for pd in GameData.passive_defs:
+		if pd == null:
+			continue
+		var lv: int = int(passives.get(pd.id, 0))
+		if lv <= 0 or pd.effect == "":
+			continue
+		acc[pd.effect] = float(acc.get(pd.effect, 0.0)) + pd.per_level * float(lv)
+	# 패시브 전용 스탯: SET(기존 동작 보존 — atk_speed/crit/speed/max_health/regen/pickup).
+	Events.upgrade_atk_speed = int(acc.get("atk_speed", 0.0))
+	Events.upgrade_crit = int(acc.get("crit", 0.0))
+	Events.upgrade_speed = int(acc.get("move_speed", 0.0))
+	Events.upgrade_max_health = int(acc.get("max_health", 0.0))
+	Events.upgrade_regen = int(acc.get("regen", 0.0))
+	Events.upgrade_pickup_range = int(acc.get("pickup", 0.0))
+	Events.upgrade_area = int(acc.get("area", 0.0))
+	Events.upgrade_greed = int(acc.get("greed", 0.0))
+	# 무기와 공유하는 스탯: ADD(무기/진화/메타 값 위에 얹음) — 신규 패시브 탄약벨트/화약.
+	Events.upgrade_multi_bullet += int(acc.get("multishot", 0.0))
+	Events.upgrade_bullet_damage += int(acc.get("bullet_damage", 0.0))

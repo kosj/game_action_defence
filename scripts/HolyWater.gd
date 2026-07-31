@@ -24,10 +24,11 @@ func _cast() -> void:
 	var count := 1 + int(lv / 2)      # 레벨이 오르면 동시에 여러 곳에 투척
 	var dmg := 2 + int(lv / 2)
 	var scene := get_tree().current_scene
-	var r_sq := ZONE_RADIUS * ZONE_RADIUS
+	var zone_r := ZONE_RADIUS * Events.area_mult()   # 패시브 '배터리' 반경 보정
+	var r_sq := zone_r * zone_r
 	for i in range(count):
 		var pos := global_position + Vector2.from_angle(randf() * TAU) * randf_range(CAST_MIN, CAST_MAX)
-		_FXBurst.spawn(scene, pos, Color(0.4, 0.82, 1.0), ZONE_RADIUS, 0.4)
+		_FXBurst.spawn(scene, pos, Color(0.4, 0.82, 1.0), zone_r, 0.4)
 		for z in Events.live_zombies():
 			if is_instance_valid(z) and z.is_in_group("zombies") \
 					and pos.distance_squared_to(z.global_position) < r_sq:
