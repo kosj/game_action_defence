@@ -13,7 +13,7 @@ var _mines: Array = []     # 활성 지뢰 추적(상한 관리)
 
 
 func _max_mines(lvl: int) -> int:
-	return 3 + int(lvl / 2)
+	return int(round((3 + int(lvl / 2)) * CharacterManager.install_boost()))   # 엔지니어 트레잇: 설치 수↑
 
 
 func _physics_process(delta: float) -> void:

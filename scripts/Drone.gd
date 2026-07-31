@@ -13,7 +13,9 @@ var _t: float = 0.0
 
 
 func _count(lvl: int) -> int:
-	return clampi(1 + int((lvl - 1) / 3), 1, 4)
+	var eng := CharacterManager.install_boost() > 1.0   # 엔지니어: 드론 +1, 상한 +1
+	var extra := 1 if eng else 0
+	return clampi(1 + int((lvl - 1) / 3) + extra, 1, 4 + extra)
 
 
 func _physics_process(delta: float) -> void:

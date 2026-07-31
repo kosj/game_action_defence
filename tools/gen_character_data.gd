@@ -11,6 +11,7 @@ func _c(id: String, disp: String, desc: String, color: Color, start_weapon: Stri
 	c.bonus_atk_speed = bonuses.get("atk_speed", 0)
 	c.bonus_area = bonuses.get("area", 0)
 	c.bonus_crit = bonuses.get("crit", 0)
+	c.bonus_greed = bonuses.get("greed", 0)
 	return c
 
 
@@ -26,10 +27,10 @@ func _initialize() -> void:
 		_c("hunter", "Hunter", "Ranged damage. Starts with a Crossbow and a Scope.",
 			Color(0.45, 0.80, 1.00), "crossbow", "crit", "hunter",
 			{"bullet_damage": 2, "crit": 2}),
-		# 엔지니어 — 설치 디펜스: 터렛 시작 + 배터리, 넓은 효과/재화↑.
-		_c("engineer", "Engineer", "Deploy defense. Starts with a Turret and a Battery.",
+		# 엔지니어 — 설치 디펜스: 터렛 시작 + 배터리, 넓은 효과/설치물 강화/재화↑.
+		_c("engineer", "Engineer", "Deploy defense. Stronger turrets/drones/mines and more loot.",
 			Color(0.55, 0.90, 0.60), "turret", "battery", "engineer",
-			{"area": 2, "atk_speed": 1}),
+			{"area": 2, "atk_speed": 1, "greed": 3}),
 	]
 	var err := ResourceSaver.save(db, "res://data/character_db.tres")
 	print("gen_character_data: saved character_db.tres err=%d (chars=%d)" % [err, db.characters.size()])

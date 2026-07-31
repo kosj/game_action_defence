@@ -74,7 +74,7 @@ func _fire(lvl: int) -> void:
 		b.rotation = dir.angle() + PI / 2
 		b.speed = _data.proj_speed
 		# 크리티컬 패시브(crit) — 탄마다 개별 판정, 데미지 2배.
-		var crit_chance := minf(0.08 * Events.upgrade_crit, 0.6)
+		var crit_chance := Events.crit_chance()
 		var is_crit := crit_chance > 0.0 and randf() < crit_chance
 		b.damage = (dmg * 2) if is_crit else dmg
 		b.is_crit = is_crit

@@ -50,6 +50,11 @@ var _hurt_timer: float = 0.0
 var _dead: bool = false
 var _regen_accum: float = 0.0   # 체력 재생(regen) 업그레이드 누적 타이머
 
+# 캐릭터 조건부 트레잇(Phase 4-B) — 선택 캐릭터의 trait_key 로 동적 효과.
+var _trait_key: String = ""
+var _still_time: float = 0.0    # 정지 지속 시간(사냥꾼 치명타 램프)
+var _kill_heal_accum: int = 0   # 처치 누적(베테랑 전투 회복)
+
 # 최근접 적 캐시: _get_nearest_zombie() 는 좀비 그룹 전체를 순회하므로(O(n)) 매 프레임
 # 돌리면 대량 좀비 환경에서 비싸다. 짧은 주기로만 갱신하고 그 사이에는 캐시를 재사용한다.
 var _target: Node2D = null
@@ -102,6 +107,9 @@ func _ready() -> void:
 	Events.shop_closed.connect(_autosave)
 	Events.screen_shake_requested.connect(_on_screen_shake)
 	Events.wave_complete.connect(func(_wave: int): _autosave())
+	var _char: CharacterData = CharacterManager.selected()
+	_trait_key = _char.trait_key if _char != null else ""
+	Events.zombie_killed.connect(_on_kill_for_trait)   # 베테랑 전투 회복
 	if SaveManager.pending_continue:
 		_load_saved_state()
 
@@ -132,6 +140,7 @@ func _physics_process(delta: float) -> void:
 		body.modulate.a = 1.0
 	_check_contact_damage()
 	_handle_move()
+	_update_trait_mods(delta)   # 캐릭터 조건부 트레잇(velocity 확정 후)
 	# 최근접 적은 짧은 주기로만 재탐색하고(대상 소멸 시 즉시 재탐색) 그 외엔 캐시 재사용.
 	# 죽은 좀비는 풀로 반납돼도 is_instance_valid 는 참이므로(트리에서 분리될 뿐) "zombies"
 	# 그룹 소속까지 확인한다 — 좀비는 사망 즉시 그룹에서 빠진다.
@@ -144,6 +153,39 @@ func _physics_process(delta: float) -> void:
 	if _autosave_accum >= AUTOSAVE_INTERVAL:
 		_autosave_accum = 0.0
 		_autosave()
+
+
+## 캐릭터 조건부 트레잇 — 매 프레임 Events 의 동적 배수를 갱신한다.
+##   베테랑: 저체력일수록 나가는 피해↑ / 사냥꾼: 정지할수록 치명타↑ / 엔지니어: 정적 효과(트레잇 배수 없음).
+func _update_trait_mods(delta: float) -> void:
+	match _trait_key:
+		"veteran":
+			var ratio := float(health) / float(maxi(max_health, 1))
+			# 체력 절반 이하부터 상승, 빈사에서 +60% 피해.
+			Events.trait_damage_mult = 1.0 + 0.6 * clampf((0.5 - ratio) / 0.5, 0.0, 1.0)
+			Events.trait_crit_bonus = 0.0
+		"hunter":
+			if velocity.length() < 8.0:
+				_still_time = minf(_still_time + delta, 1.2)
+			else:
+				_still_time = 0.0
+			# 1.2초 정지 시 최대 +30% 치명타 확률.
+			Events.trait_crit_bonus = 0.30 * (_still_time / 1.2)
+			Events.trait_damage_mult = 1.0
+		_:
+			Events.trait_damage_mult = 1.0
+			Events.trait_crit_bonus = 0.0
+
+
+## 베테랑 전투 회복 — 근접 지향 캐릭터의 지속력. 일정 처치마다 1 회복(체력 미만일 때).
+func _on_kill_for_trait() -> void:
+	if _trait_key != "veteran" or _dead or health >= max_health:
+		return
+	_kill_heal_accum += 1
+	if _kill_heal_accum >= 8:
+		_kill_heal_accum = 0
+		health = mini(max_health, health + 1)
+		Events.update_player_health(health, max_health)
 
 
 ## 체력 재생(regen) 업그레이드 — 레벨이 높을수록 빠르게 1씩 회복(최대 체력까지).
@@ -254,7 +296,7 @@ func _shoot_dir(base_dir: Vector2) -> void:
 		b.speed = BASE_BULLET_SPEED * current_weapon["bullet_speed_mult"]
 		# 크리티컬(crit) 업그레이드: 레벨당 +8% 확률(상한 60%)로 데미지 2배. 탄마다 개별 판정.
 		var base_dmg: int = current_weapon["damage"] + Events.upgrade_bullet_damage
-		var crit_chance := minf(0.08 * Events.upgrade_crit, 0.6)
+		var crit_chance := Events.crit_chance()
 		var is_crit_hit := crit_chance > 0.0 and randf() < crit_chance
 		b.damage = (base_dmg * 2) if is_crit_hit else base_dmg
 		b.is_crit = is_crit_hit

@@ -269,6 +269,8 @@ const _CRIT_COLOR := Color(1.0, 0.55, 0.1)
 func take_damage(amount: int, is_crit: bool = false) -> void:
 	if not _alive:
 		return
+	if Events.trait_damage_mult != 1.0:   # 캐릭터 트레잇: 나가는 피해 배수(수신측에서 일괄 적용)
+		amount = maxi(1, int(round(amount * Events.trait_damage_mult)))
 	health -= amount
 	if is_crit:
 		# 크리티컬 피드백: 큰 주황 데미지 숫자 + 더 오래/강하게 번쩍 + 짧은 스파크.

@@ -237,6 +237,15 @@ var upgrade_greed: int = 0             # 인게임 골드/경험치 획득 (+8%/
 var upgrade_garlic: int = 0            # 마늘 오라 무기 레벨(0=미보유)
 var upgrade_holy: int = 0              # 성수 무기 레벨(0=미보유)
 
+# 캐릭터 조건부 트레잇(Phase 4-B) — Player 가 매 프레임 갱신하는 동적 상태.
+var trait_damage_mult: float = 1.0    # 나가는 피해 배수(베테랑 저체력↑ 등) — 좀비/보스가 피격 시 곱함
+var trait_crit_bonus: float = 0.0     # 추가 치명타 확률(사냥꾼 정지 시↑) — crit_chance() 에 합산
+
+
+## 현재 치명타 확률(패시브 조준경 + 캐릭터 트레잇 보너스, 상한 60%). 발사 코드가 공유한다.
+func crit_chance() -> float:
+	return minf(0.08 * float(upgrade_crit) + trait_crit_bonus, 0.6)
+
 
 # ── 좀비 스냅샷 캐시 ─────────────────────────────────────────────────
 # get_nodes_in_group() 은 호출마다 새 Array 를 할당한다. 총알·오브·번개·플레이어가
@@ -348,6 +357,8 @@ func reset() -> void:
 	upgrade_pickup_range = 0
 	upgrade_area = 0
 	upgrade_greed = 0
+	trait_damage_mult = 1.0
+	trait_crit_bonus = 0.0
 	upgrade_regen = 0
 	upgrade_crit = 0
 	upgrade_garlic = 0
