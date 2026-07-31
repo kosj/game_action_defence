@@ -15,6 +15,17 @@ func _w(id: String, disp: String, desc: String, color: Color, max_level: int, ev
 	return w
 
 
+## 데이터 구동 발사체 무기(ProjectileWeapon 모듈). params = [fire_interval, pellets, spread,
+## pierce, knockback, proj_speed, proj_damage, dmg_per_level, proj_scale]
+func _wm(id: String, disp: String, desc: String, color: Color, params: Array) -> WeaponData:
+	var w := _w(id, disp, desc, color, 8, false)
+	w.module = "projectile"
+	w.fire_interval = params[0]; w.pellets = params[1]; w.spread = params[2]
+	w.pierce = params[3]; w.knockback = params[4]; w.proj_speed = params[5]
+	w.proj_damage = params[6]; w.dmg_per_level = params[7]; w.proj_scale = params[8]
+	return w
+
+
 func _p(id: String, disp: String, desc: String, color: Color, max_level: int) -> PassiveData:
 	var p := PassiveData.new()
 	p.id = id; p.display = disp; p.desc = desc; p.color = color; p.max_level = max_level
@@ -37,6 +48,10 @@ func _initialize() -> void:
 		_w("lightning", "Lightning",  "Strikes nearby foes",        C_LIGHT, 8, false),
 		_w("garlic",    "Garlic Aura","Damages foes around you",    C_ORB,   8, false),
 		_w("holy",      "Holy Water", "Blasts random nearby spots", C_LIGHT, 8, false),
+		# 신규 발사체 무기(Phase 2-C 배치 1) — 자동 조준, 각자 독립 발사.
+		_wm("shotgun",    "Shotgun",     "Wide spread + strong knockback", Color(1.00, 0.55, 0.15), [0.85, 5, 0.50, 0, 240.0, 620.0, 1, 1, 0.85]),
+		_wm("machinegun", "Machine Gun", "Very fast, low damage",          Color(0.80, 0.95, 0.25), [0.16, 1, 0.12, 0, 0.0,   760.0, 1, 1, 0.60]),
+		_wm("crossbow",   "Crossbow",    "Piercing high-damage bolt",      Color(0.55, 0.85, 1.00), [0.95, 1, 0.00, 2, 60.0,  900.0, 3, 2, 1.15]),
 		_w("railgun",      "Railgun",      "Evolved Auto Gun",    C_ATK,   5, true),
 		_w("sawstorm",     "Saw Storm",    "Evolved Orb Shield",  C_ORB,   5, true),
 		_w("thunderstorm", "Thunderstorm", "Evolved Lightning",   C_LIGHT, 5, true),

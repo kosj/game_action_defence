@@ -12,6 +12,10 @@ var direction: Vector2 = Vector2.RIGHT
 var trail_color: Color = Color(1.0, 0.30, 0.10)
 var splash_radius: float = 0.0
 var is_crit: bool = false          # 이 탄이 크리티컬인지(Player._shoot_at 에서 주입) — 명중 시 강조 피드백
+var pierce: int = 0                # 관통 가능 적 수(0=첫 명중에 소멸). 석궁 등 관통 무기가 주입.
+var knockback: float = 0.0         # 직격 넉백 세기(0=기본 _KNOCKBACK). 산탄총 등이 크게 준다.
+var _pierced: int = 0              # 지금까지 관통한 적 수
+var _hit_ids: Dictionary = {}      # 이미 명중한 적(중복 타격 방지) — 관통 시에만 의미
 var _age: float = 0.0
 var _alive: bool = false
 
@@ -31,6 +35,11 @@ func on_spawn() -> void:
 	trail_color = Color(1.0, 0.30, 0.10)
 	splash_radius = 0.0
 	is_crit = false
+	# 풀 재사용 대비: 관통/넉백은 발사 측이 매 발 주입하므로 여기서 기본값으로 되돌린다.
+	pierce = 0
+	knockback = 0.0
+	_pierced = 0
+	_hit_ids.clear()
 
 
 func on_despawn() -> void:
@@ -86,14 +95,24 @@ func _check_swept_hit(from: Vector2, to: Vector2) -> void:
 
 
 func _resolve_hit(c: Node, pos: Vector2) -> void:
-	global_position = pos
-	if splash_radius > 0.0:
+	if splash_radius > 0.0:      # 폭발형: 지점 이동 후 범위 피해, 즉시 소멸(관통 없음)
+		global_position = pos
 		_splash_hit()
-	elif c.has_method("take_damage"):
+		_despawn()
+		return
+	var id := c.get_instance_id()
+	if _hit_ids.has(id):         # 관통 중 이미 때린 적은 그냥 통과
+		return
+	_hit_ids[id] = true
+	if c.has_method("take_damage"):
 		c.take_damage(damage, is_crit)
 		if c.has_method("apply_knockback"):   # 좀비만 넉백(보스는 메서드가 없어 면역)
-			c.apply_knockback(direction, _KNOCKBACK)
-	_despawn()
+			c.apply_knockback(direction, knockback if knockback > 0.0 else _KNOCKBACK)
+	# 관통: 남은 관통 수가 있으면 소멸하지 않고 계속 진행(위치 보정 안 함).
+	if _pierced >= pierce:
+		_despawn()
+	else:
+		_pierced += 1
 
 
 func _draw() -> void:
@@ -113,11 +132,7 @@ func _on_body_entered(body: Node) -> void:
 	if not _alive:
 		return
 	if body.is_in_group("zombies"):
-		if splash_radius > 0.0:
-			_splash_hit()
-		elif body.has_method("take_damage"):
-			body.take_damage(damage, is_crit)
-		_despawn()
+		_resolve_hit(body, global_position)   # 관통/넉백 처리 일원화
 
 
 ## 폭발형 무기: 명중 지점 주변의 모든 좀비에게 피해 + 확산 이펙트.
