@@ -43,6 +43,13 @@ func _p(id: String, disp: String, desc: String, color: Color, max_level: int, ef
 	return p
 
 
+## 진화 무기 표시(카드로 안 뜸, 진화로만 획득): evolved=true, max_level=5.
+func _evo(w: WeaponData) -> WeaponData:
+	w.evolved = true
+	w.max_level = 5
+	return w
+
+
 func _e(base_id: String, passive_id: String, into_id: String) -> EvolutionData:
 	var e := EvolutionData.new()
 	e.base_id = base_id; e.passive_id = passive_id; e.into_id = into_id
@@ -79,6 +86,14 @@ func _initialize() -> void:
 		_w("thunderstorm", "Thunderstorm", "Evolved Lightning",   C_LIGHT, 5, true),
 		_w("sanctuary",    "Sanctuary",    "Evolved Garlic Aura", C_ORB,   5, true),
 		_w("crucifix",     "Crucifix",     "Evolved Holy Water",  C_LIGHT, 5, true),
+		# 신규 무기 진화체(Phase 3-B). 모듈 무기라 강화 파라미터만 다른 새 WeaponData — recompute 오버라이드 불필요.
+		_evo(_wm("dragonsbreath", "Dragon's Breath", "Evolved Shotgun",     Color(1.00, 0.40, 0.10), [0.75, 8, 0.60, 1, 300.0, 660.0, 2, 2, 0.95])),
+		_evo(_wm("gatling",       "Gatling Gun",     "Evolved Machine Gun", Color(0.90, 0.95, 0.20), [0.10, 2, 0.14, 1, 0.0,   820.0, 1, 2, 0.65])),
+		_evo(_wm("ballista",      "Ballista",        "Evolved Crossbow",    Color(0.45, 0.80, 1.00), [0.75, 1, 0.00, 5, 90.0,  1000.0, 5, 3, 1.40])),
+		_evo(_wa("inferno",  "Inferno",   "Evolved Flamethrower", Color(1.00, 0.42, 0.08), "flamethrower", [0.18, 2, 2, 210.0, 0.0, 0.62, 0.0])),
+		_evo(_wa("napalm",   "Napalm",    "Evolved Molotov",      Color(1.00, 0.35, 0.08), "molotov",      [2.00, 3, 2, 100.0, 4.5, 0.00, 0.0])),
+		_evo(_wa("claymore", "Claymore",  "Evolved Land Mine",    Color(1.00, 0.42, 0.12), "mine",         [1.50, 6, 3, 95.0,  9.0, 0.00, 260.0])),
+		_evo(_wa("stormcoil","Storm Coil","Evolved Tesla Coil",   Color(0.55, 0.85, 1.00), "tesla",        [0.70, 4, 3, 340.0, 0.0, 0.00, 0.0])),
 	]
 
 	# 스펙 패시브 10종. 기존 6종은 id 유지(진화 짝꿍·세이브 호환), 표시명만 스펙 플레이버로.
@@ -96,12 +111,20 @@ func _initialize() -> void:
 		_p("rabbits_foot", "Rabbit's Foot", "+8% gold & XP / lvl", C_SURV, 6, "greed",         1.0),
 	]
 
+	# 진화 12종: 베이스 만렙 + 짝꿍 패시브 보유 → 진화체(보물상자 개봉 시 선택).
 	db.evolutions = [
 		_e("gun",       "crit",  "railgun"),
 		_e("orb",       "swift", "sawstorm"),
 		_e("lightning", "crit",  "thunderstorm"),
 		_e("garlic",    "armor", "sanctuary"),
 		_e("holy",      "haste", "crucifix"),
+		_e("shotgun",    "gunpowder", "dragonsbreath"),
+		_e("machinegun", "ammo_belt", "gatling"),
+		_e("crossbow",   "crit",      "ballista"),
+		_e("flamethrower", "battery", "inferno"),
+		_e("molotov",    "gunpowder", "napalm"),
+		_e("mine",       "battery",   "claymore"),
+		_e("tesla",      "haste",     "stormcoil"),
 	]
 
 	var err := ResourceSaver.save(db, "res://data/item_catalog.tres")

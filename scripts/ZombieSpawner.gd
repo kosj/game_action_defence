@@ -163,6 +163,7 @@ func _process(delta: float) -> void:
 		_next_elite_at += _diff.elite_seconds
 		if not _boss_alive and _swarm_tel <= 0.0:
 			_trigger_swarm(true)
+			Events.elite_pack.emit()   # 진화 보물상자 드롭 트리거
 
 	# 보스 전투 중 호위 좀비 가벼운 보충.
 	if _boss_alive:
