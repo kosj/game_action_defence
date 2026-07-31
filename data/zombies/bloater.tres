@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ZombieData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ZombieData.gd" id="1_057uk"]
+[ext_resource type="Texture2D" path="res://assets/sprites/zombie_bloater.png" id="2_7xmi1"]
+
+[resource]
+script = ExtResource("1_057uk")
+id = "bloater"
+speed = 36.0
+max_health = 20
+modulate = Color(0.6, 0.9, 0.5, 1)
+score = 55
+scale = 1.15
+contact = 3
+behavior = "chase"
+texture = ExtResource("2_7xmi1")

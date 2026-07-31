@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="ZombieDB" load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ZombieDB.gd" id="1_sabih"]
+[ext_resource type="Script" path="res://scripts/data/ZombieData.gd" id="2_0s6n1"]
+[ext_resource type="Resource" path="res://data/zombies/walker.tres" id="3_c4b4a"]
+[ext_resource type="Resource" path="res://data/zombies/sprinter.tres" id="4_lhsbg"]
+[ext_resource type="Resource" path="res://data/zombies/bloater.tres" id="5_idc61"]
+[ext_resource type="Resource" path="res://data/zombies/gaunt.tres" id="6_kn0gf"]
+[ext_resource type="Resource" path="res://data/zombies/foreman.tres" id="7_326g4"]
+[ext_resource type="Resource" path="res://data/zombies/toxic.tres" id="8_gkaq2"]
+[ext_resource type="Resource" path="res://data/zombies/screamer.tres" id="9_61p8n"]
+[ext_resource type="Resource" path="res://data/zombies/cop.tres" id="10_maf26"]
+[ext_resource type="Resource" path="res://data/zombies/soldier.tres" id="11_fs8fp"]
+[ext_resource type="Resource" path="res://data/zombies/longneck.tres" id="12_v05ck"]
+[ext_resource type="Resource" path="res://data/zombies/suit.tres" id="13_2qnx2"]
+
+[resource]
+script = ExtResource("1_sabih")
+zombies = Array[ExtResource("2_0s6n1")]([ExtResource("3_c4b4a"), ExtResource("4_lhsbg"), ExtResource("5_idc61"), ExtResource("6_kn0gf"), ExtResource("7_326g4"), ExtResource("8_gkaq2"), ExtResource("9_61p8n"), ExtResource("10_maf26"), ExtResource("11_fs8fp"), ExtResource("12_v05ck"), ExtResource("13_2qnx2")])

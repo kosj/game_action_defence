@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ZombieData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ZombieData.gd" id="1_a3cvh"]
+[ext_resource type="Texture2D" path="res://assets/sprites/zombie_sprinter.png" id="2_tj6eh"]
+
+[resource]
+script = ExtResource("1_a3cvh")
+id = "sprinter"
+speed = 150.0
+max_health = 2
+modulate = Color(1, 0.35, 0.35, 1)
+score = 18
+scale = 0.95
+contact = 1
+behavior = "chase"
+texture = ExtResource("2_tj6eh")

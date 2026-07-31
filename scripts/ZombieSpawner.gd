@@ -60,19 +60,19 @@ const HP_GROW := 0.006          # 처치당 체력 배수 증가(선형·무한)
 const SPEED_GROW := 0.0006      # 처치당 이속 배수 증가
 const SPEED_CAP := 1.6          # 이속 배수 상한
 
-const ZOMBIE_TYPES: Array = [
-	{"speed": 65,  "max_health": 3,  "modulate": Color(0.70, 0.95, 0.55), "score": 10, "scale": 1.00, "contact": 1, "texture": preload("res://assets/sprites/zombie_walker.png")},
-	{"speed": 150, "max_health": 2,  "modulate": Color(1.00, 0.35, 0.35), "score": 18, "scale": 0.95, "contact": 1, "texture": preload("res://assets/sprites/zombie_sprinter.png")},
-	{"speed": 36,  "max_health": 20, "modulate": Color(0.60, 0.90, 0.50), "score": 55, "scale": 1.15, "contact": 3, "texture": preload("res://assets/sprites/zombie_bloater.png")},
-	{"speed": 85,  "max_health": 3,  "modulate": Color(0.80, 0.90, 0.95), "score": 18, "scale": 0.95, "contact": 1, "behavior": "weaver",  "texture": preload("res://assets/sprites/zombie_gaunt.png")},
-	{"speed": 58,  "max_health": 7,  "modulate": Color(1.00, 0.60, 0.25), "score": 28, "scale": 1.05, "contact": 2, "texture": preload("res://assets/sprites/zombie_foreman.png")},
-	{"speed": 72,  "max_health": 4,  "modulate": Color(0.55, 0.95, 0.40), "score": 26, "scale": 1.00, "contact": 2, "texture": preload("res://assets/sprites/zombie_toxic.png")},
-	{"speed": 145, "max_health": 1,  "modulate": Color(0.80, 0.95, 0.80), "score": 16, "scale": 0.95, "contact": 1, "texture": preload("res://assets/sprites/zombie_screamer.png")},
-	{"speed": 80,  "max_health": 6,  "modulate": Color(0.45, 0.65, 1.00), "score": 30, "scale": 1.05, "contact": 2, "texture": preload("res://assets/sprites/zombie_cop.png")},
-	{"speed": 60,  "max_health": 5,  "modulate": Color(0.60, 0.80, 0.40), "score": 40, "scale": 1.00, "contact": 1, "behavior": "spitter", "texture": preload("res://assets/sprites/zombie_soldier.png")},
-	{"speed": 50,  "max_health": 3,  "modulate": Color(0.50, 1.00, 0.30), "score": 34, "scale": 1.05, "contact": 1, "behavior": "spitter", "texture": preload("res://assets/sprites/zombie_longneck.png")},
-	{"speed": 78,  "max_health": 3,  "modulate": Color(0.72, 0.78, 0.85), "score": 20, "scale": 1.00, "contact": 1, "texture": preload("res://assets/sprites/zombie_suit.png")},
-]
+# 좀비 종류 = 데이터 에셋(res://data/zombies.tres). 순서가 WEIGHTS 인덱스와 정렬된다.
+# _ready 에서 GameData 로부터 dict 배열로 변환해 채운다(다운스트림 코드 형태는 그대로 유지).
+var ZOMBIE_TYPES: Array = []
+
+
+func _build_types() -> void:
+	ZOMBIE_TYPES.clear()
+	for zd in GameData.zombie_list:
+		ZOMBIE_TYPES.append({
+			"speed": zd.speed, "max_health": zd.max_health, "modulate": zd.modulate,
+			"score": zd.score, "scale": zd.scale, "contact": zd.contact,
+			"behavior": zd.behavior, "texture": zd.texture,
+		})
 
 var player: Node2D = null
 var _accum: float = 0.0
@@ -91,6 +91,7 @@ var _escort_accum: float = 0.0
 
 
 func _ready() -> void:
+	_build_types()   # 데이터 에셋(GameData)에서 좀비 종류 테이블 구성
 	player = get_tree().get_first_node_in_group("player")
 	Events.player_died.connect(func(): _game_over = true)
 	Events.player_revived.connect(func(): _game_over = false)

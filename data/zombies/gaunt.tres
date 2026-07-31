@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ZombieData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ZombieData.gd" id="1_syb4n"]
+[ext_resource type="Texture2D" path="res://assets/sprites/zombie_gaunt.png" id="2_xv5ft"]
+
+[resource]
+script = ExtResource("1_syb4n")
+id = "gaunt"
+speed = 85.0
+max_health = 3
+modulate = Color(0.8, 0.9, 0.95, 1)
+score = 18
+scale = 0.95
+contact = 1
+behavior = "weaver"
+texture = ExtResource("2_xv5ft")

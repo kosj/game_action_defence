@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ZombieData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ZombieData.gd" id="1_4y0og"]
+[ext_resource type="Texture2D" path="res://assets/sprites/zombie_longneck.png" id="2_wx4ys"]
+
+[resource]
+script = ExtResource("1_4y0og")
+id = "longneck"
+speed = 50.0
+max_health = 3
+modulate = Color(0.5, 1, 0.3, 1)
+score = 34
+scale = 1.05
+contact = 1
+behavior = "spitter"
+texture = ExtResource("2_wx4ys")
