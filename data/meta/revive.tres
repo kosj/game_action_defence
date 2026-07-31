@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MetaUpgradeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_518ml"]
+
+[resource]
+script = ExtResource("1_518ml")
+id = "revive"
+name = "Second Wind"
+desc = "+1 free revive / run"
+max_level = 3
+base_cost = 400
+cost_mul = 2.2
+effect_kind = "revive"
+effect_per_level = 1.0

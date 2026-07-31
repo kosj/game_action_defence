@@ -19,7 +19,7 @@
 | A. 무기 12종 | ✅ 완료 | 스펙 12 동작 계열 전부 구현(배치1~4). 산탄총·기관총·석궁·화염방사기·화염병·지뢰·못배트·체인소·**터렛·드론·테슬라** + 기존 gun·orb·lightning·garlic·holy. 남은 건 스펙 이름 재매핑(gun→리볼버 등, "기존 흡수" 단계) |
 | A. 패시브 10종 | ✅ 완료 | **Phase 3-A** — 데이터 구동 효과(PassiveData.effect/per_level). 방탄조끼·운동화·에너지드링크·조준경·자석·응급키트 + 신규 탄약벨트·화약·배터리·토끼발 |
 | B. 캐릭터 차별화 데이터 | ✅ 완료 | **Phase 4** — `CharacterData`(시작무기/시그니처패시브/스탯보정/`trait_key`) + 조건부 트레잇 런타임 로직 |
-| C. 메타 영구 강화 | 🟡 부분 | `MetaManager` 5종. 부활·행운·재생 등 추가 필요 |
+| C. 메타 영구 강화 | ✅ 완료 | **Phase 5-A** — 10종(위력·체력·이속·탐욕·성장 + 행운·재생·공속·범위·**부활**). recompute 순서 정정으로 체력/이속 실효화 |
 | C. 해금(캐릭터/무기/테마) | ❌ 없음 | |
 | C. 도전과제 | ❌ 없음 | |
 | 무기 진화표(12종, 보물상자 발동) | ✅ 완료 | **Phase 3-B** — 진화 12종, 엘리트/보스 드롭 진화 상자 개봉 시 선택 |
@@ -276,4 +276,18 @@ Phase 7 (성능/폴리시)  ← 상시 + 마지막 마감
   - **엔지니어:** `bonus_greed`(재화↑) + `CharacterManager.install_boost()`(터렛/드론/지뢰 설치 수 ×1.5·상한↑).
   - 검증: `--import` 무오류, 트레잇 수식 프로브(베테랑 1/10체력 ×1.48·풀피 ×1.0, 사냥꾼 정지 crit 0.30), 씬 런타임 무오류.
 
-### ▶ 다음: Phase 5(메타 확장·해금·도전과제), 이후 Phase 6(테마 3종)·Phase 7(성능/폴리시)
+### 🟡 Phase 5 — 메타 확장 + 해금 + 도전과제 *(진행 중)*
+- **[완료] 5-A — 메타 영구 강화 확장 + recompute 순서 정정:**
+  - 신규 메타 5종(데이터): 행운(crit)·재생(regen)·아드레날린(atk_speed)·리치(area)·**세컨드 윈드(revive, 런당 무료 부활)**.
+    `MetaManager.add_bonuses` 를 crit/regen/atk_speed/area 까지 확장, `revive_count()` + `Events.revives_left`.
+  - **순서 버그 정정:** `MetaManager.add_bonuses()` 를 recompute 중간→**말미(패시브 SET 이후)**로 이동.
+    이로써 그동안 패시브 SET 에 덮여 실효 없던 메타 **체력(vitality)·이속(swift)** 이 정상 반영. swift `per` 30→1 정정
+    (Player 가 `move_speed=base+30*upgrade_speed` 로 반영하므로 레벨당 +30 이속).
+  - **무료 부활:** 사망 시 `Events.revives_left>0` 이면 광고 없이 `Player._free_revive`(체력 회복 + iframe).
+  - 검증: `--import` 무오류, 메타 레벨 강제 프로브(vitality3·swift2·luck2·revive1·power2 → maxhp+7·speed+3·crit+2·dmg+2·revives1),
+    무료 부활 프로브(사망 대신 회복·부활 1 소비) 통과, 씬 런타임 무오류.
+- **[남음] 5-B — 도전과제:** `AchievementData` + 추적기(누적 처치/생존 시간/무기별 등) + 진행 저장 + 목록 UI.
+- **[남음] 5-C — 해금:** 캐릭터/무기/(테마) 를 재화 + 도전과제로 게이팅. 잠금 상태 표시 + 해금 처리.
+- **[남음] 수익화 자리:** 2배 보상 광고 접점, 코스메틱 스킨 슬롯(SDK 연동은 이후).
+
+### ▶ 다음: Phase 5-B(도전과제) → 5-C(해금), 이후 Phase 6(테마 3종)·Phase 7(성능/폴리시)

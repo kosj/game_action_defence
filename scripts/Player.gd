@@ -342,7 +342,21 @@ func _take_damage(amount: int) -> void:
 	health = max(0, health - amount)
 	Events.update_player_health(health, max_health)
 	if health <= 0:
-		_die()
+		if Events.revives_left > 0:   # 메타 무료 부활 — 광고 없이 즉시 재기(iframe 부여)
+			Events.revives_left -= 1
+			_free_revive()
+		else:
+			_die()
+
+
+## 메타 'revive' 무료 부활 — 사망 대신 체력 회복 + 짧은 무적 + 화면 연출.
+func _free_revive() -> void:
+	health = max_health
+	_hurt_timer = 3.0
+	_attack_accum = 0.0
+	Events.update_player_health(health, max_health)
+	Events.shake(9.0)
+	SoundManager.play("gold", 0.0, 0.7)
 
 
 func _die() -> void:

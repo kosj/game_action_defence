@@ -1,9 +1,9 @@
 [gd_resource type="Resource" script_class="MetaUpgradeData" load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_clnmk"]
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_17y2k"]
 
 [resource]
-script = ExtResource("1_clnmk")
+script = ExtResource("1_17y2k")
 id = "swift"
 name = "Swiftness"
 desc = "+30 start move speed"
@@ -11,4 +11,4 @@ max_level = 8
 base_cost = 80
 cost_mul = 1.6
 effect_kind = "move_speed"
-effect_per_level = 30.0
+effect_per_level = 1.0

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MetaUpgradeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_8niaq"]
+
+[resource]
+script = ExtResource("1_8niaq")
+id = "adrenaline"
+name = "Adrenaline"
+desc = "+ start fire rate"
+max_level = 6
+base_cost = 150
+cost_mul = 1.7
+effect_kind = "atk_speed"
+effect_per_level = 1.0

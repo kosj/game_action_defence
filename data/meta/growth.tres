@@ -1,9 +1,9 @@
 [gd_resource type="Resource" script_class="MetaUpgradeData" load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_t6qnj"]
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_y3m7l"]
 
 [resource]
-script = ExtResource("1_t6qnj")
+script = ExtResource("1_y3m7l")
 id = "growth"
 name = "Growth"
 desc = "+8% XP gain"

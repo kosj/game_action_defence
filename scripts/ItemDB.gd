@@ -97,8 +97,6 @@ static func recompute(weapons: Dictionary, passives: Dictionary) -> void:
 	if weapons.has("crucifix"):
 		Events.upgrade_holy = 9 + int(weapons["crucifix"])
 
-	MetaManager.add_bonuses()   # 메타 영구 강화(시작 데미지·체력·이속)를 인벤토리 위에 더한다
-
 	# 패시브 효과 — 데이터 구동(PassiveData.effect/per_level). effect 별로 per_level×레벨을 합산.
 	var acc: Dictionary = {}
 	for pd in GameData.passive_defs:
@@ -121,4 +119,6 @@ static func recompute(weapons: Dictionary, passives: Dictionary) -> void:
 	Events.upgrade_multi_bullet += int(acc.get("multishot", 0.0))
 	Events.upgrade_bullet_damage += int(acc.get("bullet_damage", 0.0))
 
-	CharacterManager.add_bonuses()   # 캐릭터 시작 스탯 보정(패시브 SET 이후 += 로 얹음)
+	# 영구/캐릭터 시작 보정 — 패시브 SET 이후 += 로 얹는다(그래야 메타 체력/이속이 덮이지 않는다).
+	MetaManager.add_bonuses()
+	CharacterManager.add_bonuses()

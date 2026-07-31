@@ -1,9 +1,9 @@
 [gd_resource type="Resource" script_class="MetaUpgradeData" load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_xw731"]
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_p1ie4"]
 
 [resource]
-script = ExtResource("1_xw731")
+script = ExtResource("1_p1ie4")
 id = "power"
 name = "Might"
 desc = "+1 start bullet damage"

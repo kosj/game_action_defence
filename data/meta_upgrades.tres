@@ -1,13 +1,18 @@
-[gd_resource type="Resource" script_class="MetaUpgradeDB" load_steps=8 format=3]
+[gd_resource type="Resource" script_class="MetaUpgradeDB" load_steps=13 format=3]
 
-[ext_resource type="Script" path="res://scripts/data/MetaUpgradeDB.gd" id="1_sri2i"]
-[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="2_75p5t"]
-[ext_resource type="Resource" path="res://data/meta/power.tres" id="3_7ayhc"]
-[ext_resource type="Resource" path="res://data/meta/vitality.tres" id="4_bwrdn"]
-[ext_resource type="Resource" path="res://data/meta/swift.tres" id="5_cc003"]
-[ext_resource type="Resource" path="res://data/meta/greed.tres" id="6_di50d"]
-[ext_resource type="Resource" path="res://data/meta/growth.tres" id="7_rased"]
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeDB.gd" id="1_ce812"]
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="2_1bjun"]
+[ext_resource type="Resource" path="res://data/meta/power.tres" id="3_fqvc0"]
+[ext_resource type="Resource" path="res://data/meta/vitality.tres" id="4_78de3"]
+[ext_resource type="Resource" path="res://data/meta/swift.tres" id="5_dupha"]
+[ext_resource type="Resource" path="res://data/meta/greed.tres" id="6_bb33o"]
+[ext_resource type="Resource" path="res://data/meta/growth.tres" id="7_ey3ci"]
+[ext_resource type="Resource" path="res://data/meta/luck.tres" id="8_l6mga"]
+[ext_resource type="Resource" path="res://data/meta/vigor.tres" id="9_23slr"]
+[ext_resource type="Resource" path="res://data/meta/adrenaline.tres" id="10_d3owf"]
+[ext_resource type="Resource" path="res://data/meta/reach.tres" id="11_ssnih"]
+[ext_resource type="Resource" path="res://data/meta/revive.tres" id="12_lti4l"]
 
 [resource]
-script = ExtResource("1_sri2i")
-upgrades = Array[ExtResource("2_75p5t")]([ExtResource("3_7ayhc"), ExtResource("4_bwrdn"), ExtResource("5_cc003"), ExtResource("6_di50d"), ExtResource("7_rased")])
+script = ExtResource("1_ce812")
+upgrades = Array[ExtResource("2_1bjun")]([ExtResource("3_fqvc0"), ExtResource("4_78de3"), ExtResource("5_dupha"), ExtResource("6_bb33o"), ExtResource("7_ey3ci"), ExtResource("8_l6mga"), ExtResource("9_23slr"), ExtResource("10_d3owf"), ExtResource("11_ssnih"), ExtResource("12_lti4l")])

@@ -102,6 +102,7 @@ var gold_magnet_active: bool = false
 # 메타 성장(영구 강화) 배수 — 런 시작 시 MetaManager 가 설정. 골드/경험치 획득에 곱한다.
 var gold_mult: float = 1.0
 var xp_mult: float = 1.0
+var revives_left: int = 0   # 이번 런 남은 무료 부활 횟수(메타 'revive') — 사망 시 소비
 
 # 점수: score=이번 판 점수, high_score=저장된 최고점, _prev_high=이번 판 시작 시점 최고점(갱신 판정용)
 var score: int = 0

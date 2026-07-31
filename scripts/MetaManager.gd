@@ -66,17 +66,27 @@ func bank(run_gold: int) -> void:
 	_save()
 
 
-## 런 시작 시(Events.reset) 호출 — 골드/경험치 획득 배수를 영구 강화로 설정(데이터 기반).
+## 런 시작 시(Events.reset) 호출 — 골드/경험치 배수 + 런당 무료 부활 횟수를 영구 강화로 설정(데이터 기반).
 func apply_run_start() -> void:
 	Events.gold_mult = 1.0 + _sum_effect("gold_mult")
 	Events.xp_mult = 1.0 + _sum_effect("xp_mult")
+	Events.revives_left = revive_count()
 
 
-## ItemDB.recompute 말미에 호출 — 시작 스탯 보정을 upgrade_* 에 더한다(인벤토리 위에 얹힘).
+## 런당 무료 부활 횟수(메타 'revive' 효과 합).
+func revive_count() -> int:
+	return int(round(_sum_effect("revive")))
+
+
+## ItemDB.recompute 말미에 호출 — 시작 스탯 보정을 upgrade_* 에 더한다(인벤토리/패시브 위에 얹힘).
 func add_bonuses() -> void:
 	Events.upgrade_bullet_damage += int(round(_sum_effect("bullet_damage")))
 	Events.upgrade_max_health += int(round(_sum_effect("max_health")))
 	Events.upgrade_speed += int(round(_sum_effect("move_speed")))
+	Events.upgrade_atk_speed += int(round(_sum_effect("atk_speed")))
+	Events.upgrade_crit += int(round(_sum_effect("crit")))
+	Events.upgrade_regen += int(round(_sum_effect("regen")))
+	Events.upgrade_area += int(round(_sum_effect("area")))
 
 
 ## 특정 효과종류(effect_kind)의 총 효과량 = Σ(per_level × 현재레벨). 데이터로 정의된 강화만 합산.
