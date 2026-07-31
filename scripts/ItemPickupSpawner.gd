@@ -19,6 +19,8 @@ func _ready() -> void:
 	player = get_tree().get_first_node_in_group("player")
 	Events.player_died.connect(func(): _game_over = true)
 	Events.player_revived.connect(func(): _game_over = false)   # 부활 시 스폰 재개
+	Events.boss_died.connect(_drop_evochest)                    # 보스 처치 → 진화 상자
+	Events.elite_pack.connect(_drop_evochest)                   # 엘리트 팩 → 진화 상자
 	_next_interval = randf_range(spawn_interval_min, spawn_interval_max)
 
 
@@ -43,6 +45,15 @@ func _process(delta: float) -> void:
 func _spawn_item() -> void:
 	var p := Pool.acquire(ITEM_PICKUP, get_tree().current_scene)
 	p.kind = "bomb" if randf() < 0.25 else "chest"   # 75% 보물상자, 25% 폭탄
+	p.global_position = _random_spawn_pos()
+
+
+## 엘리트/보스 드롭 진화 상자 — 상시 상한(max_active)과 무관하게 항상 등장(보상 보장).
+func _drop_evochest() -> void:
+	if _game_over or not is_instance_valid(player):
+		return
+	var p := Pool.acquire(ITEM_PICKUP, get_tree().current_scene)
+	p.kind = "evochest"
 	p.global_position = _random_spawn_pos()
 
 

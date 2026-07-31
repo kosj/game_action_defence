@@ -11,7 +11,7 @@
 |---|---|---|
 | 좀비 처치 → 경험치 젬 | ✅ 완료 | `Gold.gd` = XP 젬, 골드는 보물상자 |
 | 레벨업 → 4중 1택 | ✅ 완료 | `LevelUpPanel.gd` |
-| 빌드 완성 + 진화 | 🟡 부분 | `ItemDB.gd` 진화 5종. 로스터/발동조건이 스펙과 다름 |
+| 빌드 완성 + 진화 | ✅ 완료 | **Phase 3-B** — 진화 12종, 상자 게이팅 발동 |
 | **난이도 = 경과 시간** | ✅ 완료 | **Phase 1** — `DifficultyData`(.tres) + `ZombieSpawner` 시간 구동 |
 | 30분 생존 = 클리어 + 이후 무한 | ✅ 완료 | **Phase 1** — `clear_seconds` 도달 시 `run_cleared`, 이후 오버타임 하드모드 |
 | **캐릭터 3종** | ❌ 없음 | 단일 캐릭터 |
@@ -22,7 +22,7 @@
 | C. 메타 영구 강화 | 🟡 부분 | `MetaManager` 5종. 부활·행운·재생 등 추가 필요 |
 | C. 해금(캐릭터/무기/테마) | ❌ 없음 | |
 | C. 도전과제 | ❌ 없음 | |
-| 무기 진화표(12종, 보물상자 발동) | 🟡 부분 | 진화 메커니즘 O, 상자-게이팅 X, 로스터 다름 |
+| 무기 진화표(12종, 보물상자 발동) | ✅ 완료 | **Phase 3-B** — 진화 12종, 엘리트/보스 드롭 진화 상자 개봉 시 선택 |
 | **테마 3종(오브젝트/기믹/보스)** | ❌ 없음 | 단일 아레나 |
 | 난이도 뼈대(1분/5분/10분/30분) | ✅ 완료 | **Phase 1** — `tier_seconds`60·`elite_seconds`300·`boss_seconds`600·`clear_seconds`1800 |
 | 세이브(로컬) | ✅ 완료 | `SaveManager`·`MetaManager`·`RankingManager` |
@@ -241,8 +241,17 @@ Phase 7 (성능/폴리시)  ← 상시 + 마지막 마감
   - **알려진 선반영 이슈(비회귀, 별도 수정 대상):** 메타 `vitality`(max_health)·`swiftness`(move_speed)는
     recompute 의 패시브 SET 로 여전히 덮어써짐 — 기존 동작 그대로 보존함. 메타 밸런스 패스(Phase 5)에서 정리.
   - 검증: `--import` 무오류, 신규 패시브+광역 무기 임시 지급 12초 런타임 무오류, 패시브 데이터 필드 확인.
-- **[남음] 3-B — 진화표 12종 + 상자 게이팅:** 진화 규칙을 "레벨업 카드"에서 **엘리트/보스 드롭 보물상자
-  개봉 시 진화 선택"으로 변경, 진화 12종 데이터 + 과장 효과(역할 비겹침). 신규 무기(산탄총~테슬라)의
-  진화 짝꿍/진화체 정의 포함.
+- **[완료] 3-B — 진화표 12종 + 상자 게이팅:**
+  - **발동 방식 변경:** 진화는 이제 **레벨업 카드가 아니라 "진화 보물상자" 개봉**으로만. `LevelUpPanel._draw_choices`
+    에서 진화 제거, `Events.evolution_offer` 시그널 → 진화 전용 선택 패널(`_evo_mode`).
+  - **드롭:** 보스 처치(`boss_died`) + 예약 엘리트 팩(`elite_pack`, 신규 시그널) → `ItemPickupSpawner._drop_evochest`
+    가 보라색 진화 상자(`ItemPickup` kind "evochest") 드롭(상시 상한 무관, 보상 보장).
+  - **개봉:** 진화 가능 무기(`Events.available_evolutions`: 베이스 만렙 + 짝꿍 패시브 보유 + 미진화)가 있으면
+    진화 선택 패널, 없으면 무료 레벨업 + 골드로 보상.
+  - **진화 12종(데이터):** 기존 5종(railgun/sawstorm/thunderstorm/sanctuary/crucifix, recompute 오버라이드 유지)
+    + 신규 7종 **모듈 진화체**(dragonsbreath/gatling/ballista/inferno/napalm/claymore/stormcoil) — 모듈 무기라
+    강화 파라미터만 다른 새 WeaponData, **recompute 오버라이드 불필요**(모듈이 자기 데이터로 동작).
+  - `item_catalog.tres`(무기 28=일반16+진화12, 진화규칙 12). 검증: `--import` 무오류, 진화체 임시 지급 +
+    축소 타임라인(엘리트/보스 조기 발동) 16초 런타임에서 진화 모듈 동작·상자 드롭 무오류, 진화 짝꿍/진화체 데이터 확인.
 
-### ▶ 다음: Phase 3-B(진화표 12종 + 상자 게이팅), 이후 Phase 4(캐릭터 3종)
+### ▶ 다음: Phase 4(캐릭터 3종), 또는 2-B(무기 스탯 곡선 데이터화)·레거시 스펙-이름 재매핑

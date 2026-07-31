@@ -12,6 +12,8 @@ var _card_box: VBoxContainer
 var _pending: int = 0      # 대기 중인 레벨업 수(연속 레벨업 처리)
 var _showing: bool = false
 var _did_pause: bool = false   # 이 패널이 직접 일시정지를 걸었는가(상점 등 다른 정지와 충돌 방지)
+var _evo_mode: bool = false     # 진화 선택 모드(진화 상자 개봉 시) — 일반 레벨업과 분리
+var _evo_rules: Array = []      # 진화 모드에서 제시할 진화 규칙들
 
 
 func _ready() -> void:
@@ -19,6 +21,7 @@ func _ready() -> void:
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS   # 트리를 멈춰도 이 UI 는 동작해야 한다
 	Events.level_up.connect(_on_level_up)
+	Events.evolution_offer.connect(_on_evolution_offer)
 	_build_ui()
 
 
@@ -64,6 +67,18 @@ func _on_level_up(_level: int) -> void:
 		_present()
 
 
+## 진화 보물상자 개봉 — 진화 선택지를 띄운다. 이미 다른 패널이 떠 있으면(전투 정지 중) 무시.
+func _on_evolution_offer() -> void:
+	if _showing:
+		return
+	var rules := Events.available_evolutions()
+	if rules.is_empty():
+		return
+	_evo_mode = true
+	_evo_rules = rules
+	_present()
+
+
 func _present() -> void:
 	_showing = true
 	_did_pause = not get_tree().paused   # 이미 정지 중(상점 등)이면 우리가 해제하지 않는다
@@ -79,10 +94,18 @@ func _present() -> void:
 
 
 func _refresh() -> void:
-	_title.text = "LEVEL %d  ·  CHOOSE AN UPGRADE" % Events.level
 	for c in _card_box.get_children():
 		_card_box.remove_child(c)
 		c.queue_free()
+	if _evo_mode:
+		_title.text = "★ EVOLUTION ★  CHOOSE ONE"
+		if _evo_rules.is_empty():
+			_close_evo()
+			return
+		for rule in _evo_rules:
+			_card_box.add_child(_make_evolve_card(rule))
+		return
+	_title.text = "LEVEL %d  ·  CHOOSE AN UPGRADE" % Events.level
 	var choices := _draw_choices(3)
 	if choices.is_empty():
 		# 올릴 아이템이 없다(전부 만렙·슬롯 꽉참) — 그냥 넘어간다.
@@ -96,12 +119,7 @@ func _refresh() -> void:
 ## 각 후보 = {"item": 카탈로그 dict, "lv": 현재레벨, "is_new": bool}. 무작위 n개.
 func _draw_choices(n: int) -> Array:
 	var choices: Array = []
-	# 진화 가능하면 최우선으로 제시(뱀서 시그니처 — 놓치지 않게).
-	for e in _available_evolutions():
-		choices.append({"kind": "evolve", "rule": e})
-		if choices.size() >= n:
-			return choices
-	# 나머지는 일반 아이템(새 획득/레벨업)으로 채움.
+	# 진화는 레벨업 카드가 아니라 "진화 보물상자" 개봉으로만 발동한다(Phase 3-B). 여기선 일반 아이템만.
 	var avail: Array = []
 	_collect(ItemDB.weapons(), Events.weapons, Events.weapons.size() < ItemDB.MAX_WEAPON_SLOTS, avail)
 	_collect(ItemDB.passives(), Events.passives, Events.passives.size() < ItemDB.MAX_PASSIVE_SLOTS, avail)
@@ -111,20 +129,6 @@ func _draw_choices(n: int) -> Array:
 		if choices.size() >= n:
 			break
 	return choices
-
-
-## 진화 조건 충족 규칙: base 무기 만렙 + 해당 패시브 Lv1+ + 아직 진화 안 함.
-func _available_evolutions() -> Array:
-	var out: Array = []
-	for e in ItemDB.evolutions():
-		var bm := ItemDB.meta(e["base"])
-		if bm.is_empty():
-			continue
-		if int(Events.weapons.get(e["base"], 0)) >= int(bm["max"]) \
-				and int(Events.passives.get(e["passive"], 0)) >= 1 \
-				and not Events.weapons.has(e["into"]):
-			out.append(e)
-	return out
 
 
 func _collect(catalog: Array, inv: Dictionary, slot_free: bool, out: Array) -> void:
@@ -185,7 +189,23 @@ func _on_pick(id: String) -> void:
 
 func _on_evolve(base_id: String, into_id: String) -> void:
 	Events.evolve(base_id, into_id)
-	_apply_and_advance()
+	var player := get_tree().get_first_node_in_group("player")
+	if is_instance_valid(player) and player.has_method("apply_upgrades"):
+		player.apply_upgrades()
+	if _evo_mode:
+		_close_evo()   # 진화 선택은 레벨업 대기열과 무관 — 바로 닫는다
+	else:
+		_consume_and_advance()   # (레거시 경로 — 현재는 진화가 카드로 안 뜨므로 사실상 미사용)
+
+
+## 진화 선택 패널 닫기(게임 재개).
+func _close_evo() -> void:
+	_evo_mode = false
+	_evo_rules = []
+	_showing = false
+	visible = false
+	if _did_pause:
+		get_tree().paused = false
 
 
 func _apply_and_advance() -> void:

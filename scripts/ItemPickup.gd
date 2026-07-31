@@ -9,6 +9,7 @@ const _FXBurst := preload("res://scripts/FXBurst.gd")
 @export var fade_time: float = 3.0
 
 const CHEST_COLOR := Color(1.0, 0.82, 0.2)
+const EVOCHEST_COLOR := Color(0.75, 0.45, 1.0)   # 진화 상자 — 보라(엘리트/보스 드롭)
 const BOMB_COLOR := Color(1.0, 0.45, 0.15)
 const BOMB_DAMAGE := 40           # 폭탄: 화면 내 잡몹 일소(보스 제외)
 const CHEST_GOLD_MIN := 12        # 보물상자 골드 획득 범위
@@ -21,11 +22,17 @@ var _t: float = 0.0
 
 
 func _icon_color() -> Color:
-	return BOMB_COLOR if kind == "bomb" else CHEST_COLOR
+	match kind:
+		"bomb": return BOMB_COLOR
+		"evochest": return EVOCHEST_COLOR
+		_: return CHEST_COLOR
 
 
 func _label() -> String:
-	return "Bomb" if kind == "bomb" else "Treasure"
+	match kind:
+		"bomb": return "Bomb"
+		"evochest": return "Evolution"
+		_: return "Treasure"
 
 
 func _ready() -> void:
@@ -66,11 +73,23 @@ func _process(delta: float) -> void:
 
 func _collect() -> void:
 	_alive = false
-	if kind == "bomb":
-		_collect_bomb()
-	else:
-		_collect_chest()
+	match kind:
+		"bomb": _collect_bomb()
+		"evochest": _collect_evochest()
+		_: _collect_chest()
 	_despawn()
+
+
+## 진화 보물상자: 진화 가능한 무기가 있으면 진화 선택지를 띄우고, 없으면 보상(무료 레벨업 + 골드).
+func _collect_evochest() -> void:
+	SoundManager.play("gold", 0.05, 0.9)
+	_FXBurst.spawn(get_tree().current_scene, global_position, EVOCHEST_COLOR, 110.0, 0.55)
+	Events.shake(5.0)
+	if not Events.available_evolutions().is_empty():
+		Events.evolution_offer.emit()          # LevelUpPanel 이 진화 선택 패널을 띄운다
+	else:
+		Events.bonus_level()                    # 진화 대상 없음 — 무료 레벨업으로 보상
+		Events.add_gold(randi_range(25, 50))
 
 
 func _collect_chest() -> void:
@@ -105,18 +124,19 @@ func _draw() -> void:
 	var remain := lifetime - _t
 	if remain < fade_time:
 		alpha = clampf(remain / fade_time, 0.0, 1.0)
-	if kind == "chest":
-		_draw_chest(center, alpha)
-	else:
+	if kind == "bomb":
 		_draw_bomb(center, alpha)
+	else:
+		_draw_chest(center, alpha)   # chest/evochest — 금속 밴드 색은 _icon_color()
 	var font := ThemeDB.fallback_font
 	draw_string(font, center + Vector2(-60.0, -34.0), _label(), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 14, Color(1.0, 1.0, 1.0, alpha))
 
 
 func _draw_chest(center: Vector2, alpha: float) -> void:
 	var pulse := 1.0 + sin(_t * 4.0) * 0.05
-	draw_circle(center, 20.0 * pulse, Color(1.0, 0.85, 0.3, 0.22 * alpha))   # 금빛 후광
-	var gold := Color(1.0, 0.82, 0.2, alpha)
+	var band := _icon_color()   # 보물=금색 / 진화=보라
+	draw_circle(center, 20.0 * pulse, Color(band.r, band.g, band.b, 0.22 * alpha))   # 후광
+	var gold := Color(band.r, band.g, band.b, alpha)
 	var wood := Color(0.5, 0.32, 0.15, alpha)
 	var wood_d := Color(0.38, 0.24, 0.11, alpha)
 	var dark := Color(0.12, 0.08, 0.05, alpha)

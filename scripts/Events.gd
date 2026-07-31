@@ -80,6 +80,8 @@ signal swarm_incoming(elite: bool)
 signal xp_changed(xp: int, xp_to_next: int, level: int)
 signal level_up(level: int)
 signal inventory_changed        # 무기/패시브 인벤토리 변경 — HUD 장착 표시 갱신
+signal evolution_offer          # 진화 보물상자 개봉 — LevelUpPanel 이 진화 선택지를 띄운다
+signal elite_pack               # 예약 엘리트 팩 등장(주기적) — 진화 상자 드롭 트리거
 
 var total_gold: int = 0
 var total_kills: int = 0
@@ -125,6 +127,21 @@ func grant_item(id: String) -> void:
 		passives[id] = int(passives.get(id, 0)) + 1
 	ItemDB.recompute(weapons, passives)
 	inventory_changed.emit()
+
+
+## 진화 발동 가능 규칙 목록 — ① 베이스 무기 만렙 ② 짝꿍 패시브 보유(Lv1+) ③ 아직 미진화.
+## 진화 상자 개봉(ItemPickup)과 진화 선택 패널(LevelUpPanel)이 공유한다.
+func available_evolutions() -> Array:
+	var out: Array = []
+	for e in ItemDB.evolutions():
+		var bm := ItemDB.meta(e["base"])
+		if bm.is_empty():
+			continue
+		if int(weapons.get(e["base"], 0)) >= int(bm["max"]) \
+				and int(passives.get(e["passive"], 0)) >= 1 \
+				and not weapons.has(e["into"]):
+			out.append(e)
+	return out
 
 
 ## 진화: 원본 무기를 제거하고 진화 무기(Lv1)로 교체 후 재계산. 패시브는 유지된다.
