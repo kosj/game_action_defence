@@ -120,3 +120,5 @@ static func recompute(weapons: Dictionary, passives: Dictionary) -> void:
 	# 무기와 공유하는 스탯: ADD(무기/진화/메타 값 위에 얹음) — 신규 패시브 탄약벨트/화약.
 	Events.upgrade_multi_bullet += int(acc.get("multishot", 0.0))
 	Events.upgrade_bullet_damage += int(acc.get("bullet_damage", 0.0))
+
+	CharacterManager.add_bonuses()   # 캐릭터 시작 스탯 보정(패시브 SET 이후 += 로 얹음)

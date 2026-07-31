@@ -14,11 +14,11 @@
 | 빌드 완성 + 진화 | ✅ 완료 | **Phase 3-B** — 진화 12종, 상자 게이팅 발동 |
 | **난이도 = 경과 시간** | ✅ 완료 | **Phase 1** — `DifficultyData`(.tres) + `ZombieSpawner` 시간 구동 |
 | 30분 생존 = 클리어 + 이후 무한 | ✅ 완료 | **Phase 1** — `clear_seconds` 도달 시 `run_cleared`, 이후 오버타임 하드모드 |
-| **캐릭터 3종** | ❌ 없음 | 단일 캐릭터 |
+| **캐릭터 3종** | 🟡 부분 | **Phase 4-A** — 베테랑·사냥꾼·엔지니어(시작무기+시그니처패시브+스탯보정+선택 UI). 조건부 고유 트레잇은 4-B |
 | A. 인게임 공통 스탯 | 🟡 부분 | 핵심 스탯 존재(`Events.upgrade_*`). 관통/행운/투사체수 일부 없음 |
 | A. 무기 12종 | ✅ 완료 | 스펙 12 동작 계열 전부 구현(배치1~4). 산탄총·기관총·석궁·화염방사기·화염병·지뢰·못배트·체인소·**터렛·드론·테슬라** + 기존 gun·orb·lightning·garlic·holy. 남은 건 스펙 이름 재매핑(gun→리볼버 등, "기존 흡수" 단계) |
 | A. 패시브 10종 | ✅ 완료 | **Phase 3-A** — 데이터 구동 효과(PassiveData.effect/per_level). 방탄조끼·운동화·에너지드링크·조준경·자석·응급키트 + 신규 탄약벨트·화약·배터리·토끼발 |
-| B. 캐릭터 차별화 데이터 | ❌ 없음 | |
+| B. 캐릭터 차별화 데이터 | 🟡 부분 | **Phase 4-A** — `CharacterData`(시작무기/시그니처패시브/스탯보정). 조건부 트레잇 로직은 4-B |
 | C. 메타 영구 강화 | 🟡 부분 | `MetaManager` 5종. 부활·행운·재생 등 추가 필요 |
 | C. 해금(캐릭터/무기/테마) | ❌ 없음 | |
 | C. 도전과제 | ❌ 없음 | |
@@ -254,4 +254,20 @@ Phase 7 (성능/폴리시)  ← 상시 + 마지막 마감
   - `item_catalog.tres`(무기 28=일반16+진화12, 진화규칙 12). 검증: `--import` 무오류, 진화체 임시 지급 +
     축소 타임라인(엘리트/보스 조기 발동) 16초 런타임에서 진화 모듈 동작·상자 드롭 무오류, 진화 짝꿍/진화체 데이터 확인.
 
-### ▶ 다음: Phase 4(캐릭터 3종), 또는 2-B(무기 스탯 곡선 데이터화)·레거시 스펙-이름 재매핑
+### 🟡 Phase 4 — 캐릭터 3종 *(진행 중)*
+- **[완료] 4-A — 캐릭터 데이터 + 선택 + 정체성:**
+  - `CharacterData`(id/display/desc/color/start_weapon/signature_passive/bonus_*(스탯보정)/trait_key) +
+    인덱스 `CharacterDB`, 생성기 `tools/gen_character_data.gd`, `data/character_db.tres`(3종).
+    ※ `trait` 는 GDScript 예약어 → 필드명 `trait_key` 사용.
+  - `GameData` 가 캐릭터 카탈로그 로드(`characters`/`character(id)`).
+  - **`CharacterManager`(신규 autoload)** — 선택 id 를 `user://character.save` 에 보존, `selected()`/`select()`,
+    `add_bonuses()`(recompute 말미 += 로 시작 스탯 보정 적용 — 패시브 SET 이후라 정상 반영).
+  - `Events.reset()` 가 선택 캐릭터의 **시작 무기 + 시그니처 패시브**를 초기 인벤토리에 주입(기본 gun 위에).
+  - **메인메뉴 캐릭터 선택 오버레이**(`_build_character_panel`) — 3종 카드, 선택 강조·보존, 버튼에 현재 캐릭터 표시.
+  - 3종: **베테랑**(못배트+방탄조끼, +체력), **사냥꾼**(석궁+조준경, +피해/치명타), **엔지니어**(터렛+배터리, +효과범위).
+  - 검증: `--import` 무오류, `character_db.tres`(3종) 생성, 런 시작 프로브로 시작 무기/패시브/스탯보정 반영 확인
+    (베테랑 → weapons{gun,spikedbat}·passives{armor}·maxhp+4), MainMenu 씬 빌드 무오류.
+- **[남음] 4-B — 조건부 고유 트레잇:** 저체력 공격력↑·근접 처치 회복(베테랑) / 정지 시 치명타↑(사냥꾼) /
+  설치물 강화·재화↑(엔지니어) 를 `trait_key` 기반 런타임 로직으로. (재화↑는 엔지니어가 greed 로 일부 근사 가능.)
+
+### ▶ 다음: Phase 4-B(조건부 트레잇) 또는 Phase 5(메타 확장·해금·도전과제)

@@ -8,6 +8,7 @@ const ZOMBIE_DB_PATH := "res://data/zombies.tres"
 const META_DB_PATH := "res://data/meta_upgrades.tres"
 const DIFFICULTY_PATH := "res://data/difficulty.tres"
 const ITEM_CATALOG_PATH := "res://data/item_catalog.tres"
+const CHARACTER_DB_PATH := "res://data/character_db.tres"
 
 var zombie_list: Array[ZombieData] = []   # 정의 순서 유지(스포너 가중치 인덱스와 정렬)
 var _zombie_by_id: Dictionary = {}
@@ -23,12 +24,32 @@ var evolution_defs: Array[EvolutionData] = []
 var _weapon_by_id: Dictionary = {}
 var _passive_by_id: Dictionary = {}
 
+var characters: Array[CharacterData] = []   # 캐릭터 카탈로그(표시/기본 순서)
+var _character_by_id: Dictionary = {}
+
 
 func _ready() -> void:
 	_load_zombies()
 	_load_meta()
 	_load_difficulty()
 	_load_items()
+	_load_characters()
+
+
+func _load_characters() -> void:
+	if not ResourceLoader.exists(CHARACTER_DB_PATH):
+		push_warning("GameData: %s 없음 — 캐릭터 데이터 로드 실패" % CHARACTER_DB_PATH)
+		return
+	var db = load(CHARACTER_DB_PATH)
+	if db is CharacterDB:
+		characters = db.characters
+		for c in characters:
+			if c != null and c.id != "":
+				_character_by_id[c.id] = c
+
+
+func character(id: String) -> CharacterData:
+	return _character_by_id.get(id)
 
 
 func _load_items() -> void:

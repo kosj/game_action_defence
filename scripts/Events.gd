@@ -352,8 +352,15 @@ func reset() -> void:
 	upgrade_crit = 0
 	upgrade_garlic = 0
 	upgrade_holy = 0
-	weapons = {"gun": 1}         # 시작 무기(자동총 Lv1)만 보유
+	# 시작 인벤토리 — 기본 자동총(gun) + 선택 캐릭터의 시작 무기/시그니처 패시브.
+	weapons = {"gun": 1}
 	passives = {}
+	var _char: CharacterData = CharacterManager.selected()
+	if _char != null:
+		if _char.start_weapon != "" and _char.start_weapon != "gun":
+			weapons[_char.start_weapon] = 1
+		if _char.signature_passive != "":
+			passives[_char.signature_passive] = 1
 	MetaManager.apply_run_start()         # 영구 강화 배수(골드/경험치) 설정
 	ItemDB.recompute(weapons, passives)   # 인벤토리 → upgrade_* 정합화(메타 시작 보정 포함)
 	gold_changed.emit(total_gold)

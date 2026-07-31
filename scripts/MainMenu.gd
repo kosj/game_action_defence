@@ -40,6 +40,12 @@ var _power_panel: PanelContainer
 var _power_gold_label: Label
 var _power_rows: Array = []      # [{ "btn": Button, "id": String }]
 
+# ── 캐릭터 선택 오버레이 ──
+var _char_btn: Button
+var _char_dim: ColorRect
+var _char_panel: PanelContainer
+var _char_rows: Array = []       # [{ "btn": Button, "c": CharacterData }]
+
 
 func _ready() -> void:
 	get_tree().paused = false   # 게임오버/상점에서 정지된 채 메뉴로 돌아와도 메뉴가 멈추지 않도록
@@ -154,6 +160,13 @@ func _build_ui() -> void:
 	opt_spacer.custom_minimum_size = Vector2(0, 8)
 	box.add_child(opt_spacer)
 
+	_char_btn = Button.new()
+	_char_btn.custom_minimum_size = Vector2(300, 56)
+	_char_btn.add_theme_font_size_override("font_size", 20)
+	_UIStyle.apply_button_style(_char_btn, Color(0.12, 0.24, 0.30), Color(0.45, 0.85, 0.95))
+	_char_btn.pressed.connect(_on_character_pressed)
+	box.add_child(_char_btn)
+
 	_rank_btn = Button.new()
 	_rank_btn.custom_minimum_size = Vector2(300, 56)
 	_rank_btn.add_theme_font_size_override("font_size", 22)
@@ -187,6 +200,8 @@ func _build_ui() -> void:
 	_build_options_panel()
 	_build_ranking_panel()
 	_build_power_panel()
+	_build_character_panel()
+	_refresh_char_button()
 
 
 ## 옵션 패널(언어 / 사운드 On/Off) — Option 버튼으로 열고 닫는 오버레이.
@@ -385,6 +400,108 @@ func _on_power_buy(id: String) -> void:
 	if MetaManager.buy(id):
 		SoundManager.play("gold", 0.03, 1.25)
 	_refresh_power()
+
+
+# ── 캐릭터 선택 오버레이 ─────────────────────────────────────────────
+func _build_character_panel() -> void:
+	_char_dim = ColorRect.new()
+	_char_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_char_dim.color = Color(0, 0, 0, 0.6)
+	_char_dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_char_dim.visible = false
+	_char_dim.gui_input.connect(_on_char_dim_input)
+	add_child(_char_dim)
+
+	_char_panel = PanelContainer.new()
+	_char_panel.anchor_left = 0.5
+	_char_panel.anchor_right = 0.5
+	_char_panel.anchor_top = 0.5
+	_char_panel.anchor_bottom = 0.5
+	_char_panel.offset_left = -250.0
+	_char_panel.offset_right = 250.0
+	_char_panel.offset_top = -280.0
+	_char_panel.offset_bottom = 280.0
+	_char_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.07, 0.13, 0.16, 0.98), Color(0.4, 0.8, 0.95)))
+	_char_panel.visible = false
+	add_child(_char_panel)
+
+	var margin := MarginContainer.new()
+	for m in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + m, 22)
+	_char_panel.add_child(margin)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 12)
+	margin.add_child(vb)
+
+	var title := Label.new()
+	title.text = "CHOOSE YOUR SURVIVOR"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(0.6, 0.9, 1.0))
+	vb.add_child(title)
+
+	vb.add_child(HSeparator.new())
+
+	_char_rows.clear()
+	for c in GameData.characters:
+		var btn := Button.new()
+		btn.custom_minimum_size = Vector2(430, 92)
+		btn.add_theme_font_size_override("font_size", 18)
+		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		btn.pressed.connect(_on_char_pick.bind(String(c.id)))
+		vb.add_child(btn)
+		_char_rows.append({"btn": btn, "c": c})
+
+	var close := Button.new()
+	close.text = "Close"
+	close.custom_minimum_size = Vector2(0, 52)
+	close.add_theme_font_size_override("font_size", 22)
+	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
+	close.pressed.connect(_on_character_close)
+	vb.add_child(close)
+
+
+## 현재 선택 캐릭터를 메뉴 버튼에 표시.
+func _refresh_char_button() -> void:
+	var c := CharacterManager.selected()
+	_char_btn.text = "Survivor: %s" % (c.display if c != null else "-")
+
+
+## 오버레이 카드 갱신 — 선택된 캐릭터를 강조.
+func _refresh_character() -> void:
+	var sel := CharacterManager.selected_id()
+	for row in _char_rows:
+		var c: CharacterData = row["c"]
+		var btn: Button = row["btn"]
+		btn.text = "%s%s\n%s" % ["★ " if c.id == sel else "", c.display, c.desc]
+		if c.id == sel:
+			_UIStyle.apply_button_style(btn, Color(c.color.r * 0.30, c.color.g * 0.30, c.color.b * 0.30, 1.0), c.color)
+		else:
+			_UIStyle.apply_button_style(btn, Color(0.14, 0.16, 0.20), Color(0.35, 0.40, 0.48))
+
+
+func _on_character_pressed() -> void:
+	_refresh_character()
+	_char_dim.visible = true
+	_char_panel.visible = true
+
+
+func _on_character_close() -> void:
+	_char_dim.visible = false
+	_char_panel.visible = false
+
+
+func _on_char_dim_input(event: InputEvent) -> void:
+	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
+		_on_character_close()
+
+
+func _on_char_pick(id: String) -> void:
+	CharacterManager.select(id)
+	SoundManager.play("gold", 0.03, 1.2)
+	_refresh_character()
+	_refresh_char_button()
 
 
 func _refresh_power() -> void:
