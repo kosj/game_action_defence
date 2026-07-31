@@ -123,6 +123,7 @@ func _ready() -> void:
 	Events.xp_changed.connect(_on_xp_changed)
 	Events.inventory_changed.connect(_on_inventory_changed)
 	Events.game_won.connect(_on_game_won)
+	Events.achievement_unlocked.connect(_on_achievement_unlocked)
 	restart_button.pressed.connect(_on_restart_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
 	AdManager.rewarded_granted.connect(_on_rewarded_granted)
@@ -232,6 +233,28 @@ func _on_swarm_incoming(elite: bool) -> void:
 	_swarm_tween.parallel().tween_property(_swarm_banner, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_swarm_tween.tween_interval(0.7)
 	_swarm_tween.tween_property(_swarm_banner, "modulate:a", 0.0, 0.4)
+
+
+## 도전과제 달성 토스트 — 화면 상단 중앙에 잠깐 떴다 사라진다(코드로 즉석 생성).
+func _on_achievement_unlocked(title: String) -> void:
+	var toast := Label.new()
+	toast.text = "🏆  %s" % title
+	toast.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	toast.offset_top = 150.0
+	toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	toast.add_theme_font_size_override("font_size", 22)
+	toast.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	toast.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	toast.add_theme_constant_override("outline_size", 4)
+	toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	toast.modulate.a = 0.0
+	add_child(toast)
+	var tw := create_tween()
+	tw.tween_property(toast, "modulate:a", 1.0, 0.25)
+	tw.parallel().tween_property(toast, "offset_top", 120.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(2.0)
+	tw.tween_property(toast, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(toast.queue_free)
 
 
 func _on_player_health_changed(health: int, max_health: int) -> void:

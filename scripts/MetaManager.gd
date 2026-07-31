@@ -58,6 +58,14 @@ func buy(id: String) -> bool:
 	return true
 
 
+## 도전과제 보상 등으로 메타 골드를 즉시 적립(은행).
+func reward_gold(amount: int) -> void:
+	if amount <= 0:
+		return
+	meta_gold += amount
+	_save()
+
+
 ## 런 종료 시(게임오버 → 재시작/메뉴) 이번 판에서 번 골드를 은행에 적립.
 func bank(run_gold: int) -> void:
 	if run_gold <= 0:

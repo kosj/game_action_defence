@@ -46,6 +46,12 @@ var _char_dim: ColorRect
 var _char_panel: PanelContainer
 var _char_rows: Array = []       # [{ "btn": Button, "c": CharacterData }]
 
+# ── 도전과제 오버레이 ──
+var _ach_btn: Button
+var _ach_dim: ColorRect
+var _ach_panel: PanelContainer
+var _ach_rows: Array = []        # [{ "label": Label, "a": AchievementData }]
+
 
 func _ready() -> void:
 	get_tree().paused = false   # 게임오버/상점에서 정지된 채 메뉴로 돌아와도 메뉴가 멈추지 않도록
@@ -167,6 +173,14 @@ func _build_ui() -> void:
 	_char_btn.pressed.connect(_on_character_pressed)
 	box.add_child(_char_btn)
 
+	_ach_btn = Button.new()
+	_ach_btn.text = "Achievements"
+	_ach_btn.custom_minimum_size = Vector2(300, 56)
+	_ach_btn.add_theme_font_size_override("font_size", 20)
+	_UIStyle.apply_button_style(_ach_btn, Color(0.26, 0.22, 0.10), Color(0.95, 0.80, 0.35))
+	_ach_btn.pressed.connect(_on_achievements_pressed)
+	box.add_child(_ach_btn)
+
 	_rank_btn = Button.new()
 	_rank_btn.custom_minimum_size = Vector2(300, 56)
 	_rank_btn.add_theme_font_size_override("font_size", 22)
@@ -202,6 +216,7 @@ func _build_ui() -> void:
 	_build_power_panel()
 	_build_character_panel()
 	_refresh_char_button()
+	_build_achievement_panel()
 
 
 ## 옵션 패널(언어 / 사운드 On/Off) — Option 버튼으로 열고 닫는 오버레이.
@@ -502,6 +517,104 @@ func _on_char_pick(id: String) -> void:
 	SoundManager.play("gold", 0.03, 1.2)
 	_refresh_character()
 	_refresh_char_button()
+
+
+# ── 도전과제 오버레이 ─────────────────────────────────────────────────
+func _build_achievement_panel() -> void:
+	_ach_dim = ColorRect.new()
+	_ach_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ach_dim.color = Color(0, 0, 0, 0.6)
+	_ach_dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_ach_dim.visible = false
+	_ach_dim.gui_input.connect(_on_ach_dim_input)
+	add_child(_ach_dim)
+
+	_ach_panel = PanelContainer.new()
+	_ach_panel.anchor_left = 0.5
+	_ach_panel.anchor_right = 0.5
+	_ach_panel.anchor_top = 0.5
+	_ach_panel.anchor_bottom = 0.5
+	_ach_panel.offset_left = -245.0
+	_ach_panel.offset_right = 245.0
+	_ach_panel.offset_top = -300.0
+	_ach_panel.offset_bottom = 300.0
+	_ach_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.14, 0.11, 0.05, 0.98), Color(0.9, 0.75, 0.3)))
+	_ach_panel.visible = false
+	add_child(_ach_panel)
+
+	var margin := MarginContainer.new()
+	for m in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + m, 22)
+	_ach_panel.add_child(margin)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 10)
+	margin.add_child(vb)
+
+	var title := Label.new()
+	title.text = "ACHIEVEMENTS"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	vb.add_child(title)
+
+	vb.add_child(HSeparator.new())
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 400)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	vb.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 6)
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(list)
+
+	_ach_rows.clear()
+	for a in GameData.achievements:
+		var row := Label.new()
+		row.custom_minimum_size = Vector2(420, 0)
+		row.add_theme_font_size_override("font_size", 16)
+		row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		list.add_child(row)
+		_ach_rows.append({"label": row, "a": a})
+
+	var close := Button.new()
+	close.text = "Close"
+	close.custom_minimum_size = Vector2(0, 52)
+	close.add_theme_font_size_override("font_size", 22)
+	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
+	close.pressed.connect(_on_achievements_close)
+	vb.add_child(close)
+
+
+func _refresh_achievements() -> void:
+	for row in _ach_rows:
+		var a: AchievementData = row["a"]
+		var lbl: Label = row["label"]
+		var done := AchievementManager.is_unlocked(a.id)
+		var prog := mini(AchievementManager.progress(a.metric), a.threshold)
+		if done:
+			lbl.text = "✓  %s — %s" % [a.display, a.desc]
+			lbl.add_theme_color_override("font_color", Color(0.55, 0.95, 0.55))
+		else:
+			lbl.text = "○  %s — %s  (%d/%d)" % [a.display, a.desc, prog, a.threshold]
+			lbl.add_theme_color_override("font_color", Color(0.72, 0.72, 0.78))
+
+
+func _on_achievements_pressed() -> void:
+	_refresh_achievements()
+	_ach_dim.visible = true
+	_ach_panel.visible = true
+
+
+func _on_achievements_close() -> void:
+	_ach_dim.visible = false
+	_ach_panel.visible = false
+
+
+func _on_ach_dim_input(event: InputEvent) -> void:
+	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
+		_on_achievements_close()
 
 
 func _refresh_power() -> void:
