@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ZombieData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ZombieData.gd" id="1_0g6yb"]
+[ext_resource type="Texture2D" path="res://assets/sprites/zombie_cop.png" id="2_pssnu"]
+
+[resource]
+script = ExtResource("1_0g6yb")
+id = "cop"
+speed = 80.0
+max_health = 6
+modulate = Color(0.45, 0.65, 1, 1)
+score = 30
+scale = 1.05
+contact = 2
+behavior = "chase"
+texture = ExtResource("2_pssnu")

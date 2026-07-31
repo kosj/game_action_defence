@@ -18,6 +18,7 @@ boot_splash/bg_color=Color(0, 0, 0, 1)
 
 Events="*res://scripts/Events.gd"
 Pool="*res://scripts/Pool.gd"
+GameData="*res://scripts/data/GameData.gd"
 SoundManager="*res://scripts/SoundManager.gd"
 SaveManager="*res://scripts/SaveManager.gd"
 MetaManager="*res://scripts/MetaManager.gd"

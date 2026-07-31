@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ZombieData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ZombieData.gd" id="1_oa3gh"]
+[ext_resource type="Texture2D" path="res://assets/sprites/zombie_foreman.png" id="2_a03m3"]
+
+[resource]
+script = ExtResource("1_oa3gh")
+id = "foreman"
+speed = 58.0
+max_health = 7
+modulate = Color(1, 0.6, 0.25, 1)
+score = 28
+scale = 1.05
+contact = 2
+behavior = "chase"
+texture = ExtResource("2_a03m3")
