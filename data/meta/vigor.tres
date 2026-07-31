@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MetaUpgradeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_8u1d5"]
+
+[resource]
+script = ExtResource("1_8u1d5")
+id = "vigor"
+name = "Vigor"
+desc = "Start with regen"
+max_level = 5
+base_cost = 130
+cost_mul = 1.7
+effect_kind = "regen"
+effect_per_level = 1.0

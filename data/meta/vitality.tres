@@ -1,9 +1,9 @@
 [gd_resource type="Resource" script_class="MetaUpgradeData" load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_f5tcj"]
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_01hpk"]
 
 [resource]
-script = ExtResource("1_f5tcj")
+script = ExtResource("1_01hpk")
 id = "vitality"
 name = "Vitality"
 desc = "+1 start max HP"

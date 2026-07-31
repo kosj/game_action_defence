@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MetaUpgradeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_lb5ij"]
+
+[resource]
+script = ExtResource("1_lb5ij")
+id = "reach"
+name = "Reach"
+desc = "+8% start effect area"
+max_level = 6
+base_cost = 130
+cost_mul = 1.7
+effect_kind = "area"
+effect_per_level = 1.0
