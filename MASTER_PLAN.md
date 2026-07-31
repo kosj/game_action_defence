@@ -29,7 +29,7 @@
 | 수익화 훅(부활/2배/스킨) | 🟡 부분 | `AdManager` 부활 훅 O. 2배 보상·스킨 자리 X |
 | 오브젝트 풀링 | ✅ 완료 | `Pool.gd` |
 | **이펙트 동시표시 상한** | 🟡 부분 | 사운드 스로틀·FX 풀 O. 폭발/넉백/흔들림 동시 상한 X |
-| **데이터 = Resource 분리(하드코딩 금지)** | 🟡 부분 | **Phase 0** — 좀비·메타·난이도 `.tres` 완료. 무기/패시브/진화/캐릭터/테마/과제 남음 |
+| **데이터 = Resource 분리(하드코딩 금지)** | 🟡 부분 | **Phase 0/2** — 좀비·메타·난이도·**무기/패시브/진화 카탈로그** `.tres` 완료. 캐릭터/테마/과제 남음 |
 
 범례: ✅ 완료 · 🟡 부분 · ❌ 없음
 
@@ -182,7 +182,21 @@ Phase 7 (성능/폴리시)  ← 상시 + 마지막 마감
   - `BOSS_TYPES` 딕셔너리는 아직 코드 하드코딩 → Phase 5 전후로 `BossData`(.tres) 이관 대상.
   - 게임오버/클리어 집계에 `did_clear`를 랭킹/보상에 반영하는 로직은 미배선(향후 Phase 5 메타/과제와 함께).
 
-### ▶ 다음: Phase 2 — 무기 12종 (데이터 + 동작 모듈)
-- `WeaponData`(.tres) 정의 + `ItemDB` 카탈로그를 데이터로 이관하며 시작.
-- 서브단계로 3~4종씩 PR 권장(직선 발사체 → 장판/투척 → 근접 원호 → 설치물).
-- 기존 gun/orb/lightning/garlic/holy를 스펙 무기로 재매핑/흡수(열린 결정 #2 확인 필요).
+### 🟡 Phase 2 — 무기 12종 (데이터 + 동작 모듈) *(진행 중)*
+**결정(사용자 확인):** ① 로스터 = **기존 5종 흡수·재매핑**(id 매핑 테이블로 세이브 호환) ② 첫 PR = **데이터 기반부터**.
+
+- **[완료] 2-A 카탈로그 데이터 이관(회귀 없음):**
+  - Resource: `WeaponData`(id/display/desc/color/max_level/evolved), `PassiveData`, `EvolutionData`(base/passive/into),
+    인덱스 `ItemCatalogDB`(weapons/passives/evolutions).
+  - `data/item_catalog.tres`(무기 10=일반 5+진화 5, 패시브 6, 진화 5) — 값은 기존 `ItemDB` 하드코딩과 **동일**.
+  - 생성기 `tools/gen_item_catalog.gd`. `GameData`가 로드해 `weapon_defs`/`passive_defs`/`evolution_defs` 제공.
+  - `ItemDB`는 이제 **어댑터** — `weapons()`/`passives()`/`evolutions()`/`meta()`/`is_weapon()`가 `GameData`에서 읽어
+    기존 dict 형태로 제공(다운스트림 `LevelUpPanel`/`HUD` 무변경). `recompute()` 스탯 곡선은 아직 코드(동작 레이어).
+  - 검증: `--import` 파싱 무오류, `Main.tscn` 런타임 정상, `item_catalog.tres` 로드/필드값 회귀 확인.
+- **[남음] 2-B 스탯 곡선 데이터화:** `recompute()`의 per-무기 레벨→스탯 공식(예: railgun `10+rg*2`)을 `WeaponData`
+  필드(8레벨 곡선)로 이관. 지금은 코드에 있음.
+- **[남음] 2-C 신규 무기(재매핑 + 확장):** 스펙 12종으로 확장 — 직선 발사체(리볼버/석궁/기관총/산탄총),
+  장판/투척(화염방사기/화염병/지뢰), 근접 원호(못배트/체인소), 설치물(터렛/드론/테슬라). 3~4종씩 서브 PR.
+  기존 id→스펙 id 매핑 테이블로 세이브 호환 유지(gun/orb/lightning/garlic/holy 흡수).
+
+### ▶ 다음: Phase 2-C(신규 무기 3~4종) 또는 2-B(스탯 곡선 데이터화)

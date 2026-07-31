@@ -103,8 +103,8 @@ func _draw_choices(n: int) -> Array:
 			return choices
 	# 나머지는 일반 아이템(새 획득/레벨업)으로 채움.
 	var avail: Array = []
-	_collect(ItemDB.WEAPONS, Events.weapons, Events.weapons.size() < ItemDB.MAX_WEAPON_SLOTS, avail)
-	_collect(ItemDB.PASSIVES, Events.passives, Events.passives.size() < ItemDB.MAX_PASSIVE_SLOTS, avail)
+	_collect(ItemDB.weapons(), Events.weapons, Events.weapons.size() < ItemDB.MAX_WEAPON_SLOTS, avail)
+	_collect(ItemDB.passives(), Events.passives, Events.passives.size() < ItemDB.MAX_PASSIVE_SLOTS, avail)
 	avail.shuffle()
 	for a in avail:
 		choices.append({"kind": "item", "data": a})
@@ -116,7 +116,7 @@ func _draw_choices(n: int) -> Array:
 ## 진화 조건 충족 규칙: base 무기 만렙 + 해당 패시브 Lv1+ + 아직 진화 안 함.
 func _available_evolutions() -> Array:
 	var out: Array = []
-	for e in ItemDB.EVOLUTIONS:
+	for e in ItemDB.evolutions():
 		var bm := ItemDB.meta(e["base"])
 		if bm.is_empty():
 			continue

@@ -6,65 +6,57 @@ extends RefCounted
 ## 기존 Events.upgrade_* 카운터로 "재계산"만 한다. 아이템 레벨이 진실의 원천이며,
 ## 효과는 검증된 기존 코드가 처리한다(저리스크). 무기=슬롯6, 패시브=슬롯6.
 
-const _C_ATK := Color(1.00, 0.75, 0.20)
-const _C_ORB := Color(0.45, 0.82, 1.00)
-const _C_LIGHT := Color(0.65, 0.55, 1.00)
-const _C_SURV := Color(0.45, 0.85, 0.50)
-const _C_UTIL := Color(0.72, 0.72, 0.85)
-
 const MAX_WEAPON_SLOTS := 6
 const MAX_PASSIVE_SLOTS := 6
 
-## 무기: 각자 슬롯을 차지하고 Lv1~max 로 성장한다. gun 은 시작 시 보유(Lv1).
-const WEAPONS: Array = [
-	{"id": "gun",       "name": "Auto Gun",   "desc": "Damage & extra bullets", "color": _C_ATK,   "max": 8},
-	{"id": "orb",       "name": "Orb Shield",  "desc": "Orbiting blades",        "color": _C_ORB,   "max": 8},
-	{"id": "lightning", "name": "Lightning",   "desc": "Strikes nearby foes",    "color": _C_LIGHT, "max": 8},
-	{"id": "garlic",    "name": "Garlic Aura", "desc": "Damages foes around you", "color": _C_ORB,  "max": 8},
-	{"id": "holy",      "name": "Holy Water",  "desc": "Blasts random nearby spots", "color": _C_LIGHT, "max": 8},
-	# 진화 무기(evolved=true): 일반 카드로는 등장하지 않고, 진화로만 획득한다.
-	{"id": "railgun",      "name": "Railgun",      "desc": "Evolved Auto Gun",    "color": _C_ATK,   "max": 5, "evolved": true},
-	{"id": "sawstorm",     "name": "Saw Storm",    "desc": "Evolved Orb Shield",  "color": _C_ORB,   "max": 5, "evolved": true},
-	{"id": "thunderstorm", "name": "Thunderstorm", "desc": "Evolved Lightning",   "color": _C_LIGHT, "max": 5, "evolved": true},
-	{"id": "sanctuary",    "name": "Sanctuary",    "desc": "Evolved Garlic Aura", "color": _C_ORB,   "max": 5, "evolved": true},
-	{"id": "crucifix",     "name": "Crucifix",     "desc": "Evolved Holy Water",  "color": _C_LIGHT, "max": 5, "evolved": true},
-]
+## 카탈로그는 데이터 에셋(res://data/item_catalog.tres)에서 온다(스펙: 하드코딩 금지).
+## 다운스트림 코드(LevelUpPanel/HUD)는 dict 형태를 기대하므로 WeaponData/PassiveData 를
+## dict {id,name,desc,color,max,evolved} 로 어댑팅해 제공한다(형태 유지, 회귀 없음).
 
-## 진화 규칙: base 무기 만렙 + passive 보유(Lv1+) → into 진화 무기(원본을 대체).
-const EVOLUTIONS: Array = [
-	{"base": "gun",       "passive": "crit",  "into": "railgun"},
-	{"base": "orb",       "passive": "swift", "into": "sawstorm"},
-	{"base": "lightning", "passive": "crit",  "into": "thunderstorm"},
-	{"base": "garlic",    "passive": "armor", "into": "sanctuary"},
-	{"base": "holy",      "passive": "haste", "into": "crucifix"},
-]
+static func _w_dict(w: WeaponData) -> Dictionary:
+	return {"id": w.id, "name": w.display, "desc": w.desc, "color": w.color, "max": w.max_level, "evolved": w.evolved}
 
-## 패시브: 유틸/스탯 강화. 각자 슬롯을 차지한다.
-const PASSIVES: Array = [
-	{"id": "haste",  "name": "Haste",       "desc": "-15% fire delay / lvl", "color": _C_ATK,  "max": 8},
-	{"id": "crit",   "name": "Crit Chance", "desc": "+8% double damage",     "color": _C_ATK,  "max": 7},
-	{"id": "swift",  "name": "Swift Boots", "desc": "+30 move speed",        "color": _C_UTIL, "max": 8},
-	{"id": "armor",  "name": "Armor",       "desc": "+1 max HP (heals)",     "color": _C_SURV, "max": 8},
-	{"id": "regen",  "name": "Regen",       "desc": "Heal over time",        "color": _C_SURV, "max": 6},
-	{"id": "magnet", "name": "Magnet",      "desc": "+30% pickup range",     "color": _C_UTIL, "max": 6},
-]
+
+static func _p_dict(p: PassiveData) -> Dictionary:
+	return {"id": p.id, "name": p.display, "desc": p.desc, "color": p.color, "max": p.max_level, "evolved": false}
+
+
+## 무기 카탈로그(dict 배열). gun 은 시작 시 보유(Lv1). evolved=true 는 진화로만 획득.
+static func weapons() -> Array:
+	var out: Array = []
+	for w in GameData.weapon_defs:
+		out.append(_w_dict(w))
+	return out
+
+
+## 패시브 카탈로그(dict 배열).
+static func passives() -> Array:
+	var out: Array = []
+	for p in GameData.passive_defs:
+		out.append(_p_dict(p))
+	return out
+
+
+## 진화 규칙(dict 배열): base 무기 만렙 + passive 보유(Lv1+) → into 진화 무기(원본을 대체).
+static func evolutions() -> Array:
+	var out: Array = []
+	for e in GameData.evolution_defs:
+		out.append({"base": e.base_id, "passive": e.passive_id, "into": e.into_id})
+	return out
 
 
 static func meta(id: String) -> Dictionary:
-	for w in WEAPONS:
-		if w["id"] == id:
-			return w
-	for p in PASSIVES:
-		if p["id"] == id:
-			return p
+	var w: WeaponData = GameData.weapon_def(id)
+	if w != null:
+		return _w_dict(w)
+	var p: PassiveData = GameData.passive_def(id)
+	if p != null:
+		return _p_dict(p)
 	return {}
 
 
 static func is_weapon(id: String) -> bool:
-	for w in WEAPONS:
-		if w["id"] == id:
-			return true
-	return false
+	return GameData.weapon_def(id) != null
 
 
 ## 인벤토리(무기/패시브 레벨) → Events.upgrade_* 재계산. 매 레벨업/로드/리셋 후 호출.
