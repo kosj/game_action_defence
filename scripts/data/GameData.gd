@@ -6,16 +6,30 @@ extends Node
 
 const ZOMBIE_DB_PATH := "res://data/zombies.tres"
 const META_DB_PATH := "res://data/meta_upgrades.tres"
+const DIFFICULTY_PATH := "res://data/difficulty.tres"
 
 var zombie_list: Array[ZombieData] = []   # 정의 순서 유지(스포너 가중치 인덱스와 정렬)
 var _zombie_by_id: Dictionary = {}
 
 var meta_upgrades: Array[MetaUpgradeData] = []   # 상점 표시 순서
 
+var difficulty: DifficultyData = null     # 시간 기반 난이도 곡선
+
 
 func _ready() -> void:
 	_load_zombies()
 	_load_meta()
+	_load_difficulty()
+
+
+func _load_difficulty() -> void:
+	if ResourceLoader.exists(DIFFICULTY_PATH):
+		var d = load(DIFFICULTY_PATH)
+		if d is DifficultyData:
+			difficulty = d
+	if difficulty == null:
+		difficulty = DifficultyData.new()   # 폴백: 기본값(런 안정성 보장)
+		push_warning("GameData: %s 없음 — 기본 난이도 사용" % DIFFICULTY_PATH)
 
 
 func _load_meta() -> void:

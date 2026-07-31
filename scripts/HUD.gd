@@ -108,7 +108,8 @@ func _ready() -> void:
 	Events.player_died.connect(_on_player_died)
 	Events.wave_changed.connect(_on_wave_changed)
 	Events.elapsed_changed.connect(_on_elapsed_changed)
-	Events.wave_progress_changed.connect(_on_wave_progress_changed)
+	Events.run_progress.connect(_on_run_progress)
+	Events.run_cleared.connect(_on_run_cleared)
 	Events.wave_complete.connect(_on_wave_complete)
 	Events.weapon_equipped.connect(_on_weapon_equipped)
 	Events.weapon_timer_changed.connect(_on_weapon_timer_changed)
@@ -130,7 +131,7 @@ func _ready() -> void:
 		_on_player_health_changed(Events.player_health, Events.player_max_health)
 	_on_wave_changed(Events.total_kills)
 	_on_elapsed_changed(Events.elapsed_time)
-	_on_wave_progress_changed(Events.wave_kill_progress, Events.wave_kill_total)
+	_on_run_progress(Events.elapsed_time, GameData.difficulty.clear_seconds)
 	_on_score_changed(Events.score)
 	_on_high_score_changed(Events.high_score)
 	_on_xp_changed(Events.xp, Events.xp_to_next, Events.level)
@@ -385,16 +386,46 @@ func _on_elapsed_changed(seconds: float) -> void:
 	time_label.text = "%02d:%02d" % [m, s]
 
 
-func _on_wave_progress_changed(killed: int, total: int) -> void:
-	if total > 0:
-		progress_label.text = "%d / %d" % [killed, total]
+## 시간 기반 진행: 30분(clear) 생존까지의 진행률을 바/라벨로 보여준다. 클리어 후엔 "OVERTIME".
+func _on_run_progress(elapsed: float, clear: float) -> void:
+	var ratio := clampf(elapsed / maxf(clear, 1.0), 0.0, 1.0)
+	if elapsed >= clear:
+		progress_label.text = "OVERTIME"
 	else:
-		progress_label.text = ""
+		var remain := int(ceil(clear - elapsed))
+		progress_label.text = "%02d:%02d" % [remain / 60, remain % 60]
 	# 진행 바 — 채워질수록 금색→초록으로 물들어 "곧 클리어"가 한눈에 읽힌다.
 	if _wave_fill:
-		var ratio := clampf(float(killed) / float(maxi(total, 1)), 0.0, 1.0)
 		_wave_fill.anchor_right = ratio
-		_wave_fill.color = Color(1.0, 0.72, 0.20, 0.95).lerp(Color(0.45, 0.90, 0.45, 0.95), ratio)
+		if elapsed >= clear:
+			_wave_fill.color = Color(0.75, 0.25, 0.85, 0.95)   # 오버타임 = 보라(하드모드)
+		else:
+			_wave_fill.color = Color(1.0, 0.72, 0.20, 0.95).lerp(Color(0.45, 0.90, 0.45, 0.95), ratio)
+
+
+## 30분 생존 클리어 — 웨이브 클리어 배너를 재사용해 크게 알린다(승리 아님, 이후 무한 하드모드).
+func _on_run_cleared() -> void:
+	wave_clear_label.text = Locale.t("run_cleared")
+	wave_clear_label.visible = true
+	wave_clear_bg.visible = true
+	wave_clear_label.modulate.a = 1.0
+	wave_clear_bg.modulate.a = 1.0
+	wave_clear_label.scale = Vector2(0.7, 0.7)
+	wave_clear_bg.scale = Vector2(0.7, 0.7)
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(wave_clear_label, "scale", Vector2.ONE, 0.30).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(wave_clear_bg, "scale", Vector2.ONE, 0.30).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.set_parallel(false)
+	tw.tween_interval(2.2)
+	tw.set_parallel(true)
+	tw.tween_property(wave_clear_label, "modulate:a", 0.0, 0.6)
+	tw.tween_property(wave_clear_bg, "modulate:a", 0.0, 0.6)
+	tw.set_parallel(false)
+	tw.tween_callback(func():
+		wave_clear_label.visible = false
+		wave_clear_bg.visible = false)
+	Events.shake(8.0)
 
 
 ## 상단 바 하단에 얇은 웨이브 진행 바(킬 목표 대비 진행률)를 코드로 생성.
@@ -511,7 +542,7 @@ func _build_goal_hint() -> void:
 	_goal_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	_goal_label.offset_top = -44.0
 	_goal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_goal_label.text = "ENDLESS  ·  SURVIVE  ·  NEXT BOSS →"
+	_goal_label.text = "SURVIVE 30:00  →  CLEAR"
 	_goal_label.add_theme_font_size_override("font_size", 15)
 	_goal_label.add_theme_color_override("font_color", Color(0.85, 0.7, 0.75, 0.7))
 	_goal_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
