@@ -148,9 +148,14 @@ func bonus_level() -> void:
 	xp_changed.emit(xp, xp_to_next, level)
 
 
+## 광역/오라 무기 효과 반경 배수 — 패시브 '배터리'(upgrade_area)로 커진다.
+func area_mult() -> float:
+	return 1.0 + 0.08 * float(upgrade_area)
+
+
 ## 코인 수집 시 호출(코인 1개 = 경험치 1). 임계 도달 시 레벨업 신호(연속 레벨업도 처리).
 func add_xp(amount: int) -> void:
-	xp += maxi(1, int(round(amount * xp_mult)))   # 메타 '성장' 배수
+	xp += maxi(1, int(round(amount * xp_mult * (1.0 + 0.08 * float(upgrade_greed)))))   # 메타 '성장' × 패시브 '토끼발'
 	while xp >= xp_to_next:
 		xp -= xp_to_next
 		level += 1
@@ -210,6 +215,8 @@ var upgrade_lightning_count: int = 0   # 낙뢰 1회당 동시에 때리는 번�
 var upgrade_pickup_range: int = 0      # 코인 자석 범위 (+30%/레벨)
 var upgrade_regen: int = 0             # 체력 재생 속도 (레벨 높을수록 빠름)
 var upgrade_crit: int = 0              # 크리티컬 확률 (+8%/레벨, 데미지 2배)
+var upgrade_area: int = 0              # 광역/오라 무기 효과 반경 (+8%/레벨) — 패시브 '배터리'
+var upgrade_greed: int = 0             # 인게임 골드/경험치 획득 (+8%/레벨) — 패시브 '토끼발'
 var upgrade_garlic: int = 0            # 마늘 오라 무기 레벨(0=미보유)
 var upgrade_holy: int = 0              # 성수 무기 레벨(0=미보유)
 
@@ -255,7 +262,7 @@ func _end_hit_stop() -> void:
 
 
 func add_gold(amount: int = 1) -> void:
-	total_gold += maxi(1, int(round(amount * gold_mult)))   # 메타 '탐욕' 배수
+	total_gold += maxi(1, int(round(amount * gold_mult * (1.0 + 0.08 * float(upgrade_greed)))))   # 메타 '탐욕' × 패시브 '토끼발'
 	gold_changed.emit(total_gold)
 
 
@@ -322,6 +329,8 @@ func reset() -> void:
 	upgrade_lightning = 0
 	upgrade_lightning_count = 0
 	upgrade_pickup_range = 0
+	upgrade_area = 0
+	upgrade_greed = 0
 	upgrade_regen = 0
 	upgrade_crit = 0
 	upgrade_garlic = 0

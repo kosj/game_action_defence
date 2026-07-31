@@ -36,9 +36,10 @@ func _wa(id: String, disp: String, desc: String, color: Color, module: String, p
 	return w
 
 
-func _p(id: String, disp: String, desc: String, color: Color, max_level: int) -> PassiveData:
+func _p(id: String, disp: String, desc: String, color: Color, max_level: int, effect: String, per_level: float) -> PassiveData:
 	var p := PassiveData.new()
 	p.id = id; p.display = disp; p.desc = desc; p.color = color; p.max_level = max_level
+	p.effect = effect; p.per_level = per_level
 	return p
 
 
@@ -80,13 +81,19 @@ func _initialize() -> void:
 		_w("crucifix",     "Crucifix",     "Evolved Holy Water",  C_LIGHT, 5, true),
 	]
 
+	# 스펙 패시브 10종. 기존 6종은 id 유지(진화 짝꿍·세이브 호환), 표시명만 스펙 플레이버로.
+	# 신규 4종(탄약벨트·화약·배터리·토끼발)은 새 효과 knob(multishot/bullet_damage/area/greed).
 	db.passives = [
-		_p("haste",  "Haste",       "-15% fire delay / lvl", C_ATK,  8),
-		_p("crit",   "Crit Chance", "+8% double damage",     C_ATK,  7),
-		_p("swift",  "Swift Boots", "+30 move speed",        C_UTIL, 8),
-		_p("armor",  "Armor",       "+1 max HP (heals)",     C_SURV, 8),
-		_p("regen",  "Regen",       "Heal over time",        C_SURV, 6),
-		_p("magnet", "Magnet",      "+30% pickup range",     C_UTIL, 6),
+		_p("armor",  "Body Armor",   "+1 max HP (heals)",      C_SURV, 8, "max_health",    1.0),
+		_p("swift",  "Sneakers",     "+30 move speed / lvl",   C_UTIL, 8, "move_speed",    1.0),
+		_p("haste",  "Energy Drink", "-15% fire delay / lvl",  C_ATK,  8, "atk_speed",     1.0),
+		_p("crit",   "Scope",        "+8% crit (double dmg)",  C_ATK,  7, "crit",          1.0),
+		_p("magnet", "Magnet",       "+30% pickup range",      C_UTIL, 6, "pickup",        1.0),
+		_p("regen",  "First Aid",    "Heal over time",         C_SURV, 6, "regen",         1.0),
+		_p("ammo_belt",    "Ammo Belt",     "Extra bullets",       C_ATK,  6, "multishot",     0.34),
+		_p("gunpowder",    "Gunpowder",     "+1 bullet dmg / lvl", C_ATK,  8, "bullet_damage", 1.0),
+		_p("battery",      "Battery",       "+8% effect area/lvl", C_UTIL, 6, "area",          1.0),
+		_p("rabbits_foot", "Rabbit's Foot", "+8% gold & XP / lvl", C_SURV, 6, "greed",         1.0),
 	]
 
 	db.evolutions = [

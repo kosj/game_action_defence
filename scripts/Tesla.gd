@@ -31,7 +31,7 @@ func _physics_process(delta: float) -> void:
 
 func _zap() -> void:
 	var lvl := _level()
-	var first := _nearest_zombie(_data.area_radius)
+	var first := _nearest_zombie(_data.area_radius * Events.area_mult())
 	if first == null:
 		return
 	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1)
@@ -58,7 +58,8 @@ func _zap() -> void:
 ## 마지막 타격 지점 근처의, 아직 안 맞은 최근접 좀비.
 func _next_chain(from: Vector2, hit: Dictionary) -> Node2D:
 	var nearest: Node2D = null
-	var min_d := CHAIN_RANGE * CHAIN_RANGE
+	var chain_r := CHAIN_RANGE * Events.area_mult()
+	var min_d := chain_r * chain_r
 	for z in Events.live_zombies():
 		if not is_instance_valid(z) or not z.is_in_group("zombies"):
 			continue

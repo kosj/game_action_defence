@@ -31,7 +31,7 @@ func _physics_process(delta: float) -> void:
 
 func _deploy(lvl: int) -> void:
 	var pos := global_position + Vector2.from_angle(randf() * TAU) * randf_range(PLACE_MIN, PLACE_MAX)
-	var r: float = _data.area_radius * (1.0 + 0.05 * float(lvl - 1))
+	var r: float = _data.area_radius * (1.0 + 0.05 * float(lvl - 1)) * Events.area_mult()
 	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1)
 	var mine := _LandMine.new()
 	get_tree().current_scene.add_child(mine)

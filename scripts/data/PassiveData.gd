@@ -8,3 +8,8 @@ extends Resource
 @export var desc: String = ""             # 카드 설명
 @export var color: Color = Color.WHITE    # 카드 테마색
 @export var max_level: int = 8            # 최대 강화 레벨
+
+## 효과종류(데이터 구동). ItemDB.recompute 가 effect 별로 per_level×레벨을 합산해 upgrade_* 에 반영.
+##   atk_speed / crit / move_speed / max_health / regen / pickup / multishot / bullet_damage / area / greed
+@export var effect: String = ""
+@export var per_level: float = 1.0        # 레벨당 효과량(정수형 스탯은 합산 후 내림)
