@@ -14,6 +14,7 @@ const _OrbClass := preload("res://scripts/Orb.gd")
 const _LightningClass := preload("res://scripts/Lightning.gd")
 const _GarlicClass := preload("res://scripts/GarlicAura.gd")
 const _HolyClass := preload("res://scripts/HolyWater.gd")
+const _ProjWeaponClass := preload("res://scripts/ProjectileWeapon.gd")
 const _FXBurst  := preload("res://scripts/FXBurst.gd")
 const _WeaponDB := preload("res://scripts/WeaponDB.gd")
 const BASE_BULLET_SPEED := 700.0
@@ -54,6 +55,7 @@ var _orbs: Array = []
 var _lightning: Node2D = null
 var _garlic: Node2D = null
 var _holy: Node2D = null
+var _proj_modules: Dictionary = {}   # weapon_id -> ProjectileWeapon 노드(데이터 구동 발사체 무기)
 var current_weapon: Dictionary = _WeaponDB.default_weapon()
 
 # 이동 걷기 애니메이션(절차적, 좀비와 동일 방식) — 이동 거리로 위상이 진행해 좌우 뒤뚱 + 발딛기
@@ -322,6 +324,7 @@ func apply_upgrades() -> void:
 	_update_lightning()
 	_update_singleton_weapon("garlic")
 	_update_singleton_weapon("holy")
+	_update_projectile_modules()
 
 
 ## 단일 인스턴스 무기(마늘·성수 등) 보유 여부에 맞춰 노드를 생성/해제.
@@ -338,6 +341,24 @@ func _update_singleton_weapon(id: String) -> void:
 		_garlic = node
 	else:
 		_holy = node
+
+
+## 데이터 구동 발사체 무기(module=="projectile") — 보유한 것만 모듈 노드로 생성/유지.
+## 카탈로그(GameData)를 순회하므로 새 무기를 데이터로 추가하면 코드 수정 없이 동작한다.
+func _update_projectile_modules() -> void:
+	for wd in GameData.weapon_defs:
+		if wd == null or wd.module != "projectile":
+			continue
+		var owned: bool = int(Events.weapons.get(wd.id, 0)) > 0
+		var node: Node2D = _proj_modules.get(wd.id)
+		if owned and node == null:
+			node = _ProjWeaponClass.new()
+			add_child(node)
+			node.setup(wd.id)
+			_proj_modules[wd.id] = node
+		elif not owned and node != null:
+			node.queue_free()
+			_proj_modules.erase(wd.id)
 
 
 func _update_orbs() -> void:
