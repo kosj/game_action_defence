@@ -54,6 +54,13 @@ func add_bonuses() -> void:
 	Events.upgrade_atk_speed += c.bonus_atk_speed
 	Events.upgrade_area += c.bonus_area
 	Events.upgrade_crit += c.bonus_crit
+	Events.upgrade_greed += c.bonus_greed
+
+
+## 설치물(터렛/드론/지뢰) 강화 배수 — 엔지니어 트레잇. 다른 캐릭터는 1.0.
+func install_boost() -> float:
+	var c := selected()
+	return 1.5 if (c != null and c.trait_key == "engineer") else 1.0
 
 
 func _load() -> void:

@@ -404,6 +404,8 @@ func _draw() -> void:
 func take_damage(amount: int, is_crit: bool = false) -> void:
 	if not _alive:
 		return
+	if Events.trait_damage_mult != 1.0:   # 캐릭터 트레잇: 나가는 피해 배수(수신측에서 일괄 적용)
+		amount = maxi(1, int(round(amount * Events.trait_damage_mult)))
 	health = max(0, health - amount)
 	# 보스 피해 숫자는 크게, 프레임 상한과 무관하게 항상 표시. 크리티컬은 주황으로 더 강조.
 	var num_col := Color(1.0, 0.45, 0.12) if is_crit else Color(1.0, 0.85, 0.3)

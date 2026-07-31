@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="CharacterDB" load_steps=6 format=3]
 
-[ext_resource type="Script" path="res://scripts/data/CharacterData.gd" id="1_ur7yx"]
-[ext_resource type="Script" path="res://scripts/data/CharacterDB.gd" id="2_h3tsq"]
+[ext_resource type="Script" path="res://scripts/data/CharacterData.gd" id="1_7vtts"]
+[ext_resource type="Script" path="res://scripts/data/CharacterDB.gd" id="2_ov0sl"]
 
-[sub_resource type="Resource" id="Resource_gy10s"]
-script = ExtResource("1_ur7yx")
+[sub_resource type="Resource" id="Resource_0otnb"]
+script = ExtResource("1_7vtts")
 id = "veteran"
 display = "Veteran"
 desc = "Melee tank. Starts with a Spiked Bat and heavy armor."
@@ -17,10 +17,11 @@ bonus_move_speed = 1
 bonus_atk_speed = 0
 bonus_area = 0
 bonus_crit = 0
+bonus_greed = 0
 trait_key = "veteran"
 
-[sub_resource type="Resource" id="Resource_eb8c7"]
-script = ExtResource("1_ur7yx")
+[sub_resource type="Resource" id="Resource_4jfgh"]
+script = ExtResource("1_7vtts")
 id = "hunter"
 display = "Hunter"
 desc = "Ranged damage. Starts with a Crossbow and a Scope."
@@ -33,13 +34,14 @@ bonus_move_speed = 0
 bonus_atk_speed = 0
 bonus_area = 0
 bonus_crit = 2
+bonus_greed = 0
 trait_key = "hunter"
 
-[sub_resource type="Resource" id="Resource_idkuf"]
-script = ExtResource("1_ur7yx")
+[sub_resource type="Resource" id="Resource_1g8bx"]
+script = ExtResource("1_7vtts")
 id = "engineer"
 display = "Engineer"
-desc = "Deploy defense. Starts with a Turret and a Battery."
+desc = "Deploy defense. Stronger turrets/drones/mines and more loot."
 color = Color(0.55, 0.9, 0.6, 1)
 start_weapon = "turret"
 signature_passive = "battery"
@@ -49,8 +51,9 @@ bonus_move_speed = 0
 bonus_atk_speed = 1
 bonus_area = 2
 bonus_crit = 0
+bonus_greed = 3
 trait_key = "engineer"
 
 [resource]
-script = ExtResource("2_h3tsq")
-characters = Array[ExtResource("1_ur7yx")]([SubResource("Resource_gy10s"), SubResource("Resource_eb8c7"), SubResource("Resource_idkuf")])
+script = ExtResource("2_ov0sl")
+characters = Array[ExtResource("1_7vtts")]([SubResource("Resource_0otnb"), SubResource("Resource_4jfgh"), SubResource("Resource_1g8bx")])

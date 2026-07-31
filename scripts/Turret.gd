@@ -13,7 +13,7 @@ var _turrets: Array = []
 
 
 func _max_turrets(lvl: int) -> int:
-	return 1 + int(lvl / 2)
+	return int(round((1 + int(lvl / 2)) * CharacterManager.install_boost()))   # 엔지니어 트레잇: 설치 수↑
 
 
 func _physics_process(delta: float) -> void:
