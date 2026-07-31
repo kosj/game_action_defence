@@ -66,6 +66,9 @@ func _initialize() -> void:
 		_wa("flamethrower", "Flamethrower", "Cone of continuous fire",        Color(1.00, 0.50, 0.12), "flamethrower", [0.25, 1, 1, 165.0, 0.0,  0.50, 0.0]),
 		_wa("molotov",      "Molotov",      "Throws a lingering fire pool",   Color(1.00, 0.42, 0.10), "molotov",      [2.60, 2, 1, 82.0,  3.2,  0.00, 0.0]),
 		_wa("mine",         "Land Mine",    "Deploys mines that explode",     Color(1.00, 0.45, 0.15), "mine",         [1.90, 4, 2, 72.0,  9.0,  0.00, 210.0]),
+		# 근접 원호 무기(Phase 2-C 배치 3) — 못배트(강타 스윙) / 체인소(밀착 그라인더).
+		_wa("spikedbat",  "Spiked Bat", "Wide melee swing + knockback",  Color(0.90, 0.75, 0.35), "melee_arc", [1.00, 3, 2, 118.0, 0.0, 1.15, 270.0]),
+		_wa("chainsaw",   "Chainsaw",   "Point-blank grinder",           Color(0.85, 0.88, 0.95), "chainsaw",  [0.16, 1, 1, 78.0,  0.0, 0.85, 40.0]),
 		_w("railgun",      "Railgun",      "Evolved Auto Gun",    C_ATK,   5, true),
 		_w("sawstorm",     "Saw Storm",    "Evolved Orb Shield",  C_ORB,   5, true),
 		_w("thunderstorm", "Thunderstorm", "Evolved Lightning",   C_LIGHT, 5, true),

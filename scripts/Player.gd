@@ -21,6 +21,8 @@ const _MODULE_CLASSES := {
 	"flamethrower": preload("res://scripts/Flamethrower.gd"),
 	"molotov": preload("res://scripts/Molotov.gd"),
 	"mine": preload("res://scripts/MineLayer.gd"),
+	"melee_arc": preload("res://scripts/MeleeArc.gd"),
+	"chainsaw": preload("res://scripts/Chainsaw.gd"),
 }
 const _FXBurst  := preload("res://scripts/FXBurst.gd")
 const _WeaponDB := preload("res://scripts/WeaponDB.gd")
