@@ -53,6 +53,8 @@ signal wave_changed(wave: int)
 signal elapsed_changed(seconds: float)
 signal wave_complete(wave: int)
 signal wave_progress_changed(killed: int, total: int)
+signal run_progress(elapsed: float, clear: float)   # 시간 기반 진행(HUD 클리어 진행바)
+signal run_cleared                                  # 30분 생존 = 클리어 달성(1회)
 signal zombie_killed
 signal shop_closed
 signal weapon_equipped(stats: Dictionary)
@@ -81,6 +83,7 @@ signal inventory_changed        # 무기/패시브 인벤토리 변경 — HUD �
 
 var total_gold: int = 0
 var total_kills: int = 0
+var did_clear: bool = false   # 이번 런에서 30분 클리어를 달성했는가
 var player_health: int = 0
 var player_max_health: int = 0
 var current_wave: int = 1
@@ -294,6 +297,7 @@ func is_new_record() -> bool:
 func reset() -> void:
 	total_gold = 0
 	total_kills = 0
+	did_clear = false
 	player_health = 0
 	player_max_health = 0
 	current_wave = 1

@@ -1,7 +1,9 @@
 extends Node
-## 좀비 스포너(엔들리스): 웨이브 개념 없이 연속으로 스폰하며, 총 처치 수(Events.total_kills)에
-## 따라 난이도가 계속 상승한다(스폰 간격↓·동시 출현↑·체력/이속↑·강한 종 비중↑).
-## 보스는 일정 처치 수 간격(BOSS_KILLS)마다 등장하며 아키타입을 순환한다(승리 조건 없음).
+## 좀비 스포너: 웨이브 개념 없이 연속으로 스폰하며, "경과 시간"이 난이도를 구동한다(스펙).
+## 시간이 갈수록 스폰 간격↓·동시 출현↑·체력/이속↑·강한 종 비중↑. 모든 수치는
+## DifficultyData(res://data/difficulty.tres)에서 조정한다(하드코딩 금지).
+## 보스는 _diff.boss_seconds 마다, 엘리트 팩은 _diff.elite_seconds 마다 등장하며 아키타입을 순환한다.
+## _diff.clear_seconds(기본 30분) 생존 시 CLEAR 를 1회 알리고, 이후에는 무한 하드모드로 계속된다.
 
 const ZOMBIE := preload("res://scenes/Zombie.tscn")
 const BOSS := preload("res://scenes/Boss.tscn")
@@ -18,9 +20,6 @@ const BOSS_TYPES: Dictionary = {
 }
 const BOSS_SEQUENCE: Array = ["brute", "gunner", "summoner", "bomber", "berserk"]
 
-## 몇 처치마다 보스가 등장하는지.
-const BOSS_KILLS: int = 80
-
 ## 서머너 소환 시 전장 과밀 상한.
 const SUMMON_ALIVE_CAP: int = 44
 
@@ -33,12 +32,12 @@ const SWARM_ELITE_CHANCE := 0.35
 const SWARM_SPREAD := 70.0
 const SWARM_ELITE_HP_MULT := 1.7
 const SWARM_ELITE_SCALE := 1.35
-const SWARM_START_KILLS := 15      # 이 처치 수 이후부터 스웜 발동
+const SWARM_START_SECONDS := 30.0   # 이 시각(초) 이후부터 랜덤 스웜 발동
 var _swarm_cd: float = 0.0
 var _swarm_tel: float = -1.0
 var _swarm_elite: bool = false
 
-## 난이도 곡선(총 처치 수 K 기준). WEIGHTS 는 K/KILLS_PER_TIER 로 티어를 골라 종 구성을 결정한다.
+## 좀비 조합 티어. 경과 시간(_diff.tier_seconds 마다 +1)으로 골라진다.
 ##   0 Walker  1 Sprinter  2 Bloater  3 Gaunt(weaver)  4 Foreman  5 Toxic
 ##   6 Screamer  7 Cop  8 Soldier(spitter)  9 Longneck(spitter)  10 Suit
 const WEIGHTS: Array = [
@@ -49,16 +48,9 @@ const WEIGHTS: Array = [
 	[4,  3, 2, 2, 2, 2, 2, 2, 2, 2, 2],
 	[3,  3, 2, 2, 3, 2, 2, 3, 2, 2, 3],
 ]
-const KILLS_PER_TIER := 30      # 이 처치 수마다 종 구성 티어가 한 단계 올라간다
-const BASE_INTERVAL := 0.85     # 스폰 간격(초) 시작값
-const MIN_INTERVAL := 0.16      # 스폰 간격 하한
-const INTERVAL_DECAY := 0.0016  # 처치당 간격 감소량
-const BASE_MAXZ := 40           # 동시 출현 시작값
-const MAXZ_CAP := 175           # 동시 출현 상한
-const MAXZ_GROW := 0.42         # 처치당 동시 출현 증가
-const HP_GROW := 0.006          # 처치당 체력 배수 증가(선형·무한)
-const SPEED_GROW := 0.0006      # 처치당 이속 배수 증가
-const SPEED_CAP := 1.6          # 이속 배수 상한
+
+## 난이도 곡선 데이터(경과 시간 기반). GameData 에서 로드.
+var _diff: DifficultyData = null
 
 # 좀비 종류 = 데이터 에셋(res://data/zombies.tres). 순서가 WEIGHTS 인덱스와 정렬된다.
 # _ready 에서 GameData 로부터 dict 배열로 변환해 채운다(다운스트림 코드 형태는 그대로 유지).
@@ -86,12 +78,15 @@ var _start_delay: float = 5.0   # 초반 유예(플레이어 무적 시간과 �
 # 보스 상태
 var _boss_alive: bool = false
 var _boss_count: int = 0        # 지금까지 등장한 보스 수(아키타입 순환·강화에 사용)
-var _next_boss_at: int = BOSS_KILLS   # 이 처치 수에 도달하면 보스 등장
+var _next_boss_at: float = 0.0  # 이 경과 시각(초)에 도달하면 보스 등장
+var _next_elite_at: float = 0.0 # 이 경과 시각(초)에 도달하면 엘리트 팩 등장
+var _cleared: bool = false      # 30분 생존 클리어를 이미 알렸는가(1회)
 var _escort_accum: float = 0.0
 
 
 func _ready() -> void:
 	_build_types()   # 데이터 에셋(GameData)에서 좀비 종류 테이블 구성
+	_diff = GameData.difficulty
 	player = get_tree().get_first_node_in_group("player")
 	Events.player_died.connect(func(): _game_over = true)
 	Events.player_revived.connect(func(): _game_over = false)
@@ -99,29 +94,36 @@ func _ready() -> void:
 	Events.boss_died.connect(_on_boss_died)
 	Events.boss_summon.connect(_on_boss_summon)
 	_elapsed = Events.elapsed_time
-	# 이어하기 대비: 이미 쌓인 처치 수 기준으로 다음 보스 시점·보스 회차를 정렬한다.
-	_boss_count = Events.total_kills / BOSS_KILLS
-	_next_boss_at = (_boss_count + 1) * BOSS_KILLS
+	# 이어하기 대비: 경과 시간 기준으로 다음 보스·엘리트 시점, 보스 회차, 클리어 여부를 정렬한다.
+	_boss_count = int(_elapsed / _diff.boss_seconds)
+	_next_boss_at = float(_boss_count + 1) * _diff.boss_seconds
+	_next_elite_at = (floor(_elapsed / _diff.elite_seconds) + 1.0) * _diff.elite_seconds
+	_cleared = Events.did_clear
 	_swarm_cd = randf_range(SWARM_MIN_INTERVAL, SWARM_MAX_INTERVAL)
-	Events.wave_changed.emit(Events.total_kills)          # HUD 킬 카운트 초기화
-	Events.wave_progress_changed.emit(0, BOSS_KILLS)      # HUD 다음-보스 진행 바 초기화
+	Events.wave_changed.emit(Events.total_kills)                 # HUD 킬 카운트 초기화
+	Events.run_progress.emit(_elapsed, _diff.clear_seconds)      # HUD 클리어 진행바 초기화
 
 
-# ── 난이도 곡선(총 처치 수 기준) ─────────────────────────────────────
+# ── 난이도 곡선(경과 시간 기준) ──────────────────────────────────────
 func _tier() -> int:
-	return clampi(Events.total_kills / KILLS_PER_TIER, 0, WEIGHTS.size() - 1)
+	return clampi(int(_elapsed / _diff.tier_seconds), 0, WEIGHTS.size() - 1)
 
 func _spawn_interval() -> float:
-	return maxf(MIN_INTERVAL, BASE_INTERVAL - float(Events.total_kills) * INTERVAL_DECAY)
+	var t := clampf(_elapsed / _diff.spawn_interval_full_at, 0.0, 1.0)
+	return lerpf(_diff.spawn_interval_base, _diff.spawn_interval_min, t)
 
 func _max_z() -> int:
-	return mini(MAXZ_CAP, BASE_MAXZ + int(float(Events.total_kills) * MAXZ_GROW))
+	var t := clampf(_elapsed / _diff.max_z_full_at, 0.0, 1.0)
+	return int(round(lerpf(float(_diff.max_z_base), float(_diff.max_z_cap), t)))
 
 func _hp_mult() -> float:
-	return (1.0 + float(Events.total_kills) * HP_GROW) * Events.diff_enemy_hp_mult()
+	var m := 1.0 + (_elapsed / 60.0) * _diff.hp_per_min
+	if _elapsed > _diff.clear_seconds:   # 클리어 이후 무한 하드모드 — 분당 추가 체력
+		m += ((_elapsed - _diff.clear_seconds) / 60.0) * _diff.overtime_hp_per_min
+	return m * Events.diff_enemy_hp_mult()
 
 func _speed_mult() -> float:
-	return minf(SPEED_CAP, 1.0 + float(Events.total_kills) * SPEED_GROW) * Events.diff_enemy_speed_mult()
+	return minf(_diff.speed_cap, 1.0 + (_elapsed / 60.0) * _diff.speed_per_min) * Events.diff_enemy_speed_mult()
 
 
 func _process(delta: float) -> void:
@@ -134,20 +136,33 @@ func _process(delta: float) -> void:
 	_elapsed += delta
 	_tick_elapsed()
 
+	# 30분 생존 = 클리어(1회 알림). 승리 조건은 아니며, 이후 무한 하드모드로 계속된다.
+	if not _cleared and _elapsed >= _diff.clear_seconds:
+		_cleared = true
+		Events.did_clear = true
+		Events.run_cleared.emit()
+
 	if _start_delay > 0.0:
 		_start_delay -= delta
 		return
 
-	# 연속 스폰 — 간격과 동시 출현 상한은 총 처치 수에 따라 계속 강화된다.
+	# 연속 스폰 — 간격과 동시 출현 상한은 경과 시간에 따라 계속 강화된다.
 	_accum += delta
 	if _accum >= _spawn_interval():
 		if _alive_zombies < _max_z():
 			_accum = 0.0
 			_spawn_one(_pick_type(WEIGHTS[_tier()]))
 
-	# 보스 마일스톤 — 일정 처치 수마다 1마리(동시 1마리).
-	if not _boss_alive and Events.total_kills >= _next_boss_at:
+	# 보스 마일스톤 — _diff.boss_seconds 마다 1마리(동시 1마리).
+	if not _boss_alive and _elapsed >= _next_boss_at:
+		_next_boss_at += _diff.boss_seconds
 		_spawn_boss()
+
+	# 엘리트 팩 — _diff.elite_seconds 마다 강제 엘리트 스웜(보스전 중엔 미룬다).
+	if _elapsed >= _next_elite_at:
+		_next_elite_at += _diff.elite_seconds
+		if not _boss_alive and _swarm_tel <= 0.0:
+			_trigger_swarm(true)
 
 	# 보스 전투 중 호위 좀비 가벼운 보충.
 	if _boss_alive:
@@ -166,15 +181,13 @@ func _tick_elapsed() -> void:
 		_last_second = sec
 		Events.elapsed_time = _elapsed
 		Events.elapsed_changed.emit(_elapsed)
+		Events.run_progress.emit(_elapsed, _diff.clear_seconds)   # HUD 클리어 진행바(초당 1회)
 
 
 func _on_zombie_killed() -> void:
 	_alive_zombies = maxi(0, _alive_zombies - 1)
 	Events.total_kills += 1
-	# HUD: 킬 카운트 + 다음 보스까지 진행 바.
-	Events.wave_changed.emit(Events.total_kills)
-	var since := BOSS_KILLS - clampi(_next_boss_at - Events.total_kills, 0, BOSS_KILLS)
-	Events.wave_progress_changed.emit(since, BOSS_KILLS)
+	Events.wave_changed.emit(Events.total_kills)   # HUD 킬 카운트
 
 
 ## 좀비 1마리 스폰. 체력/이속은 총 처치 수 기반 난이도 배수로 강화한다.
@@ -192,19 +205,24 @@ func _spawn_one(type_data: Dictionary) -> void:
 
 ## 스웜 이벤트 틱: 경고(swarm_incoming) → SWARM_TELEGRAPH 후 클러스터 등장. 보스 전투 중엔 발동 안 함.
 func _tick_swarm(delta: float) -> void:
-	if _boss_alive or Events.total_kills < SWARM_START_KILLS:
-		return
-	if _swarm_tel > 0.0:
+	if _swarm_tel > 0.0:   # 텔레그래프 진행 중이면 카운트다운 후 스폰(예약 엘리트 포함)
 		_swarm_tel -= delta
 		if _swarm_tel <= 0.0:
 			_spawn_swarm()
 		return
+	if _boss_alive or _elapsed < SWARM_START_SECONDS:
+		return
 	_swarm_cd -= delta
 	if _swarm_cd <= 0.0 and _alive_zombies < _max_z():
-		_swarm_cd = randf_range(SWARM_MIN_INTERVAL, SWARM_MAX_INTERVAL)
-		_swarm_elite = randf() < SWARM_ELITE_CHANCE
-		_swarm_tel = SWARM_TELEGRAPH
-		Events.swarm_incoming.emit(_swarm_elite)
+		_trigger_swarm(randf() < SWARM_ELITE_CHANCE)
+
+
+## 스웜 예약: 경고를 띄우고 텔레그래프를 시작한다. 랜덤/엘리트 팩 공통 진입점.
+func _trigger_swarm(elite: bool) -> void:
+	_swarm_cd = randf_range(SWARM_MIN_INTERVAL, SWARM_MAX_INTERVAL)
+	_swarm_elite = elite
+	_swarm_tel = SWARM_TELEGRAPH
+	Events.swarm_incoming.emit(_swarm_elite)
 
 
 ## 한 방향에서 한 종을 떼로 스폰. 엘리트면 더 크고 강하며 보상도 크다.
@@ -230,20 +248,19 @@ func _spawn_swarm() -> void:
 	Events.shake(4.0)
 
 
-## 보스 소환 + 호위 정예 좀비. 처치 수·회차에 따라 강화, 아키타입은 순환. 승리 조건 없음(엔들리스).
+## 보스 소환 + 호위 정예 좀비. 경과 시간·회차에 따라 강화, 아키타입은 순환. 승리 조건 없음(엔들리스).
 func _spawn_boss() -> void:
 	if not is_instance_valid(player):
 		return
 	_boss_alive = true
 	_boss_count += 1
-	_next_boss_at += BOSS_KILLS
 
 	var bt: Dictionary = BOSS_TYPES[BOSS_SEQUENCE[(_boss_count - 1) % BOSS_SEQUENCE.size()]]
 	var boss := BOSS.instantiate()
 	get_tree().current_scene.add_child(boss)
 	boss.global_position = _random_spawn_pos()
-	var kill_scale := 1.0 + float(Events.total_kills) * 0.004
-	var boss_hp := int(round(float(90 + 70 * (_boss_count - 1)) * Events.diff_boss_hp_mult() * kill_scale * float(bt["hp_mul"])))
+	var time_scale := 1.0 + (_elapsed / 60.0) * 0.03   # 분당 +3% 체력(경과 시간 강화)
+	var boss_hp := int(round(float(90 + 70 * (_boss_count - 1)) * Events.diff_boss_hp_mult() * time_scale * float(bt["hp_mul"])))
 	var stats := {
 		"max_health": boss_hp,
 		"speed": (104.0 + 9.0 * _boss_count) * Events.diff_enemy_speed_mult() * float(bt["speed_mul"]),

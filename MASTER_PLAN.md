@@ -12,8 +12,8 @@
 | 좀비 처치 → 경험치 젬 | ✅ 완료 | `Gold.gd` = XP 젬, 골드는 보물상자 |
 | 레벨업 → 4중 1택 | ✅ 완료 | `LevelUpPanel.gd` |
 | 빌드 완성 + 진화 | 🟡 부분 | `ItemDB.gd` 진화 5종. 로스터/발동조건이 스펙과 다름 |
-| **난이도 = 경과 시간** | ❌ 없음 | 현재는 **처치 수 기반**(PR #122). 스펙은 시간 기반 |
-| 30분 생존 = 클리어 + 이후 무한 | ❌ 없음 | 승리 조건 없음(무한만) |
+| **난이도 = 경과 시간** | ✅ 완료 | **Phase 1** — `DifficultyData`(.tres) + `ZombieSpawner` 시간 구동 |
+| 30분 생존 = 클리어 + 이후 무한 | ✅ 완료 | **Phase 1** — `clear_seconds` 도달 시 `run_cleared`, 이후 오버타임 하드모드 |
 | **캐릭터 3종** | ❌ 없음 | 단일 캐릭터 |
 | A. 인게임 공통 스탯 | 🟡 부분 | 핵심 스탯 존재(`Events.upgrade_*`). 관통/행운/투사체수 일부 없음 |
 | A. 무기 12종 | 🟡 5/12 | 있음: gun·orb·lightning·garlic·holy. 스펙 12종과 이름·구성 다름 |
@@ -24,12 +24,12 @@
 | C. 도전과제 | ❌ 없음 | |
 | 무기 진화표(12종, 보물상자 발동) | 🟡 부분 | 진화 메커니즘 O, 상자-게이팅 X, 로스터 다름 |
 | **테마 3종(오브젝트/기믹/보스)** | ❌ 없음 | 단일 아레나 |
-| 난이도 뼈대(1분/5분/10분/30분) | ❌ 없음 | |
+| 난이도 뼈대(1분/5분/10분/30분) | ✅ 완료 | **Phase 1** — `tier_seconds`60·`elite_seconds`300·`boss_seconds`600·`clear_seconds`1800 |
 | 세이브(로컬) | ✅ 완료 | `SaveManager`·`MetaManager`·`RankingManager` |
 | 수익화 훅(부활/2배/스킨) | 🟡 부분 | `AdManager` 부활 훅 O. 2배 보상·스킨 자리 X |
 | 오브젝트 풀링 | ✅ 완료 | `Pool.gd` |
 | **이펙트 동시표시 상한** | 🟡 부분 | 사운드 스로틀·FX 풀 O. 폭발/넉백/흔들림 동시 상한 X |
-| **데이터 = Resource 분리(하드코딩 금지)** | ❌ 없음 | 전부 GDScript 딕셔너리/배열 하드코딩 |
+| **데이터 = Resource 분리(하드코딩 금지)** | 🟡 부분 | **Phase 0** — 좀비·메타·난이도 `.tres` 완료. 무기/패시브/진화/캐릭터/테마/과제 남음 |
 
 범례: ✅ 완료 · 🟡 부분 · ❌ 없음
 
@@ -140,3 +140,49 @@ Phase 7 (성능/폴리시)  ← 상시 + 마지막 마감
 2. **기존 무기 처리:** gun/orb/lightning/garlic/holy를 스펙 12종에 흡수/재매핑 vs 폐기 후 신규.
 3. **시간 밸런스:** 30분 클리어 기준의 대략적 난이도 곡선(입문/중급/최종 테마별).
 4. **아트:** 신규 무기/오브젝트/테마 비주얼을 절차적 생성으로 갈지, 사용자가 에셋 제공할지.
+
+---
+
+## 6. 진행 로그 (완료 / 남은 작업)
+
+> 착수 순서대로 실제 구현 상태를 기록. 다음 세션이 이어받을 수 있도록 **남은 작업**을 함께 명시.
+
+### ✅ Phase 0 — 데이터 기반(Resource) 전환 *(완료)*
+- **정의된 Resource 클래스:** `ZombieData`/`ZombieDB`, `MetaUpgradeData`/`MetaUpgradeDB`, `DifficultyData`.
+- **생성기(일회성 SceneTree 툴):** `tools/gen_zombie_data.gd`, `gen_meta_data.gd`, `gen_difficulty_data.gd`
+  → `godot --headless --path . --script res://tools/gen_*.gd` 로 `.tres` 산출.
+- **데이터 에셋:** `data/zombies.tres`(+`data/zombies/*` 11종), `data/meta_upgrades.tres`(+`data/meta/*` 5종),
+  `data/difficulty.tres`.
+- **로더:** `GameData`(autoload) — `zombie_list`/`meta_upgrades`/`difficulty` 제공. 웹 호환 위해 폴더 스캔 대신
+  단일 인덱스 리소스를 `load()`.
+- **배선:** `ZombieSpawner.ZOMBIE_TYPES`(← `GameData.zombie_list`), `MetaManager`(← `GameData.meta_upgrades`).
+  값은 이전 하드코딩과 **동일**(회귀 없음, 헤드리스 검증).
+- **남은 데이터 이관(후속 Phase에서):** 무기(`ItemDB` 카탈로그)→`WeaponData`, 패시브→`PassiveData`,
+  진화→`EvolutionData`, 캐릭터→`CharacterData`, 테마→`ThemeData`, 보스 스탯→`BossData`(현재 `ZombieSpawner.BOSS_TYPES`
+  딕셔너리 하드코딩), 도전과제→`AchievementData`. **Phase 2에서 `WeaponData`부터 이어감.**
+
+### ✅ Phase 1 — 시간 기반 난이도 디렉터 + 30분 클리어 *(완료)*
+- **`DifficultyData`(.tres):** 모든 곡선 수치를 데이터로 노출 — `clear_seconds`(1800), 스폰 간격
+  `spawn_interval_base/min/full_at`, 동시수 `max_z_base/cap/full_at`, `hp_per_min`/`speed_per_min`/`speed_cap`,
+  `overtime_hp_per_min`(클리어 후 하드모드), 이벤트 주기 `tier/elite/boss_seconds`.
+- **`ZombieSpawner` 재작성:** 처치 수 기반 → **경과 시간(`_elapsed`) 기반**.
+  - `_tier()`=`_elapsed/tier_seconds`, `_spawn_interval()`/`_max_z()`=시간에 따른 lerp,
+    `_hp_mult()`/`_speed_mult()`=분당 선형(+오버타임 추가 체력).
+  - 보스: `_next_boss_at`(초) 마다 등장·아키타입 순환, 시간 스케일 강화.
+  - 엘리트 팩: `_next_elite_at`(초) 마다 강제 엘리트 스웜(`_trigger_swarm(true)`). 랜덤 스웜은 유지.
+  - **30분 생존 = 클리어:** `run_cleared` 1회 emit + `Events.did_clear` 세팅. 승리 아님 → 이후 오버타임 무한 하드모드.
+- **`Events`:** `run_progress(elapsed, clear)`/`run_cleared` 시그널 + `did_clear` 상태(+reset).
+- **HUD:** 상단 진행바를 **시간 진행바**로 전환(`_on_run_progress`) — 남은 시간 `mm:ss`/`OVERTIME` 표시,
+  오버타임엔 보라색. `run_cleared` 시 클리어 배너(웨이브 배너 재사용). 목표 힌트 = "SURVIVE 30:00 → CLEAR".
+  로케일 `run_cleared` 추가(en/ko/ja).
+- **검증:** 헤드리스 `--import`(파싱 무오류) + `Main.tscn` 런타임(정상) + **타임라인 축소본(clear 8s)**으로
+  보스/엘리트/클리어/오버타임 경로 실행 무오류 확인.
+- **남은 작업(후속):**
+  - 다음 **보스/엘리트까지 남은 시간 예고 UI**(스펙 "다음 이벤트 예고")는 미구현 — 현재는 스웜 임박 배너만 있음.
+  - `BOSS_TYPES` 딕셔너리는 아직 코드 하드코딩 → Phase 5 전후로 `BossData`(.tres) 이관 대상.
+  - 게임오버/클리어 집계에 `did_clear`를 랭킹/보상에 반영하는 로직은 미배선(향후 Phase 5 메타/과제와 함께).
+
+### ▶ 다음: Phase 2 — 무기 12종 (데이터 + 동작 모듈)
+- `WeaponData`(.tres) 정의 + `ItemDB` 카탈로그를 데이터로 이관하며 시작.
+- 서브단계로 3~4종씩 PR 권장(직선 발사체 → 장판/투척 → 근접 원호 → 설치물).
+- 기존 gun/orb/lightning/garlic/holy를 스펙 무기로 재매핑/흡수(열린 결정 #2 확인 필요).
