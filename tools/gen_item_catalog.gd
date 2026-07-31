@@ -26,6 +26,16 @@ func _wm(id: String, disp: String, desc: String, color: Color, params: Array) ->
 	return w
 
 
+## 데이터 구동 광역 무기(화염/장판/지뢰 모듈). params = [fire_interval, proj_damage,
+## dmg_per_level, area_radius, area_duration, spread(콘 반각), knockback]
+func _wa(id: String, disp: String, desc: String, color: Color, module: String, params: Array) -> WeaponData:
+	var w := _w(id, disp, desc, color, 8, false)
+	w.module = module
+	w.fire_interval = params[0]; w.proj_damage = params[1]; w.dmg_per_level = params[2]
+	w.area_radius = params[3]; w.area_duration = params[4]; w.spread = params[5]; w.knockback = params[6]
+	return w
+
+
 func _p(id: String, disp: String, desc: String, color: Color, max_level: int) -> PassiveData:
 	var p := PassiveData.new()
 	p.id = id; p.display = disp; p.desc = desc; p.color = color; p.max_level = max_level
@@ -52,6 +62,10 @@ func _initialize() -> void:
 		_wm("shotgun",    "Shotgun",     "Wide spread + strong knockback", Color(1.00, 0.55, 0.15), [0.85, 5, 0.50, 0, 240.0, 620.0, 1, 1, 0.85]),
 		_wm("machinegun", "Machine Gun", "Very fast, low damage",          Color(0.80, 0.95, 0.25), [0.16, 1, 0.12, 0, 0.0,   760.0, 1, 1, 0.60]),
 		_wm("crossbow",   "Crossbow",    "Piercing high-damage bolt",      Color(0.55, 0.85, 1.00), [0.95, 1, 0.00, 2, 60.0,  900.0, 3, 2, 1.15]),
+		# 광역 무기(Phase 2-C 배치 2) — 화염 콘 / 불바다 장판 / 설치 지뢰.
+		_wa("flamethrower", "Flamethrower", "Cone of continuous fire",        Color(1.00, 0.50, 0.12), "flamethrower", [0.25, 1, 1, 165.0, 0.0,  0.50, 0.0]),
+		_wa("molotov",      "Molotov",      "Throws a lingering fire pool",   Color(1.00, 0.42, 0.10), "molotov",      [2.60, 2, 1, 82.0,  3.2,  0.00, 0.0]),
+		_wa("mine",         "Land Mine",    "Deploys mines that explode",     Color(1.00, 0.45, 0.15), "mine",         [1.90, 4, 2, 72.0,  9.0,  0.00, 210.0]),
 		_w("railgun",      "Railgun",      "Evolved Auto Gun",    C_ATK,   5, true),
 		_w("sawstorm",     "Saw Storm",    "Evolved Orb Shield",  C_ORB,   5, true),
 		_w("thunderstorm", "Thunderstorm", "Evolved Lightning",   C_LIGHT, 5, true),
