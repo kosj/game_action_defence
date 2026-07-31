@@ -14,7 +14,14 @@ const _OrbClass := preload("res://scripts/Orb.gd")
 const _LightningClass := preload("res://scripts/Lightning.gd")
 const _GarlicClass := preload("res://scripts/GarlicAura.gd")
 const _HolyClass := preload("res://scripts/HolyWater.gd")
-const _ProjWeaponClass := preload("res://scripts/ProjectileWeapon.gd")
+# 데이터 구동 무기 모듈: WeaponData.module 문자열 → 모듈 스크립트. 새 모듈 무기는
+# 여기에 한 줄 + 카탈로그(.tres) 항목만 추가하면 Player 가 자동으로 생성/유지한다.
+const _MODULE_CLASSES := {
+	"projectile": preload("res://scripts/ProjectileWeapon.gd"),
+	"flamethrower": preload("res://scripts/Flamethrower.gd"),
+	"molotov": preload("res://scripts/Molotov.gd"),
+	"mine": preload("res://scripts/MineLayer.gd"),
+}
 const _FXBurst  := preload("res://scripts/FXBurst.gd")
 const _WeaponDB := preload("res://scripts/WeaponDB.gd")
 const BASE_BULLET_SPEED := 700.0
@@ -55,7 +62,7 @@ var _orbs: Array = []
 var _lightning: Node2D = null
 var _garlic: Node2D = null
 var _holy: Node2D = null
-var _proj_modules: Dictionary = {}   # weapon_id -> ProjectileWeapon 노드(데이터 구동 발사체 무기)
+var _weapon_modules: Dictionary = {}   # weapon_id -> 모듈 노드(데이터 구동 무기: 발사체/화염/장판/지뢰)
 var current_weapon: Dictionary = _WeaponDB.default_weapon()
 
 # 이동 걷기 애니메이션(절차적, 좀비와 동일 방식) — 이동 거리로 위상이 진행해 좌우 뒤뚱 + 발딛기
@@ -324,7 +331,7 @@ func apply_upgrades() -> void:
 	_update_lightning()
 	_update_singleton_weapon("garlic")
 	_update_singleton_weapon("holy")
-	_update_projectile_modules()
+	_update_weapon_modules()
 
 
 ## 단일 인스턴스 무기(마늘·성수 등) 보유 여부에 맞춰 노드를 생성/해제.
@@ -343,22 +350,25 @@ func _update_singleton_weapon(id: String) -> void:
 		_holy = node
 
 
-## 데이터 구동 발사체 무기(module=="projectile") — 보유한 것만 모듈 노드로 생성/유지.
-## 카탈로그(GameData)를 순회하므로 새 무기를 데이터로 추가하면 코드 수정 없이 동작한다.
-func _update_projectile_modules() -> void:
+## 데이터 구동 무기 모듈(module!="") — 보유한 것만 모듈 노드로 생성/유지.
+## 카탈로그(GameData)를 순회하므로 새 무기를 데이터+모듈맵에 추가하면 여기 코드 수정 없이 동작한다.
+func _update_weapon_modules() -> void:
 	for wd in GameData.weapon_defs:
-		if wd == null or wd.module != "projectile":
+		if wd == null or wd.module == "":
 			continue
 		var owned: bool = int(Events.weapons.get(wd.id, 0)) > 0
-		var node: Node2D = _proj_modules.get(wd.id)
+		var node: Node2D = _weapon_modules.get(wd.id)
 		if owned and node == null:
-			node = _ProjWeaponClass.new()
+			var cls = _MODULE_CLASSES.get(wd.module)
+			if cls == null:
+				continue   # 알 수 없는 모듈 타입 — 조용히 건너뜀(데이터가 앞서갈 때 안전)
+			node = cls.new()
 			add_child(node)
 			node.setup(wd.id)
-			_proj_modules[wd.id] = node
+			_weapon_modules[wd.id] = node
 		elif not owned and node != null:
 			node.queue_free()
-			_proj_modules.erase(wd.id)
+			_weapon_modules.erase(wd.id)
 
 
 func _update_orbs() -> void:

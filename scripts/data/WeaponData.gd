@@ -23,3 +23,6 @@ extends Resource
 @export var proj_damage: int = 1          # 기본 데미지
 @export var dmg_per_level: int = 1        # 레벨당 데미지 증가
 @export var proj_scale: float = 1.0       # 탄 크기 배수
+@export_group("Area Module")
+@export var area_radius: float = 80.0     # 콘 길이(화염방사기) / 장판·폭발 반경
+@export var area_duration: float = 0.0    # 장판 지속(초) / 지뢰 최대 수명
