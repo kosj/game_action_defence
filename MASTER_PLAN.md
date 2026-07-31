@@ -21,7 +21,7 @@
 | B. 캐릭터 차별화 데이터 | ✅ 완료 | **Phase 4** — `CharacterData`(시작무기/시그니처패시브/스탯보정/`trait_key`) + 조건부 트레잇 런타임 로직 |
 | C. 메타 영구 강화 | ✅ 완료 | **Phase 5-A** — 10종(위력·체력·이속·탐욕·성장 + 행운·재생·공속·범위·**부활**). recompute 순서 정정으로 체력/이속 실효화 |
 | C. 해금(캐릭터/무기/테마) | ❌ 없음 | |
-| C. 도전과제 | ❌ 없음 | |
+| C. 도전과제 | ✅ 완료 | **Phase 5-B** — `AchievementData` 10종 + `AchievementManager`(추적·저장·메타골드 보상) + HUD 토스트 + 메뉴 목록 |
 | 무기 진화표(12종, 보물상자 발동) | ✅ 완료 | **Phase 3-B** — 진화 12종, 엘리트/보스 드롭 진화 상자 개봉 시 선택 |
 | **테마 3종(오브젝트/기믹/보스)** | ❌ 없음 | 단일 아레나 |
 | 난이도 뼈대(1분/5분/10분/30분) | ✅ 완료 | **Phase 1** — `tier_seconds`60·`elite_seconds`300·`boss_seconds`600·`clear_seconds`1800 |
@@ -286,8 +286,16 @@ Phase 7 (성능/폴리시)  ← 상시 + 마지막 마감
   - **무료 부활:** 사망 시 `Events.revives_left>0` 이면 광고 없이 `Player._free_revive`(체력 회복 + iframe).
   - 검증: `--import` 무오류, 메타 레벨 강제 프로브(vitality3·swift2·luck2·revive1·power2 → maxhp+7·speed+3·crit+2·dmg+2·revives1),
     무료 부활 프로브(사망 대신 회복·부활 1 소비) 통과, 씬 런타임 무오류.
-- **[남음] 5-B — 도전과제:** `AchievementData` + 추적기(누적 처치/생존 시간/무기별 등) + 진행 저장 + 목록 UI.
+- **[완료] 5-B — 도전과제:**
+  - `AchievementData`(id/display/desc/metric/threshold/reward_gold) + 인덱스 `AchievementDB`, 생성기,
+    `data/achievements.tres`(10종: 누적 처치 100/1k/10k, 보스 5/25, 생존 5/15/30분, 레벨 20/40).
+  - **`AchievementManager`(신규 autoload)** — Events 시그널(zombie_killed/boss_died/elapsed_changed/level_up)로
+    지표 갱신(누적 total_kills·boss_kills / 최고 best_time·best_level), 임계 도달 시 해금 → `MetaManager.reward_gold`
+    보상 + `achievement_unlocked` 알림. 진행/해금을 `user://achievements.save` 에 보존(해금 즉시 저장, 그 외 사망 시 플러시).
+  - **HUD 토스트**(달성 시 화면 상단 🏆 알림) + **메인메뉴 도전과제 목록 오버레이**(진행도/✓ 표시).
+  - 검증: `--import` 무오류, 추적 프로브(100처치·300초·레벨20 → kills_100/survive_5/level_20 해금, 미달 kills_1k 잠금,
+    메타골드 +230=50+80+100), MainMenu 오버레이 빌드 무오류.
 - **[남음] 5-C — 해금:** 캐릭터/무기/(테마) 를 재화 + 도전과제로 게이팅. 잠금 상태 표시 + 해금 처리.
 - **[남음] 수익화 자리:** 2배 보상 광고 접점, 코스메틱 스킨 슬롯(SDK 연동은 이후).
 
-### ▶ 다음: Phase 5-B(도전과제) → 5-C(해금), 이후 Phase 6(테마 3종)·Phase 7(성능/폴리시)
+### ▶ 다음: Phase 5-C(해금), 이후 Phase 6(테마 3종)·Phase 7(성능/폴리시)

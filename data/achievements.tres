@@ -1,0 +1,98 @@
+[gd_resource type="Resource" script_class="AchievementDB" load_steps=13 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/AchievementData.gd" id="1_q8lkf"]
+[ext_resource type="Script" path="res://scripts/data/AchievementDB.gd" id="2_mqu0k"]
+
+[sub_resource type="Resource" id="Resource_vbxwi"]
+script = ExtResource("1_q8lkf")
+id = "kills_100"
+display = "First Blood"
+desc = "Kill 100 zombies (total)"
+metric = "total_kills"
+threshold = 100
+reward_gold = 50
+
+[sub_resource type="Resource" id="Resource_j1oyw"]
+script = ExtResource("1_q8lkf")
+id = "kills_1k"
+display = "Slayer"
+desc = "Kill 1,000 zombies (total)"
+metric = "total_kills"
+threshold = 1000
+reward_gold = 150
+
+[sub_resource type="Resource" id="Resource_dvic6"]
+script = ExtResource("1_q8lkf")
+id = "kills_10k"
+display = "Exterminator"
+desc = "Kill 10,000 zombies (total)"
+metric = "total_kills"
+threshold = 10000
+reward_gold = 500
+
+[sub_resource type="Resource" id="Resource_onplp"]
+script = ExtResource("1_q8lkf")
+id = "boss_5"
+display = "Boss Hunter"
+desc = "Defeat 5 bosses (total)"
+metric = "boss_kills"
+threshold = 5
+reward_gold = 100
+
+[sub_resource type="Resource" id="Resource_gqb67"]
+script = ExtResource("1_q8lkf")
+id = "boss_25"
+display = "Boss Slayer"
+desc = "Defeat 25 bosses (total)"
+metric = "boss_kills"
+threshold = 25
+reward_gold = 300
+
+[sub_resource type="Resource" id="Resource_ht1uj"]
+script = ExtResource("1_q8lkf")
+id = "survive_5"
+display = "Survivor"
+desc = "Survive 5 minutes in one run"
+metric = "best_time"
+threshold = 300
+reward_gold = 80
+
+[sub_resource type="Resource" id="Resource_i1hkw"]
+script = ExtResource("1_q8lkf")
+id = "survive_15"
+display = "Hardened"
+desc = "Survive 15 minutes in one run"
+metric = "best_time"
+threshold = 900
+reward_gold = 200
+
+[sub_resource type="Resource" id="Resource_hq1s1"]
+script = ExtResource("1_q8lkf")
+id = "survive_30"
+display = "Deadline Beaten"
+desc = "Survive 30 minutes (CLEAR)"
+metric = "best_time"
+threshold = 1800
+reward_gold = 500
+
+[sub_resource type="Resource" id="Resource_l3ays"]
+script = ExtResource("1_q8lkf")
+id = "level_20"
+display = "Veteran Blood"
+desc = "Reach level 20 in one run"
+metric = "best_level"
+threshold = 20
+reward_gold = 100
+
+[sub_resource type="Resource" id="Resource_va6jy"]
+script = ExtResource("1_q8lkf")
+id = "level_40"
+display = "Ascended"
+desc = "Reach level 40 in one run"
+metric = "best_level"
+threshold = 40
+reward_gold = 250
+
+[resource]
+script = ExtResource("2_mqu0k")
+achievements = Array[ExtResource("1_q8lkf")]([SubResource("Resource_vbxwi"), SubResource("Resource_j1oyw"), SubResource("Resource_dvic6"), SubResource("Resource_onplp"), SubResource("Resource_gqb67"), SubResource("Resource_ht1uj"), SubResource("Resource_i1hkw"), SubResource("Resource_hq1s1"), SubResource("Resource_l3ays"), SubResource("Resource_va6jy")])
