@@ -69,6 +69,10 @@ func _initialize() -> void:
 		# 근접 원호 무기(Phase 2-C 배치 3) — 못배트(강타 스윙) / 체인소(밀착 그라인더).
 		_wa("spikedbat",  "Spiked Bat", "Wide melee swing + knockback",  Color(0.90, 0.75, 0.35), "melee_arc", [1.00, 3, 2, 118.0, 0.0, 1.15, 270.0]),
 		_wa("chainsaw",   "Chainsaw",   "Point-blank grinder",           Color(0.85, 0.88, 0.95), "chainsaw",  [0.16, 1, 1, 78.0,  0.0, 0.85, 40.0]),
+		# 설치물 무기(Phase 2-C 배치 4) — 터렛(설치 자동사격) / 드론(추종 자동사격) / 테슬라(연쇄 번개).
+		_wa("turret", "Turret", "Deploys auto-firing sentries", Color(0.60, 0.75, 0.95), "turret", [3.00, 2, 1, 300.0, 6.0, 0.0, 0.0]),
+		_wa("drone",  "Drone",  "Orbiting auto-fire drones",    Color(0.40, 0.90, 0.85), "drone",  [0.60, 1, 1, 96.0,  0.0, 0.0, 0.0]),
+		_wa("tesla",  "Tesla Coil", "Chain lightning",          Color(0.60, 0.85, 1.00), "tesla",  [0.90, 3, 2, 300.0, 0.0, 0.0, 0.0]),
 		_w("railgun",      "Railgun",      "Evolved Auto Gun",    C_ATK,   5, true),
 		_w("sawstorm",     "Saw Storm",    "Evolved Orb Shield",  C_ORB,   5, true),
 		_w("thunderstorm", "Thunderstorm", "Evolved Lightning",   C_LIGHT, 5, true),
