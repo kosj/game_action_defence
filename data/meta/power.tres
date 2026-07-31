@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MetaUpgradeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_xw731"]
+
+[resource]
+script = ExtResource("1_xw731")
+id = "power"
+name = "Might"
+desc = "+1 start bullet damage"
+max_level = 10
+base_cost = 100
+cost_mul = 1.6
+effect_kind = "bullet_damage"
+effect_per_level = 1.0

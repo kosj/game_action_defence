@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MetaUpgradeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_lrecr"]
+
+[resource]
+script = ExtResource("1_lrecr")
+id = "greed"
+name = "Greed"
+desc = "+10% gold gain"
+max_level = 8
+base_cost = 120
+cost_mul = 1.7
+effect_kind = "gold_mult"
+effect_per_level = 0.1

@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="MetaUpgradeDB" load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeDB.gd" id="1_sri2i"]
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="2_75p5t"]
+[ext_resource type="Resource" path="res://data/meta/power.tres" id="3_7ayhc"]
+[ext_resource type="Resource" path="res://data/meta/vitality.tres" id="4_bwrdn"]
+[ext_resource type="Resource" path="res://data/meta/swift.tres" id="5_cc003"]
+[ext_resource type="Resource" path="res://data/meta/greed.tres" id="6_di50d"]
+[ext_resource type="Resource" path="res://data/meta/growth.tres" id="7_rased"]
+
+[resource]
+script = ExtResource("1_sri2i")
+upgrades = Array[ExtResource("2_75p5t")]([ExtResource("3_7ayhc"), ExtResource("4_bwrdn"), ExtResource("5_cc003"), ExtResource("6_di50d"), ExtResource("7_rased")])

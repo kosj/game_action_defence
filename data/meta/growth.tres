@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MetaUpgradeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_t6qnj"]
+
+[resource]
+script = ExtResource("1_t6qnj")
+id = "growth"
+name = "Growth"
+desc = "+8% XP gain"
+max_level = 8
+base_cost = 150
+cost_mul = 1.7
+effect_kind = "xp_mult"
+effect_per_level = 0.08

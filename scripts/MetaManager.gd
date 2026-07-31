@@ -6,14 +6,8 @@ extends Node
 
 const SAVE_PATH := "user://meta.save"
 
-## 영구 강화 카탈로그. cost(level) = base_cost * cost_mul^level.
-const UPGRADES: Array = [
-	{"id": "power",    "name": "Might",     "desc": "+1 start bullet damage", "max": 10, "base_cost": 100, "cost_mul": 1.6},
-	{"id": "vitality", "name": "Vitality",  "desc": "+1 start max HP",         "max": 10, "base_cost": 80,  "cost_mul": 1.6},
-	{"id": "swift",    "name": "Swiftness", "desc": "+30 start move speed",    "max": 8,  "base_cost": 80,  "cost_mul": 1.6},
-	{"id": "greed",    "name": "Greed",     "desc": "+10% gold gain",          "max": 8,  "base_cost": 120, "cost_mul": 1.7},
-	{"id": "growth",   "name": "Growth",    "desc": "+8% XP gain",             "max": 8,  "base_cost": 150, "cost_mul": 1.7},
-]
+## 영구 강화 카탈로그는 데이터 에셋(res://data/meta_upgrades.tres, GameData)에서 로드한다.
+## cost(level) = base_cost * cost_mul^level.
 
 var meta_gold: int = 0
 var _levels: Dictionary = {}   # id -> level
@@ -27,22 +21,31 @@ func level(id: String) -> int:
 	return int(_levels.get(id, 0))
 
 
-func _meta(id: String) -> Dictionary:
-	for u in UPGRADES:
-		if u["id"] == id:
+func _meta(id: String) -> MetaUpgradeData:
+	for u in GameData.meta_upgrades:
+		if u.id == id:
 			return u
-	return {}
+	return null
+
+
+## 파워업 패널(MainMenu)용 — 데이터 카탈로그를 dict 배열로 반환(표시 순서 유지).
+func upgrades() -> Array:
+	var out: Array = []
+	for u in GameData.meta_upgrades:
+		out.append({"id": u.id, "name": u.name, "desc": u.desc, "max": u.max_level,
+			"base_cost": u.base_cost, "cost_mul": u.cost_mul})
+	return out
 
 
 ## 다음 레벨 비용. 만렙이면 -1.
 func cost(id: String) -> int:
 	var m := _meta(id)
-	if m.is_empty():
+	if m == null:
 		return -1
 	var lv := level(id)
-	if lv >= int(m["max"]):
+	if lv >= m.max_level:
 		return -1
-	return int(round(float(m["base_cost"]) * pow(float(m["cost_mul"]), lv)))
+	return int(round(float(m.base_cost) * pow(m.cost_mul, float(lv))))
 
 
 func buy(id: String) -> bool:
@@ -63,17 +66,26 @@ func bank(run_gold: int) -> void:
 	_save()
 
 
-## 런 시작 시(Events.reset) 호출 — 골드/경험치 획득 배수를 영구 강화로 설정.
+## 런 시작 시(Events.reset) 호출 — 골드/경험치 획득 배수를 영구 강화로 설정(데이터 기반).
 func apply_run_start() -> void:
-	Events.gold_mult = 1.0 + 0.10 * level("greed")
-	Events.xp_mult = 1.0 + 0.08 * level("growth")
+	Events.gold_mult = 1.0 + _sum_effect("gold_mult")
+	Events.xp_mult = 1.0 + _sum_effect("xp_mult")
 
 
 ## ItemDB.recompute 말미에 호출 — 시작 스탯 보정을 upgrade_* 에 더한다(인벤토리 위에 얹힘).
 func add_bonuses() -> void:
-	Events.upgrade_bullet_damage += level("power")
-	Events.upgrade_max_health += level("vitality")
-	Events.upgrade_speed += level("swift")
+	Events.upgrade_bullet_damage += int(round(_sum_effect("bullet_damage")))
+	Events.upgrade_max_health += int(round(_sum_effect("max_health")))
+	Events.upgrade_speed += int(round(_sum_effect("move_speed")))
+
+
+## 특정 효과종류(effect_kind)의 총 효과량 = Σ(per_level × 현재레벨). 데이터로 정의된 강화만 합산.
+func _sum_effect(kind: String) -> float:
+	var total := 0.0
+	for u in GameData.meta_upgrades:
+		if u.effect_kind == kind:
+			total += u.effect_per_level * float(level(u.id))
+	return total
 
 
 func _load() -> void:
