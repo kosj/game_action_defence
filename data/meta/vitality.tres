@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="MetaUpgradeData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/MetaUpgradeData.gd" id="1_f5tcj"]
+
+[resource]
+script = ExtResource("1_f5tcj")
+id = "vitality"
+name = "Vitality"
+desc = "+1 start max HP"
+max_level = 10
+base_cost = 80
+cost_mul = 1.6
+effect_kind = "max_health"
+effect_per_level = 1.0

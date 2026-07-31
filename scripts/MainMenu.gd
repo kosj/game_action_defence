@@ -346,7 +346,7 @@ func _build_power_panel() -> void:
 	scroll.add_child(list)
 
 	_power_rows.clear()
-	for u in MetaManager.UPGRADES:
+	for u in MetaManager.upgrades():
 		var btn := Button.new()
 		btn.custom_minimum_size = Vector2(400, 62)
 		btn.add_theme_font_size_override("font_size", 18)

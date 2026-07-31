@@ -5,13 +5,26 @@ extends Node
 ## 웹 빌드 호환을 위해 디렉터리 스캔 대신 단일 인덱스 리소스(ZombieDB 등)를 load 한다.
 
 const ZOMBIE_DB_PATH := "res://data/zombies.tres"
+const META_DB_PATH := "res://data/meta_upgrades.tres"
 
 var zombie_list: Array[ZombieData] = []   # 정의 순서 유지(스포너 가중치 인덱스와 정렬)
 var _zombie_by_id: Dictionary = {}
 
+var meta_upgrades: Array[MetaUpgradeData] = []   # 상점 표시 순서
+
 
 func _ready() -> void:
 	_load_zombies()
+	_load_meta()
+
+
+func _load_meta() -> void:
+	if not ResourceLoader.exists(META_DB_PATH):
+		push_warning("GameData: %s 없음 — 메타 강화 데이터 로드 실패" % META_DB_PATH)
+		return
+	var db = load(META_DB_PATH)
+	if db is MetaUpgradeDB:
+		meta_upgrades = db.upgrades
 
 
 func _load_zombies() -> void:
