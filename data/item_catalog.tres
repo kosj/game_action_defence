@@ -1,0 +1,180 @@
+[gd_resource type="Resource" script_class="ItemCatalogDB" load_steps=26 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/EvolutionData.gd" id="1_g71rr"]
+[ext_resource type="Script" path="res://scripts/data/PassiveData.gd" id="2_grdyb"]
+[ext_resource type="Script" path="res://scripts/data/ItemCatalogDB.gd" id="3_cxb41"]
+[ext_resource type="Script" path="res://scripts/data/WeaponData.gd" id="4_1sjg5"]
+
+[sub_resource type="Resource" id="Resource_rhaqn"]
+script = ExtResource("1_g71rr")
+base_id = "gun"
+passive_id = "crit"
+into_id = "railgun"
+
+[sub_resource type="Resource" id="Resource_jke25"]
+script = ExtResource("1_g71rr")
+base_id = "orb"
+passive_id = "swift"
+into_id = "sawstorm"
+
+[sub_resource type="Resource" id="Resource_edunp"]
+script = ExtResource("1_g71rr")
+base_id = "lightning"
+passive_id = "crit"
+into_id = "thunderstorm"
+
+[sub_resource type="Resource" id="Resource_x27sy"]
+script = ExtResource("1_g71rr")
+base_id = "garlic"
+passive_id = "armor"
+into_id = "sanctuary"
+
+[sub_resource type="Resource" id="Resource_3b4my"]
+script = ExtResource("1_g71rr")
+base_id = "holy"
+passive_id = "haste"
+into_id = "crucifix"
+
+[sub_resource type="Resource" id="Resource_5j8vy"]
+script = ExtResource("2_grdyb")
+id = "haste"
+display = "Haste"
+desc = "-15% fire delay / lvl"
+color = Color(1, 0.75, 0.2, 1)
+max_level = 8
+
+[sub_resource type="Resource" id="Resource_qlsjf"]
+script = ExtResource("2_grdyb")
+id = "crit"
+display = "Crit Chance"
+desc = "+8% double damage"
+color = Color(1, 0.75, 0.2, 1)
+max_level = 7
+
+[sub_resource type="Resource" id="Resource_flbwm"]
+script = ExtResource("2_grdyb")
+id = "swift"
+display = "Swift Boots"
+desc = "+30 move speed"
+color = Color(0.72, 0.72, 0.85, 1)
+max_level = 8
+
+[sub_resource type="Resource" id="Resource_778ws"]
+script = ExtResource("2_grdyb")
+id = "armor"
+display = "Armor"
+desc = "+1 max HP (heals)"
+color = Color(0.45, 0.85, 0.5, 1)
+max_level = 8
+
+[sub_resource type="Resource" id="Resource_y3fnw"]
+script = ExtResource("2_grdyb")
+id = "regen"
+display = "Regen"
+desc = "Heal over time"
+color = Color(0.45, 0.85, 0.5, 1)
+max_level = 6
+
+[sub_resource type="Resource" id="Resource_nid6d"]
+script = ExtResource("2_grdyb")
+id = "magnet"
+display = "Magnet"
+desc = "+30% pickup range"
+color = Color(0.72, 0.72, 0.85, 1)
+max_level = 6
+
+[sub_resource type="Resource" id="Resource_yeka7"]
+script = ExtResource("4_1sjg5")
+id = "gun"
+display = "Auto Gun"
+desc = "Damage & extra bullets"
+color = Color(1, 0.75, 0.2, 1)
+max_level = 8
+evolved = false
+
+[sub_resource type="Resource" id="Resource_0b6o7"]
+script = ExtResource("4_1sjg5")
+id = "orb"
+display = "Orb Shield"
+desc = "Orbiting blades"
+color = Color(0.45, 0.82, 1, 1)
+max_level = 8
+evolved = false
+
+[sub_resource type="Resource" id="Resource_jisvw"]
+script = ExtResource("4_1sjg5")
+id = "lightning"
+display = "Lightning"
+desc = "Strikes nearby foes"
+color = Color(0.65, 0.55, 1, 1)
+max_level = 8
+evolved = false
+
+[sub_resource type="Resource" id="Resource_e6tia"]
+script = ExtResource("4_1sjg5")
+id = "garlic"
+display = "Garlic Aura"
+desc = "Damages foes around you"
+color = Color(0.45, 0.82, 1, 1)
+max_level = 8
+evolved = false
+
+[sub_resource type="Resource" id="Resource_qrkwt"]
+script = ExtResource("4_1sjg5")
+id = "holy"
+display = "Holy Water"
+desc = "Blasts random nearby spots"
+color = Color(0.65, 0.55, 1, 1)
+max_level = 8
+evolved = false
+
+[sub_resource type="Resource" id="Resource_0dpha"]
+script = ExtResource("4_1sjg5")
+id = "railgun"
+display = "Railgun"
+desc = "Evolved Auto Gun"
+color = Color(1, 0.75, 0.2, 1)
+max_level = 5
+evolved = true
+
+[sub_resource type="Resource" id="Resource_lvk4r"]
+script = ExtResource("4_1sjg5")
+id = "sawstorm"
+display = "Saw Storm"
+desc = "Evolved Orb Shield"
+color = Color(0.45, 0.82, 1, 1)
+max_level = 5
+evolved = true
+
+[sub_resource type="Resource" id="Resource_25w21"]
+script = ExtResource("4_1sjg5")
+id = "thunderstorm"
+display = "Thunderstorm"
+desc = "Evolved Lightning"
+color = Color(0.65, 0.55, 1, 1)
+max_level = 5
+evolved = true
+
+[sub_resource type="Resource" id="Resource_l76yc"]
+script = ExtResource("4_1sjg5")
+id = "sanctuary"
+display = "Sanctuary"
+desc = "Evolved Garlic Aura"
+color = Color(0.45, 0.82, 1, 1)
+max_level = 5
+evolved = true
+
+[sub_resource type="Resource" id="Resource_yu3j6"]
+script = ExtResource("4_1sjg5")
+id = "crucifix"
+display = "Crucifix"
+desc = "Evolved Holy Water"
+color = Color(0.65, 0.55, 1, 1)
+max_level = 5
+evolved = true
+
+[resource]
+script = ExtResource("3_cxb41")
+weapons = Array[ExtResource("4_1sjg5")]([SubResource("Resource_yeka7"), SubResource("Resource_0b6o7"), SubResource("Resource_jisvw"), SubResource("Resource_e6tia"), SubResource("Resource_qrkwt"), SubResource("Resource_0dpha"), SubResource("Resource_lvk4r"), SubResource("Resource_25w21"), SubResource("Resource_l76yc"), SubResource("Resource_yu3j6")])
+passives = Array[ExtResource("2_grdyb")]([SubResource("Resource_5j8vy"), SubResource("Resource_qlsjf"), SubResource("Resource_flbwm"), SubResource("Resource_778ws"), SubResource("Resource_y3fnw"), SubResource("Resource_nid6d")])
+evolutions = Array[ExtResource("1_g71rr")]([SubResource("Resource_rhaqn"), SubResource("Resource_jke25"), SubResource("Resource_edunp"), SubResource("Resource_x27sy"), SubResource("Resource_3b4my")])
