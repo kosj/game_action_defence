@@ -193,6 +193,31 @@ func _on_boss_spawned(max_health: int) -> void:
 	boss_bar.modulate.a = 0.0
 	var tw := create_tween()
 	tw.tween_property(boss_bar, "modulate:a", 1.0, 0.3)
+	_announce_boss(Events.boss_display_name)
+
+
+## 보스 등장 배너 — 화면 중앙에 이름이 크게 슬라이드 인 했다가 사라진다(등장 연출).
+func _announce_boss(boss_name: String) -> void:
+	var banner := Label.new()
+	banner.text = "☠  %s  ☠" % boss_name
+	banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	banner.offset_top = 210.0
+	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	banner.add_theme_font_size_override("font_size", 40)
+	banner.add_theme_color_override("font_color", Color(1.0, 0.35, 0.30))
+	banner.add_theme_color_override("font_outline_color", Color(0.1, 0, 0, 0.95))
+	banner.add_theme_constant_override("outline_size", 6)
+	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	banner.modulate.a = 0.0
+	banner.scale = Vector2(0.7, 0.7)
+	banner.pivot_offset = Vector2(180, 24)
+	add_child(banner)
+	var tw := create_tween()
+	tw.tween_property(banner, "modulate:a", 1.0, 0.2)
+	tw.parallel().tween_property(banner, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(1.4)
+	tw.tween_property(banner, "modulate:a", 0.0, 0.5)
+	tw.tween_callback(banner.queue_free)
 
 
 func _on_boss_health_changed(health: int, max_health: int) -> void:

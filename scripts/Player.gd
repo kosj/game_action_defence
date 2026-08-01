@@ -42,6 +42,8 @@ const BASE_BULLET_SPEED := 700.0
 const SHAKE_MAX := 13.0
 const SHAKE_DECAY := 34.0
 var _shake: float = 0.0
+var _base_zoom: Vector2 = Vector2.ONE   # 카메라 기본 줌(줌 펀치 복귀 기준)
+var _zoom_tween: Tween = null
 
 var joystick: Node = null
 var health: int
@@ -110,8 +112,21 @@ func _ready() -> void:
 	var _char: CharacterData = CharacterManager.selected()
 	_trait_key = _char.trait_key if _char != null else ""
 	Events.zombie_killed.connect(_on_kill_for_trait)   # 베테랑 전투 회복
+	_base_zoom = camera.zoom
+	Events.boss_spawned.connect(func(_hp): _camera_zoom_punch(0.90, 0.55))   # 보스 등장 — 순간 줌아웃 리빌
 	if SaveManager.pending_continue:
 		_load_saved_state()
+
+
+## 카메라 줌 펀치 — target 배율로 순간 전환 후 기본 줌으로 부드럽게 복귀(등장 연출용).
+func _camera_zoom_punch(target_factor: float, dur: float) -> void:
+	if not is_instance_valid(camera):
+		return
+	if _zoom_tween and _zoom_tween.is_valid():
+		_zoom_tween.kill()
+	camera.zoom = _base_zoom * target_factor
+	_zoom_tween = create_tween()
+	_zoom_tween.tween_property(camera, "zoom", _base_zoom, dur).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## 카메라 흔들림은 렌더 프레임(_process)에서 감쇠·적용해 부드럽게 보이게 한다.
