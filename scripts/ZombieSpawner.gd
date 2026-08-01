@@ -23,10 +23,11 @@ const BOSS_SEQUENCE: Array = ["brute", "gunner", "summoner", "bomber", "berserk"
 ## 테마 전용 보스(Phase 6-C). ThemeData.boss_key → 보스 정의. 기존 아키타입 행동을 재사용(Boss.gd 무변경)해
 ## 프레젠테이션(이름/색/스탯)만 테마화한다. 선택 테마에 boss_key 가 있으면 해당 아레나의 모든 보스로 쓰인다.
 ##   교외=변이 사냥개(광폭 근접), 도심=견인 변이체(폭파형 탱커), 연구소=프라임 변이체(소환형 다단계).
+## sprite: 테마 보스 전용 아트(빈 문자열이면 아키타입 기본 텍스처 사용). 사이드뷰·오른쪽 향함.
 const THEME_BOSSES: Dictionary = {
-	"mutant_dog": {"archetype": "berserk",  "name": "MUTANT HOUND",   "hp_mul": 0.85, "speed_mul": 1.35, "contact": 2, "tint": Color(0.58, 0.40, 0.24), "proj": Color(1, 1, 1)},
-	"wrecker":    {"archetype": "bomber",   "name": "THE WRECKER",    "hp_mul": 1.30, "speed_mul": 0.70, "contact": 3, "tint": Color(0.40, 0.42, 0.48), "proj": Color(1.0, 0.55, 0.15)},
-	"mutation":   {"archetype": "summoner", "name": "PRIME MUTATION", "hp_mul": 1.20, "speed_mul": 0.60, "contact": 2, "tint": Color(0.42, 0.85, 0.35), "proj": Color(0.5, 1.0, 0.6)},
+	"mutant_dog": {"archetype": "berserk",  "name": "MUTANT HOUND",   "hp_mul": 0.85, "speed_mul": 1.35, "contact": 2, "tint": Color(0.58, 0.40, 0.24), "proj": Color(1, 1, 1),          "sprite": "res://assets/sprites/boss_mutant_dog.png"},
+	"wrecker":    {"archetype": "bomber",   "name": "THE WRECKER",    "hp_mul": 1.30, "speed_mul": 0.70, "contact": 3, "tint": Color(0.40, 0.42, 0.48), "proj": Color(1.0, 0.55, 0.15), "sprite": "res://assets/sprites/boss_wrecker.png"},
+	"mutation":   {"archetype": "summoner", "name": "PRIME MUTATION", "hp_mul": 1.20, "speed_mul": 0.60, "contact": 2, "tint": Color(0.42, 0.85, 0.35), "proj": Color(0.5, 1.0, 0.6),   "sprite": "res://assets/sprites/boss_mutation.png"},
 }
 
 ## 서머너 소환 시 전장 과밀 상한.
@@ -292,6 +293,7 @@ func _spawn_boss() -> void:
 		"tint": bt["tint"],
 		"proj_color": bt["proj"],
 		"name": bt["name"],
+		"sprite": bt.get("sprite", ""),   # 테마 보스 전용 아트(없으면 아키타입 기본)
 	}
 	boss.setup(stats)
 
