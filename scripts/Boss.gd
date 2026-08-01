@@ -104,9 +104,18 @@ func setup(stats: Dictionary) -> void:
 	_archetype = stats.get("archetype", "melee")
 	_is_final = stats.get("final", false)
 	# 전용 아트워크 사용 — 타입별 틴트 대신 아키타입 스프라이트를 그대로 노출(피격 잔광은 흰색 복귀).
+	# 테마 보스는 전용 스프라이트(stats.sprite)를 우선 사용하고, 없으면 아키타입 기본 텍스처로 폴백.
 	_base_color = Color(1, 1, 1)
 	if body:
-		body.texture = _BOSS_TEX.get(_archetype, _BOSS_TEX["melee"])
+		var sprite_path: String = stats.get("sprite", "")
+		var tex: Texture2D = null
+		if sprite_path != "" and ResourceLoader.exists(sprite_path):
+			var loaded = load(sprite_path)
+			if loaded is Texture2D:
+				tex = loaded
+		if tex == null:
+			tex = _BOSS_TEX.get(_archetype, _BOSS_TEX["melee"])
+		body.texture = tex
 		_fit_shadow()   # 확대 트윈 전(스케일=씬 값)에 그림자를 발밑 크기로 배치
 	_proj_color = stats.get("proj_color", Color(0.55, 0.8, 1.0))
 	_alive = true
