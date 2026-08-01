@@ -1,16 +1,18 @@
 [gd_resource type="Resource" script_class="CharacterDB" load_steps=6 format=3]
 
-[ext_resource type="Script" path="res://scripts/data/CharacterData.gd" id="1_y4rwl"]
-[ext_resource type="Script" path="res://scripts/data/CharacterDB.gd" id="2_gmkdm"]
+[ext_resource type="Script" path="res://scripts/data/CharacterData.gd" id="1_0yjwo"]
+[ext_resource type="Script" path="res://scripts/data/CharacterDB.gd" id="2_olelw"]
 
-[sub_resource type="Resource" id="Resource_v3jxl"]
-script = ExtResource("1_y4rwl")
+[sub_resource type="Resource" id="Resource_5cidr"]
+script = ExtResource("1_0yjwo")
 id = "veteran"
 display = "Veteran"
 desc = "Melee tank. Starts with a Spiked Bat and heavy armor."
 color = Color(0.85, 0.45, 0.35, 1)
 start_weapon = "spikedbat"
 signature_passive = "armor"
+sprite_path = "res://assets/sprites/player_veteran.png"
+sprite_scale = 0.66
 bonus_max_health = 3
 bonus_bullet_damage = 0
 bonus_move_speed = 1
@@ -22,14 +24,16 @@ trait_key = "veteran"
 unlock_cost = 0
 unlock_achievement = ""
 
-[sub_resource type="Resource" id="Resource_34ssh"]
-script = ExtResource("1_y4rwl")
+[sub_resource type="Resource" id="Resource_133ad"]
+script = ExtResource("1_0yjwo")
 id = "hunter"
 display = "Hunter"
 desc = "Ranged damage. Starts with a Crossbow and a Scope."
 color = Color(0.45, 0.8, 1, 1)
 start_weapon = "crossbow"
 signature_passive = "crit"
+sprite_path = "res://assets/sprites/player_hunter.png"
+sprite_scale = 0.66
 bonus_max_health = 0
 bonus_bullet_damage = 2
 bonus_move_speed = 0
@@ -41,14 +45,16 @@ trait_key = "hunter"
 unlock_cost = 300
 unlock_achievement = ""
 
-[sub_resource type="Resource" id="Resource_h3nwm"]
-script = ExtResource("1_y4rwl")
+[sub_resource type="Resource" id="Resource_qou25"]
+script = ExtResource("1_0yjwo")
 id = "engineer"
 display = "Engineer"
 desc = "Deploy defense. Stronger turrets/drones/mines and more loot."
 color = Color(0.55, 0.9, 0.6, 1)
 start_weapon = "turret"
 signature_passive = "battery"
+sprite_path = "res://assets/sprites/player_engineer.png"
+sprite_scale = 0.66
 bonus_max_health = 0
 bonus_bullet_damage = 0
 bonus_move_speed = 0
@@ -61,5 +67,5 @@ unlock_cost = 0
 unlock_achievement = "boss_5"
 
 [resource]
-script = ExtResource("2_gmkdm")
-characters = Array[ExtResource("1_y4rwl")]([SubResource("Resource_v3jxl"), SubResource("Resource_34ssh"), SubResource("Resource_h3nwm")])
+script = ExtResource("2_olelw")
+characters = Array[ExtResource("1_0yjwo")]([SubResource("Resource_5cidr"), SubResource("Resource_133ad"), SubResource("Resource_qou25")])
