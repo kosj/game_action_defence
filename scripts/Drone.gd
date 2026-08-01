@@ -42,7 +42,7 @@ func _positions() -> Array:
 
 func _fire_all() -> void:
 	var lvl := _level()
-	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1)
+	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1) + Events.upgrade_bullet_damage
 	for local_pos in _positions():
 		var world: Vector2 = global_position + local_pos
 		var target := _nearest_to(world, FIRE_RANGE)

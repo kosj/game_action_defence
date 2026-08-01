@@ -58,7 +58,8 @@ func _fire(lvl: int) -> void:
 	var spread: float = _data.spread
 	if pellets > 1 and spread <= 0.0:
 		spread = _MULTI_SPREAD
-	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1)
+	# 총기 계열은 '화약'(패시브)·'위력'(메타) 데미지 강화 혜택을 받는다(정합성).
+	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1) + Events.upgrade_bullet_damage
 
 	for i in range(pellets):
 		var angle_off := 0.0
