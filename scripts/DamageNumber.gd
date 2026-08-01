@@ -81,9 +81,12 @@ func _draw() -> void:
 	var t := clampf(_t / LIFE, 0.0, 1.0)
 	var a := 1.0 - t * t   # 끝으로 갈수록 빠르게 투명
 	var font := ThemeDB.fallback_font
-	var fsize := 34 if _big else 24
+	# 등장 팝 — 초반 0.12초 동안 크게 튀었다 정상 크기로. 크리티컬(_big)은 더 큰 팝 + 미세 흔들림.
+	var pop := 1.0 + (0.7 if _big else 0.45) * (1.0 - clampf(_t / 0.12, 0.0, 1.0))
+	var fsize := int(round((34 if _big else 24) * pop))
 	var txt := str(_amount)
 	var half_w := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize).x * 0.5
-	var pos := Vector2(-half_w, 0.0)
+	var shake := (sin(_t * 55.0) * 2.2 * (1.0 - t)) if _big else 0.0
+	var pos := Vector2(-half_w + shake, 0.0)
 	draw_string_outline(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, 5, Color(0, 0, 0, a * 0.9))
 	draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, Color(_color.r, _color.g, _color.b, a))

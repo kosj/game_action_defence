@@ -1010,7 +1010,7 @@ func _start_new_game() -> void:
 	SaveManager.pending_continue = false
 	Events.reset()
 	Events.set_high_score(RankingManager.current_best())   # 이번 판 신기록 기준점(단일 모드)
-	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	SceneFade.transition_to("res://scenes/Main.tscn")
 
 
 func _on_continue_pressed() -> void:
@@ -1018,4 +1018,4 @@ func _on_continue_pressed() -> void:
 	if data.is_empty():
 		return
 	SaveManager.apply_to_events(data)
-	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	SceneFade.transition_to("res://scenes/Main.tscn")

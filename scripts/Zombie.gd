@@ -294,7 +294,8 @@ func _die() -> void:
 	Events.zombie_killed.emit()
 	Events.add_score(_score_value)
 	var scene := get_tree().current_scene
-	# 피 스플랫(어두운 적색) + 종류색 파편 — 터질 때 "우수수" 쾌감. FX 는 풀링돼 부하 최소.
+	# 흰 팝 섬광(즉각적 처치 타격감) + 피 스플랫(어두운 적색) + 종류색 파편. FX 는 풀링돼 부하 최소.
+	_FXBurst.spawn(scene, global_position, Color(1.0, 1.0, 0.95), 26.0, 0.16)
 	_FXBurst.spawn(scene, global_position, Color(0.58, 0.05, 0.06), 44.0, 0.32)
 	_FXBurst.spawn(scene, global_position, _type_color, 34.0, 0.30)
 	var g := Pool.acquire(GOLD, get_tree().current_scene)
