@@ -13,6 +13,10 @@ extends Resource
 ## 런 시작 시 Lv1로 보유하는 시그니처 패시브(빈 문자열이면 없음).
 @export var signature_passive: String = ""
 
+## 캐릭터 전용 스프라이트 경로(빈 문자열이면 씬 기본 player.png 사용). 사이드뷰·오른쪽 향함.
+@export var sprite_path: String = ""
+@export var sprite_scale: float = 1.0   # body 스케일(스프라이트 크기 정규화용)
+
 ## 시작 스탯 보정 — recompute 말미에 upgrade_* 에 더해진다(패시브/무기 위에 얹힘).
 @export var bonus_max_health: int = 0
 @export var bonus_bullet_damage: int = 0

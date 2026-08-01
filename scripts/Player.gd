@@ -96,6 +96,7 @@ var _magnet_last_sec: int = -1
 
 func _ready() -> void:
 	add_to_group("player")
+	_apply_character_sprite()        # 선택 캐릭터 전용 스프라이트 적용(기본 스케일 캡처 전에)
 	_body_base_scale = body.scale   # 걷기 스쿼시는 이 기본 스케일을 기준으로 오간다
 	_fit_shadow()
 	_base_move_speed = move_speed
@@ -116,6 +117,21 @@ func _ready() -> void:
 	Events.boss_spawned.connect(func(_hp): _camera_zoom_punch(0.90, 0.55))   # 보스 등장 — 순간 줌아웃 리빌
 	if SaveManager.pending_continue:
 		_load_saved_state()
+
+
+## 선택 캐릭터 전용 스프라이트를 Body 에 적용. 데이터가 없거나 경로가 비면 씬 기본 player.png 유지.
+## sprite_scale(>0)로 스프라이트별 크기 편차를 정규화한다. _body_base_scale 캡처 전에 호출한다.
+func _apply_character_sprite() -> void:
+	var c: CharacterData = CharacterManager.selected()
+	if c == null or c.sprite_path == "":
+		return
+	if not ResourceLoader.exists(c.sprite_path):
+		return
+	var tex = load(c.sprite_path)
+	if tex is Texture2D and body is Sprite2D:
+		body.texture = tex
+		if c.sprite_scale > 0.0:
+			body.scale = Vector2(c.sprite_scale, c.sprite_scale)
 
 
 ## 카메라 줌 펀치 — target 배율로 순간 전환 후 기본 줌으로 부드럽게 복귀(등장 연출용).
