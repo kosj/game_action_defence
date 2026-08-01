@@ -46,11 +46,19 @@ var _theme: Dictionary = {}
 
 func _ready() -> void:
 	_player = get_tree().get_first_node_in_group("player")
-	_theme = THEMES[randi() % THEMES.size()]
+	_theme = _resolve_theme()
 	# Background ColorRect 색을 테마에 맞게 교체
 	var bg := get_parent().get_node_or_null("Background")
 	if bg:
 		bg.color = _theme["bg"]
+
+
+## 선택 테마(ThemeManager/데이터) → 그리기용 dict. 데이터가 없으면 기존 랜덤 테마로 폴백.
+func _resolve_theme() -> Dictionary:
+	var td: ThemeData = ThemeManager.selected()
+	if td != null:
+		return {"name": td.detail_style, "bg": td.bg, "tile_a": td.tile_a, "tile_b": td.tile_b, "mark": td.mark}
+	return THEMES[randi() % THEMES.size()]
 
 
 func _process(_delta: float) -> void:

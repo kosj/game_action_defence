@@ -1,0 +1,53 @@
+[gd_resource type="Resource" script_class="ArenaThemeDB" load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ThemeDB.gd" id="1_hasdl"]
+[ext_resource type="Script" path="res://scripts/data/ThemeData.gd" id="2_a7705"]
+
+[sub_resource type="Resource" id="Resource_dcyiu"]
+script = ExtResource("2_a7705")
+id = "suburb"
+display = "Suburb"
+desc = "Quiet outskirts. The outbreak begins."
+bg = Color(0.1, 0.16, 0.08, 1)
+tile_a = Color(0.13, 0.2, 0.1, 1)
+tile_b = Color(0.16, 0.24, 0.13, 1)
+mark = Color(0.22, 0.31, 0.16, 1)
+detail_style = "grass"
+unlock_cost = 0
+unlock_achievement = ""
+gimmick_key = "gas_can"
+boss_key = "mutant_dog"
+
+[sub_resource type="Resource" id="Resource_6xvj3"]
+script = ExtResource("2_a7705")
+id = "city"
+display = "Downtown"
+desc = "Concrete jungle. Danger everywhere."
+bg = Color(0.09, 0.09, 0.11, 1)
+tile_a = Color(0.18, 0.18, 0.22, 1)
+tile_b = Color(0.23, 0.23, 0.28, 1)
+mark = Color(0.3, 0.3, 0.36, 1)
+detail_style = "stone"
+unlock_cost = 400
+unlock_achievement = ""
+gimmick_key = "falling_debris"
+boss_key = "wrecker"
+
+[sub_resource type="Resource" id="Resource_eiv06"]
+script = ExtResource("2_a7705")
+id = "lab"
+display = "Lab"
+desc = "Where it all started. No way out."
+bg = Color(0.06, 0.1, 0.12, 1)
+tile_a = Color(0.1, 0.17, 0.2, 1)
+tile_b = Color(0.13, 0.22, 0.25, 1)
+mark = Color(0.3, 0.55, 0.55, 1)
+detail_style = "frozen"
+unlock_cost = 0
+unlock_achievement = "survive_15"
+gimmick_key = "toxic_pool"
+boss_key = "mutation"
+
+[resource]
+script = ExtResource("1_hasdl")
+themes = Array[ExtResource("2_a7705")]([SubResource("Resource_dcyiu"), SubResource("Resource_6xvj3"), SubResource("Resource_eiv06")])

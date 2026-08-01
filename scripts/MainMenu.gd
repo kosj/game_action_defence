@@ -53,6 +53,13 @@ var _ach_dim: ColorRect
 var _ach_panel: PanelContainer
 var _ach_rows: Array = []        # [{ "label": Label, "a": AchievementData }]
 
+# ── 테마(아레나) 선택 오버레이 ──
+var _theme_btn: Button
+var _theme_dim: ColorRect
+var _theme_panel: PanelContainer
+var _theme_rows: Array = []      # [{ "btn": Button, "t": ThemeData }]
+var _theme_gold_label: Label
+
 
 func _ready() -> void:
 	get_tree().paused = false   # 게임오버/상점에서 정지된 채 메뉴로 돌아와도 메뉴가 멈추지 않도록
@@ -174,6 +181,13 @@ func _build_ui() -> void:
 	_char_btn.pressed.connect(_on_character_pressed)
 	box.add_child(_char_btn)
 
+	_theme_btn = Button.new()
+	_theme_btn.custom_minimum_size = Vector2(300, 56)
+	_theme_btn.add_theme_font_size_override("font_size", 20)
+	_UIStyle.apply_button_style(_theme_btn, Color(0.14, 0.20, 0.14), Color(0.55, 0.85, 0.55))
+	_theme_btn.pressed.connect(_on_theme_pressed)
+	box.add_child(_theme_btn)
+
 	_ach_btn = Button.new()
 	_ach_btn.text = "Achievements"
 	_ach_btn.custom_minimum_size = Vector2(300, 56)
@@ -218,6 +232,8 @@ func _build_ui() -> void:
 	_build_character_panel()
 	_refresh_char_button()
 	_build_achievement_panel()
+	_build_theme_panel()
+	_refresh_theme_button()
 
 
 ## 옵션 패널(언어 / 사운드 On/Off) — Option 버튼으로 열고 닫는 오버레이.
@@ -647,6 +663,140 @@ func _on_achievements_close() -> void:
 func _on_ach_dim_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
 		_on_achievements_close()
+
+
+# ── 테마(아레나) 선택 오버레이 ────────────────────────────────────────
+func _build_theme_panel() -> void:
+	_theme_dim = ColorRect.new()
+	_theme_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_theme_dim.color = Color(0, 0, 0, 0.6)
+	_theme_dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_theme_dim.visible = false
+	_theme_dim.gui_input.connect(_on_theme_dim_input)
+	add_child(_theme_dim)
+
+	_theme_panel = PanelContainer.new()
+	_theme_panel.anchor_left = 0.5
+	_theme_panel.anchor_right = 0.5
+	_theme_panel.anchor_top = 0.5
+	_theme_panel.anchor_bottom = 0.5
+	_theme_panel.offset_left = -250.0
+	_theme_panel.offset_right = 250.0
+	_theme_panel.offset_top = -280.0
+	_theme_panel.offset_bottom = 280.0
+	_theme_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.12, 0.08, 0.98), Color(0.5, 0.85, 0.5)))
+	_theme_panel.visible = false
+	add_child(_theme_panel)
+
+	var margin := MarginContainer.new()
+	for m in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + m, 22)
+	_theme_panel.add_child(margin)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 12)
+	margin.add_child(vb)
+
+	var title := Label.new()
+	title.text = "CHOOSE ARENA"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(0.7, 1.0, 0.7))
+	vb.add_child(title)
+
+	_theme_gold_label = Label.new()
+	_theme_gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_theme_gold_label.add_theme_font_size_override("font_size", 18)
+	_theme_gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	vb.add_child(_theme_gold_label)
+
+	vb.add_child(HSeparator.new())
+
+	_theme_rows.clear()
+	for t in GameData.themes:
+		var btn := Button.new()
+		btn.custom_minimum_size = Vector2(430, 84)
+		btn.add_theme_font_size_override("font_size", 18)
+		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		btn.pressed.connect(_on_theme_pick.bind(String(t.id)))
+		vb.add_child(btn)
+		_theme_rows.append({"btn": btn, "t": t})
+
+	var close := Button.new()
+	close.text = "Close"
+	close.custom_minimum_size = Vector2(0, 52)
+	close.add_theme_font_size_override("font_size", 22)
+	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
+	close.pressed.connect(_on_theme_close)
+	vb.add_child(close)
+
+
+func _refresh_theme_button() -> void:
+	var t := ThemeManager.selected()
+	_theme_btn.text = "Arena: %s" % (t.display if t != null else "-")
+
+
+func _refresh_theme() -> void:
+	if _theme_gold_label:
+		_theme_gold_label.text = "Gold: %d" % MetaManager.meta_gold
+	var sel := ThemeManager.selected_id()
+	for row in _theme_rows:
+		var t: ThemeData = row["t"]
+		var btn: Button = row["btn"]
+		if ThemeManager.is_unlocked(t):
+			btn.text = "%s%s\n%s" % ["★ " if t.id == sel else "", t.display, t.desc]
+			if t.id == sel:
+				_UIStyle.apply_button_style(btn, Color(t.tile_b.r, t.tile_b.g, t.tile_b.b, 1.0), t.mark)
+			else:
+				_UIStyle.apply_button_style(btn, Color(0.14, 0.16, 0.20), Color(0.35, 0.40, 0.48))
+		else:
+			btn.text = "🔒 %s\n%s" % [t.display, _theme_unlock_hint(t)]
+			_UIStyle.apply_button_style(btn, Color(0.10, 0.10, 0.12), Color(0.30, 0.30, 0.34))
+
+
+func _theme_unlock_hint(t: ThemeData) -> String:
+	if t.unlock_cost > 0:
+		return "Unlock: %d gold  (tap to buy)" % t.unlock_cost
+	if t.unlock_achievement != "":
+		var a: AchievementData = GameData.achievement(t.unlock_achievement)
+		return "Locked — %s" % (a.desc if a != null else "complete an achievement")
+	return "Locked"
+
+
+func _on_theme_pressed() -> void:
+	_refresh_theme()
+	_theme_dim.visible = true
+	_theme_panel.visible = true
+
+
+func _on_theme_close() -> void:
+	_theme_dim.visible = false
+	_theme_panel.visible = false
+
+
+func _on_theme_dim_input(event: InputEvent) -> void:
+	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
+		_on_theme_close()
+
+
+func _on_theme_pick(id: String) -> void:
+	var t: ThemeData = null
+	for row in _theme_rows:
+		if row["t"].id == id:
+			t = row["t"]
+			break
+	if t == null:
+		return
+	if ThemeManager.is_unlocked(t):
+		ThemeManager.select(id)
+		SoundManager.play("gold", 0.03, 1.2)
+	elif t.unlock_cost > 0 and ThemeManager.try_buy(id):
+		ThemeManager.select(id)
+		SoundManager.play("gold", 0.02, 1.0)
+	else:
+		SoundManager.play("player_hurt", 0.2, 1.0)
+	_refresh_theme()
+	_refresh_theme_button()
 
 
 func _refresh_power() -> void:

@@ -10,6 +10,7 @@ const DIFFICULTY_PATH := "res://data/difficulty.tres"
 const ITEM_CATALOG_PATH := "res://data/item_catalog.tres"
 const CHARACTER_DB_PATH := "res://data/character_db.tres"
 const ACHIEVEMENT_DB_PATH := "res://data/achievements.tres"
+const THEME_DB_PATH := "res://data/themes.tres"
 
 var zombie_list: Array[ZombieData] = []   # 정의 순서 유지(스포너 가중치 인덱스와 정렬)
 var _zombie_by_id: Dictionary = {}
@@ -31,6 +32,8 @@ var _character_by_id: Dictionary = {}
 var achievements: Array[AchievementData] = []   # 도전과제 카탈로그(표시 순서)
 var _achievement_by_id: Dictionary = {}
 
+var themes: Array[ThemeData] = []   # 아레나 테마 카탈로그(난이도/표시 순서)
+
 
 func _ready() -> void:
 	_load_zombies()
@@ -39,6 +42,16 @@ func _ready() -> void:
 	_load_items()
 	_load_characters()
 	_load_achievements()
+	_load_themes()
+
+
+func _load_themes() -> void:
+	if not ResourceLoader.exists(THEME_DB_PATH):
+		push_warning("GameData: %s 없음 — 테마 데이터 로드 실패" % THEME_DB_PATH)
+		return
+	var db = load(THEME_DB_PATH)
+	if db is ArenaThemeDB:
+		themes = db.themes
 
 
 func _load_achievements() -> void:
