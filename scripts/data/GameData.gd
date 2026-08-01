@@ -29,6 +29,7 @@ var characters: Array[CharacterData] = []   # 캐릭터 카탈로그(표시/기�
 var _character_by_id: Dictionary = {}
 
 var achievements: Array[AchievementData] = []   # 도전과제 카탈로그(표시 순서)
+var _achievement_by_id: Dictionary = {}
 
 
 func _ready() -> void:
@@ -47,6 +48,13 @@ func _load_achievements() -> void:
 	var db = load(ACHIEVEMENT_DB_PATH)
 	if db is AchievementDB:
 		achievements = db.achievements
+		for a in achievements:
+			if a != null and a.id != "":
+				_achievement_by_id[a.id] = a
+
+
+func achievement(id: String) -> AchievementData:
+	return _achievement_by_id.get(id)
 
 
 func _load_characters() -> void:

@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="CharacterDB" load_steps=6 format=3]
 
-[ext_resource type="Script" path="res://scripts/data/CharacterData.gd" id="1_7vtts"]
-[ext_resource type="Script" path="res://scripts/data/CharacterDB.gd" id="2_ov0sl"]
+[ext_resource type="Script" path="res://scripts/data/CharacterData.gd" id="1_y4rwl"]
+[ext_resource type="Script" path="res://scripts/data/CharacterDB.gd" id="2_gmkdm"]
 
-[sub_resource type="Resource" id="Resource_0otnb"]
-script = ExtResource("1_7vtts")
+[sub_resource type="Resource" id="Resource_v3jxl"]
+script = ExtResource("1_y4rwl")
 id = "veteran"
 display = "Veteran"
 desc = "Melee tank. Starts with a Spiked Bat and heavy armor."
@@ -19,9 +19,11 @@ bonus_area = 0
 bonus_crit = 0
 bonus_greed = 0
 trait_key = "veteran"
+unlock_cost = 0
+unlock_achievement = ""
 
-[sub_resource type="Resource" id="Resource_4jfgh"]
-script = ExtResource("1_7vtts")
+[sub_resource type="Resource" id="Resource_34ssh"]
+script = ExtResource("1_y4rwl")
 id = "hunter"
 display = "Hunter"
 desc = "Ranged damage. Starts with a Crossbow and a Scope."
@@ -36,9 +38,11 @@ bonus_area = 0
 bonus_crit = 2
 bonus_greed = 0
 trait_key = "hunter"
+unlock_cost = 300
+unlock_achievement = ""
 
-[sub_resource type="Resource" id="Resource_1g8bx"]
-script = ExtResource("1_7vtts")
+[sub_resource type="Resource" id="Resource_h3nwm"]
+script = ExtResource("1_y4rwl")
 id = "engineer"
 display = "Engineer"
 desc = "Deploy defense. Stronger turrets/drones/mines and more loot."
@@ -53,7 +57,9 @@ bonus_area = 2
 bonus_crit = 0
 bonus_greed = 3
 trait_key = "engineer"
+unlock_cost = 0
+unlock_achievement = "boss_5"
 
 [resource]
-script = ExtResource("2_ov0sl")
-characters = Array[ExtResource("1_7vtts")]([SubResource("Resource_0otnb"), SubResource("Resource_4jfgh"), SubResource("Resource_1g8bx")])
+script = ExtResource("2_gmkdm")
+characters = Array[ExtResource("1_y4rwl")]([SubResource("Resource_v3jxl"), SubResource("Resource_34ssh"), SubResource("Resource_h3nwm")])
