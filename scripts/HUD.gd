@@ -73,6 +73,11 @@ var _level_label: Label = null
 var _loadout_box: VBoxContainer = null
 var _goal_label: Label = null
 
+# 일시정지 메뉴(게임 중 메인메뉴 나가기)
+var _pause_btn: Button = null
+var _pause_dim: ColorRect = null
+var _pause_panel: PanelContainer = null
+
 
 func _ready() -> void:
 	# 게임오버로 트리를 일시정지해도 HUD(게임오버 패널·버튼·블러)는 계속 동작해야 한다.
@@ -99,6 +104,7 @@ func _ready() -> void:
 	_build_goal_hint()
 	_build_gameover_stats()
 	_build_blur_overlay()
+	_build_pause_menu()
 	UITheme.heading(wave_clear_label)
 	UITheme.heading($GameOverPanel/Margin/VBoxContainer/GameOverLabel)
 	call_deferred("_init_pivots")
@@ -660,6 +666,8 @@ func _on_rewarded_granted(placement: String) -> void:
 	game_over_panel.visible = false
 	_set_blur(false)
 	get_tree().paused = false
+	if _pause_btn:
+		_pause_btn.visible = true   # 부활 → 일시정지 버튼 복귀
 	player.revive()
 
 
@@ -741,6 +749,8 @@ func _build_gameover_stats() -> void:
 
 func _on_player_died() -> void:
 	SaveManager.delete_save()   # 사망 시 진행 실패 — 체크포인트 무효화
+	if _pause_btn:
+		_pause_btn.visible = false   # 게임오버 패널과 겹치지 않도록 일시정지 버튼 숨김
 	# 부활 버튼은 아직 안 썼고 광고가 준비됐을 때만 노출.
 	_revive_btn.visible = not _revive_used and AdManager.is_rewarded_ready()
 	_show_end_panel(false)
@@ -749,6 +759,8 @@ func _on_player_died() -> void:
 ## REAPER 처치 → 승리. 게임오버 패널을 승리용으로 재사용(부활 없음).
 func _on_game_won() -> void:
 	SaveManager.delete_save()   # 런 종료 — 체크포인트 무효화
+	if _pause_btn:
+		_pause_btn.visible = false
 	_revive_btn.visible = false
 	game_over_label.text = "VICTORY!"
 	game_over_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
@@ -800,6 +812,86 @@ func _on_restart_pressed() -> void:
 	Events.reset()
 	Pool.clear()
 	get_tree().reload_current_scene()
+
+
+## 게임 중 일시정지 버튼 + 오버레이(재개 / 메인메뉴). HUD 는 PROCESS_MODE_ALWAYS 라 정지 중에도 동작한다.
+func _build_pause_menu() -> void:
+	_pause_btn = Button.new()
+	_pause_btn.text = "❚❚"
+	_pause_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_pause_btn.offset_left = -56.0
+	_pause_btn.offset_right = -12.0
+	_pause_btn.offset_top = 150.0
+	_pause_btn.offset_bottom = 194.0
+	_pause_btn.add_theme_font_size_override("font_size", 18)
+	_UIStyle.apply_button_style(_pause_btn, Color(0.12, 0.13, 0.18, 0.9), Color(0.5, 0.55, 0.68))
+	_pause_btn.pressed.connect(_on_pause_pressed)
+	add_child(_pause_btn)
+
+	_pause_dim = ColorRect.new()
+	_pause_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_pause_dim.color = Color(0, 0, 0, 0.7)
+	_pause_dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_pause_dim.visible = false
+	add_child(_pause_dim)
+
+	_pause_panel = PanelContainer.new()
+	_pause_panel.set_anchors_preset(Control.PRESET_CENTER)
+	_pause_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.09, 0.13, 0.97), Color(0.5, 0.6, 0.8), 22, 3))
+	_pause_panel.visible = false
+	add_child(_pause_panel)
+
+	var margin := MarginContainer.new()
+	for m in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + m, 26)
+	_pause_panel.add_child(margin)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 14)
+	vb.custom_minimum_size = Vector2(300, 0)
+	margin.add_child(vb)
+
+	var title := Label.new()
+	title.text = "PAUSED"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 34)
+	title.add_theme_color_override("font_color", Color(0.8, 0.85, 1.0))
+	vb.add_child(title)
+	UITheme.heading(title)
+
+	var resume := Button.new()
+	resume.text = Locale.t("pause_resume")
+	resume.custom_minimum_size = Vector2(0, 60)
+	resume.add_theme_font_size_override("font_size", 24)
+	_UIStyle.apply_button_style(resume, Color(0.14, 0.40, 0.20), Color(0.4, 0.85, 0.45))
+	resume.pressed.connect(_on_resume_pressed)
+	vb.add_child(resume)
+
+	var menu := Button.new()
+	menu.text = Locale.t("go_menu")
+	menu.custom_minimum_size = Vector2(0, 56)
+	menu.add_theme_font_size_override("font_size", 22)
+	_UIStyle.apply_button_style(menu, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
+	menu.pressed.connect(_on_main_menu_pressed)
+	vb.add_child(menu)
+
+
+func _on_pause_pressed() -> void:
+	if get_tree().paused:   # 레벨업/상점 등 다른 정지 중이면 무시
+		return
+	get_tree().paused = true
+	_pause_dim.visible = true
+	_pause_panel.visible = true
+	if _pause_btn:
+		_pause_btn.visible = false
+
+
+func _on_resume_pressed() -> void:
+	_pause_dim.visible = false
+	_pause_panel.visible = false
+	if _pause_btn:
+		_pause_btn.visible = true
+	get_tree().paused = false
 
 
 func _on_main_menu_pressed() -> void:

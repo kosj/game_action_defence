@@ -91,6 +91,7 @@ const STRINGS: Dictionary = {
 	"go_wave_kills_fmt": {"en": "Wave %d   Kills %d", "ko": "웨이브 %d   처치 %d", "ja": "ウェーブ %d   撃破 %d"},
 	"go_retry":          {"en": "Retry",     "ko": "다시하기",   "ja": "リトライ"},
 	"go_menu":           {"en": "Main Menu", "ko": "메인 메뉴",  "ja": "メインメニュー"},
+	"pause_resume":      {"en": "Resume", "ko": "계속하기", "ja": "再開"},
 
 	# ── 상점 ──────────────────────────────────────────────────────────────
 	"shop_clear_title":  {"en": "Wave Clear!", "ko": "웨이브 클리어!", "ja": "ウェーブクリア！"},
