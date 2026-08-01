@@ -22,5 +22,9 @@ extends Resource
 @export var bonus_crit: int = 0
 @export var bonus_greed: int = 0    # 인게임 골드/경험치 획득 보정(엔지니어 재화↑ 등)
 
-## 조건부 고유 트레잇 키(Phase 4-B 예약): "veteran"/"hunter"/"engineer" 등.
+## 조건부 고유 트레잇 키(Phase 4-B): "veteran"/"hunter"/"engineer" 등.
 @export var trait_key: String = ""
+
+## 해금 게이팅(Phase 5-C). 둘 다 비어있으면(cost 0 & achievement "") 기본 해금.
+@export var unlock_cost: int = 0            # 메타 골드로 구매 해금(0=구매 게이트 없음)
+@export var unlock_achievement: String = "" # 이 도전과제 달성 시 자동 해금(""=없음)

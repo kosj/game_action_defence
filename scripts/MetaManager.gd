@@ -58,6 +58,15 @@ func buy(id: String) -> bool:
 	return true
 
 
+## 메타 골드 지출(해금 등). 잔액이 부족하면 false.
+func spend_meta(amount: int) -> bool:
+	if amount <= 0 or meta_gold < amount:
+		return false
+	meta_gold -= amount
+	_save()
+	return true
+
+
 ## 도전과제 보상 등으로 메타 골드를 즉시 적립(은행).
 func reward_gold(amount: int) -> void:
 	if amount <= 0:

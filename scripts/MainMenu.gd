@@ -45,6 +45,7 @@ var _char_btn: Button
 var _char_dim: ColorRect
 var _char_panel: PanelContainer
 var _char_rows: Array = []       # [{ "btn": Button, "c": CharacterData }]
+var _char_gold_label: Label
 
 # ── 도전과제 오버레이 ──
 var _ach_btn: Button
@@ -456,6 +457,12 @@ func _build_character_panel() -> void:
 	title.add_theme_color_override("font_color", Color(0.6, 0.9, 1.0))
 	vb.add_child(title)
 
+	_char_gold_label = Label.new()
+	_char_gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_char_gold_label.add_theme_font_size_override("font_size", 18)
+	_char_gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	vb.add_child(_char_gold_label)
+
 	vb.add_child(HSeparator.new())
 
 	_char_rows.clear()
@@ -483,17 +490,49 @@ func _refresh_char_button() -> void:
 	_char_btn.text = "Survivor: %s" % (c.display if c != null else "-")
 
 
-## 오버레이 카드 갱신 — 선택된 캐릭터를 강조.
+## 오버레이 카드 갱신 — 선택/잠금/구매 상태를 반영.
 func _refresh_character() -> void:
+	if _char_gold_label:
+		_char_gold_label.text = "Gold: %d" % MetaManager.meta_gold
 	var sel := CharacterManager.selected_id()
 	for row in _char_rows:
 		var c: CharacterData = row["c"]
 		var btn: Button = row["btn"]
-		btn.text = "%s%s\n%s" % ["★ " if c.id == sel else "", c.display, c.desc]
-		if c.id == sel:
-			_UIStyle.apply_button_style(btn, Color(c.color.r * 0.30, c.color.g * 0.30, c.color.b * 0.30, 1.0), c.color)
+		if CharacterManager.is_unlocked(c):
+			btn.text = "%s%s\n%s" % ["★ " if c.id == sel else "", c.display, c.desc]
+			if c.id == sel:
+				_UIStyle.apply_button_style(btn, Color(c.color.r * 0.30, c.color.g * 0.30, c.color.b * 0.30, 1.0), c.color)
+			else:
+				_UIStyle.apply_button_style(btn, Color(0.14, 0.16, 0.20), Color(0.35, 0.40, 0.48))
 		else:
-			_UIStyle.apply_button_style(btn, Color(0.14, 0.16, 0.20), Color(0.35, 0.40, 0.48))
+			btn.text = "🔒 %s\n%s" % [c.display, _unlock_hint(c)]
+			_UIStyle.apply_button_style(btn, Color(0.10, 0.10, 0.12), Color(0.30, 0.30, 0.34))
+
+
+## 잠긴 캐릭터의 해금 조건 안내 문구.
+func _unlock_hint(c: CharacterData) -> String:
+	if c.unlock_cost > 0:
+		return "Unlock: %d gold  (tap to buy)" % c.unlock_cost
+	if c.unlock_achievement != "":
+		var a: AchievementData = GameData.achievement(c.unlock_achievement)
+		return "Locked — %s" % (a.desc if a != null else "complete an achievement")
+	return "Locked"
+
+
+func _on_char_pick(id: String) -> void:
+	var c: CharacterData = GameData.character(id)
+	if c == null:
+		return
+	if CharacterManager.is_unlocked(c):
+		CharacterManager.select(id)
+		SoundManager.play("gold", 0.03, 1.2)
+	elif c.unlock_cost > 0 and CharacterManager.try_buy(id):
+		CharacterManager.select(id)   # 구매 성공 → 즉시 선택
+		SoundManager.play("gold", 0.02, 1.0)
+	else:
+		SoundManager.play("player_hurt", 0.2, 1.0)   # 해금 불가(골드 부족/도전과제 미달)
+	_refresh_character()
+	_refresh_char_button()
 
 
 func _on_character_pressed() -> void:
@@ -510,13 +549,6 @@ func _on_character_close() -> void:
 func _on_char_dim_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
 		_on_character_close()
-
-
-func _on_char_pick(id: String) -> void:
-	CharacterManager.select(id)
-	SoundManager.play("gold", 0.03, 1.2)
-	_refresh_character()
-	_refresh_char_button()
 
 
 # ── 도전과제 오버레이 ─────────────────────────────────────────────────
