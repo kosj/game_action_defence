@@ -21,6 +21,29 @@ var _bold_cache: Font = null
 func _ready() -> void:
 	# 루트(Window)는 이미 트리에 있으나, 안전하게 다음 프레임에 설치한다.
 	call_deferred("_install")
+	# 전역 버튼 피드백 — 이후 트리에 추가되는 모든 Button 에 눌림 팝(스케일) 을 자동 부여.
+	get_tree().node_added.connect(_hook_button)
+
+
+## 씬 전환 후에도 새로 생성되는 버튼마다 눌림 애니메이션을 연결한다(개별 위젯 수정 불필요).
+func _hook_button(n: Node) -> void:
+	if n is Button:
+		n.button_down.connect(_btn_press.bind(n))
+		n.button_up.connect(_btn_release.bind(n))
+
+
+func _btn_press(b: Button) -> void:
+	if not is_instance_valid(b):
+		return
+	b.pivot_offset = b.size * 0.5   # 중심 기준 스케일
+	b.scale = Vector2(0.94, 0.94)
+
+
+func _btn_release(b: Button) -> void:
+	if not is_instance_valid(b):
+		return
+	var tw := b.create_tween()
+	tw.tween_property(b, "scale", Vector2.ONE, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _install() -> void:

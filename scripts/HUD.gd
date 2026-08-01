@@ -899,4 +899,4 @@ func _on_main_menu_pressed() -> void:
 	MetaManager.bank(Events.total_gold)   # 이번 판 골드를 영구 은행에 적립
 	Events.reset()
 	Pool.clear()
-	get_tree().change_scene_to_file("res://scenes/MainMenu.tscn")
+	SceneFade.transition_to("res://scenes/MainMenu.tscn")
