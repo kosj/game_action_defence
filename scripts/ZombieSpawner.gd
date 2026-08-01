@@ -20,6 +20,15 @@ const BOSS_TYPES: Dictionary = {
 }
 const BOSS_SEQUENCE: Array = ["brute", "gunner", "summoner", "bomber", "berserk"]
 
+## 테마 전용 보스(Phase 6-C). ThemeData.boss_key → 보스 정의. 기존 아키타입 행동을 재사용(Boss.gd 무변경)해
+## 프레젠테이션(이름/색/스탯)만 테마화한다. 선택 테마에 boss_key 가 있으면 해당 아레나의 모든 보스로 쓰인다.
+##   교외=변이 사냥개(광폭 근접), 도심=견인 변이체(폭파형 탱커), 연구소=프라임 변이체(소환형 다단계).
+const THEME_BOSSES: Dictionary = {
+	"mutant_dog": {"archetype": "berserk",  "name": "MUTANT HOUND",   "hp_mul": 0.85, "speed_mul": 1.35, "contact": 2, "tint": Color(0.58, 0.40, 0.24), "proj": Color(1, 1, 1)},
+	"wrecker":    {"archetype": "bomber",   "name": "THE WRECKER",    "hp_mul": 1.30, "speed_mul": 0.70, "contact": 3, "tint": Color(0.40, 0.42, 0.48), "proj": Color(1.0, 0.55, 0.15)},
+	"mutation":   {"archetype": "summoner", "name": "PRIME MUTATION", "hp_mul": 1.20, "speed_mul": 0.60, "contact": 2, "tint": Color(0.42, 0.85, 0.35), "proj": Color(0.5, 1.0, 0.6)},
+}
+
 ## 서머너 소환 시 전장 과밀 상한.
 const SUMMON_ALIVE_CAP: int = 44
 
@@ -249,14 +258,25 @@ func _spawn_swarm() -> void:
 	Events.shake(4.0)
 
 
-## 보스 소환 + 호위 정예 좀비. 경과 시간·회차에 따라 강화, 아키타입은 순환. 승리 조건 없음(엔들리스).
+## 선택 테마의 전용 보스 정의(없으면 빈 dict).
+func _theme_boss() -> Dictionary:
+	var t: ThemeData = ThemeManager.selected()
+	if t != null and THEME_BOSSES.has(t.boss_key):
+		return THEME_BOSSES[t.boss_key]
+	return {}
+
+
+## 보스 소환 + 호위 정예 좀비. 경과 시간·회차에 따라 강화. 테마 보스 우선. 승리 조건 없음(엔들리스).
 func _spawn_boss() -> void:
 	if not is_instance_valid(player):
 		return
 	_boss_alive = true
 	_boss_count += 1
 
-	var bt: Dictionary = BOSS_TYPES[BOSS_SEQUENCE[(_boss_count - 1) % BOSS_SEQUENCE.size()]]
+	# 선택 테마에 전용 보스가 있으면 그 아레나의 보스로 사용, 없으면 기존 아키타입 순환.
+	var bt: Dictionary = _theme_boss()
+	if bt.is_empty():
+		bt = BOSS_TYPES[BOSS_SEQUENCE[(_boss_count - 1) % BOSS_SEQUENCE.size()]]
 	var boss := BOSS.instantiate()
 	get_tree().current_scene.add_child(boss)
 	boss.global_position = _random_spawn_pos()
