@@ -30,7 +30,7 @@ func _physics_process(delta: float) -> void:
 
 func _deploy(lvl: int) -> void:
 	var pos := global_position + Vector2.from_angle(randf() * TAU) * randf_range(PLACE_MIN, PLACE_MAX)
-	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1)
+	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1) + Events.upgrade_bullet_damage
 	var turret := _TurretUnit.new()
 	get_tree().current_scene.add_child(turret)
 	turret.setup(pos, dmg, _data.proj_speed, _data.area_radius * Events.area_mult(), _data.area_duration, _data.color)

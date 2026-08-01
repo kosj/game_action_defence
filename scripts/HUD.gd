@@ -237,6 +237,7 @@ func _on_swarm_incoming(elite: bool) -> void:
 
 ## 도전과제 달성 토스트 — 화면 상단 중앙에 잠깐 떴다 사라진다(코드로 즉석 생성).
 func _on_achievement_unlocked(title: String) -> void:
+	SoundManager.play("gold", 0.0, 1.4)   # 달성 보상 하이톤 차임
 	var toast := Label.new()
 	toast.text = "🏆  %s" % title
 	toast.set_anchors_preset(Control.PRESET_CENTER_TOP)

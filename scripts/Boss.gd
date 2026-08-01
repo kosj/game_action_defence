@@ -438,6 +438,7 @@ func _enter_phase(n: int) -> void:
 	var col := Color(1.0, 0.5, 0.15) if n == 1 else Color(1.0, 0.2, 0.25)
 	_FXBurst.spawn(get_tree().current_scene, global_position, col, 80.0 + 40.0 * n, 0.4)
 	Events.shake(6.0 + 4.0 * n)
+	SoundManager.play("boom", 0.0, 0.7 if n == 1 else 0.55)   # 페이즈 전환 저음 포효(2단계 더 낮게)
 	if n >= 2:
 		# 2단계 광란: 아키타입과 무관하게 호위 파동을 한 번 소환해 압박을 준다.
 		Events.boss_summon.emit(4)
