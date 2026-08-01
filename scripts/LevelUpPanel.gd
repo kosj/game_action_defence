@@ -104,6 +104,7 @@ func _refresh() -> void:
 			return
 		for rule in _evo_rules:
 			_card_box.add_child(_make_evolve_card(rule))
+		_stagger_cards()
 		return
 	_title.text = "LEVEL %d  ·  CHOOSE AN UPGRADE" % Events.level
 	var choices := _draw_choices(3)
@@ -113,6 +114,18 @@ func _refresh() -> void:
 		return
 	for ch in choices:
 		_card_box.add_child(_make_card(ch))
+	_stagger_cards()
+
+
+## 카드 등장 연출 — 위에서부터 순차적으로(stagger) 페이드 인 해 선택지가 착착 깔리는 느낌을 준다.
+func _stagger_cards() -> void:
+	var i := 0
+	for c in _card_box.get_children():
+		c.modulate.a = 0.0
+		var tw := create_tween()
+		tw.tween_interval(0.05 * float(i))
+		tw.tween_property(c, "modulate:a", 1.0, 0.22)
+		i += 1
 
 
 ## 뽑기 후보: 보유 아이템(만렙 미만)은 "레벨업", 미보유 아이템은 슬롯 여유가 있으면 "새 아이템".
