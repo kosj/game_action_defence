@@ -5,6 +5,15 @@ extends Node2D
 
 static var _pool: Array = []
 
+# 동시표시 상한(Phase 7 성능 방어): 대량 난전에서 폭발 FX 가 프레임당 수백 개 생기면 그리기·노드
+# 비용이 폭증한다. 동시 활성 수(_active_count)와 프레임당 신규 수(_spawned_this_frame)를 상한 처리해
+# 초과분은 조용히 생략한다(피해·게임플레이엔 영향 없음, 시각 노이즈만 줄임).
+const MAX_ACTIVE := 48
+const MAX_PER_FRAME := 20
+static var _active_count: int = 0
+static var _frame: int = -1
+static var _spawned_this_frame: int = 0
+
 var color: Color = Color(1.0, 0.7, 0.2)
 var max_radius: float = 32.0
 var duration: float = 0.35
@@ -15,6 +24,15 @@ var _active: bool = false
 
 ## 풀에서 FX 하나를 꺼내(없으면 생성) parent 에 붙이고 즉시 재생. 끝나면 자동으로 풀에 반납.
 static func spawn(parent: Node, pos: Vector2, p_color: Color, p_max_radius: float, p_duration: float, p_delay: float = 0.0) -> void:
+	# 동시표시/프레임당 상한 — 초과분은 생략(프레임 방어).
+	var f := Engine.get_physics_frames()
+	if f != _frame:
+		_frame = f
+		_spawned_this_frame = 0
+	if _active_count >= MAX_ACTIVE or _spawned_this_frame >= MAX_PER_FRAME:
+		return
+	_spawned_this_frame += 1
+	_active_count += 1
 	var fx = _pool.pop_back() if _pool.size() > 0 else (load("res://scripts/FXBurst.gd") as GDScript).new()
 	fx.color = p_color
 	fx.max_radius = p_max_radius
@@ -48,6 +66,7 @@ func _process(delta: float) -> void:
 func _recycle() -> void:
 	_active = false
 	visible = false
+	_active_count = maxi(0, _active_count - 1)
 	if get_parent() != null:
 		get_parent().remove_child(self)
 	_pool.append(self)
@@ -59,6 +78,7 @@ static func clear_pool() -> void:
 		if is_instance_valid(fx):
 			fx.queue_free()
 	_pool.clear()
+	_active_count = 0
 
 
 func _draw() -> void:
