@@ -42,7 +42,8 @@ var _archetype: String = "melee"
 var _base_color: Color = Color(0.55, 0.12, 0.14)
 var _proj_color: Color = Color(0.55, 0.8, 1.0)
 var _pulse: float = 0.0
-var _enraged: bool = false      # HP 50% 이하 격노 진입 여부(1회성 트리거)
+var _enraged: bool = false      # 격노(페이즈≥1) 여부 — 기존 행동 분기 호환용
+var _phase: int = 0             # 다단계: 0=평상 / 1=66% 이하 / 2=33% 이하(추가 격화)
 
 # ── 거너(gunner) 전용 상태 ────────────────────────────────────────────
 const GUNNER_RANGE := 520.0        # 발사 사거리
@@ -110,6 +111,7 @@ func setup(stats: Dictionary) -> void:
 	_proj_color = stats.get("proj_color", Color(0.55, 0.8, 1.0))
 	_alive = true
 	_enraged = false
+	_phase = 0
 	_fire_cd = GUNNER_COOLDOWN * 0.6   # 등장 직후 즉시 난사 방지
 	_telegraph_t = 0.0
 	_summon_cd = SUMMON_COOLDOWN * 0.5
@@ -211,7 +213,7 @@ func _behave_gunner(delta: float, player: Node2D) -> void:
 		if _fire_cd <= 0.0 and dist <= GUNNER_RANGE:
 			_aim_dir = dir
 			_telegraph_t = GUNNER_TELEGRAPH
-			_fire_cd = GUNNER_COOLDOWN * (0.6 if _enraged else 1.0)
+			_fire_cd = GUNNER_COOLDOWN * _cd_mult()
 
 
 ## 조준 방향 기준 스프레드 발사. 평상시 3발(±14°), 격노 시 방사형 9발.
@@ -220,7 +222,7 @@ func _fire_volley() -> void:
 		return
 	SoundManager.play("zombie_hit")
 	if _enraged:
-		var n := 9
+		var n := 9 if _phase < 2 else 13   # 2단계 광란: 더 촘촘한 방사형 탄막
 		for i in range(n):
 			_fire_bullet(Vector2.from_angle(_aim_dir.angle() + TAU * i / n))
 	else:
@@ -262,7 +264,7 @@ func _behave_summoner(delta: float, player: Node2D) -> void:
 		_summon_cd -= delta
 		if _summon_cd <= 0.0:
 			_summon_tel = SUMMON_TELEGRAPH
-			_summon_cd = SUMMON_COOLDOWN * (0.6 if _enraged else 1.0)
+			_summon_cd = SUMMON_COOLDOWN * _cd_mult()
 
 
 func _do_summon() -> void:
@@ -271,7 +273,7 @@ func _do_summon() -> void:
 	SoundManager.play("zombie_hit")
 	_FXBurst.spawn(get_tree().current_scene, global_position, Color(0.4, 1.0, 0.5), 70.0, 0.35)
 	# 소환은 스포너가 처리(살아있는 좀비 카운터·과밀 상한 일관성 유지).
-	Events.boss_summon.emit(SUMMON_COUNT + (2 if _enraged else 0))
+	Events.boss_summon.emit(SUMMON_COUNT + _extra_count())
 
 
 ## 포격형(바머) — 멀리서 거리를 유지하며, 플레이어 주변에 지연 폭발 탄을 투하.
@@ -291,7 +293,7 @@ func _behave_bomber(delta: float, player: Node2D) -> void:
 
 	_bomb_cd -= delta
 	if _bomb_cd <= 0.0:
-		_bomb_cd = BOMB_COOLDOWN * (0.6 if _enraged else 1.0)
+		_bomb_cd = BOMB_COOLDOWN * _cd_mult()
 		_fire_barrage(player)
 
 
@@ -301,7 +303,7 @@ func _fire_barrage(player: Node2D) -> void:
 		return
 	SoundManager.play("zombie_hit")
 	var scene := get_tree().current_scene
-	var shells := BOMB_SHELLS + (2 if _enraged else 0)
+	var shells := BOMB_SHELLS + _extra_count()
 	for i in range(shells):
 		var target := player.global_position
 		if i > 0:
@@ -331,7 +333,7 @@ func _behave_berserk(delta: float, player: Node2D) -> void:
 				_bstate = "dash"; _bt = 0.0
 				_face(_aim_dir)
 		"dash":
-			velocity = _aim_dir * (BERSERK_DASH_SPEED * (1.15 if _enraged else 1.0))
+			velocity = _aim_dir * (BERSERK_DASH_SPEED * (1.3 if _phase >= 2 else (1.15 if _enraged else 1.0)))
 			move_and_slide()
 			if _bt >= BERSERK_DASH_TIME:
 				_bstate = "recover"; _bt = 0.0
@@ -360,8 +362,10 @@ func _draw() -> void:
 
 	# 맥동하는 오라 링 — 보스 외곽을 감싸도록 스프라이트 크기에 맞춘다.
 	var aura := Color(0.95, 0.25, 0.2, 0.5)
-	if _enraged:
-		aura = Color(1.0, 0.5, 0.1, 0.6)   # 격노 시 더 강렬한 오라
+	if _phase >= 2:
+		aura = Color(1.0, 0.15, 0.25, 0.7)   # 2단계 광란 — 핏빛 오라
+	elif _enraged:
+		aura = Color(1.0, 0.5, 0.1, 0.6)     # 1단계 격노 — 주황 오라
 	var r := half_h * 0.98 + sin(_pulse * 4.0) * 4.0
 	draw_arc(Vector2.ZERO, r, 0.0, TAU, 48, aura, 3.0, true)
 
@@ -415,17 +419,38 @@ func take_damage(amount: int, is_crit: bool = false) -> void:
 	body.modulate = Color(1, 1, 1)
 	var tw := create_tween()
 	tw.tween_property(body, "modulate", _base_color, 0.12)
-	# 페이즈 전환: 체력 50% 이하로 처음 내려가면 격노(공격 격화 + 오라 강화 + 섬광).
-	if not _enraged and health > 0 and float(health) / float(max_health) <= 0.5:
-		_enter_enrage()
+	# 다단계 전환: 체력 비율이 66%/33% 아래로 처음 내려갈 때마다 한 단계씩 격화한다.
+	if health > 0:
+		var ratio := float(health) / float(max_health)
+		if _phase < 2 and ratio <= 0.33:
+			_enter_phase(2)
+		elif _phase < 1 and ratio <= 0.66:
+			_enter_phase(1)
 	if health <= 0:
 		_die()
 
 
-func _enter_enrage() -> void:
+## 페이즈 진입(1=격노, 2=광란). 공격 격화(_cd_mult/_extra_count) + 섬광, 2단계는 즉시 소환 파동 + 강한 흔들림.
+func _enter_phase(n: int) -> void:
+	_phase = n
 	_enraged = true
-	_fire_cd = minf(_fire_cd, 0.4)   # 격노 진입 직후 빠르게 반격
-	_FXBurst.spawn(get_tree().current_scene, global_position, Color(1.0, 0.5, 0.15), 80.0, 0.35)
+	_fire_cd = minf(_fire_cd, 0.35)   # 전환 직후 빠르게 반격
+	var col := Color(1.0, 0.5, 0.15) if n == 1 else Color(1.0, 0.2, 0.25)
+	_FXBurst.spawn(get_tree().current_scene, global_position, col, 80.0 + 40.0 * n, 0.4)
+	Events.shake(6.0 + 4.0 * n)
+	if n >= 2:
+		# 2단계 광란: 아키타입과 무관하게 호위 파동을 한 번 소환해 압박을 준다.
+		Events.boss_summon.emit(4)
+
+
+## 페이즈별 쿨다운 배수(작을수록 빠름): 평상 1.0 / 1단계 0.6 / 2단계 0.45.
+func _cd_mult() -> float:
+	return 1.0 if _phase == 0 else (0.6 if _phase == 1 else 0.45)
+
+
+## 페이즈별 추가 발사/소환 수: 평상 0 / 1단계 +2 / 2단계 +4.
+func _extra_count() -> int:
+	return 0 if _phase == 0 else (2 if _phase == 1 else 4)
 
 
 func _die() -> void:
