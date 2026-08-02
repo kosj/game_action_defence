@@ -77,12 +77,14 @@
 - [ ] 아키타입 5종(brute/gunner/summoner/bomber/berserk): 현재 4종 텍스처 재사용(bomber=gunner 아트).
   - 이상적(선택): 각 보스 idle + 격노(2단계) 컬러/포즈 변형.
 
-### B-4. 무기 / 발사체 아이콘 🟡 진행중 (총기 계열 8/28 완료)
+### B-4. 무기 / 발사체 아이콘 🟡 진행중 (18/28 완료)
 - 배선 완료: `WeaponData.icon` → 레벨업 카드(`LevelUpPanel`) + 로드아웃(`HUD`)에 표시, 없으면 색상 폴백.
   파일 규칙 `assets/ui/icons/weapon_<id>.png` → `gen_item_catalog` 이 자동 연결.
 - [x] **총기 계열 8종**: gun/railgun · machinegun/gatling · shotgun/dragonsbreath · crossbow/ballista
-- [ ] 나머지 기본 무기: orb·lightning·garlic·holy·flamethrower·molotov·mine·spikedbat·chainsaw·turret·drone·tesla
-- [ ] 나머지 진화 무기: sawstorm·thunderstorm·sanctuary·crucifix·inferno·napalm·claymore·stormcoil
+- [x] **화염 계열 4종**: flamethrower/inferno · molotov/napalm
+- [x] **전기·회전 계열 6종**: lightning/thunderstorm · tesla/stormcoil · orb/sawstorm
+- [ ] 나머지 기본 무기: garlic·holy·mine·spikedbat·chainsaw·turret·drone
+- [ ] 나머지 진화 무기: sanctuary·crucifix·claymore
 - 발사체(화살/볼트·산탄·불꽃·톱날)는 선택 — 현재 드로잉으로 충분.
 
 ### B-5. 패시브 아이콘 (10종) 🟡
