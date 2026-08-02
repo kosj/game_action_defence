@@ -87,8 +87,9 @@
 - [x] **설치·근접 6종**: mine/claymore · spikedbat · chainsaw · turret · drone
 - 발사체(화살/볼트·산탄·불꽃·톱날)는 선택 — 현재 드로잉으로 충분.
 
-### B-5. 패시브 아이콘 (10종) 🟡
-- 방탄조끼·운동화·에너지드링크·조준경·자석·응급키트·탄약벨트·화약·배터리·토끼발 (48×48 정도).
+### B-5. 패시브 아이콘 ✅ 완료 (10/10)
+- 배선 완료: `PassiveData.icon` → `ItemDB._p_dict` → 레벨업 카드/로드아웃(무기와 동일 경로). 파일 `assets/ui/icons/passive_<id>.png` 자동 연결.
+- [x] armor·swift·haste·crit·magnet·regen·ammo_belt·gunpowder·battery·rabbits_foot (10종)
 
 ### B-6. 픽업 / 오브젝트 🟡
 - 경험치 젬, 골드 코인, **보물상자·진화 상자(보라)**, 폭탄 — (현재 드로잉).
@@ -107,7 +108,7 @@
 
 ### 최소 필수(가성비 우선)
 1. [x] **캐릭터 3종 구분 스프라이트** — 완료(veteran/hunter/engineer).
-2. [~] **무기·패시브 아이콘 세트** (UI 완성도 직결) — 무기 28/28 ✅ 완료, 패시브 10종 🔴 남음(`ICON_PROMPTS.md`).
+2. [x] **무기·패시브 아이콘 세트** (UI 완성도 직결) — 무기 28/28 ✅ + 패시브 10/10 ✅ 완료.
 3. [x] **테마 보스 3종 스프라이트** — 완료(mutant_dog/wrecker/mutation).
 4. [ ] **좀비 11종 구분 스프라이트** — 🔴 미착수(현재 절차적/기존 텍스처).
 
