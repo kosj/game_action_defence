@@ -14,11 +14,11 @@ const MAX_PASSIVE_SLOTS := 6
 ## dict {id,name,desc,color,max,evolved} 로 어댑팅해 제공한다(형태 유지, 회귀 없음).
 
 static func _w_dict(w: WeaponData) -> Dictionary:
-	return {"id": w.id, "name": w.display, "desc": w.desc, "color": w.color, "max": w.max_level, "evolved": w.evolved}
+	return {"id": w.id, "name": w.display, "desc": w.desc, "color": w.color, "max": w.max_level, "evolved": w.evolved, "icon": w.icon}
 
 
 static func _p_dict(p: PassiveData) -> Dictionary:
-	return {"id": p.id, "name": p.display, "desc": p.desc, "color": p.color, "max": p.max_level, "evolved": false}
+	return {"id": p.id, "name": p.display, "desc": p.desc, "color": p.color, "max": p.max_level, "evolved": false, "icon": null}
 
 
 ## 무기 카탈로그(dict 배열). gun 은 시작 시 보유(Lv1). evolved=true 는 진화로만 획득.

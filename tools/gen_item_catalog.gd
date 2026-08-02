@@ -127,6 +127,13 @@ func _initialize() -> void:
 		_e("tesla",      "haste",     "stormcoil"),
 	]
 
+	# 무기 아이콘 배선 — assets/ui/icons/weapon_<id>.png 가 있으면 해당 무기에 연결.
+	# (없는 무기는 icon=null → UI 가 기존 색상 카드로 폴백.) 지금은 총기 계열 8종 적용됨.
+	for w in db.weapons:
+		var icon_path := "res://assets/ui/icons/weapon_%s.png" % w.id
+		if ResourceLoader.exists(icon_path):
+			w.icon = load(icon_path)
+
 	var err := ResourceSaver.save(db, "res://data/item_catalog.tres")
 	print("gen_item_catalog: saved item_catalog.tres err=%d (w=%d p=%d e=%d)" % [err, db.weapons.size(), db.passives.size(), db.evolutions.size()])
 	quit()
