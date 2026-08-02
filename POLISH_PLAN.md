@@ -87,8 +87,10 @@
 - [x] **설치·근접 6종**: mine/claymore · spikedbat · chainsaw · turret · drone
 - 발사체(화살/볼트·산탄·불꽃·톱날)는 선택 — 현재 드로잉으로 충분.
 
-### B-5. 패시브 아이콘 (10종) 🟡
-- 방탄조끼·운동화·에너지드링크·조준경·자석·응급키트·탄약벨트·화약·배터리·토끼발 (48×48 정도).
+### B-5. 패시브 아이콘 🟡 진행중 (9/10 완료)
+- 배선 완료: `PassiveData.icon` → `ItemDB._p_dict` → 레벨업 카드/로드아웃(무기와 동일 경로). 파일 `assets/ui/icons/passive_<id>.png` 자동 연결.
+- [x] armor·swift·haste·crit·magnet·regen·gunpowder·battery·rabbits_foot (9종)
+- [ ] ammo_belt (미업로드 — 파일만 올리면 자동 연결)
 
 ### B-6. 픽업 / 오브젝트 🟡
 - 경험치 젬, 골드 코인, **보물상자·진화 상자(보라)**, 폭탄 — (현재 드로잉).

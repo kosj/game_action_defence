@@ -18,7 +18,7 @@ static func _w_dict(w: WeaponData) -> Dictionary:
 
 
 static func _p_dict(p: PassiveData) -> Dictionary:
-	return {"id": p.id, "name": p.display, "desc": p.desc, "color": p.color, "max": p.max_level, "evolved": false, "icon": null}
+	return {"id": p.id, "name": p.display, "desc": p.desc, "color": p.color, "max": p.max_level, "evolved": false, "icon": p.icon}
 
 
 ## 무기 카탈로그(dict 배열). gun 은 시작 시 보유(Lv1). evolved=true 는 진화로만 획득.

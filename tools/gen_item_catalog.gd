@@ -133,6 +133,11 @@ func _initialize() -> void:
 		var icon_path := "res://assets/ui/icons/weapon_%s.png" % w.id
 		if ResourceLoader.exists(icon_path):
 			w.icon = load(icon_path)
+	# 패시브 아이콘 배선 — assets/ui/icons/passive_<id>.png 가 있으면 연결(없으면 색상 폴백).
+	for p in db.passives:
+		var picon := "res://assets/ui/icons/passive_%s.png" % p.id
+		if ResourceLoader.exists(picon):
+			p.icon = load(picon)
 
 	var err := ResourceSaver.save(db, "res://data/item_catalog.tres")
 	print("gen_item_catalog: saved item_catalog.tres err=%d (w=%d p=%d e=%d)" % [err, db.weapons.size(), db.passives.size(), db.evolutions.size()])
