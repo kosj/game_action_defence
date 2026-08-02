@@ -41,7 +41,7 @@ func on_spawn() -> void:
 	_pull_vel = Vector2.ZERO
 	value = 1                     # 풀 재사용 대비 기본값 리셋(등급 젬은 set_value 로 덮어씀)
 	body.scale = COLLECT_SCALE   # 수집 애니메이션 후 리셋
-	body.modulate = Color(0.5, 1.0, 0.55)   # 경험치 젬 — 초록
+	body.modulate = Color(1, 1, 1)   # 경험치 젬 — 파란 다이아(원색). 등급은 set_value 로 틴트.
 	if player == null or not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
 
@@ -50,11 +50,11 @@ func on_spawn() -> void:
 func set_value(v: int) -> void:
 	value = maxi(1, v)
 	if value >= 4:
-		body.modulate = Color(0.7, 1.0, 0.9)    # 밝은 청록 — 대형 경험치 젬
+		body.modulate = Color(1.5, 1.35, 0.85)  # 황금빛 프리미엄 — 대형 경험치 젬
 	elif value >= 2:
-		body.modulate = Color(0.45, 1.0, 0.8)   # 청록 — 중형 젬
+		body.modulate = Color(1.2, 1.25, 1.4)   # 밝은 청백 — 중형 젬
 	else:
-		body.modulate = Color(0.5, 1.0, 0.55)   # 초록 — 기본 젬
+		body.modulate = Color(1, 1, 1)          # 파란 다이아 원색 — 기본 젬
 
 
 ## 한 지점에서 바깥으로 톡 튀어 흩어지는 분출 연출(보스 처치 동전 분수). 연출 동안에는

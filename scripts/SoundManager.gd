@@ -84,6 +84,29 @@ func _ready() -> void:
 	Events.player_died.connect(_duck_music.bind(true))
 	Events.player_revived.connect(_duck_music.bind(false))
 
+	_setup_web_visibility()
+
+
+# 웹(브라우저)에서는 탭을 백그라운드로 보내도 NOTIFICATION_APPLICATION_FOCUS_OUT 이 확실히
+# 오지 않아 BGM 이 계속 재생된다. Page Visibility API(document.visibilitychange)를 직접 걸어
+# 탭이 숨겨지면 마스터 버스를 음소거하고, 돌아오면 해제한다(모바일/데스크톱은 _notification 이 처리).
+var _visibility_cb: JavaScriptObject = null   # 콜백 GC 방지용 참조 유지
+func _setup_web_visibility() -> void:
+	if not OS.has_feature("web"):
+		return
+	var document := JavaScriptBridge.get_interface("document")
+	if document == null:
+		return
+	_visibility_cb = JavaScriptBridge.create_callback(_on_web_visibility_change)
+	document.addEventListener("visibilitychange", _visibility_cb)
+
+
+func _on_web_visibility_change(_args: Array) -> void:
+	var document := JavaScriptBridge.get_interface("document")
+	if document == null:
+		return
+	AudioServer.set_bus_mute(0, bool(document.hidden))
+
 
 func _on_music_finished() -> void:
 	if not muted and _music_current != "":
