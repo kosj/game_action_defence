@@ -581,6 +581,18 @@ func _add_loadout_lines(inv: Dictionary) -> void:
 		var m := ItemDB.meta(String(id))
 		if m.is_empty():
 			continue
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var icon = m.get("icon")
+		if icon != null and icon is Texture2D:
+			var tex := TextureRect.new()
+			tex.texture = icon
+			tex.custom_minimum_size = Vector2(18, 18)
+			tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			row.add_child(tex)
 		var lbl := Label.new()
 		lbl.text = "%s  %d" % [m["name"], lv]
 		lbl.add_theme_font_size_override("font_size", 14)
@@ -588,7 +600,8 @@ func _add_loadout_lines(inv: Dictionary) -> void:
 		lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 		lbl.add_theme_constant_override("outline_size", 4)
 		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_loadout_box.add_child(lbl)
+		row.add_child(lbl)
+		_loadout_box.add_child(row)
 
 
 ## 목표 힌트 — 화면 하단에 "최종 웨이브까지 생존" 안내(목표 명확화).

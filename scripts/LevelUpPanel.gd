@@ -172,6 +172,7 @@ func _make_item_card(a: Dictionary) -> Button:
 	btn.text = "%s  (%s)\n%s" % [item["name"], tag, item["desc"]]
 	var col: Color = item["color"]
 	_UIStyle.apply_button_style(btn, Color(col.r * 0.28, col.g * 0.28, col.b * 0.28, 1.0), col)
+	_set_card_icon(btn, item.get("icon"))
 	btn.pressed.connect(_on_pick.bind(String(item["id"])))
 	return btn
 
@@ -183,8 +184,19 @@ func _make_evolve_card(rule: Dictionary) -> Button:
 	var gold := Color(1.0, 0.82, 0.28)
 	_UIStyle.apply_button_style(btn, Color(0.34, 0.26, 0.06, 1.0), gold)
 	btn.add_theme_color_override("font_color", gold)
+	_set_card_icon(btn, into.get("icon"))
 	btn.pressed.connect(_on_evolve.bind(String(rule["base"]), String(rule["into"])))
 	return btn
+
+
+## 카드 버튼에 무기 아이콘을 왼쪽 정렬로 붙인다(아이콘 없으면 기존 색상 카드 그대로).
+func _set_card_icon(btn: Button, icon) -> void:
+	if icon == null or not (icon is Texture2D):
+		return
+	btn.icon = icon
+	btn.expand_icon = true
+	btn.add_theme_constant_override("icon_max_width", 52)
+	btn.add_theme_constant_override("h_separation", 12)
 
 
 func _new_card_button() -> Button:

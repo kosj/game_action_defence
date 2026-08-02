@@ -9,6 +9,7 @@ extends Resource
 @export var color: Color = Color.WHITE    # 카드 테마색
 @export var max_level: int = 8            # 최대 강화 레벨
 @export var evolved: bool = false         # 진화 무기(카드로 안 뜸, 진화로만 획득)
+@export var icon: Texture2D               # 레벨업 카드·로드아웃 아이콘(없으면 색상 폴백)
 
 ## 동작 모듈. ""=기존 코드가 처리(gun/orb/lightning/garlic/holy).
 ## "projectile"=ProjectileWeapon 모듈이 아래 파라미터로 자동 조준 발사.

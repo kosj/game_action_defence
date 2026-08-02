@@ -77,11 +77,13 @@
 - [ ] 아키타입 5종(brute/gunner/summoner/bomber/berserk): 현재 4종 텍스처 재사용(bomber=gunner 아트).
   - 이상적(선택): 각 보스 idle + 격노(2단계) 컬러/포즈 변형.
 
-### B-4. 무기 / 발사체 아이콘 🔴
-- **무기 아이콘 12종**(로드아웃·레벨업 카드·상점용, 64×64 정도):
-  리볼버/기관총·산탄총·석궁·화염방사기·화염병·지뢰·못배트·체인소·터렛·드론·테슬라 (+ 오브·마늘·성수·번개).
-- **진화 무기 아이콘 12종**(강조 버전).
-- 발사체: 화살/볼트, 산탄, 불꽃, 톱날 — (현재 드로잉이나 스프라이트면 선명도↑).
+### B-4. 무기 / 발사체 아이콘 🟡 진행중 (총기 계열 8/28 완료)
+- 배선 완료: `WeaponData.icon` → 레벨업 카드(`LevelUpPanel`) + 로드아웃(`HUD`)에 표시, 없으면 색상 폴백.
+  파일 규칙 `assets/ui/icons/weapon_<id>.png` → `gen_item_catalog` 이 자동 연결.
+- [x] **총기 계열 8종**: gun/railgun · machinegun/gatling · shotgun/dragonsbreath · crossbow/ballista
+- [ ] 나머지 기본 무기: orb·lightning·garlic·holy·flamethrower·molotov·mine·spikedbat·chainsaw·turret·drone·tesla
+- [ ] 나머지 진화 무기: sawstorm·thunderstorm·sanctuary·crucifix·inferno·napalm·claymore·stormcoil
+- 발사체(화살/볼트·산탄·불꽃·톱날)는 선택 — 현재 드로잉으로 충분.
 
 ### B-5. 패시브 아이콘 (10종) 🟡
 - 방탄조끼·운동화·에너지드링크·조준경·자석·응급키트·탄약벨트·화약·배터리·토끼발 (48×48 정도).
@@ -103,7 +105,7 @@
 
 ### 최소 필수(가성비 우선)
 1. [x] **캐릭터 3종 구분 스프라이트** — 완료(veteran/hunter/engineer).
-2. [ ] **무기·패시브 아이콘 세트** (UI 완성도 직결) — 🔴 미착수(프롬프트는 `ICON_PROMPTS.md` 준비됨).
+2. [~] **무기·패시브 아이콘 세트** (UI 완성도 직결) — 🟡 진행중(총기 8종 완료·배선 완료, 나머지 무기/패시브 남음).
 3. [x] **테마 보스 3종 스프라이트** — 완료(mutant_dog/wrecker/mutation).
 4. [ ] **좀비 11종 구분 스프라이트** — 🔴 미착수(현재 절차적/기존 텍스처).
 
