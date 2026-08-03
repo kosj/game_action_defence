@@ -1,5 +1,6 @@
 # Godot 4+ 에디터 캐시 / 임포트 산출물
 .godot/
+*.import
 /android/
 
 # 익스포트 산출물

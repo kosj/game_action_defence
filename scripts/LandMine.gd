@@ -3,6 +3,9 @@ extends Node2D
 ## 폭발은 반경 내 좀비에게 광역 피해 + 넉백. 월드(current_scene)에 스폰되며 폭발 후 자기 해제.
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
+const _SpriteFX := preload("res://scripts/SpriteFX.gd")
+const _FX_EXPLOSION := preload("res://assets/sprites/fx/fx_explosion.png")
+const _FX_SMOKE := preload("res://assets/sprites/fx/fx_smoke.png")
 
 const ARM_TIME := 0.4       # 설치 직후 무장 지연(즉폭 방지)
 const TRIGGER_R := 34.0     # 이 반경에 좀비가 들어오면 기폭
@@ -65,7 +68,12 @@ func _explode() -> void:
 			if z.has_method("apply_knockback"):
 				var dir: Vector2 = (z.global_position - global_position).normalized()
 				z.apply_knockback(dir, knockback)
-	_FXBurst.spawn(get_tree().current_scene, global_position, color, explode_r, 0.35)
+	# 폭발 텍스처(반경에 맞춤) + 피어오르는 연기 + 확산 잔광.
+	var scn := get_tree().current_scene
+	_SpriteFX.spawn(scn, global_position, _FX_EXPLOSION, explode_r * 2.0, 0.34, color.lightened(0.25))
+	_SpriteFX.spawn(scn, global_position + Vector2(0.0, -explode_r * 0.25), _FX_SMOKE, \
+		explode_r * 1.4, 0.6, Color(0.5, 0.5, 0.5, 1.0), 0.0, 0.6)
+	_FXBurst.spawn(scn, global_position, color, explode_r * 0.7, 0.35)
 	Events.shake(5.0)
 	SoundManager.play("boom", 0.1, 0.9)
 	queue_free()

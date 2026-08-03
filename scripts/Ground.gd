@@ -54,9 +54,9 @@ var _theme: Dictionary = {}
 
 
 func _ready() -> void:
-	# GL Compatibility 에서 draw_texture_rect(tile=true) 가 실제로 반복되려면 CanvasItem
-	# 텍스처 반복을 켜야 한다(기본 Disabled 면 한 장만 그려지고 나머지는 클램프 → 화면이 안 채워짐).
-	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+	# 타일을 한 칸씩(플립 포함) 직접 그리므로 반복 샘플링은 끈다(CLAMP). 반복을 켜면 뒤집힌 타일
+	# 경계에서 반대편 픽셀이 감겨 들어와(edge bleed) 격자 라인이 생긴다 — 이를 방지.
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
 	_player = get_tree().get_first_node_in_group("player")
 	_theme = _resolve_theme()
 	# Background ColorRect 색을 테마에 맞게 교체

@@ -7,6 +7,9 @@ extends Area2D
 @export var lifetime: float = 1.5
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
+const _SpriteFX := preload("res://scripts/SpriteFX.gd")
+const _FX_HITSPARK := preload("res://assets/sprites/fx/fx_hitspark.png")
+const _FX_EXPLOSION := preload("res://assets/sprites/fx/fx_explosion.png")
 
 var direction: Vector2 = Vector2.RIGHT
 var trail_color: Color = Color(1.0, 0.30, 0.10)
@@ -108,6 +111,11 @@ func _resolve_hit(c: Node, pos: Vector2) -> void:
 		c.take_damage(damage, is_crit)
 		if c.has_method("apply_knockback"):   # 좀비만 넉백(보스는 메서드가 없어 면역)
 			c.apply_knockback(direction, knockback if knockback > 0.0 else _KNOCKBACK)
+		# 피격 스파크 — 크리티컬은 더 크고 밝게 강조.
+		var spark_col: Color = Color(1.0, 0.95, 0.7) if is_crit else trail_color.lightened(0.35)
+		var spark_px: float = 26.0 if is_crit else 18.0
+		_SpriteFX.spawn(get_tree().current_scene, pos, _FX_HITSPARK, spark_px, 0.16, \
+			spark_col, direction.angle(), 6.0)
 	# 관통: 남은 관통 수가 있으면 소멸하지 않고 계속 진행(위치 보정 안 함).
 	if _pierced >= pierce:
 		_despawn()
@@ -143,7 +151,10 @@ func _splash_hit() -> void:
 			continue
 		if global_position.distance_squared_to(z.global_position) <= r_sq and z.has_method("take_damage"):
 			z.take_damage(damage, is_crit)
-	_FXBurst.spawn(get_tree().current_scene, global_position, trail_color, splash_radius, 0.3)
+	# 폭발 텍스처(반경에 맞춰 크게) + 잔광 링. 지름 = splash_radius*2 근사.
+	_SpriteFX.spawn(get_tree().current_scene, global_position, _FX_EXPLOSION, splash_radius * 2.0, \
+		0.32, trail_color.lightened(0.3))
+	_FXBurst.spawn(get_tree().current_scene, global_position, trail_color, splash_radius * 0.7, 0.3)
 
 
 func _despawn() -> void:
