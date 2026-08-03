@@ -1,12 +1,12 @@
 ; Engine configuration file.
-; Godot 4.x — Action Defence (Mobile WebGL)
+; Godot 4.x — Zombie Buster (Mobile WebGL)
 ; 에디터에서 한 번 열면 uid 등이 자동 채워집니다.
 
 config_version=5
 
 [application]
 
-config/name="Action Defence"
+config/name="Zombie Buster"
 run/main_scene="res://scenes/TitleScreen.tscn"
 config/features=PackedStringArray("4.1", "GL Compatibility")
 

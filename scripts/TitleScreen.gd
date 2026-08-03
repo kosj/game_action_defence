@@ -1,9 +1,9 @@
 extends Control
-## "DeadLine" 시네마틱 타이틀 스크린 — 게임의 첫 화면.
+## "Zombie Buster" 시네마틱 타이틀 스크린 — 게임의 첫 화면.
 ## 핏빛 글로우 + 떠오르는 잔불 파티클 위로 큰 로고가 슬램 등장하고, 은은한 글로우 맥동·
 ## 부유·간헐적 깜빡임으로 분위기를 낸다. 화면을 탭하면 페이드아웃 후 메인 메뉴로 전환.
 
-const TITLE_TEXT := "DeadLine"
+const TITLE_TEXT := "Zombie Buster"
 const MENU_SCENE := "res://scenes/MainMenu.tscn"
 
 const TITLE_Y := 330.0
@@ -131,7 +131,7 @@ func _make_title_label(col: Color, outline: int) -> Label:
 	l.anchor_right = 1.0
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.offset_top = TITLE_Y
-	l.add_theme_font_size_override("font_size", 96)
+	l.add_theme_font_size_override("font_size", 68)   # "Zombie Buster"(긴 이름)이 720 폭에 한 줄로 들어가도록
 	l.add_theme_color_override("font_color", col)
 	UITheme.heading(l)
 	if outline > 0:

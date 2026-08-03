@@ -133,9 +133,9 @@ func _build_ui() -> void:
 
 	# 게임 타이틀(브랜드) — 타이틀 화면 로고와 동일한 룩(아웃라인 + 핏빛). 번역하지 않는다.
 	var title := Label.new()
-	title.text = "DeadLine"
+	title.text = "Zombie Buster"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 66)
+	title.add_theme_font_size_override("font_size", 52)
 	title.add_theme_color_override("font_color", Color(0.97, 0.94, 0.90))
 	title.add_theme_constant_override("outline_size", 10)
 	title.add_theme_color_override("font_outline_color", Color(0.35, 0.02, 0.03, 1.0))
