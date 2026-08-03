@@ -28,6 +28,8 @@ const _MODULE_CLASSES := {
 	"tesla": preload("res://scripts/Tesla.gd"),
 }
 const _FXBurst  := preload("res://scripts/FXBurst.gd")
+const _SpriteFX := preload("res://scripts/SpriteFX.gd")
+const _FX_MUZZLE := preload("res://assets/sprites/fx/fx_muzzle.png")
 const _WeaponDB := preload("res://scripts/WeaponDB.gd")
 const BASE_BULLET_SPEED := 700.0
 
@@ -335,9 +337,13 @@ func _shoot_dir(base_dir: Vector2) -> void:
 		b.trail_color = current_weapon["color"]
 		b.splash_radius = current_weapon["splash_radius"]
 		b.queue_redraw()   # 트레일은 발사 시 1회만 그린다(Bullet 은 매 프레임 redraw 하지 않음)
-	# muzzle flash — 무기 등급이 높을수록 더 크고 화려하게
-	_FXBurst.spawn(get_tree().current_scene, muzzle.global_position, current_weapon["color"], \
-		14.0 * (1.0 + (current_weapon["tier_mult"] - 1.0) * 0.35), 0.1)
+	# muzzle flash — 조준 방향으로 향한 텍스처 플래시(무기 등급이 높을수록 더 크게).
+	var mcol: Color = current_weapon["color"]
+	var flash_col := Color(minf(mcol.r * 1.4 + 0.25, 1.0), minf(mcol.g * 1.4 + 0.25, 1.0), \
+		minf(mcol.b * 1.4 + 0.25, 1.0), 1.0)
+	var flash_px: float = 30.0 * (1.0 + (current_weapon["tier_mult"] - 1.0) * 0.35)
+	_SpriteFX.spawn(get_tree().current_scene, muzzle.global_position, _FX_MUZZLE, \
+		flash_px, 0.11, flash_col, base_dir.angle())
 
 
 ## 캐시된 조준 대상이 아직 살아있는 좀비인지(풀 반납·사망 제외).
