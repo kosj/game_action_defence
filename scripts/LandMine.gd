@@ -15,6 +15,15 @@ var _life: float = 9.0
 var _armed: float = 0.0
 var _pulse: float = 0.0
 var _done: bool = false
+var _spr: Sprite2D
+
+
+func _ready() -> void:
+	# 전용 스프라이트(지뢰). 무장 경고등 깜빡임은 _draw 의 붉은 링으로 별도 표시.
+	_spr = Sprite2D.new()
+	_spr.texture = preload("res://assets/sprites/field_mine.png")
+	_spr.scale = Vector2(0.26, 0.26)
+	add_child(_spr)
 
 
 func setup(pos: Vector2, r: float, dmg: int, kb: float, life: float, tint: Color) -> void:
@@ -63,10 +72,8 @@ func _explode() -> void:
 
 
 func _draw() -> void:
-	# 무장 전엔 어둡고, 무장 후 빨간 경고등이 깜빡인다.
-	var armed := _armed >= ARM_TIME
+	# 스프라이트가 본체를 그리므로, 무장 후 "기폭 임박" 경고 링만 붉게 깜빡인다.
+	if _armed < ARM_TIME:
+		return
 	var blink := 0.5 + 0.5 * sin(_pulse * 9.0)
-	var lamp := Color(0.9, 0.15, 0.1, (0.5 + 0.5 * blink) if armed else 0.3)
-	draw_circle(Vector2.ZERO, 9.0, Color(0.15, 0.15, 0.17, 0.95))
-	draw_circle(Vector2.ZERO, 5.0, lamp)
-	draw_arc(Vector2.ZERO, 12.0, 0.0, TAU, 20, Color(0.05, 0.05, 0.05, 0.8), 2.0, true)
+	draw_arc(Vector2.ZERO, 17.0, 0.0, TAU, 22, Color(0.95, 0.15, 0.1, 0.3 + 0.45 * blink), 2.0, true)

@@ -38,8 +38,16 @@ func _ready() -> void:
 
 
 func _build() -> void:
-	# 깊은 핏빛-검정 그라데이션 배경
+	# 깊은 핏빛-검정 그라데이션 배경(전용 배경 이미지 로드 실패 시 폴백)
 	add_child(UITheme.make_gradient_bg(Color(0.12, 0.03, 0.04), Color(0.02, 0.02, 0.03)))
+
+	# 전용 타이틀 배경 이미지(폐허 도시·핏빛 노을) — 화면을 덮도록 COVER 스트레치.
+	var bg := TextureRect.new()
+	bg.texture = preload("res://assets/ui/bg_title.png")
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bg)
 
 	# 타이틀 뒤 핏빛 방사 글로우
 	_glow = TextureRect.new()
