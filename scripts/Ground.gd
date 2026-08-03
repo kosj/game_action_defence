@@ -107,14 +107,26 @@ func _draw() -> void:
 	var mark: Color    = _theme["mark"]
 	var theme_name: String = _theme["name"]
 
-	# 전용 타일 텍스처가 있으면 뷰포트를 타일링으로 채우고(월드 좌표에 고정돼 스크롤) 종료.
+	# 전용 타일 텍스처가 있으면 타일 단위로 그리되, 월드 타일 좌표 해시로 좌우/상하를 뒤집어
+	# "같은 패턴이 격자로 반복"되는 느낌을 깬다(이음새는 유지 — 심리스 타일의 대칭 엣지 덕분).
 	# modulate 로 바닥을 어둡게 깔아 그 위 이펙트(불꽃/폭발/피격)가 잘 보이게 한다.
 	if _TILE_TEX.has(theme_name):
 		var tex: Texture2D = _TILE_TEX[theme_name]
 		var ts := tex.get_size()
-		var ox := -fposmod(wx, ts.x) - ts.x
-		var oy := -fposmod(wy, ts.y) - ts.y
-		draw_texture_rect(tex, Rect2(ox, oy, half_w * 2.0 + ts.x * 4.0, half_h * 2.0 + ts.y * 4.0), true, TILE_DARKEN)
+		var ttx0 := int(floor((wx - half_w) / ts.x)) - 1
+		var ttx1 := int(ceil((wx + half_w) / ts.x)) + 1
+		var tty0 := int(floor((wy - half_h) / ts.y)) - 1
+		var tty1 := int(ceil((wy + half_h) / ts.y)) + 1
+		var dr := Rect2(-ts.x * 0.5 - 1.0, -ts.y * 0.5 - 1.0, ts.x + 2.0, ts.y + 2.0)   # 1px 겹침으로 헤어라인 방지
+		for ttx in range(ttx0, ttx1):
+			for tty in range(tty0, tty1):
+				var cx := (float(ttx) + 0.5) * ts.x - wx
+				var cy := (float(tty) + 0.5) * ts.y - wy
+				var fx := -1.0 if ((ttx * 7 + tty * 13) & 1) == 1 else 1.0
+				var fy := -1.0 if ((ttx * 11 + tty * 5) & 1) == 1 else 1.0
+				draw_set_transform(Vector2(cx, cy), 0.0, Vector2(fx, fy))
+				draw_texture_rect(tex, dr, false, TILE_DARKEN)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 		return
 
 	for tx in range(tx0, tx1):
