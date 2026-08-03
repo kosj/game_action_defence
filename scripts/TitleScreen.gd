@@ -1,9 +1,9 @@
 extends Control
-## "DeadLine" 시네마틱 타이틀 스크린 — 게임의 첫 화면.
+## "Zombie Buster" 시네마틱 타이틀 스크린 — 게임의 첫 화면.
 ## 핏빛 글로우 + 떠오르는 잔불 파티클 위로 큰 로고가 슬램 등장하고, 은은한 글로우 맥동·
 ## 부유·간헐적 깜빡임으로 분위기를 낸다. 화면을 탭하면 페이드아웃 후 메인 메뉴로 전환.
 
-const TITLE_TEXT := "DeadLine"
+const TITLE_TEXT := "Zombie Buster"
 const MENU_SCENE := "res://scenes/MainMenu.tscn"
 
 const TITLE_Y := 330.0
@@ -16,6 +16,7 @@ var _flicker_cd: float = 3.0
 
 var _title_holder: Control
 var _glow: TextureRect
+var _logo: TextureRect
 var _ghost: Label
 var _main_label: Label
 var _slash: ColorRect
@@ -68,28 +69,16 @@ func _build() -> void:
 	_title_holder.pivot_offset = Vector2(360.0, TITLE_Y + 50.0)
 	add_child(_title_holder)
 
-	_ghost = _make_title_label(Color(0.85, 0.12, 0.12, 0.30), 0)          # 붉은 잔상
-	_title_holder.add_child(_ghost)
-	var shadow := _make_title_label(Color(0.0, 0.0, 0.0, 0.6), 0)         # 드롭 섀도
-	shadow.offset_left = 5.0
-	shadow.offset_right = 5.0
-	shadow.offset_top = TITLE_Y + 7.0
-	_title_holder.add_child(shadow)
-	_main_label = _make_title_label(Color(0.97, 0.94, 0.90, 1.0), 13)     # 본체(아웃라인)
-	_title_holder.add_child(_main_label)
-
-	# 제목 아래 핏빛 슬래시
-	_slash = ColorRect.new()
-	_slash.color = Color(0.82, 0.12, 0.12, 0.95)
-	_slash.anchor_left = 0.5
-	_slash.anchor_right = 0.5
-	_slash.offset_left = -180.0
-	_slash.offset_right = 180.0
-	_slash.offset_top = SLASH_Y
-	_slash.offset_bottom = SLASH_Y + 3.0
-	_slash.pivot_offset = Vector2(180.0, 1.5)
-	_slash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_title_holder.add_child(_slash)
+	# 전용 로고 이미지("ZOMBIE BUSTER") — 드립/아웃라인/그림자가 아트에 포함돼 있어 라벨 스택 불필요.
+	_logo = TextureRect.new()
+	_logo.texture = preload("res://assets/ui/logo_title.png")
+	_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_logo.position = Vector2(360.0 - 245.0, TITLE_Y - 92.0)
+	_logo.size = Vector2(490.0, 272.0)   # 로고 1.8:1
+	_logo.pivot_offset = _logo.size * 0.5
+	_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_title_holder.add_child(_logo)
 
 	# 태그라인 / 최고점 / 탭 안내
 	_tagline = _make_centered_label(Locale.t("title_tagline"), 22, Color(0.78, 0.34, 0.32, 1.0), SLASH_Y + 26.0)
@@ -131,7 +120,7 @@ func _make_title_label(col: Color, outline: int) -> Label:
 	l.anchor_right = 1.0
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.offset_top = TITLE_Y
-	l.add_theme_font_size_override("font_size", 96)
+	l.add_theme_font_size_override("font_size", 68)   # "Zombie Buster"(긴 이름)이 720 폭에 한 줄로 들어가도록
 	l.add_theme_color_override("font_color", col)
 	UITheme.heading(l)
 	if outline > 0:
@@ -193,7 +182,6 @@ func _build_embers() -> void:
 func _play_intro() -> void:
 	_title_holder.scale = Vector2(1.22, 1.22)
 	_title_holder.modulate.a = 0.0
-	_slash.scale.x = 0.0
 	_tagline.modulate.a = 0.0
 	_best.modulate.a = 0.0
 	_tap_label.modulate.a = 0.0
@@ -205,7 +193,6 @@ func _play_intro() -> void:
 	tw.tween_property(_title_holder, "scale", Vector2.ONE, 0.6).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.set_parallel(false)
 	tw.tween_callback(_slam)
-	tw.tween_property(_slash, "scale:x", 1.0, 0.35).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tw.set_parallel(true)
 	tw.tween_property(_tagline, "modulate:a", 1.0, 0.5)
 	tw.tween_property(_best, "modulate:a", 0.85, 0.5)
@@ -244,14 +231,14 @@ func _process(delta: float) -> void:
 
 
 func _flicker() -> void:
-	if not is_instance_valid(_main_label):
+	if not is_instance_valid(_logo):
 		return
 	var tw := create_tween()
-	tw.tween_property(_main_label, "modulate:a", 0.35, 0.05)
-	tw.tween_property(_main_label, "modulate:a", 1.0, 0.05)
+	tw.tween_property(_logo, "modulate:a", 0.35, 0.05)
+	tw.tween_property(_logo, "modulate:a", 1.0, 0.05)
 	tw.tween_interval(0.04)
-	tw.tween_property(_main_label, "modulate:a", 0.55, 0.04)
-	tw.tween_property(_main_label, "modulate:a", 1.0, 0.08)
+	tw.tween_property(_logo, "modulate:a", 0.55, 0.04)
+	tw.tween_property(_logo, "modulate:a", 1.0, 0.08)
 
 
 func _input(event: InputEvent) -> void:

@@ -1,4 +1,4 @@
-# Action Defence (Godot 4.x · Mobile WebGL)
+# Zombie Buster (Godot 4.x · Mobile WebGL)
 
 탑다운 액션 디펜스 (뱀파이어 서바이버 / 탕탕특공대 스타일) 뼈대 프로젝트.
 

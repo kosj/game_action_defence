@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DeadLine BGM generator — seamless loops, 22050 Hz mono 16-bit WAV.
+"""Zombie Buster BGM generator — seamless loops, 22050 Hz mono 16-bit WAV.
 
 - bgm_title.wav: dark ambient (A minor). Drones with integer-cycle LFOs +
   sparse bell melody; one-shots render wrap-around so the loop is seamless.

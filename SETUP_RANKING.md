@@ -61,7 +61,7 @@ RankingManager (Autoload, 파사드)
 
 1. Play Console → 앱 → **Play Games Services → 설정 및 관리 → 구성**. 이름/OAuth 동의 화면 등을 채운다.
 2. **리더보드(Leaderboards)** 에서 모드별로 **3개** 생성:
-   - `DeadLine — Easy`, `DeadLine — Normal`, `DeadLine — Hard`
+   - `Zombie Buster — Easy`, `Zombie Buster — Normal`, `Zombie Buster — Hard`
    - 정렬: **높은 값이 상위(Larger is better)**, 형식: 정수(점수).
 3. 각 리더보드의 **ID**(형식 예: `CgkI abcd...`) 를 복사해 `scripts/RankingManager.gd` 에 채운다:
    ```gdscript
