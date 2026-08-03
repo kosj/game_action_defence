@@ -3,6 +3,8 @@ extends Node2D
 ## Camera2D 가 플레이어를 따라오므로 뷰포트 범위만 그려 WebGL 성능 유지.
 
 const TILE := 80
+## 바닥 타일을 어둡게 깔아 그 위 이펙트가 잘 보이게 하는 곱연산 색(밝은 아트일수록 중요).
+const TILE_DARKEN := Color(0.55, 0.55, 0.60)
 
 ## 테마별 전용 바닥 타일 텍스처(있으면 체커+절차 장식 대신 타일링). 없는 테마(desert 등)는 폴백.
 const _TILE_TEX := {
@@ -52,6 +54,9 @@ var _theme: Dictionary = {}
 
 
 func _ready() -> void:
+	# GL Compatibility 에서 draw_texture_rect(tile=true) 가 실제로 반복되려면 CanvasItem
+	# 텍스처 반복을 켜야 한다(기본 Disabled 면 한 장만 그려지고 나머지는 클램프 → 화면이 안 채워짐).
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	_player = get_tree().get_first_node_in_group("player")
 	_theme = _resolve_theme()
 	# Background ColorRect 색을 테마에 맞게 교체
@@ -82,7 +87,11 @@ func _process(_delta: float) -> void:
 func _draw() -> void:
 	if _theme.is_empty():
 		return
-	var vp     := get_viewport().get_visible_rect().size
+	# 화면에 실제로 보이는 "월드" 크기 = 뷰포트 픽셀 / 카메라 줌(stretch=expand·줌 대응).
+	var vp := get_viewport().get_visible_rect().size
+	var cam := get_viewport().get_camera_2d()
+	if cam != null and cam.zoom.x > 0.0 and cam.zoom.y > 0.0:
+		vp = Vector2(vp.x / cam.zoom.x, vp.y / cam.zoom.y)
 	var half_w := vp.x * 0.5
 	var half_h := vp.y * 0.5
 	var wx     := global_position.x
@@ -99,12 +108,13 @@ func _draw() -> void:
 	var theme_name: String = _theme["name"]
 
 	# 전용 타일 텍스처가 있으면 뷰포트를 타일링으로 채우고(월드 좌표에 고정돼 스크롤) 종료.
+	# modulate 로 바닥을 어둡게 깔아 그 위 이펙트(불꽃/폭발/피격)가 잘 보이게 한다.
 	if _TILE_TEX.has(theme_name):
 		var tex: Texture2D = _TILE_TEX[theme_name]
 		var ts := tex.get_size()
 		var ox := -fposmod(wx, ts.x) - ts.x
 		var oy := -fposmod(wy, ts.y) - ts.y
-		draw_texture_rect(tex, Rect2(ox, oy, half_w * 2.0 + ts.x * 3.0, half_h * 2.0 + ts.y * 3.0), true)
+		draw_texture_rect(tex, Rect2(ox, oy, half_w * 2.0 + ts.x * 4.0, half_h * 2.0 + ts.y * 4.0), true, TILE_DARKEN)
 		return
 
 	for tx in range(tx0, tx1):
