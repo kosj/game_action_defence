@@ -8,6 +8,14 @@ class_name UIIcon
 
 const _KINDS := ["coin", "star", "flag", "clock", "trophy", "skull", "heart", "bolt", "sword", "orb"]
 
+## 전용 아트가 있는 종류는 절차적 드로잉 대신 텍스처를 그린다(색 modulate 없이 원색 사용).
+## 파일이 있는 것만 배선 — 나머지는 아래 _draw 의 벡터 드로잉으로 폴백.
+const _KIND_TEX := {
+	"skull": preload("res://assets/ui/icons/hud_skull.png"),
+	"clock": preload("res://assets/ui/icons/hud_clock.png"),
+	"coin":  preload("res://assets/ui/ui_coin.png"),
+}
+
 
 static func make(kind: String, px: float, color: Color = Color.WHITE) -> UIIcon:
 	var ic := UIIcon.new()
@@ -21,6 +29,10 @@ static func make(kind: String, px: float, color: Color = Color.WHITE) -> UIIcon:
 
 func _draw() -> void:
 	var s := size
+	# 전용 아트가 있으면 사각형에 맞춰 그린다(원색 유지). 없으면 벡터 드로잉.
+	if _KIND_TEX.has(kind):
+		draw_texture_rect(_KIND_TEX[kind], Rect2(Vector2.ZERO, s), false)
+		return
 	var c := s * 0.5
 	var r := minf(s.x, s.y) * 0.5
 	match kind:

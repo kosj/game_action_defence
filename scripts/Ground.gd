@@ -4,6 +4,13 @@ extends Node2D
 
 const TILE := 80
 
+## 테마별 전용 바닥 타일 텍스처(있으면 체커+절차 장식 대신 타일링). 없는 테마(desert 등)는 폴백.
+const _TILE_TEX := {
+	"grass":  preload("res://assets/sprites/tiles/tile_grass.png"),
+	"stone":  preload("res://assets/sprites/tiles/tile_stone.png"),
+	"frozen": preload("res://assets/sprites/tiles/tile_frozen.png"),
+}
+
 ## name: 로직 분기용 식별자
 ## bg:   화면 바깥 빈 공간 채우는 ColorRect 색상
 ## tile_a/b: 체커보드 두 가지 타일 색
@@ -90,6 +97,15 @@ func _draw() -> void:
 	var tile_b: Color  = _theme["tile_b"]
 	var mark: Color    = _theme["mark"]
 	var theme_name: String = _theme["name"]
+
+	# 전용 타일 텍스처가 있으면 뷰포트를 타일링으로 채우고(월드 좌표에 고정돼 스크롤) 종료.
+	if _TILE_TEX.has(theme_name):
+		var tex: Texture2D = _TILE_TEX[theme_name]
+		var ts := tex.get_size()
+		var ox := -fposmod(wx, ts.x) - ts.x
+		var oy := -fposmod(wy, ts.y) - ts.y
+		draw_texture_rect(tex, Rect2(ox, oy, half_w * 2.0 + ts.x * 3.0, half_h * 2.0 + ts.y * 3.0), true)
+		return
 
 	for tx in range(tx0, tx1):
 		for ty in range(ty0, ty1):

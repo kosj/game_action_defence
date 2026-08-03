@@ -131,15 +131,13 @@ func _build_ui() -> void:
 	box.add_theme_constant_override("separation", 18)
 	center.add_child(box)
 
-	# 게임 타이틀(브랜드) — 타이틀 화면 로고와 동일한 룩(아웃라인 + 핏빛). 번역하지 않는다.
-	var title := Label.new()
-	title.text = "Zombie Buster"
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 52)
-	title.add_theme_color_override("font_color", Color(0.97, 0.94, 0.90))
-	title.add_theme_constant_override("outline_size", 10)
-	title.add_theme_color_override("font_outline_color", Color(0.35, 0.02, 0.03, 1.0))
-	UITheme.heading(title)
+	# 게임 타이틀(브랜드) — 전용 로고 이미지("ZOMBIE BUSTER"). 번역하지 않는다.
+	var title := TextureRect.new()
+	title.texture = preload("res://assets/ui/logo_title.png")
+	title.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	title.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	title.custom_minimum_size = Vector2(400, 222)   # 로고 비율 1.8:1
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(title)
 
 	_best_label = Label.new()
