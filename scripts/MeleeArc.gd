@@ -8,6 +8,16 @@ const SWING_DUR := 0.18   # 휘두르기 애니메이션(스윕) 지속
 var _t: float = 0.0
 var _swing_t: float = -1.0   # >=0 이면 스윙 연출 진행 중
 var _aim: Vector2 = Vector2.RIGHT
+var _slash: Sprite2D
+
+
+func _ready() -> void:
+	# 휘두르기 궤적 이미지(초승달 슬래시). 조준 방향으로 회전·스윕하며 옅어진다.
+	_slash = Sprite2D.new()
+	_slash.texture = preload("res://assets/sprites/fx/slash.png")
+	_slash.z_index = 1
+	_slash.visible = false
+	add_child(_slash)
 
 
 func _reach() -> float:
@@ -29,7 +39,7 @@ func _physics_process(delta: float) -> void:
 		_swing()
 		_swing_t = 0.0
 	rotation = _aim.angle()
-	queue_redraw()
+	_update_slash()
 
 
 func _swing() -> void:
@@ -51,17 +61,18 @@ func _swing() -> void:
 	_FXBurst.spawn(get_tree().current_scene, global_position + _aim * reach * 0.6, _data.color, reach * 0.4, 0.14)
 
 
-## 스윙 연출: 로컬 +X(=조준 방향) 기준으로 원호가 -half→+half 로 쓸고 지나가며 옅어진다.
-func _draw() -> void:
-	if _swing_t < 0.0:
+## 스윙 연출: 초승달 슬래시 이미지가 조준 방향(로컬 +X) 앞에서 원호를 따라 쓸고 지나가며 옅어진다.
+## 스프라이트의 호 반경(92px)을 사거리에 맞춰 스케일, 회전으로 -spread→+spread 스윕.
+func _update_slash() -> void:
+	if _slash == null:
 		return
-	var reach := _reach()
-	var half := _data.spread
+	if _swing_t < 0.0:
+		_slash.visible = false
+		return
 	var p := clampf(_swing_t / SWING_DUR, 0.0, 1.0)
-	var fade := 1.0 - p
-	# 칼끝 각도: -half 에서 +half 로 스윕
-	var a := -half + 2.0 * half * p
-	var tip := Vector2.from_angle(a) * reach
-	draw_arc(Vector2.ZERO, reach, -half, -half + 2.0 * half * p, 20, Color(_data.color.r, _data.color.g, _data.color.b, 0.30 * fade), 4.0, true)
-	draw_line(Vector2.ZERO, tip, Color(1.0, 1.0, 1.0, 0.6 * fade), 3.0, true)
-	draw_circle(tip, 5.0, Color(_data.color.r, _data.color.g, _data.color.b, 0.7 * fade))
+	var sc: float = (_reach() / 92.0) * (0.8 + 0.3 * p)
+	_slash.visible = true
+	_slash.scale = Vector2(sc, sc)
+	_slash.rotation = -_data.spread * 0.6 + (_data.spread * 1.2) * p
+	var c: Color = _data.color
+	_slash.modulate = Color(minf(c.r * 1.25, 1.0), minf(c.g * 1.25, 1.0), minf(c.b * 1.25, 1.0), 1.0 - p * 0.85)
