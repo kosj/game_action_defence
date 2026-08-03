@@ -123,9 +123,7 @@ func _build_ui() -> void:
 	# 타이틀 화면과 같은 분위기를 메뉴 배경으로 — 핏빛 그라데이션 + 붉은 글로우 + 잔불.
 	add_child(UITheme.make_gradient_bg(Color(0.12, 0.03, 0.04), Color(0.02, 0.02, 0.03)))
 	_build_backdrop()
-	var vig := UITheme.make_vignette()
-	vig.modulate = Color(1, 1, 1, 0.80)
-	add_child(vig)
+	# (가장자리 비네트 제거 — 화면 외곽 어둡게 처리하지 않음)
 
 	var center := CenterContainer.new()
 	center.anchor_right = 1.0

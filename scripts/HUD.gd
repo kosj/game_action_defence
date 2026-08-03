@@ -94,7 +94,7 @@ func _ready() -> void:
 	UITheme.outline_label(boss_name_label, 6, Color(0.18, 0.0, 0.0, 0.75))
 	restart_button.text = Locale.t("go_retry")
 	main_menu_button.text = Locale.t("go_menu")
-	_build_fog()
+	# 주변 시야 제한(방사형 암전) 오버레이 제거 — 화면 외곽이 어두워 보이지 않도록.
 	_build_revive_button()
 	_build_hud_icons()
 	_build_wave_bar()
