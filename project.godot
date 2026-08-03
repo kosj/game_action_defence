@@ -45,7 +45,8 @@ theme/custom_font="res://assets/fonts/NotoSansCJK-Subset.otf"
 window/size/viewport_width=720
 window/size/viewport_height=1280
 window/stretch/mode="canvas_items"
-window/stretch/aspect="expand"
+; keep: 720x1280 전체가 항상 보이도록 레터박스(웹/데스크톱 등 다른 화면비에서 화면 잘림 방지).
+window/stretch/aspect="keep"
 window/handheld/orientation="portrait"
 
 [input_devices]

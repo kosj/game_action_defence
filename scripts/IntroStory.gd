@@ -47,8 +47,7 @@ func _build_ui() -> void:
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(backdrop)
 
-	# 2-1) 가장자리 비네트로 분위기 + 본문 가독성 강화
-	add_child(UITheme.make_vignette())
+	# (가장자리 비네트 제거 — 화면 외곽 어둡게 처리하지 않음)
 
 	# 3) 입력 캐쳐 + 가독성용 약한 어둠 — 탭하면 본문을 빠르게 다 보여준다(스킵과 별개).
 	var bg := ColorRect.new()

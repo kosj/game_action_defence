@@ -112,10 +112,7 @@ func _build() -> void:
 	ver.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(ver)
 
-	# 가장자리 비네트(분위기 + 시인성)
-	var vig := UITheme.make_vignette()
-	vig.modulate = Color(1, 1, 1, 0.85)
-	add_child(vig)
+	# (가장자리 비네트 제거 — 화면 외곽 어둡게 처리하지 않음)
 
 	# 슬램 순간 붉은 섬광 / 전환용 검정 페이드 (둘 다 입력 무시·전체화면)
 	_flash = _overlay_rect(Color(0.9, 0.15, 0.12, 0.0))
