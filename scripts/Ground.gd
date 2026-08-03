@@ -54,8 +54,7 @@ var _theme: Dictionary = {}
 
 
 func _ready() -> void:
-	# 타일을 한 칸씩(플립 포함) 직접 그리므로 반복 샘플링은 끈다(CLAMP). 반복을 켜면 뒤집힌 타일
-	# 경계에서 반대편 픽셀이 감겨 들어와(edge bleed) 격자 라인이 생긴다 — 이를 방지.
+	# 타일을 한 칸씩 스트레치해 직접 그리므로(draw_texture_rect, tile=false) 반복 샘플링은 필요 없다(CLAMP).
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
 	_player = get_tree().get_first_node_in_group("player")
 	_theme = _resolve_theme()
@@ -107,9 +106,10 @@ func _draw() -> void:
 	var mark: Color    = _theme["mark"]
 	var theme_name: String = _theme["name"]
 
-	# 전용 타일 텍스처가 있으면 타일 단위로 그리되, 월드 타일 좌표 해시로 좌우/상하를 뒤집어
-	# "같은 패턴이 격자로 반복"되는 느낌을 깬다(이음새는 유지 — 심리스 타일의 대칭 엣지 덕분).
-	# modulate 로 바닥을 어둡게 깔아 그 위 이펙트(불꽃/폭발/피격)가 잘 보이게 한다.
+	# 전용 타일 텍스처가 있으면 타일 단위로 그린다. 타일은 심리스(가장자리 힐 처리)라 "모든 타일을
+	# 같은 방향으로" 이어 붙이면 흙길이 경계를 넘어 자연스럽게 연결된다. (예전의 좌우/상하 플립은
+	# 대칭이 아닌 이 유기적 타일에서 뒤집힌 엣지가 이웃과 나비 대칭으로 어긋나 오히려 격자를 만들었다 —
+	# 그래서 플립을 제거.) modulate 로 바닥을 어둡게 깔아 그 위 이펙트가 잘 보이게 한다.
 	if _TILE_TEX.has(theme_name):
 		var tex: Texture2D = _TILE_TEX[theme_name]
 		var ts := tex.get_size()
@@ -117,16 +117,12 @@ func _draw() -> void:
 		var ttx1 := int(ceil((wx + half_w) / ts.x)) + 1
 		var tty0 := int(floor((wy - half_h) / ts.y)) - 1
 		var tty1 := int(ceil((wy + half_h) / ts.y)) + 1
-		var dr := Rect2(-ts.x * 0.5 - 1.0, -ts.y * 0.5 - 1.0, ts.x + 2.0, ts.y + 2.0)   # 1px 겹침으로 헤어라인 방지
 		for ttx in range(ttx0, ttx1):
 			for tty in range(tty0, tty1):
-				var cx := (float(ttx) + 0.5) * ts.x - wx
-				var cy := (float(tty) + 0.5) * ts.y - wy
-				var fx := -1.0 if ((ttx * 7 + tty * 13) & 1) == 1 else 1.0
-				var fy := -1.0 if ((ttx * 11 + tty * 5) & 1) == 1 else 1.0
-				draw_set_transform(Vector2(cx, cy), 0.0, Vector2(fx, fy))
-				draw_texture_rect(tex, dr, false, TILE_DARKEN)
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+				var lx := float(ttx) * ts.x - wx
+				var ly := float(tty) * ts.y - wy
+				# 0.5px 겹침으로 서브픽셀 헤어라인 방지(플립이 없어 엣지 감김 걱정 없음).
+				draw_texture_rect(tex, Rect2(lx - 0.5, ly - 0.5, ts.x + 1.0, ts.y + 1.0), false, TILE_DARKEN)
 		return
 
 	for tx in range(tx0, tx1):
