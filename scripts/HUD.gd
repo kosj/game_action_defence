@@ -130,6 +130,7 @@ func _ready() -> void:
 	Events.inventory_changed.connect(_on_inventory_changed)
 	Events.game_won.connect(_on_game_won)
 	Events.achievement_unlocked.connect(_on_achievement_unlocked)
+	Events.quest_completed.connect(_on_quest_completed)
 	restart_button.pressed.connect(_on_restart_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
 	AdManager.rewarded_granted.connect(_on_rewarded_granted)
@@ -269,13 +270,24 @@ func _on_swarm_incoming(elite: bool) -> void:
 ## 도전과제 달성 토스트 — 화면 상단 중앙에 잠깐 떴다 사라진다(코드로 즉석 생성).
 func _on_achievement_unlocked(title: String) -> void:
 	SoundManager.play("gold", 0.0, 1.4)   # 달성 보상 하이톤 차임
+	_show_toast("🏆  %s" % title, Color(1.0, 0.85, 0.35), 150.0)
+
+
+## 끝없는 과제 완료 — 보상 골드를 함께 표시(살짝 아래에 띄워 도전과제 토스트와 겹치지 않게).
+func _on_quest_completed(title: String, reward: int) -> void:
+	SoundManager.play("gold", 0.0, 1.5)
+	_show_toast("💰  Quest: %s   +%d gold" % [title, reward], Color(0.6, 1.0, 0.6), 190.0)
+
+
+## 화면 상단 중앙에 잠깐 떠오르는 토스트 알림(달성/과제 공용).
+func _show_toast(text: String, col: Color, from_y: float) -> void:
 	var toast := Label.new()
-	toast.text = "🏆  %s" % title
+	toast.text = text
 	toast.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	toast.offset_top = 150.0
+	toast.offset_top = from_y
 	toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	toast.add_theme_font_size_override("font_size", 22)
-	toast.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	toast.add_theme_color_override("font_color", col)
 	toast.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
 	toast.add_theme_constant_override("outline_size", 4)
 	toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -283,7 +295,7 @@ func _on_achievement_unlocked(title: String) -> void:
 	add_child(toast)
 	var tw := create_tween()
 	tw.tween_property(toast, "modulate:a", 1.0, 0.25)
-	tw.parallel().tween_property(toast, "offset_top", 120.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(toast, "offset_top", from_y - 30.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_interval(2.0)
 	tw.tween_property(toast, "modulate:a", 0.0, 0.5)
 	tw.tween_callback(toast.queue_free)

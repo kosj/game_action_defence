@@ -53,6 +53,11 @@ var _ach_dim: ColorRect
 var _ach_panel: PanelContainer
 var _ach_rows: Array = []        # [{ "label": Label, "a": AchievementData }]
 
+var _quest_btn: Button
+var _quest_dim: ColorRect
+var _quest_panel: PanelContainer
+var _quest_list: VBoxContainer
+
 # ── 테마(아레나) 선택 오버레이 ──
 var _theme_btn: Button
 var _theme_dim: ColorRect
@@ -194,6 +199,14 @@ func _build_ui() -> void:
 	_ach_btn.pressed.connect(_on_achievements_pressed)
 	box.add_child(_ach_btn)
 
+	_quest_btn = Button.new()
+	_quest_btn.text = "Quests"
+	_quest_btn.custom_minimum_size = Vector2(300, 56)
+	_quest_btn.add_theme_font_size_override("font_size", 20)
+	_UIStyle.apply_button_style(_quest_btn, Color(0.12, 0.22, 0.12), Color(0.55, 0.95, 0.55))
+	_quest_btn.pressed.connect(_on_quests_pressed)
+	box.add_child(_quest_btn)
+
 	_rank_btn = Button.new()
 	_rank_btn.custom_minimum_size = Vector2(300, 56)
 	_rank_btn.add_theme_font_size_override("font_size", 22)
@@ -230,6 +243,7 @@ func _build_ui() -> void:
 	_build_character_panel()
 	_refresh_char_button()
 	_build_achievement_panel()
+	_build_quest_panel()
 	_build_theme_panel()
 	_refresh_theme_button()
 
@@ -656,6 +670,112 @@ func _on_achievements_pressed() -> void:
 func _on_achievements_close() -> void:
 	_ach_dim.visible = false
 	_ach_panel.visible = false
+
+
+# ── 끝없는 과제(Quests) 패널 — 현재 활성 과제 + 진행 + 다음 보상 표시 ──────────
+func _build_quest_panel() -> void:
+	_quest_dim = ColorRect.new()
+	_quest_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_quest_dim.color = Color(0, 0, 0, 0.6)
+	_quest_dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_quest_dim.visible = false
+	_quest_dim.gui_input.connect(func(e: InputEvent):
+		if e is InputEventScreenTouch and e.pressed or e is InputEventMouseButton and e.pressed:
+			_on_quests_close())
+	add_child(_quest_dim)
+
+	_quest_panel = PanelContainer.new()
+	_quest_panel.anchor_left = 0.5
+	_quest_panel.anchor_right = 0.5
+	_quest_panel.anchor_top = 0.5
+	_quest_panel.anchor_bottom = 0.5
+	_quest_panel.offset_left = -245.0
+	_quest_panel.offset_right = 245.0
+	_quest_panel.offset_top = -260.0
+	_quest_panel.offset_bottom = 260.0
+	_quest_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.06, 0.14, 0.07, 0.98), Color(0.45, 0.9, 0.5)))
+	_quest_panel.visible = false
+	add_child(_quest_panel)
+
+	var margin := MarginContainer.new()
+	for m in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + m, 22)
+	_quest_panel.add_child(margin)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 12)
+	margin.add_child(vb)
+
+	var title := Label.new()
+	title.text = "QUESTS"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(0.6, 1.0, 0.6))
+	vb.add_child(title)
+
+	var hint := Label.new()
+	hint.text = "완료하면 즉시 골드 보상 → 다음 과제 자동 생성(목표·보상 상승)"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size = Vector2(440, 0)
+	hint.add_theme_font_size_override("font_size", 14)
+	hint.add_theme_color_override("font_color", Color(0.7, 0.78, 0.72))
+	vb.add_child(hint)
+
+	vb.add_child(HSeparator.new())
+
+	_quest_list = VBoxContainer.new()
+	_quest_list.add_theme_constant_override("separation", 14)
+	vb.add_child(_quest_list)
+
+	var close := Button.new()
+	close.text = "Close"
+	close.custom_minimum_size = Vector2(0, 52)
+	close.add_theme_font_size_override("font_size", 22)
+	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
+	close.pressed.connect(_on_quests_close)
+	vb.add_child(close)
+
+
+## 활성 과제를 매번 새로 그린다(티어가 바뀌므로 재생성이 간단·정확).
+func _refresh_quests() -> void:
+	for c in _quest_list.get_children():
+		c.queue_free()
+	for q in QuestManager.active_quests():
+		var row := VBoxContainer.new()
+		row.add_theme_constant_override("separation", 3)
+
+		var head := Label.new()
+		head.text = "%s   +%d gold" % [q["title"], int(q["reward"])]
+		head.add_theme_font_size_override("font_size", 18)
+		head.add_theme_color_override("font_color", Color(1.0, 0.88, 0.4))
+		row.add_child(head)
+
+		var desc := Label.new()
+		desc.text = "%s   (%d / %d)" % [q["desc"], int(q["current"]), int(q["goal"])]
+		desc.add_theme_font_size_override("font_size", 14)
+		desc.add_theme_color_override("font_color", Color(0.78, 0.82, 0.78))
+		row.add_child(desc)
+
+		var bar := ProgressBar.new()
+		bar.custom_minimum_size = Vector2(440, 12)
+		bar.max_value = maxf(1.0, float(q["goal"]))
+		bar.value = float(q["current"])
+		bar.show_percentage = false
+		row.add_child(bar)
+
+		_quest_list.add_child(row)
+
+
+func _on_quests_pressed() -> void:
+	_refresh_quests()
+	_quest_dim.visible = true
+	_quest_panel.visible = true
+
+
+func _on_quests_close() -> void:
+	_quest_dim.visible = false
+	_quest_panel.visible = false
 
 
 func _on_ach_dim_input(event: InputEvent) -> void:

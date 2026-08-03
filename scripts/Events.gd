@@ -83,6 +83,7 @@ signal inventory_changed        # 무기/패시브 인벤토리 변경 — HUD �
 signal evolution_offer          # 진화 보물상자 개봉 — LevelUpPanel 이 진화 선택지를 띄운다
 signal elite_pack               # 예약 엘리트 팩 등장(주기적) — 진화 상자 드롭 트리거
 signal achievement_unlocked(title: String)   # 도전과제 달성 — HUD 토스트 알림
+signal quest_completed(title: String, reward: int)   # 끝없는 과제 완료 — HUD 토스트 + 메타 골드 보상
 
 var total_gold: int = 0
 var total_kills: int = 0
