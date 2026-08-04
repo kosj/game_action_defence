@@ -2,18 +2,30 @@ class_name UIStyle
 extends RefCounted
 ## 공용 UI 스타일 팩토리 — 코드로 생성/구성되는 UI 전반(HUD, 상점)에서 재사용.
 
+# VARCO 생성 나인패치 패널 프레임(강철+골드 베벨 테두리). 320px 소스, 테두리 분할 40px.
+const _PANEL_FRAME_TEX := preload("res://assets/ui/frames/panel_frame.png")
+const _PANEL_FRAME_MARGIN := 40      # 나인패치 코너/에지 분할(화면상 테두리 두께)
 
-static func panel(bg: Color, border: Color, radius: int = 18, border_w: int = 3) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.border_color = border
-	sb.set_border_width_all(border_w)
-	sb.set_corner_radius_all(radius)
-	sb.corner_detail = 8            # 곡선 모서리를 더 매끈하게
-	sb.anti_aliasing = true
-	sb.shadow_color = Color(0, 0, 0, 0.5)
-	sb.shadow_size = 14
-	sb.shadow_offset = Vector2(0, 5)
+# 버튼 플레이트 — 브러시드 메탈/베벨/광택만 남긴 무채색 재질.
+# 색은 modulate_color 가 입히므로, 호출부가 넘긴 강조색(accent)이 그대로 버튼 색이 된다.
+const _BTN_PLATE_TEX := preload("res://assets/ui/frames/button_plate.png")
+const _BTN_PLATE_MARGIN := 9
+# 강조색을 그대로 쓰면 너무 밝아 흰 라벨이 묻히므로 한 단계 낮춰 중간 톤 금속으로 만든다.
+const _BTN_DARKEN := 0.42
+
+# 아이템 슬롯 프레임(황동 림 + 어두운 함몰부). 안쪽 빈 영역은 프레임의 약 71%.
+const _SLOT_TEX := preload("res://assets/ui/frames/item_slot.png")
+const _SLOT_INNER_INSET := 0.16      # 아이콘이 함몰부 안에 앉도록 하는 사방 여백 비율
+
+
+## 텍스처 나인패치 패널. bg/border/radius/border_w 인자는 하위 호환용으로 유지하되
+## 프레임 아트가 시각을 담당하므로 무시된다(콘텐츠 여백만 프레임 안쪽으로 잡는다).
+static func panel(_bg: Color, _border: Color, _radius: int = 18, _border_w: int = 3) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = _PANEL_FRAME_TEX
+	sb.set_texture_margin_all(_PANEL_FRAME_MARGIN)   # 코너는 원본 픽셀 크기로, 가운데는 늘어남
+	sb.set_content_margin_all(18)                    # 자식이 프레임 안쪽 어두운 영역에 앉도록
+	sb.draw_center = true
 	return sb
 
 
@@ -28,18 +40,12 @@ static func bottom_bar(bg: Color, radius: int = 24) -> StyleBoxFlat:
 	return sb
 
 
-static func _button_box(bg: Color, border: Color, radius: int, border_w: int, shadow: int = 5) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.border_color = border
-	sb.set_border_width_all(border_w)
-	sb.border_width_top = border_w + 1        # 상단 테두리를 살짝 두껍게 — 입체 베벨 느낌
-	sb.set_corner_radius_all(radius)
-	sb.corner_detail = 8                       # 매끈한 곡선 모서리
-	sb.anti_aliasing = true
-	sb.shadow_color = Color(0, 0, 0, 0.38)
-	sb.shadow_size = shadow                     # 부드러운 드롭 섀도로 버튼이 떠 보이게
-	sb.shadow_offset = Vector2(0, 3)
+## 금속 플레이트 버튼 박스. accent(호출부의 강조색)로 틴트해 버튼별 의미 색을 유지한다.
+static func button_box(accent: Color, darken: float = _BTN_DARKEN) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = _BTN_PLATE_TEX
+	sb.set_texture_margin_all(_BTN_PLATE_MARGIN)
+	sb.modulate_color = accent.darkened(darken)
 	sb.content_margin_left = 18
 	sb.content_margin_right = 18
 	sb.content_margin_top = 11
@@ -48,16 +54,69 @@ static func _button_box(bg: Color, border: Color, radius: int, border_w: int, sh
 
 
 ## 버튼에 normal/hover/pressed/disabled 4종 StyleBox 를 한 번에 적용.
-static func apply_button_style(btn: Button, bg: Color, border: Color, radius: int = 16) -> void:
-	var normal := _button_box(bg, border, radius, 2, 5)
-	var hover := _button_box(bg.lightened(0.16), border.lightened(0.12), radius, 2, 7)
-	var pressed := _button_box(bg.darkened(0.22), border, radius, 2, 1)   # 눌리면 섀도 줄여 가라앉는 느낌
-	var disabled := _button_box(Color(0.16, 0.16, 0.19), Color(0.28, 0.28, 0.32), radius, 2, 0)
-
-	btn.add_theme_stylebox_override("normal", normal)
-	btn.add_theme_stylebox_override("hover", hover)
-	btn.add_theme_stylebox_override("pressed", pressed)
-	btn.add_theme_stylebox_override("disabled", disabled)
+## bg/radius 는 하위 호환용으로 남기며, 플레이트 아트가 형태를 담당하므로 무시된다.
+## 색은 border(강조색)를 틴트로 써서 확인=초록·위험=빨강·잠금=진회색 같은 구분을 유지한다.
+static func apply_button_style(btn: Button, _bg: Color, border: Color, _radius: int = 16) -> void:
+	btn.add_theme_stylebox_override("normal", button_box(border))
+	btn.add_theme_stylebox_override("hover", button_box(border, _BTN_DARKEN - 0.14))
+	btn.add_theme_stylebox_override("pressed", button_box(border, _BTN_DARKEN + 0.16))
+	btn.add_theme_stylebox_override("disabled", button_box(Color(0.40, 0.40, 0.45), 0.45))
 	btn.add_theme_color_override("font_disabled_color", Color(0.5, 0.5, 0.55))
 	# 포커스 시 그려지는 기본 흰색 아웃라인 제거(터치 UI 라 키보드 포커스 테두리가 불필요·거슬림).
 	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+
+
+## 버튼 4종 StyleBox 의 좌측 콘텐츠 여백을 한 번에 조정(좌측에 슬롯/띠를 놓을 자리 확보).
+## 오버라이드된 StyleBox 만 건드린다 — 전역 테마의 인스턴스는 모든 버튼이 공유하므로
+## 그대로 변형하면 관계없는 버튼까지 여백이 밀린다(apply_button_style 이후에 호출할 것).
+static func set_button_content_margin_left(btn: Button, px: int) -> void:
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		if not btn.has_theme_stylebox_override(state):
+			continue
+		var sb := btn.get_theme_stylebox(state)
+		if sb:
+			sb.set_content_margin(SIDE_LEFT, px)
+
+
+## 좌측 세로 색상 띠 — 텍스처 스타일박스에는 테두리 색이 없으므로 카테고리 구분을 자식으로 그린다.
+static func add_left_stripe(ctrl: Control, color: Color, width: int = 7) -> void:
+	var stripe := ColorRect.new()
+	stripe.color = color
+	stripe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stripe.anchor_top = 0.0
+	stripe.anchor_bottom = 1.0
+	stripe.offset_left = _BTN_PLATE_MARGIN + 2      # 베벨 안쪽 면 위에 올린다
+	stripe.offset_right = _BTN_PLATE_MARGIN + 2 + width
+	stripe.offset_top = _BTN_PLATE_MARGIN + 2
+	stripe.offset_bottom = -(_BTN_PLATE_MARGIN + 2)
+	ctrl.add_child(stripe)
+
+
+## 아이템 슬롯 프레임 안에 아이콘을 앉힌 위젯. 입력은 통과시켜 부모 버튼이 계속 눌린다.
+static func make_item_slot(icon: Texture2D, slot_px: int = 64) -> Control:
+	var root := Control.new()
+	root.custom_minimum_size = Vector2(slot_px, slot_px)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var frame := TextureRect.new()
+	frame.texture = _SLOT_TEX
+	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	frame.stretch_mode = TextureRect.STRETCH_SCALE
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(frame)
+
+	if icon:
+		var pad := int(round(slot_px * _SLOT_INNER_INSET))
+		var ic := TextureRect.new()
+		ic.texture = icon
+		ic.set_anchors_preset(Control.PRESET_FULL_RECT)
+		ic.offset_left = pad
+		ic.offset_top = pad
+		ic.offset_right = -pad
+		ic.offset_bottom = -pad
+		ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ic.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(ic)
+	return root
