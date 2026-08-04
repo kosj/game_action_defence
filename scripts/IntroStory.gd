@@ -31,6 +31,7 @@ static func play(parent: Node, on_done: Callable) -> void:
 
 func _ready() -> void:
 	layer = 50   # 메인 메뉴 위에 덮어쓴다
+	process_mode = Node.PROCESS_MODE_ALWAYS   # 트리가 정지돼 있어도 인트로 애니메이션·버튼이 동작해야 한다(멈춤 방지)
 	_build_ui()
 	_run_sequence()
 
