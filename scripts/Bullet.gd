@@ -80,7 +80,8 @@ func _check_swept_hit(from: Vector2, to: Vector2) -> void:
 	var hi_x := maxf(from.x, to.x) + max_r
 	var lo_y := minf(from.y, to.y) - max_r
 	var hi_y := maxf(from.y, to.y) + max_r
-	for z in Events.live_zombies():
+	# 공간 해시로 근처 좀비 후보만 훑는다(전체 스캔 대신) — 대량 총알·좀비에서 핵심 최적화.
+	for z in Events.zombies_near(to):
 		if not is_instance_valid(z) or not z.is_in_group("zombies"):
 			continue   # 같은 프레임에 이미 죽어 스냅샷에만 남은 좀비
 		var zp: Vector2 = z.global_position

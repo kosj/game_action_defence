@@ -37,7 +37,10 @@ var _life: float = 6.0
 var _t: float = 0.0
 var _aim: Vector2 = Vector2.RIGHT
 var _spr: Sprite2D
+var _shadow: Sprite2D
 var _oct: int = -1
+
+const _SHADOW_TEX := preload("res://assets/sprites/shadow.png")
 
 
 func setup(pos: Vector2, dmg: int, bspeed: float, rng: float, life: float, tint: Color) -> void:
@@ -51,10 +54,16 @@ func setup(pos: Vector2, dmg: int, bspeed: float, rng: float, life: float, tint:
 
 func _ready() -> void:
 	z_index = -1   # 지면 설치물 — 유닛 아래
+	# 발밑 그림자(설치물에도 존재감) — 스프라이트보다 먼저 추가해 아래에 깔린다.
+	_shadow = Sprite2D.new()
+	_shadow.texture = _SHADOW_TEX
+	_shadow.z_index = -1
+	add_child(_shadow)
 	_spr = Sprite2D.new()
 	_spr.scale = Vector2(SPR_SCALE, SPR_SCALE)
 	add_child(_spr)
 	_update_sprite()
+	_fit_shadow()
 
 
 func _physics_process(delta: float) -> void:
@@ -83,6 +92,16 @@ func _update_sprite() -> void:
 	var e: Array = _DIR[oct]
 	_spr.texture = _TEX[int(e[0])]
 	_spr.scale.x = SPR_SCALE * (-1.0 if e[1] else 1.0)
+
+
+## 터렛 스프라이트 폭에 맞춘 납작한 타원 그림자를 발밑에 배치(shadow.png 128x72).
+func _fit_shadow() -> void:
+	if _spr.texture == null:
+		return
+	var tex: Vector2 = _spr.texture.get_size()
+	var sx: float = (tex.x * SPR_SCALE * 1.15) / 128.0
+	_shadow.scale = Vector2(sx, sx * 0.5)
+	_shadow.position = Vector2(0.0, tex.y * SPR_SCALE * 0.42)
 
 
 func _fire(target: Node2D) -> void:

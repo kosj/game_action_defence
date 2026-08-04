@@ -172,8 +172,9 @@ func _fit_shadow() -> void:
 	if body.texture == null:
 		return
 	var tex: Vector2 = body.texture.get_size()
-	var sx: float = (tex.x * _body_base_scale * 0.9) / 128.0
-	shadow.scale = Vector2(sx, sx * 0.5)
+	# 그림자를 좀비 폭에 맞게 크게(1.28x) 잡아 발밑 존재감을 준다.
+	var sx: float = (tex.x * _body_base_scale * 1.28) / 128.0
+	shadow.scale = Vector2(sx, sx * 0.52)
 	shadow.position = Vector2(0.0, tex.y * _body_base_scale * 0.46)
 
 

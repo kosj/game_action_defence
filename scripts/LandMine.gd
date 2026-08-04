@@ -22,6 +22,15 @@ var _spr: Sprite2D
 
 
 func _ready() -> void:
+	# 발밑 그림자(설치물 존재감) — 스프라이트 아래에 먼저 깐다.
+	var sh := Sprite2D.new()
+	sh.texture = preload("res://assets/sprites/shadow.png")
+	sh.z_index = -1
+	var mtex: Vector2 = preload("res://assets/sprites/field_mine.png").get_size()
+	var ssx: float = (mtex.x * 0.26 * 1.1) / 128.0
+	sh.scale = Vector2(ssx, ssx * 0.5)
+	sh.position = Vector2(0.0, mtex.y * 0.26 * 0.4)
+	add_child(sh)
 	# 전용 스프라이트(지뢰). 무장 경고등 깜빡임은 _draw 의 붉은 링으로 별도 표시.
 	_spr = Sprite2D.new()
 	_spr.texture = preload("res://assets/sprites/field_mine.png")
