@@ -127,7 +127,9 @@ func _max_z() -> int:
 	return int(round(lerpf(float(_diff.max_z_base), float(_diff.max_z_cap), t)))
 
 func _hp_mult() -> float:
-	var m := 1.0 + (_elapsed / 60.0) * _diff.hp_per_min
+	var mins := _elapsed / 60.0
+	# 선형 + 2차 가속 — 후반에 급격히 단단해져 플레이어의 곱연산 파워 성장을 따라잡는다.
+	var m := 1.0 + mins * _diff.hp_per_min + mins * mins * _diff.hp_accel_per_min2
 	if _elapsed > _diff.clear_seconds:   # 클리어 이후 무한 하드모드 — 분당 추가 체력
 		m += ((_elapsed - _diff.clear_seconds) / 60.0) * _diff.overtime_hp_per_min
 	return m * Events.diff_enemy_hp_mult()
@@ -281,7 +283,9 @@ func _spawn_boss() -> void:
 	var boss := BOSS.instantiate()
 	get_tree().current_scene.add_child(boss)
 	boss.global_position = _random_spawn_pos()
-	var time_scale := 1.0 + (_elapsed / 60.0) * 0.03   # 분당 +3% 체력(경과 시간 강화)
+	# 좀비 체력 곡선을 boss_curve_scale 만큼 반영해 보스도 후반까지 녹지 않게 한다.
+	# (예전의 분당 +3% 는 후반 보스를 순삭되게 만들었다.)
+	var time_scale := 1.0 + (_hp_mult() / Events.diff_enemy_hp_mult() - 1.0) * _diff.boss_curve_scale
 	var boss_hp := int(round(float(90 + 70 * (_boss_count - 1)) * Events.diff_boss_hp_mult() * time_scale * float(bt["hp_mul"])))
 	var stats := {
 		"max_health": boss_hp,

@@ -58,9 +58,6 @@ var _go_medal: UIIcon = null
 var _go_record: Label = null
 var _go_vals: Dictionary = {}   # "score"/"best"/"wave"/"kills"/"time" -> Label
 
-# 웨이브 진행 바(상단 바 하단의 얇은 채움 바) — 코드로 생성.
-var _wave_fill: ColorRect = null
-
 # 스웜 경고 배너 — 코드로 생성. 무리/엘리트 팩 등장 직전 화면 중앙 상단에 붉게 번쩍.
 var _swarm_banner: Label = null
 var _swarm_tween: Tween = null
@@ -97,7 +94,6 @@ func _ready() -> void:
 	# 주변 시야 제한(방사형 암전) 오버레이 제거 — 화면 외곽이 어두워 보이지 않도록.
 	_build_revive_button()
 	_build_hud_icons()
-	_build_wave_bar()
 	_build_xp_bar()
 	_build_swarm_banner()
 	_build_loadout()
@@ -455,19 +451,11 @@ func _on_elapsed_changed(seconds: float) -> void:
 
 ## 시간 기반 진행: 30분(clear) 생존까지의 진행률을 바/라벨로 보여준다. 클리어 후엔 "OVERTIME".
 func _on_run_progress(elapsed: float, clear: float) -> void:
-	var ratio := clampf(elapsed / maxf(clear, 1.0), 0.0, 1.0)
 	if elapsed >= clear:
 		progress_label.text = "OVERTIME"
 	else:
 		var remain := int(ceil(clear - elapsed))
 		progress_label.text = "%02d:%02d" % [remain / 60, remain % 60]
-	# 진행 바 — 채워질수록 금색→초록으로 물들어 "곧 클리어"가 한눈에 읽힌다.
-	if _wave_fill:
-		_wave_fill.anchor_right = ratio
-		if elapsed >= clear:
-			_wave_fill.color = Color(0.75, 0.25, 0.85, 0.95)   # 오버타임 = 보라(하드모드)
-		else:
-			_wave_fill.color = Color(1.0, 0.72, 0.20, 0.95).lerp(Color(0.45, 0.90, 0.45, 0.95), ratio)
 
 
 ## 30분 생존 클리어 — 웨이브 클리어 배너를 재사용해 크게 알린다(승리 아님, 이후 무한 하드모드).
@@ -493,24 +481,6 @@ func _on_run_cleared() -> void:
 		wave_clear_label.visible = false
 		wave_clear_bg.visible = false)
 	Events.shake(8.0)
-
-
-## 상단 바 하단에 얇은 웨이브 진행 바(킬 목표 대비 진행률)를 코드로 생성.
-## 숫자 라벨(progress_label)은 유지하고, 시각적 진행감은 바가 담당한다.
-func _build_wave_bar() -> void:
-	var bg := ColorRect.new()
-	bg.color = Color(0.0, 0.0, 0.0, 0.45)
-	bg.anchor_right = 1.0
-	bg.offset_top = 132.0
-	bg.offset_bottom = 137.0
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
-	_wave_fill = ColorRect.new()
-	_wave_fill.color = Color(1.0, 0.72, 0.20, 0.95)
-	_wave_fill.anchor_right = 0.0
-	_wave_fill.anchor_bottom = 1.0
-	_wave_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.add_child(_wave_fill)
 
 
 ## 주변 시야 제한 오버레이 — 화면 중앙(카메라가 플레이어를 중앙 고정)만 선명하고 바깥은 암전.
