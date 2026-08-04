@@ -60,10 +60,10 @@ func build() -> Theme:
 	t.default_font_size = 19
 
 	# ── Button ────────────────────────────────────────────────
-	t.set_stylebox("normal",   "Button", _btn(BTN_BG, BTN_LINE))
-	t.set_stylebox("hover",    "Button", _btn(BTN_BG.lightened(0.12), BTN_LINE.lightened(0.12)))
-	t.set_stylebox("pressed",  "Button", _btn(BTN_BG.darkened(0.18), ACCENT))
-	t.set_stylebox("disabled", "Button", _btn(Color(0.14, 0.15, 0.18), Color(0.26, 0.27, 0.31)))
+	t.set_stylebox("normal",   "Button", _btn(BTN_LINE))
+	t.set_stylebox("hover",    "Button", _btn(BTN_LINE, 0.28))
+	t.set_stylebox("pressed",  "Button", _btn(ACCENT, 0.52))
+	t.set_stylebox("disabled", "Button", _btn(Color(0.40, 0.40, 0.45), 0.45))
 	t.set_stylebox("focus",    "Button", _empty())
 	var bold := bold_font()
 	if bold:
@@ -90,19 +90,13 @@ func build() -> Theme:
 	return t
 
 
-func _btn(bg: Color, border: Color) -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = bg
-	sb.border_color = border
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(14)
+## 기본 버튼도 UIStyle 과 같은 금속 플레이트를 쓰되 여백만 테마 기본값으로 조정.
+func _btn(accent: Color, darken: float = 0.42) -> StyleBoxTexture:
+	var sb := UIStyle.button_box(accent, darken)
 	sb.content_margin_left = 16
 	sb.content_margin_right = 16
 	sb.content_margin_top = 9
 	sb.content_margin_bottom = 9
-	sb.shadow_color = Color(0, 0, 0, 0.28)
-	sb.shadow_size = 4
-	sb.shadow_offset = Vector2(0, 2)
 	return sb
 
 

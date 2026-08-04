@@ -189,19 +189,29 @@ func _make_evolve_card(rule: Dictionary) -> Button:
 	return btn
 
 
-## 카드 버튼에 무기 아이콘을 왼쪽 정렬로 붙인다(아이콘 없으면 기존 색상 카드 그대로).
+const _SLOT_PX := 68
+const _SLOT_LEFT := 12
+
+## 카드 버튼 왼쪽에 아이템 슬롯 프레임(아이콘 포함)을 붙인다(아이콘 없으면 기존 색상 카드 그대로).
 func _set_card_icon(btn: Button, icon) -> void:
 	if icon == null or not (icon is Texture2D):
 		return
-	btn.icon = icon
-	btn.expand_icon = true
-	btn.add_theme_constant_override("icon_max_width", 52)
-	btn.add_theme_constant_override("h_separation", 12)
+	var slot := _UIStyle.make_item_slot(icon, _SLOT_PX)
+	slot.anchor_top = 0.5
+	slot.anchor_bottom = 0.5
+	slot.offset_left = _SLOT_LEFT
+	slot.offset_right = _SLOT_LEFT + _SLOT_PX
+	slot.offset_top = -_SLOT_PX / 2.0
+	slot.offset_bottom = _SLOT_PX / 2.0
+	btn.add_child(slot)
+	# 라벨이 슬롯을 넘지 않도록 좌측 여백을 슬롯 폭만큼 확보하고 왼쪽 정렬로 읽히게 한다.
+	_UIStyle.set_button_content_margin_left(btn, _SLOT_LEFT + _SLOT_PX + 12)
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 
 
 func _new_card_button() -> Button:
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(0, 74)
+	btn.custom_minimum_size = Vector2(0, 88)   # 좌측 슬롯 프레임(68px)이 들어갈 여유
 	btn.add_theme_font_size_override("font_size", 22)
 	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	return btn

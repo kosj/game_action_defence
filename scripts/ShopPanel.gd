@@ -215,10 +215,8 @@ func _make_upgrade_button(upg: Dictionary) -> Button:
 	var col: Color = SECTION_COLORS.get(upg["section"], Color(0.4, 0.4, 0.45))
 	_UIStyle.apply_button_style(btn, col.darkened(0.82), col)
 	# 섹션 색상의 굵은 좌측 띠로 카테고리를 한눈에 구분
-	for state_name in ["normal", "hover", "pressed", "disabled"]:
-		var sb := btn.get_theme_stylebox(state_name) as StyleBoxFlat
-		if sb:
-			sb.border_width_left = 7
+	_UIStyle.add_left_stripe(btn, col)
+	_UIStyle.set_button_content_margin_left(btn, 26)
 	btn.icon = _COIN_ICON
 	btn.add_theme_constant_override("icon_max_width", 26)
 	btn.add_theme_constant_override("h_separation", 10)
