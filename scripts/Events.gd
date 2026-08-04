@@ -267,6 +267,47 @@ func live_zombies() -> Array:
 	return _z_cache
 
 
+# ── 좀비 공간 해시(발사체 광역 판정 가속) ────────────────────────────────
+# 총알마다 전체 좀비를 훑으면 O(총알×좀비)라 대량 난전에서 급격히 느려진다. 물리 프레임당
+# 1회만 격자에 담아두고, 근접 판정은 주변 3×3 셀만 보게 해 O(총알×이웃)로 낮춘다.
+const _ZG_CELL := 64.0
+var _zg_frame: int = -1
+var _zg: Dictionary = {}
+
+
+func _ensure_zgrid() -> void:
+	var f := Engine.get_physics_frames()
+	if f == _zg_frame:
+		return
+	_zg_frame = f
+	_zg.clear()
+	for z in live_zombies():
+		if not is_instance_valid(z) or not z.is_in_group("zombies"):
+			continue
+		var p: Vector2 = z.global_position
+		var key := Vector2i(int(floor(p.x / _ZG_CELL)), int(floor(p.y / _ZG_CELL)))
+		var arr: Variant = _zg.get(key)
+		if arr == null:
+			_zg[key] = [z]
+		else:
+			arr.append(z)
+
+
+## pos 주변(3×3 셀 ≈ ±96px)에 있는 좀비 후보만 반환. 정밀 거리 판정은 호출부가 수행한다.
+## 셀(64px)이 최대 판정 반경(보스 38+총알 반경)보다 커서 3×3 스캔이면 누락 없이 커버된다.
+func zombies_near(pos: Vector2) -> Array:
+	_ensure_zgrid()
+	var cx := int(floor(pos.x / _ZG_CELL))
+	var cy := int(floor(pos.y / _ZG_CELL))
+	var out: Array = []
+	for ox in range(-1, 2):
+		for oy in range(-1, 2):
+			var arr: Variant = _zg.get(Vector2i(cx + ox, cy + oy))
+			if arr != null:
+				out.append_array(arr)
+	return out
+
+
 ## 화면 흔들림 요청 — 타격감이 필요한 순간(플레이어 피격·보스 사망·폭발 등)에 호출한다.
 ## 실제 오프셋 적용은 Player 의 카메라가 담당(감쇠). amount 는 대략 흔들림 픽셀 세기.
 func shake(amount: float) -> void:

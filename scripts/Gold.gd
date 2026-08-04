@@ -17,6 +17,12 @@ const PULL_MAX := 1600.0      # 최대 흡인 속도(px/s)
 const PULL_SWIRL := 0.30      # 초반 접선(소용돌이) 성분 비율 — 가까울수록 사라진다
 const PULL_STEER := 0.14      # 속도 방향을 플레이어 쪽으로 재정렬하는 정도(플레이어 이동 추적)
 
+## 필드에 동시에 존재할 수 있는 젬 상한. 처치 속도가 수집 속도를 앞지르면 젬이 무한히 쌓여
+## (각자 매 프레임 자석 판정) 프레임이 급락한다. 초과 시 가장 오래된 젬을 즉시 흡수(경험치는
+## 그대로 지급)해 개수를 묶는다 — 사실상 자동 자석 청소.
+static var _live: Array = []
+const LIVE_CAP := 140
+
 @onready var body: Sprite2D = $Body
 
 var player: Node2D = null
@@ -44,6 +50,32 @@ func on_spawn() -> void:
 	body.modulate = Color(1, 1, 1)   # 경험치 젬 — 파란 다이아(원색). 등급은 set_value 로 틴트.
 	if player == null or not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
+	if not _live.has(self):
+		_live.append(self)
+	_enforce_cap()
+
+
+## 젬 개수 상한 유지 — 오래된 것부터 즉시 흡수해 필드를 정리한다.
+func _enforce_cap() -> void:
+	if _live.size() <= LIVE_CAP:
+		return
+	# 먼저 죽은/무효 참조를 걷어낸다(게임 재시작·수집으로 남은 것) — 그것만으로 상한 이하가 될 수 있다.
+	_live = _live.filter(func(g): return is_instance_valid(g) and g._alive)
+	while _live.size() > LIVE_CAP:
+		var g: Object = _live[0]
+		if g == self:   # 자기 자신은 유지(방금 스폰) — 다른 게 없으면 중단
+			break
+		_live.remove_at(0)
+		g._force_absorb()
+
+
+## 상한 초과로 강제 흡수 — 경험치는 지급하되 연출·사운드 없이 즉시 반납(대량 정리 시 부하·소음 방지).
+func _force_absorb() -> void:
+	if not _alive:
+		return
+	_alive = false
+	Events.add_xp(value)
+	Pool.release(self)
 
 
 ## 젬 등급 지정(강한 적일수록 큰 값). 값이 클수록 골드·경험치가 많고 색으로 구분된다.
@@ -73,6 +105,7 @@ func launch(to: Vector2, delay: float = 0.0) -> void:
 
 func on_despawn() -> void:
 	_alive = false
+	_live.erase(self)
 
 
 func _physics_process(delta: float) -> void:
