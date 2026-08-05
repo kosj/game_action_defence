@@ -259,8 +259,15 @@ func _handle_move() -> void:
 	if joystick:
 		input = joystick.get_value()
 
-	velocity = input * move_speed
+	velocity = input * move_speed * _ext_slow
 	move_and_slide()
+	_ext_slow = 1.0   # 다음 프레임 리셋 — 느림 존(진창/냉기)이 매 프레임 다시 설정한다.
+
+
+## 필드 느림 존(진창·냉기 분출 등)이 매 프레임 호출 — 이 프레임의 이동속도 배수를 낮춘다(가장 강한 값 적용).
+var _ext_slow: float = 1.0
+func slow_this_frame(mult: float) -> void:
+	_ext_slow = minf(_ext_slow, clampf(mult, 0.15, 1.0))
 
 
 func _handle_attack(delta: float) -> void:
