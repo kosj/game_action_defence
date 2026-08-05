@@ -17,7 +17,7 @@ unlock_cost = 0
 unlock_achievement = ""
 gimmick_key = "gas_can"
 gimmick_keys = PackedStringArray("gas_can", "wasp_swarm", "mud_field")
-prop_keys = PackedStringArray("fence", "wreck_car")
+prop_keys = PackedStringArray("fence", "wreck_car", "mailbox", "bush", "forsale", "hydrant")
 boss_key = "mutant_dog"
 
 [sub_resource type="Resource" id="Resource_6xvj3"]
@@ -34,7 +34,7 @@ unlock_cost = 400
 unlock_achievement = ""
 gimmick_key = "falling_debris"
 gimmick_keys = PackedStringArray("falling_debris", "steam_vent", "burning_car")
-prop_keys = PackedStringArray("wreck_car", "tank")
+prop_keys = PackedStringArray("wreck_car", "tank", "barrier", "dumpster", "rubble", "barrel")
 boss_key = "wrecker"
 
 [sub_resource type="Resource" id="Resource_eiv06"]
@@ -51,7 +51,7 @@ unlock_cost = 0
 unlock_achievement = "survive_15"
 gimmick_key = "toxic_pool"
 gimmick_keys = PackedStringArray("toxic_pool", "cryo_vent", "tesla_coil")
-prop_keys = PackedStringArray()
+prop_keys = PackedStringArray("pod", "server", "drum", "console")
 boss_key = "mutation"
 
 [resource]
