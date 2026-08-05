@@ -3,9 +3,18 @@ extends Node
 ## 교외=가스통 / 도심=낙석 / 연구소=독가스 웅덩이. 기믹 키가 없거나 알 수 없으면 아무것도 안 한다.
 
 const _CLASSES := {
+	# 교외
 	"gas_can": preload("res://scripts/GasCan.gd"),
+	"wasp_swarm": preload("res://scripts/WaspSwarm.gd"),
+	"mud_field": preload("res://scripts/MudField.gd"),
+	# 도심
 	"falling_debris": preload("res://scripts/FallingDebris.gd"),
+	"steam_vent": preload("res://scripts/SteamVent.gd"),
+	"burning_car": preload("res://scripts/BurningCar.gd"),
+	# 연구소
 	"toxic_pool": preload("res://scripts/ToxicPool.gd"),
+	"cryo_vent": preload("res://scripts/CryoVent.gd"),
+	"tesla_coil": preload("res://scripts/TeslaCoil.gd"),
 }
 
 const INTERVAL_MIN := 6.0

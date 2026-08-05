@@ -16,7 +16,7 @@ detail_style = "grass"
 unlock_cost = 0
 unlock_achievement = ""
 gimmick_key = "gas_can"
-gimmick_keys = PackedStringArray("gas_can")
+gimmick_keys = PackedStringArray("gas_can", "wasp_swarm", "mud_field")
 prop_keys = PackedStringArray("fence", "wreck_car")
 boss_key = "mutant_dog"
 
@@ -33,7 +33,7 @@ detail_style = "stone"
 unlock_cost = 400
 unlock_achievement = ""
 gimmick_key = "falling_debris"
-gimmick_keys = PackedStringArray("falling_debris")
+gimmick_keys = PackedStringArray("falling_debris", "steam_vent", "burning_car")
 prop_keys = PackedStringArray("wreck_car", "tank")
 boss_key = "wrecker"
 
@@ -50,7 +50,7 @@ detail_style = "frozen"
 unlock_cost = 0
 unlock_achievement = "survive_15"
 gimmick_key = "toxic_pool"
-gimmick_keys = PackedStringArray("toxic_pool")
+gimmick_keys = PackedStringArray("toxic_pool", "cryo_vent", "tesla_coil")
 prop_keys = PackedStringArray()
 boss_key = "mutation"
 
