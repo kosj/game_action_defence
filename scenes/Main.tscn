@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/Main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2"]
@@ -8,6 +8,7 @@
 [ext_resource type="Script" path="res://scripts/ItemPickupSpawner.gd" id="8"]
 [ext_resource type="PackedScene" path="res://scenes/LevelUpPanel.tscn" id="9"]
 [ext_resource type="Script" path="res://scripts/GimmickSpawner.gd" id="10"]
+[ext_resource type="Script" path="res://scripts/PropField.gd" id="11"]
 
 [node name="Main" type="Node2D"]
 y_sort_enabled = true
@@ -24,6 +25,11 @@ color = Color(0.10, 0.16, 0.08, 1)
 [node name="Ground" type="Node2D" parent="."]
 z_index = -2
 script = ExtResource("6")
+
+[node name="PropField" type="Node2D" parent="."]
+z_index = -1
+y_sort_enabled = false
+script = ExtResource("11")
 
 [node name="Player" parent="." instance=ExtResource("2")]
 position = Vector2(0, 0)

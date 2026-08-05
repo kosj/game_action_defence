@@ -18,6 +18,13 @@ extends Resource
 @export var unlock_cost: int = 0
 @export var unlock_achievement: String = ""
 
-## 후속(6-B/6-C) 예약 — 기믹 키 / 테마 보스 아키타입.
+## 기믹 키(단일, 레거시) / 테마 보스 아키타입.
 @export var gimmick_key: String = ""
 @export var boss_key: String = ""
+
+## 테마별 방해 기믹 목록 — 여러 종을 가중 없이 균등 랜덤으로 스폰한다. 비어 있으면 gimmick_key 로 폴백.
+@export var gimmick_keys: PackedStringArray = PackedStringArray()
+
+## 미장센(장식 프롭) 키 목록 — PropField 가 필드에 흩뿌린다. 비어 있으면 프롭 없음.
+##   suburb=fence/wreck_car, city=wreck_car/tank, lab=(아트 준비 후 채움)
+@export var prop_keys: PackedStringArray = PackedStringArray()

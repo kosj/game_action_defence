@@ -16,6 +16,8 @@ detail_style = "grass"
 unlock_cost = 0
 unlock_achievement = ""
 gimmick_key = "gas_can"
+gimmick_keys = PackedStringArray("gas_can")
+prop_keys = PackedStringArray("fence", "wreck_car")
 boss_key = "mutant_dog"
 
 [sub_resource type="Resource" id="Resource_6xvj3"]
@@ -31,6 +33,8 @@ detail_style = "stone"
 unlock_cost = 400
 unlock_achievement = ""
 gimmick_key = "falling_debris"
+gimmick_keys = PackedStringArray("falling_debris")
+prop_keys = PackedStringArray("wreck_car", "tank")
 boss_key = "wrecker"
 
 [sub_resource type="Resource" id="Resource_eiv06"]
@@ -46,6 +50,8 @@ detail_style = "frozen"
 unlock_cost = 0
 unlock_achievement = "survive_15"
 gimmick_key = "toxic_pool"
+gimmick_keys = PackedStringArray("toxic_pool")
+prop_keys = PackedStringArray()
 boss_key = "mutation"
 
 [resource]

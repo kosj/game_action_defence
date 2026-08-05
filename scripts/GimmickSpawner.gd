@@ -14,7 +14,7 @@ const MAX_ACTIVE := 3
 const SPAWN_MIN := 90.0    # 플레이어로부터 스폰 거리 범위
 const SPAWN_MAX := 320.0
 
-var _cls: GDScript = null
+var _classes: Array = []   # 이 테마에서 스폰 가능한 기믹 클래스들(균등 랜덤 선택)
 var player: Node2D = null
 var _accum: float = 0.0
 var _next: float = 0.0
@@ -25,8 +25,14 @@ var _active: Array = []
 
 func _ready() -> void:
 	var t: ThemeData = ThemeManager.selected()
-	var key: String = t.gimmick_key if t != null else ""
-	_cls = _CLASSES.get(key)
+	# 테마의 기믹 목록(gimmick_keys)을 우선 사용, 비어 있으면 단일 gimmick_key 로 폴백.
+	var keys: PackedStringArray = PackedStringArray()
+	if t != null:
+		keys = t.gimmick_keys if not t.gimmick_keys.is_empty() else PackedStringArray([t.gimmick_key])
+	for k in keys:
+		var c = _CLASSES.get(k)
+		if c != null:
+			_classes.append(c)
 	player = get_tree().get_first_node_in_group("player")
 	Events.player_died.connect(func(): _game_over = true)
 	Events.player_revived.connect(func(): _game_over = false)
@@ -34,7 +40,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if _cls == null or _game_over:
+	if _classes.is_empty() or _game_over:
 		return
 	if not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
@@ -51,7 +57,8 @@ func _process(delta: float) -> void:
 
 
 func _spawn() -> void:
-	var h: Node2D = _cls.new()
+	var cls: GDScript = _classes[randi() % _classes.size()]   # 여러 기믹 중 하나를 균등 랜덤 선택
+	var h: Node2D = cls.new()
 	get_tree().current_scene.add_child(h)
 	var dist := randf_range(SPAWN_MIN, SPAWN_MAX)
 	h.global_position = player.global_position + Vector2.from_angle(randf() * TAU) * dist
