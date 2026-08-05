@@ -77,13 +77,27 @@ func _explode() -> void:
 			if z.has_method("apply_knockback"):
 				var dir: Vector2 = (z.global_position - global_position).normalized()
 				z.apply_knockback(dir, knockback)
-	# 폭발 텍스처(반경에 맞춤) + 피어오르는 연기 + 확산 잔광.
+	# 다층 폭발 연출: 백색 섬광 → 메인 화염 → 방사형 파편 → 피어오르는 연기 → 확산 잔광 링.
 	var scn := get_tree().current_scene
-	_SpriteFX.spawn(scn, global_position, _FX_EXPLOSION, explode_r * 2.0, 0.34, color.lightened(0.25))
-	_SpriteFX.spawn(scn, global_position + Vector2(0.0, -explode_r * 0.25), _FX_SMOKE, \
-		explode_r * 1.4, 0.6, Color(0.5, 0.5, 0.5, 1.0), 0.0, 0.6)
-	_FXBurst.spawn(scn, global_position, color, explode_r * 0.7, 0.35)
-	Events.shake(5.0)
+	var pos := global_position
+	# 1) 순간 백색 섬광(아주 빠르게 확 커졌다 사라져 "번쩍")
+	_SpriteFX.spawn(scn, pos, _FX_EXPLOSION, explode_r * 2.5, 0.12, Color(1.0, 0.98, 0.9))
+	# 2) 메인 화염 폭발(무기 색을 밝게)
+	_SpriteFX.spawn(scn, pos, _FX_EXPLOSION, explode_r * 1.9, 0.4, color.lightened(0.3), 0.0, 1.5)
+	# 3) 파편 — 작은 폭발 스프라이트를 방사형으로 흩뿌려 확산·비대칭감을 준다
+	for i in 4:
+		var a := TAU * (float(i) / 4.0) + randf() * 0.7
+		var off := Vector2.from_angle(a) * explode_r * randf_range(0.45, 0.85)
+		_SpriteFX.spawn(scn, pos + off, _FX_EXPLOSION, explode_r * randf_range(0.35, 0.6), \
+			randf_range(0.22, 0.34), color.lightened(0.15), 0.0, randf_range(-7.0, 7.0))
+	# 4) 피어오르는 연기 2덩이(살짝 어긋난 위치에서 회전하며 위로)
+	for i in 2:
+		var soff := Vector2(randf_range(-explode_r * 0.3, explode_r * 0.3), -explode_r * randf_range(0.15, 0.5))
+		_SpriteFX.spawn(scn, pos + soff, _FX_SMOKE, explode_r * randf_range(1.0, 1.5), \
+			randf_range(0.55, 0.8), Color(0.45, 0.45, 0.48, 1.0), 0.0, randf_range(-0.6, 0.6))
+	# 5) 확산 잔광 링
+	_FXBurst.spawn(scn, pos, color.lightened(0.2), explode_r * 0.9, 0.28)
+	Events.shake(7.0)
 	SoundManager.play("boom", 0.1, 0.9)
 	queue_free()
 
