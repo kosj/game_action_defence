@@ -537,12 +537,26 @@ func _on_xp_changed(xp: int, xp_to_next: int, level: int) -> void:
 
 ## 장착 로드아웃 — 화면 좌측에 무기/패시브를 아이템 색의 라벨로 세로 나열.
 func _build_loadout() -> void:
+	# 밝은 필드 위에서도 잘 읽히도록 반투명 어두운 패널을 배경에 깔고(내용에 맞춰 자동 크기),
+	# 그 안에 아이템 목록을 담는다.
+	var panel := PanelContainer.new()
+	panel.offset_left = 8.0
+	panel.offset_top = 158.0
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.0, 0.0, 0.0, 0.40)
+	sb.set_corner_radius_all(8)
+	sb.content_margin_left = 8.0
+	sb.content_margin_right = 10.0
+	sb.content_margin_top = 6.0
+	sb.content_margin_bottom = 6.0
+	panel.add_theme_stylebox_override("panel", sb)
+	add_child(panel)
+
 	_loadout_box = VBoxContainer.new()
-	_loadout_box.add_theme_constant_override("separation", 2)
-	_loadout_box.offset_left = 8.0
-	_loadout_box.offset_top = 158.0
+	_loadout_box.add_theme_constant_override("separation", 3)
 	_loadout_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_loadout_box)
+	panel.add_child(_loadout_box)
 
 
 func _on_inventory_changed() -> void:

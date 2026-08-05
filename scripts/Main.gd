@@ -12,6 +12,7 @@ const ITEM_PICKUP := preload("res://scenes/ItemPickup.tscn")
 func _ready() -> void:
 	get_tree().paused = false   # 게임 씬 진입 시 정지 상태가 남아있지 않도록 보장
 	Engine.time_scale = 1.0     # 이전 판의 히트스톱 배속이 남아 새 판이 느리게/멈춘 듯 시작하지 않도록
+	_clean_slate()              # 이전 판의 잔존 엔티티/풀/정적 상태 정리(새 판·이어하기·다시하기 공통)
 	# 인게임 BGM 으로 크로스페이드(다시하기 재진입 시에는 끊김 없이 이어 재생 + 덕킹 복구).
 	SoundManager.play_music("game")
 	# 첫 프레임을 먼저 렌더한 뒤 풀을 채워 WebGL 초기 프리즈 방지
@@ -21,6 +22,18 @@ func _ready() -> void:
 
 ## 테마별 앰비언트 입자 — 화면 전반에 은은히 떠다니는 티끌(교외/도심/연구소 색조). 플레이어를 따라다녀
 ## 이동해도 시야가 채워진다. 입자는 월드 좌표에 남아 자연스럽게 흐른다.
+## 새 게임 씬 진입마다 이전 판의 잔재를 확실히 청소한다. 씬 전환(change_scene)이 대부분 정리하지만
+## SceneFade 페이드(0.3s) 동안 옛 스포너가 좀비를 풀에 반납하거나, 웹에서 해제 타이밍이 밀려
+## 좀비가 남아 보이는 경우를 방지 — 그룹에 남은 적을 즉시 해제하고 오브젝트 풀·정적 상태를 비운다.
+func _clean_slate() -> void:
+	for g in ["zombies", "boss"]:
+		for n in get_tree().get_nodes_in_group(g):
+			if is_instance_valid(n):
+				n.queue_free()
+	Pool.clear()
+	preload("res://scripts/Gold.gd").reset_live()   # 젬 정적 추적 목록 초기화(판 간 누적 방지)
+
+
 func _spawn_ambient() -> void:
 	var player := get_tree().get_first_node_in_group("player")
 	if player == null:
