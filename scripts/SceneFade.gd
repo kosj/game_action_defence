@@ -4,6 +4,7 @@ extends CanvasLayer
 
 var _rect: ColorRect = null
 var _busy: bool = false
+var _tw: Tween = null
 
 
 func _ready() -> void:
@@ -16,14 +17,19 @@ func _ready() -> void:
 	add_child(_rect)
 
 
-## 페이드아웃(→검정) 후 씬 교체, 다시 페이드인. 전환 중 재호출은 무시.
+## 페이드아웃(→검정) 후 씬 교체, 다시 페이드인. 페이드아웃 중 재호출은 무시.
+## 잠금(_busy)은 "실제 씬이 바뀌는 순간" 해제한다 — 페이드인 트윈이 어떤 이유로 끊겨도
+## 잠금이 영구히 걸린 채 남지 않게 해, 이후 전환(예: 이어하기→새로하기)이 무시되어 멈추는 것을 막는다.
 func transition_to(path: String, dur: float = 0.3) -> void:
 	if _busy:
 		return
 	_busy = true
-	var tw := create_tween()
-	tw.tween_property(_rect, "color:a", 1.0, dur).set_trans(Tween.TRANS_SINE)
-	tw.tween_callback(func(): get_tree().change_scene_to_file(path))
-	tw.tween_interval(0.05)
-	tw.tween_property(_rect, "color:a", 0.0, dur).set_trans(Tween.TRANS_SINE)
-	tw.tween_callback(func(): _busy = false)
+	if _tw != null and _tw.is_valid():
+		_tw.kill()
+	_tw = create_tween()
+	_tw.tween_property(_rect, "color:a", 1.0, dur).set_trans(Tween.TRANS_SINE)
+	_tw.tween_callback(func():
+		get_tree().change_scene_to_file(path)
+		_busy = false)
+	_tw.tween_interval(0.05)
+	_tw.tween_property(_rect, "color:a", 0.0, dur).set_trans(Tween.TRANS_SINE)
