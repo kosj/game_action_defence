@@ -8,7 +8,6 @@ const _IntroStory := preload("res://scripts/IntroStory.gd")
 ## 난이도 인덱스 → Locale 키
 const _DIFF_KEYS: Array = ["diff_easy", "diff_normal", "diff_hard"]
 
-var _best_label: Label
 var _diff_title: Label
 var _new_game_btn: Button
 var _continue_btn: Button
@@ -144,12 +143,7 @@ func _build_ui() -> void:
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(title)
 
-	_best_label = Label.new()
-	_best_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_best_label.add_theme_font_size_override("font_size", 22)
-	_best_label.add_theme_color_override("font_color", Color(0.85, 0.88, 0.95))
-	box.add_child(_best_label)
-
+	# 최고점(스코어) 표시 제거 — 요청.
 	# 난이도 모드 제거 — 단일 통합 모드(선택 UI 없음).
 
 	var spacer := Control.new()
@@ -1061,7 +1055,6 @@ func _on_dim_input(event: InputEvent) -> void:
 
 ## 현재 언어로 모든 라벨/버튼 텍스트를 갱신하고 선택 강조를 다시 칠한다.
 func _apply_language() -> void:
-	_refresh_best_label()
 	_new_game_btn.text = Locale.t("menu_new_game")
 	_continue_btn.text = Locale.t("menu_continue")
 	_lang_title.text = Locale.t("menu_language")
@@ -1110,11 +1103,6 @@ func _refresh_language_buttons() -> void:
 			_UIStyle.apply_button_style(b, Color(0.30, 0.26, 0.10), Color(1.0, 0.82, 0.25))
 		else:
 			_UIStyle.apply_button_style(b, Color(0.14, 0.15, 0.20), Color(0.30, 0.32, 0.40))
-
-
-## "최고 점수: N" — 단일 모드 기준.
-func _refresh_best_label() -> void:
-	_best_label.text = "%s: %d" % [Locale.t("menu_best"), RankingManager.current_best()]
 
 
 func _on_new_game_pressed() -> void:
