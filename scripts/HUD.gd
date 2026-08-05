@@ -570,14 +570,14 @@ func _add_loadout_lines(inv: Dictionary) -> void:
 		if icon != null and icon is Texture2D:
 			var tex := TextureRect.new()
 			tex.texture = icon
-			tex.custom_minimum_size = Vector2(18, 18)
+			tex.custom_minimum_size = Vector2(24, 24)
 			tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			row.add_child(tex)
 		var lbl := Label.new()
 		lbl.text = "%s  %d" % [m["name"], lv]
-		lbl.add_theme_font_size_override("font_size", 14)
+		lbl.add_theme_font_size_override("font_size", 19)
 		lbl.add_theme_color_override("font_color", m["color"])
 		lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
 		lbl.add_theme_constant_override("outline_size", 4)
@@ -762,6 +762,14 @@ func _build_gameover_stats() -> void:
 		val.add_theme_color_override("font_color", Color(0.92, 0.94, 0.98))
 		grid.add_child(val)
 		_go_vals[row[1]] = val
+
+	# 정보(제목·통계)를 위로, 버튼을 아래로 밀어 사이를 벌린다 — 하단 여백 제거 + 정보/버튼 이격.
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, 16)
+	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vbox.add_child(gap)
+	vbox.move_child(gap, holder.get_index() + 1)
 
 
 func _on_player_died() -> void:

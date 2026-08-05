@@ -23,15 +23,20 @@ static func make(kind: String, px: float, color: Color = Color.WHITE) -> UIIcon:
 	ic.color = color
 	ic.custom_minimum_size = Vector2(px, px)
 	ic.size = Vector2(px, px)
+	# 컨테이너(GridContainer 등)에서 셀 높이에 맞춰 늘어나 찌그러지지 않도록 최소크기로 고정·중앙정렬.
+	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return ic
 
 
 func _draw() -> void:
 	var s := size
-	# 전용 아트가 있으면 사각형에 맞춰 그린다(원색 유지). 없으면 벡터 드로잉.
+	# 전용 아트가 있으면 정사각(중앙)으로 그린다 — 컨트롤이 늘어나도 텍스처 비율 유지(찌그러짐 방지).
 	if _KIND_TEX.has(kind):
-		draw_texture_rect(_KIND_TEX[kind], Rect2(Vector2.ZERO, s), false)
+		var side := minf(s.x, s.y)
+		var off := (s - Vector2(side, side)) * 0.5
+		draw_texture_rect(_KIND_TEX[kind], Rect2(off, Vector2(side, side)), false)
 		return
 	var c := s * 0.5
 	var r := minf(s.x, s.y) * 0.5
