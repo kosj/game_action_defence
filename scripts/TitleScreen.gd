@@ -21,7 +21,6 @@ var _ghost: Label
 var _main_label: Label
 var _slash: ColorRect
 var _tagline: Label
-var _best: Label
 var _tap_label: Label
 var _flash: ColorRect
 var _fade: ColorRect
@@ -88,10 +87,9 @@ func _build() -> void:
 	_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_title_holder.add_child(_logo)
 
-	# 태그라인 / 최고점 / 탭 안내
+	# 태그라인 / 탭 안내 (최고점 표시 제거)
 	_tagline = _make_centered_label(Locale.t("title_tagline"), 22, Color(0.78, 0.34, 0.32, 1.0), SLASH_Y + 26.0)
 	UITheme.heading(_tagline)
-	_best = _make_centered_label("%s  %d" % [Locale.t("menu_best"), Events.high_score], 20, Color(0.72, 0.74, 0.80, 1.0), SLASH_Y + 70.0)
 	_tap_label = _make_centered_label(Locale.t("title_tap"), 26, Color(0.95, 0.93, 0.95, 1.0), 1030.0)
 	UITheme.heading(_tap_label)
 
@@ -188,7 +186,6 @@ func _play_intro() -> void:
 	_title_holder.scale = Vector2(1.22, 1.22)
 	_title_holder.modulate.a = 0.0
 	_tagline.modulate.a = 0.0
-	_best.modulate.a = 0.0
 	_tap_label.modulate.a = 0.0
 
 	var tw := create_tween()
@@ -200,7 +197,6 @@ func _play_intro() -> void:
 	tw.tween_callback(_slam)
 	tw.set_parallel(true)
 	tw.tween_property(_tagline, "modulate:a", 1.0, 0.5)
-	tw.tween_property(_best, "modulate:a", 0.85, 0.5)
 	tw.set_parallel(false)
 	tw.tween_property(_tap_label, "modulate:a", 1.0, 0.4)
 	tw.tween_callback(func(): _intro_done = true)

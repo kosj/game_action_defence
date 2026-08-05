@@ -754,9 +754,8 @@ func _build_gameover_stats() -> void:
 	grid.add_theme_constant_override("h_separation", 12)
 	grid.add_theme_constant_override("v_separation", 6)
 	holder.add_child(grid)
-	for row in [["star", "score", Color(1.0, 0.85, 0.2)], ["flag", "wave", Color(0.7, 0.85, 1.0)],
-			["skull", "kills", Color(0.95, 0.55, 0.55)], ["clock", "time", Color(0.82, 0.86, 0.95)],
-			["trophy", "best", Color(0.8, 0.82, 0.9)]]:
+	# 스코어(★)·랭킹(🏆)은 표시하지 않는다(요청) — 처치·시간만 남긴다.
+	for row in [["skull", "kills", Color(0.95, 0.55, 0.55)], ["clock", "time", Color(0.82, 0.86, 0.95)]]:
 		grid.add_child(UIIcon.make(row[0], 22, row[2]))
 		var val := Label.new()
 		val.add_theme_font_size_override("font_size", 24)
@@ -797,19 +796,10 @@ func _show_end_panel(victory: bool) -> void:
 	_go_medal.color = medal
 	_go_medal.queue_redraw()
 
-	_go_record.visible = Events.is_new_record()
-	if Events.is_new_record():
-		_go_record.text = Locale.t("go_new_best_fmt") % Events.high_score
+	_go_record.visible = false   # 신기록 배너(스코어 기반) 미표시
 
-	_go_vals["wave"].text = "%d" % Events.current_wave
 	_go_vals["kills"].text = "%d" % Events.total_kills
 	_go_vals["time"].text = "%02d:%02d" % [m, s]
-	_go_vals["best"].text = "%d" % Events.high_score
-	# 점수 카운트업 연출
-	_go_vals["score"].text = "0"
-	var ct := create_tween()
-	ct.tween_method(func(v: float): _go_vals["score"].text = "%d" % int(v), 0.0, float(Events.score), 0.7) \
-		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 	_set_blur(true)
 	game_over_panel.visible = true
