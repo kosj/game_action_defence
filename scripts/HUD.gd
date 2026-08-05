@@ -691,15 +691,13 @@ func _on_rewarded_granted(placement: String) -> void:
 	player.revive()
 
 
-# 상단 바 작은 아이콘들(점수 별 / 웨이브·시간·최고 아이콘) — 텍스트 위주 HUD 보강.
+# 상단 바 작은 아이콘들(웨이브·시간 아이콘) — 텍스트 위주 HUD 보강.
+# 점수(★)와 랭킹(최고 🏆)은 HUD 에서 숨긴다(요청) — 처치 수/시간만 노출해 상단을 간결하게.
 func _build_hud_icons() -> void:
-	var star := UIIcon.make("star", 20, Color(1.0, 0.85, 0.2))
-	star.position = Vector2(score_label.offset_left, score_label.offset_top + 5)
-	add_child(star)
-	score_label.offset_left += 24   # 별 자리 확보를 위해 점수 텍스트를 오른쪽으로
+	score_label.visible = false
+	high_score_label.visible = false
 	_right_stat_icon("skull",  wave_label,       Color(0.95, 0.6, 0.6))
 	_right_stat_icon("clock",  time_label,       Color(0.82, 0.86, 0.95))
-	_right_stat_icon("trophy", high_score_label, Color(1.0, 0.82, 0.3))
 
 
 ## 우측 정렬 라벨의 오른쪽 끝에 작은 아이콘을 붙이고, 값 텍스트 자리를 그만큼 확보.
@@ -837,16 +835,30 @@ func _on_restart_pressed() -> void:
 ## 게임 중 일시정지 버튼 + 오버레이(재개 / 메인메뉴). HUD 는 PROCESS_MODE_ALWAYS 라 정지 중에도 동작한다.
 func _build_pause_menu() -> void:
 	_pause_btn = Button.new()
-	_pause_btn.text = "❚❚"
+	_pause_btn.text = ""   # "❚❚" 글리프는 서브셋 폰트에 없어 깨지므로 텍스트 대신 막대 2개를 직접 그린다.
 	_pause_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	_pause_btn.offset_left = -56.0
 	_pause_btn.offset_right = -12.0
 	_pause_btn.offset_top = 150.0
 	_pause_btn.offset_bottom = 194.0
-	_pause_btn.add_theme_font_size_override("font_size", 18)
 	_UIStyle.apply_button_style(_pause_btn, Color(0.12, 0.13, 0.18, 0.9), Color(0.5, 0.55, 0.68))
 	_pause_btn.pressed.connect(_on_pause_pressed)
 	add_child(_pause_btn)
+	# 일시정지 아이콘 — 폰트 글리프 대신 흰 막대 2개(어떤 폰트/빌드에서도 안 깨짐).
+	var pico := CenterContainer.new()
+	pico.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pico.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pause_btn.add_child(pico)
+	var bars := HBoxContainer.new()
+	bars.add_theme_constant_override("separation", 5)
+	bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pico.add_child(bars)
+	for i in 2:
+		var bar := ColorRect.new()
+		bar.color = Color(0.85, 0.88, 0.95)
+		bar.custom_minimum_size = Vector2(5, 18)
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bars.add_child(bar)
 
 	_pause_dim = ColorRect.new()
 	_pause_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
