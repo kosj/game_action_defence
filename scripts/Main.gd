@@ -31,7 +31,13 @@ func _clean_slate() -> void:
 			if is_instance_valid(n):
 				n.queue_free()
 	Pool.clear()
-	preload("res://scripts/Gold.gd").reset_live()   # 젬 정적 추적 목록 초기화(판 간 누적 방지)
+	# 정적 풀/추적 목록 초기화 — 이전 씬에서 해제된 노드를 재사용해 에러가 나거나 활성 카운터가
+	# 남아 이펙트가 영구히 안 나오는 것을 방지한다.
+	preload("res://scripts/Gold.gd").reset_live()
+	preload("res://scripts/SpriteFX.gd").reset_pool()
+	preload("res://scripts/FXBurst.gd").reset_pool()
+	preload("res://scripts/DamageNumber.gd").reset_pool()
+	preload("res://scripts/BossShell.gd").reset_pool()
 
 
 func _spawn_ambient() -> void:
