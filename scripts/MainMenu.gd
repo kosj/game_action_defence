@@ -520,13 +520,13 @@ func _refresh_character() -> void:
 		var c: CharacterData = row["c"]
 		var btn: Button = row["btn"]
 		if CharacterManager.is_unlocked(c):
-			btn.text = "%s%s\n%s" % ["★ " if c.id == sel else "", c.display, c.desc]
+			btn.text = "%s%s\n%s" % ["> " if c.id == sel else "", c.display, c.desc]
 			if c.id == sel:
 				_UIStyle.apply_button_style(btn, Color(c.color.r * 0.30, c.color.g * 0.30, c.color.b * 0.30, 1.0), c.color)
 			else:
 				_UIStyle.apply_button_style(btn, Color(0.14, 0.16, 0.20), Color(0.35, 0.40, 0.48))
 		else:
-			btn.text = "🔒 %s\n%s" % [c.display, _unlock_hint(c)]
+			btn.text = "[-] %s\n%s" % [c.display, _unlock_hint(c)]
 			_UIStyle.apply_button_style(btn, Color(0.10, 0.10, 0.12), Color(0.30, 0.30, 0.34))
 
 
@@ -647,10 +647,10 @@ func _refresh_achievements() -> void:
 		var done := AchievementManager.is_unlocked(a.id)
 		var prog := mini(AchievementManager.progress(a.metric), a.threshold)
 		if done:
-			lbl.text = "✓  %s — %s" % [a.display, a.desc]
+			lbl.text = "[*]  %s — %s" % [a.display, a.desc]
 			lbl.add_theme_color_override("font_color", Color(0.55, 0.95, 0.55))
 		else:
-			lbl.text = "○  %s — %s  (%d/%d)" % [a.display, a.desc, prog, a.threshold]
+			lbl.text = "[ ]  %s — %s  (%d/%d)" % [a.display, a.desc, prog, a.threshold]
 			lbl.add_theme_color_override("font_color", Color(0.72, 0.72, 0.78))
 
 
@@ -855,13 +855,13 @@ func _refresh_theme() -> void:
 		var t: ThemeData = row["t"]
 		var btn: Button = row["btn"]
 		if ThemeManager.is_unlocked(t):
-			btn.text = "%s%s\n%s" % ["★ " if t.id == sel else "", t.display, t.desc]
+			btn.text = "%s%s\n%s" % ["> " if t.id == sel else "", t.display, t.desc]
 			if t.id == sel:
 				_UIStyle.apply_button_style(btn, Color(t.tile_b.r, t.tile_b.g, t.tile_b.b, 1.0), t.mark)
 			else:
 				_UIStyle.apply_button_style(btn, Color(0.14, 0.16, 0.20), Color(0.35, 0.40, 0.48))
 		else:
-			btn.text = "🔒 %s\n%s" % [t.display, _theme_unlock_hint(t)]
+			btn.text = "[-] %s\n%s" % [t.display, _theme_unlock_hint(t)]
 			_UIStyle.apply_button_style(btn, Color(0.10, 0.10, 0.12), Color(0.30, 0.30, 0.34))
 
 

@@ -98,7 +98,7 @@ func _refresh() -> void:
 		_card_box.remove_child(c)
 		c.queue_free()
 	if _evo_mode:
-		_title.text = "★ EVOLUTION ★  CHOOSE ONE"
+		_title.text = ">> EVOLUTION <<  CHOOSE ONE"
 		if _evo_rules.is_empty():
 			_close_evo()
 			return
@@ -180,7 +180,7 @@ func _make_item_card(a: Dictionary) -> Button:
 func _make_evolve_card(rule: Dictionary) -> Button:
 	var into := ItemDB.meta(rule["into"])
 	var btn := _new_card_button()
-	btn.text = "★ EVOLVE ★  %s\n%s" % [into["name"], into["desc"]]
+	btn.text = ">> EVOLVE <<  %s\n%s" % [into["name"], into["desc"]]
 	var gold := Color(1.0, 0.82, 0.28)
 	_UIStyle.apply_button_style(btn, Color(0.34, 0.26, 0.06, 1.0), gold)
 	btn.add_theme_color_override("font_color", gold)

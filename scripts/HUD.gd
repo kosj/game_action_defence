@@ -196,7 +196,7 @@ func _on_boss_spawned(max_health: int) -> void:
 ## 보스 등장 배너 — 화면 중앙에 이름이 크게 슬라이드 인 했다가 사라진다(등장 연출).
 func _announce_boss(boss_name: String) -> void:
 	var banner := Label.new()
-	banner.text = "☠  %s  ☠" % boss_name
+	banner.text = ">>  %s  <<" % boss_name
 	banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	banner.offset_top = 210.0
 	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -249,7 +249,7 @@ func _build_swarm_banner() -> void:
 func _on_swarm_incoming(elite: bool) -> void:
 	if _swarm_banner == null:
 		return
-	_swarm_banner.text = "⚠ ELITE PACK" if elite else "⚠ SWARM"
+	_swarm_banner.text = "!! ELITE PACK" if elite else "!! SWARM"
 	_swarm_banner.add_theme_color_override("font_color", Color(1.0, 0.55, 0.25) if elite else Color(1.0, 0.85, 0.25))
 	if _swarm_tween and _swarm_tween.is_valid():
 		_swarm_tween.kill()
@@ -266,13 +266,13 @@ func _on_swarm_incoming(elite: bool) -> void:
 ## 도전과제 달성 토스트 — 화면 상단 중앙에 잠깐 떴다 사라진다(코드로 즉석 생성).
 func _on_achievement_unlocked(title: String) -> void:
 	SoundManager.play("gold", 0.0, 1.4)   # 달성 보상 하이톤 차임
-	_show_toast("🏆  %s" % title, Color(1.0, 0.85, 0.35), 150.0)
+	_show_toast("[*]  %s" % title, Color(1.0, 0.85, 0.35), 150.0)
 
 
 ## 끝없는 과제 완료 — 보상 골드를 함께 표시(살짝 아래에 띄워 도전과제 토스트와 겹치지 않게).
 func _on_quest_completed(title: String, reward: int) -> void:
 	SoundManager.play("gold", 0.0, 1.5)
-	_show_toast("💰  Quest: %s   +%d gold" % [title, reward], Color(0.6, 1.0, 0.6), 190.0)
+	_show_toast("[+]  Quest: %s   +%d gold" % [title, reward], Color(0.6, 1.0, 0.6), 190.0)
 
 
 ## 화면 상단 중앙에 잠깐 떠오르는 토스트 알림(달성/과제 공용).
