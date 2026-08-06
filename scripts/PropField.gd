@@ -12,7 +12,14 @@ extends Node2D
 
 const CELL := 260.0                       # 배치 격자(셀당 최대 1개)
 const DENSITY := 30                       # 셀당 프롭 확률(해시 %100 < 이 값)
-const DARKEN := Color(0.82, 0.82, 0.86)   # 바닥과 어우러지게 살짝 어둡게
+## 바닥(TILE_DARKEN 0.55)과 톤을 맞추기 위한 감광. 프롭 아트 자체에도 채도 -20% + 웜 틴트를
+## 베이크해 두었고, 여기서 한 번 더 어둡게 깔아 3D 렌더 프롭이 페인팅 배경 위로 과하게 튀지 않게 한다.
+const DARKEN := Color(0.70, 0.68, 0.66)
+## 접지 그림자 — 프롭이 지면에 붙어 보이게 해 투시(3/4 렌더 vs 측면 뷰) 불일치를 크게 완화한다.
+const _SHADOW_TEX := preload("res://assets/sprites/shadow.png")
+const SHADOW_W := 0.80     # 프롭 폭 대비 그림자 폭
+const SHADOW_H := 0.26     # 그림자 폭 대비 높이(납작한 타원)
+const SHADOW_COL := Color(0.0, 0.0, 0.0, 0.38)
 const PLAYER_R := 16.0                     # 플레이어 충돌 반경(스프라이트 대략)
 const PROP_DIR := "res://assets/sprites/props/"
 
@@ -149,6 +156,11 @@ func _draw() -> void:
 			var w: float = pr["w"]
 			var hgt: float = pr["h"]
 			var pos: Vector2 = pr["pos"]
+			# 발밑 접지 그림자를 먼저(아래에) 깐다.
+			var sw := w * SHADOW_W
+			var sh := sw * SHADOW_H
+			draw_texture_rect(_SHADOW_TEX,
+				Rect2(pos.x - sw * 0.5, pos.y + hgt * 0.42 - sh * 0.5, sw, sh), false, SHADOW_COL)
 			if pr["flip"]:
 				draw_set_transform(pos, 0.0, Vector2(-1.0, 1.0))
 				draw_texture_rect(tex, Rect2(-w * 0.5, -hgt * 0.5, w, hgt), false, DARKEN)
