@@ -52,12 +52,24 @@ var _player: Node2D = null
 var _last_pos := Vector2(INF, INF)
 var _theme: Dictionary = {}
 
+## ── 반복감 완화(타일 단조로움 해소) ────────────────────────────────────
+## 타일 1장을 그대로 반복하면 같은 무늬가 격자로 읽힌다. 새 아트 없이 두 겹을 얹어 깬다:
+##  (1) 큰 스케일 얼룩(노이즈) — 타일 주기(256)와 어긋나는 큰 주기로 명암을 흩어 반복 인지를 무너뜨린다.
+##  (2) 패치 데칼 — 월드 해시로 흩뿌린 작은 얼룩/자국(테마별 색). 위치가 고정돼 이동해도 흔들리지 않는다.
+const OVERLAY_CELL := 880.0        # 얼룩 오버레이 한 장이 덮는 월드 크기(타일 256 과 서로소에 가깝게)
+const OVERLAY_ALPHA := 0.14        # 얼룩 세기(과하면 바닥이 뿌옇게 떠 보인다)
+const DECAL_CELL := 150.0          # 데칼 배치 격자
+const DECAL_DENSITY := 42          # 셀당 데칼 확률(%)
+
+var _noise_tex: NoiseTexture2D = null
+
 
 func _ready() -> void:
 	# 타일을 한 칸씩 스트레치해 직접 그리므로(draw_texture_rect, tile=false) 반복 샘플링은 필요 없다(CLAMP).
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
 	_player = get_tree().get_first_node_in_group("player")
 	_theme = _resolve_theme()
+	_build_overlay_noise()
 	# Background ColorRect 색을 테마에 맞게 교체
 	var bg := get_parent().get_node_or_null("Background")
 	if bg:
@@ -123,6 +135,9 @@ func _draw() -> void:
 				var ly := float(tty) * ts.y - wy
 				# 0.5px 겹침으로 서브픽셀 헤어라인 방지(플립이 없어 엣지 감김 걱정 없음).
 				draw_texture_rect(tex, Rect2(lx - 0.5, ly - 0.5, ts.x + 1.0, ts.y + 1.0), false, TILE_DARKEN)
+		# 반복감 완화 2겹: 큰 얼룩 → 작은 데칼 순으로 덮는다.
+		_draw_overlay(wx, wy, half_w, half_h)
+		_draw_decals(wx, wy, half_w, half_h, theme_name, mark)
 		return
 
 	for tx in range(tx0, tx1):
@@ -132,6 +147,90 @@ func _draw() -> void:
 			var col := tile_a if (tx + ty) & 1 == 0 else tile_b
 			draw_rect(Rect2(lx, ly, float(TILE), float(TILE)), col)
 			_draw_detail(theme_name, lx, ly, tx, ty, mark)
+
+
+## 큰 스케일 얼룩용 심리스 노이즈를 런타임 생성(외부 아트 불필요). 생성은 스레드에서 끝나므로
+## 완료 시 다시 그린다.
+func _build_overlay_noise() -> void:
+	var n := FastNoiseLite.new()
+	n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	n.frequency = 0.006
+	n.fractal_octaves = 3
+	var t := NoiseTexture2D.new()
+	t.noise = n
+	t.width = 256
+	t.height = 256
+	t.seamless = true          # 이어 붙여도 경계가 보이지 않게
+	t.generate_mipmaps = false
+	t.changed.connect(queue_redraw)
+	_noise_tex = t
+
+
+## (1) 큰 스케일 얼룩 — 타일보다 훨씬 큰 주기로 명암을 흩어, 같은 타일이 반복돼도 눈에 덜 띄게 한다.
+func _draw_overlay(wx: float, wy: float, half_w: float, half_h: float) -> void:
+	if _noise_tex == null:
+		return
+	var c := OVERLAY_CELL
+	var x0 := int(floor((wx - half_w) / c)) - 1
+	var x1 := int(ceil((wx + half_w) / c)) + 1
+	var y0 := int(floor((wy - half_h) / c)) - 1
+	var y1 := int(ceil((wy + half_h) / c)) + 1
+	var col := Color(1.0, 1.0, 1.0, OVERLAY_ALPHA)
+	for ox in range(x0, x1):
+		for oy in range(y0, y1):
+			var px := float(ox) * c - wx
+			var py := float(oy) * c - wy
+			draw_texture_rect(_noise_tex, Rect2(px, py, c, c), false, col)
+
+
+## (2) 패치 데칼 — 월드 셀 해시로 흩뿌린 작은 얼룩/자국. 테마 색을 옅게 써서 바닥에 녹아들게 한다.
+func _draw_decals(wx: float, wy: float, half_w: float, half_h: float, theme_name: String, mark: Color) -> void:
+	var c := DECAL_CELL
+	var x0 := int(floor((wx - half_w) / c)) - 1
+	var x1 := int(ceil((wx + half_w) / c)) + 1
+	var y0 := int(floor((wy - half_h) / c)) - 1
+	var y1 := int(ceil((wy + half_h) / c)) + 1
+	var ci := int(c)
+	for dx in range(x0, x1):
+		for dy in range(y0, y1):
+			var h := ((dx * 73856093) ^ (dy * 19349663)) & 0x7fffffff
+			if h % 100 >= DECAL_DENSITY:
+				continue
+			var p := Vector2(float(dx) * c + float((h / 7) % ci) - wx,
+					float(dy) * c + float((h / 13) % ci) - wy)
+			var r := 12.0 + float((h / 31) % 26)          # 12~37px
+			var kind := (h / 101) % 3
+			match theme_name:
+				"grass":
+					if kind == 0:      # 마른 흙 얼룩
+						draw_circle(p, r, Color(0.30, 0.24, 0.13, 0.16))
+					elif kind == 1:    # 짙은 풀 무리
+						draw_circle(p, r * 0.8, Color(mark.r, mark.g, mark.b, 0.18))
+					else:              # 잔풀 몇 포기
+						for i in 3:
+							var o := Vector2(float((h / (7 + i)) % 18) - 9.0, float((h / (11 + i)) % 14) - 7.0)
+							draw_line(p + o + Vector2(0, 4), p + o - Vector2(0, 5), Color(mark.r, mark.g, mark.b, 0.5), 1.6)
+				"stone":
+					if kind == 0:      # 기름/물 얼룩
+						draw_circle(p, r, Color(0.05, 0.05, 0.07, 0.22))
+					elif kind == 1:    # 흩어진 자갈
+						for i in 4:
+							var o2 := Vector2(float((h / (5 + i)) % 30) - 15.0, float((h / (9 + i)) % 24) - 12.0)
+							draw_circle(p + o2, 2.0 + float(i % 2), Color(mark.r, mark.g, mark.b, 0.40))
+					else:              # 갈라진 금
+						draw_line(p + Vector2(-r * 0.7, -r * 0.3), p + Vector2(0, r * 0.15), Color(0.06, 0.06, 0.08, 0.35), 1.8)
+						draw_line(p + Vector2(0, r * 0.15), p + Vector2(r * 0.65, r * 0.45), Color(0.06, 0.06, 0.08, 0.35), 1.8)
+				"frozen":
+					if kind == 0:      # 성에 낀 자리
+						draw_circle(p, r, Color(0.75, 0.90, 1.0, 0.10))
+					elif kind == 1:    # 얼음 균열
+						for i in 3:
+							var a := TAU * float(i) / 3.0 + float(h % 7)
+							draw_line(p, p + Vector2.from_angle(a) * r * 0.9, Color(0.80, 0.93, 1.0, 0.22), 1.5)
+					else:              # 눈 무더기
+						draw_circle(p, r * 0.7, Color(0.90, 0.95, 1.0, 0.13))
+				_:
+					draw_circle(p, r, Color(mark.r, mark.g, mark.b, 0.13))
 
 
 ## 테마별 타일 장식. 월드 타일 좌표(tx, ty)를 해시로 사용해 이동해도 패턴이 유지됨.
