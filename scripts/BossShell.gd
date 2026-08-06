@@ -7,6 +7,12 @@ const _FXBurst := preload("res://scripts/FXBurst.gd")
 
 static var _pool: Array = []
 
+## 씬 전환 시 정적 풀 초기화 — 이전 씬과 함께 해제된 노드를 재사용해 "freed instance" 에러가 나거나,
+## 활성 카운터가 리셋되지 않아 이펙트가 영구히 막히는 것을 방지한다(Main._clean_slate 가 호출).
+static func reset_pool() -> void:
+	_pool.clear()
+
+
 var warn_time: float = 1.0
 var blast_radius: float = 90.0
 var damage: int = 2

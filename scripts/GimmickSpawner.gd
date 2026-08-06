@@ -5,9 +5,9 @@ extends Node
 const _CLASSES := {
 	# 교외
 	"gas_can": preload("res://scripts/GasCan.gd"),
-	"wasp_swarm": preload("res://scripts/WaspSwarm.gd"),
 	"mud_field": preload("res://scripts/MudField.gd"),
 	# 도심
+	"fly_swarm": preload("res://scripts/FlySwarm.gd"),
 	"falling_debris": preload("res://scripts/FallingDebris.gd"),
 	"steam_vent": preload("res://scripts/SteamVent.gd"),
 	"burning_car": preload("res://scripts/BurningCar.gd"),

@@ -9,6 +9,14 @@ extends Node2D
 static var _pool: Array = []
 static var _frame: int = -1
 static var _spawned_this_frame: int = 0
+
+## 씬 전환 시 정적 풀 초기화 — 이전 씬과 함께 해제된 노드를 재사용해 "freed instance" 에러가 나거나,
+## 활성 카운터가 리셋되지 않아 이펙트가 영구히 막히는 것을 방지한다(Main._clean_slate 가 호출).
+static func reset_pool() -> void:
+	_pool.clear()
+	_frame = -1
+	_spawned_this_frame = 0
+
 const MAX_PER_FRAME := 14        # 일반 숫자 프레임당 상한(초과분은 생략 — 피해엔 영향 없음)
 const LIFE := 0.6
 

@@ -10,6 +10,15 @@ static var _active: int = 0
 static var _frame: int = -1
 static var _spawned: int = 0
 
+## 씬 전환 시 정적 풀 초기화 — 이전 씬과 함께 해제된 노드를 재사용해 "freed instance" 에러가 나거나,
+## 활성 카운터가 리셋되지 않아 이펙트가 영구히 막히는 것을 방지한다(Main._clean_slate 가 호출).
+static func reset_pool() -> void:
+	_pool.clear()
+	_active = 0
+	_frame = -1
+	_spawned = 0
+
+
 var _t: float = 0.0
 var _dur: float = 0.3
 var _bscale: float = 1.0     # 표시 크기 기준 스케일(size_px / 텍스처폭)
