@@ -1,5 +1,8 @@
-extends CharacterBody2D
+extends Node2D
 ## 좀비: 플레이어를 향해 단순 방향벡터 이동. 사망 시 골드 드랍 후 풀로 반납.
+## 물리 바디가 아니다 — move_and_slide 를 쓰지 않고 위치를 직접 적분하며, 총알 명중·플레이어
+## 접촉 판정도 모두 공유 공간 해시(Events.zombies_near) 거리 계산으로 처리한다. 좀비 1만 마리에서
+## 물리 서버에 바디 1만 개를 등록하는 비용이 그대로 사라진다.
 ## 일부 종류는 고유 행동 패턴을 가진다(weaver: 지그재그 / spitter: 원거리 / bomber: 자폭).
 
 @export var speed: float = 65.0
@@ -8,6 +11,8 @@ extends CharacterBody2D
 const GOLD := preload("res://scenes/Gold.tscn")
 const ENEMY_BULLET := preload("res://scenes/EnemyBullet.tscn")
 const _FXBurst := preload("res://scripts/FXBurst.gd")
+## 이 거리(제곱)보다 멀면 화면 밖으로 보고 연출을 생략한다(뷰포트 720x1280 반대각 ≈ 734).
+const _ANIM_CULL_SQ := 950.0 * 950.0
 const _DamageNumber := preload("res://scripts/DamageNumber.gd")
 
 # 행동 패턴 파라미터
@@ -65,7 +70,6 @@ func _ready() -> void:
 func on_spawn() -> void:
 	add_to_group("zombies")   # 재사용 시 멱등 재등록(안전)
 	health = max_health
-	velocity = Vector2.ZERO
 	_flash = 0.0
 	_knockback = Vector2.ZERO
 	_alive = true
@@ -75,7 +79,6 @@ func on_spawn() -> void:
 
 func on_despawn() -> void:
 	_alive = false
-	velocity = Vector2.ZERO
 	_flash = 0.0
 	remove_from_group("zombies")
 	body.modulate = Color.WHITE
@@ -122,10 +125,14 @@ func _physics_process(delta: float) -> void:
 	if not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
 		return
+	# 화면 밖 좀비는 보이지 않으므로 연출(잔광·걷기 애니메이션)을 건너뛴다 — 이동/추적은 그대로라
+	# 게임플레이는 동일하고, 대량 좀비에서 스프라이트 갱신 비용만 사라진다.
+	var vis := global_position.distance_squared_to(player.global_position) <= _ANIM_CULL_SQ
 	# 피격 잔광: Tween 대신 잔여 시간을 직접 감쇠(대량 동시 피격 시 Tween 폭증 방지)
 	if _flash > 0.0:
 		_flash = maxf(0.0, _flash - delta)
-		body.modulate = Color.WHITE.lerp(_HIT_COLOR, _flash / _HIT_FLASH)
+		if vis:
+			body.modulate = Color.WHITE.lerp(_HIT_COLOR, _flash / _HIT_FLASH)
 	var prev_pos := global_position
 	match _behavior:
 		"weaver":  _behave_weaver(delta)
@@ -134,7 +141,8 @@ func _physics_process(delta: float) -> void:
 		_:         _behave_chase(delta)
 	# 이번 프레임 이동량으로 걷기 애니메이션을 진행(behave 가 _face() 로 좌우 방향을 갱신하므로,
 	# 여기서는 그 방향(_facing)에 발딛기 스쿼시를 더한다).
-	_animate_walk(global_position.distance_to(prev_pos))
+	if vis:
+		_animate_walk(global_position.distance_to(prev_pos))
 	# 넉백은 걷기 애니메이션에 반영하지 않고 순수 위치 이동으로만 적용(빠르게 감쇠).
 	if _knockback != Vector2.ZERO:
 		global_position += _knockback * delta

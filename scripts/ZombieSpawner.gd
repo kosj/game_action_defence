@@ -349,40 +349,57 @@ const SEP_CELL := 26.0
 const SEP_STRENGTH := 0.30
 const SEP_MAX_PUSH := 5.0
 const SEP_MAX_NEIGHBORS := 6
+## 플레이어로부터 이 거리 안의 좀비만 분리 처리한다. 화면 밖 좀비는 겹쳐도 보이지 않으므로
+## 계산할 이유가 없다 — 좀비가 수천이어도 실제 처리 대상은 화면 주변 수백으로 묶인다.
+const SEP_ACTIVE_R := 950.0
+
+# 프레임마다 새 Dictionary/Array 를 만들면(좀비 1만 → 소배열 1만 개 할당) 할당·GC 부담이 폭증한다.
+# 버퍼를 멤버로 두고 clear() 재사용하며, 위치는 PackedVector2Array 로 담아 per-entry 할당을 없앤다.
+var _sep_grid: Dictionary = {}
+var _sep_nodes: Array = []
+var _sep_pos: PackedVector2Array = PackedVector2Array()
 
 
 func _physics_process(_delta: float) -> void:
-	if _game_over:
+	if _game_over or not is_instance_valid(player):
 		return
-	var zs := get_tree().get_nodes_in_group("zombies")
+	var zs := Events.live_zombies()
 	if zs.size() < 2:
 		return
-	var grid: Dictionary = {}
-	var pts: Array = []
+	var pc: Vector2 = player.global_position
+	var act_sq := SEP_ACTIVE_R * SEP_ACTIVE_R
+	_sep_grid.clear()
+	_sep_nodes.clear()
+	_sep_pos.clear()
 	for z in zs:
 		if not is_instance_valid(z) or z.is_in_group("boss"):
 			continue
 		var p: Vector2 = z.global_position
+		if p.distance_squared_to(pc) > act_sq:
+			continue   # 화면 밖 — 분리 생략
 		var key := Vector2i(int(floor(p.x / SEP_CELL)), int(floor(p.y / SEP_CELL)))
-		if not grid.has(key):
-			grid[key] = []
-		grid[key].append(pts.size())
-		pts.append([z, p])
-	for i in pts.size():
-		var p: Vector2 = pts[i][1]
+		var arr: Variant = _sep_grid.get(key)
+		if arr == null:
+			_sep_grid[key] = [_sep_nodes.size()]
+		else:
+			arr.append(_sep_nodes.size())
+		_sep_nodes.append(z)
+		_sep_pos.append(p)
+	for i in _sep_nodes.size():
+		var p: Vector2 = _sep_pos[i]
 		var cx := int(floor(p.x / SEP_CELL))
 		var cy := int(floor(p.y / SEP_CELL))
 		var push := Vector2.ZERO
 		var checked := 0
 		for ox in range(-1, 2):
 			for oy in range(-1, 2):
-				var key := Vector2i(cx + ox, cy + oy)
-				if not grid.has(key):
+				var arr2: Variant = _sep_grid.get(Vector2i(cx + ox, cy + oy))
+				if arr2 == null:
 					continue
-				for j in grid[key]:
+				for j in arr2:
 					if j == i:
 						continue
-					var d: Vector2 = p - pts[j][1]
+					var d: Vector2 = p - _sep_pos[j]
 					var dl := d.length()
 					if dl > 0.001 and dl < SEP_RADIUS:
 						push += (d / dl) * (SEP_RADIUS - dl)
@@ -394,4 +411,4 @@ func _physics_process(_delta: float) -> void:
 			if checked >= SEP_MAX_NEIGHBORS:
 				break
 		if push != Vector2.ZERO:
-			pts[i][0].global_position += (push * SEP_STRENGTH).limit_length(SEP_MAX_PUSH)
+			_sep_nodes[i].global_position += (push * SEP_STRENGTH).limit_length(SEP_MAX_PUSH)
