@@ -23,6 +23,11 @@ const PULL_STEER := 0.14      # 속도 방향을 플레이어 쪽으로 재정�
 static var _live: Array = []
 const LIVE_CAP := 140
 
+
+## 판 전환 시 정적 추적 목록 초기화 — 씬 해제로 무효화된 참조가 판 간 쌓이지 않도록 Main 이 호출.
+static func reset_live() -> void:
+	_live.clear()
+
 @onready var body: Sprite2D = $Body
 
 var player: Node2D = null
