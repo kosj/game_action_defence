@@ -237,10 +237,11 @@ func _check_contact_damage() -> void:
 	if _hurt_timer > 0.0:
 		return
 	var contact_r_sq := contact_radius * contact_radius
-	for body_node in hurtbox.get_overlapping_bodies():
-		if body_node.is_in_group("zombies"):
-			# Area2D 광역 검출은 가장자리 접촉(중심거리 ~32px)도 잡으므로,
-			# 실제로 스프라이트가 겹친 경우(중심거리 ≤ contact_radius)에만 피해를 준다.
+	# Area2D 물리 질의(get_overlapping_bodies) 대신 공유 공간 해시에서 주변 좀비만 본다 —
+	# 좀비가 수천이어도 비용이 주변 몇 마리로 고정된다.
+	for body_node in Events.zombies_near(global_position):
+		if is_instance_valid(body_node) and body_node.is_in_group("zombies"):
+			# 스프라이트가 실제로 겹친 경우(중심거리 ≤ contact_radius)에만 피해를 준다.
 			if global_position.distance_squared_to(body_node.global_position) > contact_r_sq:
 				continue
 			var dmg := contact_damage
