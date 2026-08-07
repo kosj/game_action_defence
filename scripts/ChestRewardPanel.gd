@@ -103,7 +103,7 @@ static func _roll_rare(gs: float) -> Dictionary:
 		var pl := _player()
 		if pl != null and pl.has_method("activate_gold_magnet"):
 			pl.activate_gold_magnet(8.0)
-	return {"rarity": 1, "text": "Gold Magnet  8s", "apply": magnet}
+	return {"rarity": 1, "text": "XP Magnet  8s", "apply": magnet}
 
 
 static func _roll_epic(gs: float) -> Dictionary:
