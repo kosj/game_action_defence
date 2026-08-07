@@ -6,7 +6,7 @@ extends CharacterBody2D
 @export var attack_cooldown: float = 0.35   # 발사 간격(초)
 @export var max_health: int = 5
 @export var contact_damage: int = 1
-@export var contact_cooldown: float = 0.8   # 좀비 접촉 피해 간격(= 피격 후 무적 시간)
+@export var contact_cooldown: float = 0.4   # 좀비 접촉 피해 간격(= 피격 후 무적 시간)
 @export var contact_radius: float = 26.0    # 실제 접촉으로 인정할 중심간 거리(스프라이트가 겹쳤을 때만 피해)
 
 const BULLET := preload("res://scenes/Bullet.tscn")
@@ -228,7 +228,7 @@ func _tick_regen(delta: float) -> void:
 	if Events.upgrade_regen <= 0 or health >= max_health:
 		return
 	_regen_accum += delta
-	var interval := 8.0 / float(Events.upgrade_regen)   # Lv1=8초/회복, Lv5=1.6초/회복
+	var interval := 12.0 / float(Events.upgrade_regen)   # Lv1=12초/회복, Lv5=2.4초/회복
 	if _regen_accum >= interval:
 		_regen_accum = 0.0
 		health = mini(max_health, health + 1)
