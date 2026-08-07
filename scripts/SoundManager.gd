@@ -24,10 +24,11 @@ const _VOLUMES: Dictionary = {
 	"player_hurt":  0.0,
 }
 
-## 배경음악 트랙 — 둘 다 프로시저럴 합성 루프(assets/audio, 심리스 루프 검증됨).
+## 배경음악 트랙 — 트랙 이름 → 파일 목록. 목록이 여러 개면 시작·곡 종료 시마다 랜덤 선택
+## (인게임 BGM 로테이션). 단일 트랙(타이틀)은 심리스 루프.
 const _MUSIC: Dictionary = {
-	"title": "res://assets/audio/bgm_title.wav",   # 다크 앰비언트(타이틀·메뉴)
-	"game":  "res://assets/audio/bgm_game.wav",    # 긴장감 있는 액션 루프(인게임)
+	"title": ["res://assets/audio/bgm_title.mp3"],                                   # Ashes over Dune(타이틀·메뉴)
+	"game":  ["res://assets/audio/bgm_game_1.mp3", "res://assets/audio/bgm_game_2.mp3"],   # Iron Siege / Iron Faultline
 }
 const _MUSIC_VOL: Dictionary = {"title": -8.0, "game": -10.0}
 const _MUSIC_FADE := 0.9        # 트랙 전환 크로스페이드(초)
@@ -109,8 +110,9 @@ func _on_web_visibility_change(_args: Array) -> void:
 
 
 func _on_music_finished() -> void:
+	# 곡이 끝나면 같은 트랙 이름으로 재시작 — 목록이 여러 개(게임 BGM)면 다음 곡을 랜덤 선택.
 	if not muted and _music_current != "":
-		_music_player.play()
+		_start_music(_music_current, _MUSIC_VOL.get(_music_current, -9.0))
 
 
 ## 앱이 백그라운드로 가면(모바일 홈 버튼 / 웹 탭 전환 / 창 포커스 아웃) 소리를 전부 끄고,
@@ -189,14 +191,16 @@ func stop_music(fade: float = 0.6) -> void:
 func _start_music(track: String, target_db: float) -> void:
 	if track != _music_current:
 		return   # 페이드 중 다른 트랙으로 다시 전환된 경우
-	var stream = load(_MUSIC.get(track, ""))
+	var variants: Array = _MUSIC.get(track, [])
+	if variants.is_empty():
+		return
+	var stream = load(variants[randi() % variants.size()])
 	if stream == null:
 		return
-	if stream is AudioStreamWAV:
-		# 임포트 기본값은 루프 꺼짐 — 런타임에 루프를 켠다(16-bit mono: 프레임 = 바이트/2).
-		stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		stream.loop_begin = 0
-		stream.loop_end = stream.data.size() / 2
+	if stream is AudioStreamMP3:
+		# 단일 트랙(타이틀)은 엔진 루프로 심리스 반복, 복수 트랙(게임)은 루프를 끄고
+		# finished 시그널에서 다음 곡을 랜덤으로 이어 붙인다(로테이션).
+		stream.loop = variants.size() == 1
 	_music_player.stream = stream
 	_music_player.volume_db = -40.0
 	_music_player.play()
