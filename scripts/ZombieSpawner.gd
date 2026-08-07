@@ -111,6 +111,7 @@ func _ready() -> void:
 	_cleared = Events.did_clear
 	_swarm_cd = randf_range(SWARM_MIN_INTERVAL, SWARM_MAX_INTERVAL)
 	Cheats.time_skip.connect(_on_time_skip)
+	Cheats.spawn_fill.connect(_on_spawn_fill)
 	Events.wave_changed.emit(Events.total_kills)                 # HUD 킬 카운트 초기화
 	Events.run_progress.emit(_elapsed, _diff.clear_seconds)      # HUD 클리어 진행바 초기화
 
@@ -124,6 +125,17 @@ func _on_time_skip(seconds: float) -> void:
 	_next_elite_at = (floor(_elapsed / _diff.elite_seconds) + 1.0) * _diff.elite_seconds
 	Events.elapsed_changed.emit(_elapsed)
 	Events.run_progress.emit(_elapsed, _diff.clear_seconds)
+
+
+## 치트: 좀비를 현재 동시 출현 상한(_max_z)까지 즉시 채운다 — 대량 전투/성능 확인용.
+func _on_spawn_fill() -> void:
+	if not is_instance_valid(player):
+		return
+	var room := _max_z() - _alive_zombies
+	for i in range(room):
+		_spawn_one(_pick_type(WEIGHTS[_tier()]))
+	if room > 0:
+		Events.shake(4.0)
 
 
 # ── 난이도 곡선(경과 시간 기준) ──────────────────────────────────────

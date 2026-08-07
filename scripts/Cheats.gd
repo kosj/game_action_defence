@@ -5,6 +5,7 @@ extends Node
 
 signal changed                     # 토글 상태 변경 — UI 라벨/표시 갱신용
 signal time_skip(seconds: float)   # 경과 시간 점프 — ZombieSpawner 가 받아 난이도 시계를 당긴다
+signal spawn_fill                  # 좀비를 현재 동시 출현 상한까지 즉시 채운다 — ZombieSpawner 가 처리
 
 var autoplay: bool = false
 
