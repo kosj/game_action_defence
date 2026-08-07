@@ -262,6 +262,16 @@ func _start_game() -> void:
 	# 아직 무음이던 타이틀 BGM 도 이 시점에 다시 킥해 확실히 재생시킨다.
 	SoundManager.play("gold", 0.03, 1.25)
 	SoundManager.play_music("title")
+	# 웹 자동재생 정책상 BGM 은 "이 탭"에야 비로소 소리가 난다. 곧바로 떠나면 타이틀에서
+	# 음악을 들을 틈이 없으므로, 로고 펄스와 함께 잠시 머물러 음악이 들리기 시작한 뒤 전환한다.
+	if _tap_label != null:
+		var ttw := create_tween()
+		ttw.tween_property(_tap_label, "modulate:a", 0.0, 0.2)
 	var tw := create_tween()
-	tw.tween_property(_fade, "color:a", 1.0, 0.4)
+	tw.set_parallel(true)
+	tw.tween_property(_title_holder, "scale", Vector2(1.07, 1.07), 0.18).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.set_parallel(false)
+	tw.tween_property(_title_holder, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_SINE)
+	tw.tween_interval(0.75)
+	tw.tween_property(_fade, "color:a", 1.0, 0.45)
 	tw.tween_callback(func(): get_tree().change_scene_to_file(MENU_SCENE))
