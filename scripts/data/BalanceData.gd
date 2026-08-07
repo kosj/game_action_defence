@@ -4,8 +4,8 @@ extends Resource
 ## 있던 밸런스 상수를 한곳에 모은다. 모든 수치는 res://data/balance.tres 에서 편집한다.
 
 @export_group("Player")
-@export var contact_cooldown: float = 0.4      # 피격 후 무적(= 좀비 접촉 피해 간격, 초)
-@export var regen_interval_lv1: float = 12.0   # 재생 Lv1 회복 간격(초) — Lv n 은 이 값/n
+@export var contact_cooldown: float = 0.25      # 피격 후 무적(= 좀비 접촉 피해 간격, 초)
+@export var regen_interval_lv1: float = 16.0   # 재생 Lv1 회복 간격(초) — Lv n 은 이 값/n
 @export var start_invuln: float = 5.0          # 게임 시작 무적(초)
 
 @export_group("Spawn")

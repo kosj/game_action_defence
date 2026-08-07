@@ -24,8 +24,8 @@ const _VOLUMES: Dictionary = {
 	"player_hurt":  0.0,
 }
 
-## 배경음악 트랙 — 트랙 이름 → 파일 목록. 목록이 여러 개면 시작·곡 종료 시마다 랜덤 선택
-## (인게임 BGM 로테이션). 단일 트랙(타이틀)은 심리스 루프.
+## 배경음악 트랙 — 트랙 이름 → 파일 목록. 게임 BGM 은 선택 테마로 곡이 결정되어(테마 인덱스
+## % 곡 수) 시작 시 한 곡으로 고정되고, 그 곡이 심리스 루프된다. 타이틀은 단일 곡 루프.
 const _MUSIC: Dictionary = {
 	"title": ["res://assets/audio/bgm_title.mp3"],                                   # Ashes over Dune(타이틀·메뉴)
 	"game":  ["res://assets/audio/bgm_game_1.mp3", "res://assets/audio/bgm_game_2.mp3"],   # Iron Siege / Iron Faultline
@@ -110,7 +110,7 @@ func _on_web_visibility_change(_args: Array) -> void:
 
 
 func _on_music_finished() -> void:
-	# 곡이 끝나면 같은 트랙 이름으로 재시작 — 목록이 여러 개(게임 BGM)면 다음 곡을 랜덤 선택.
+	# 루프 설정이 통하지 않는 환경 폴백 — 같은 트랙(테마 고정 곡)을 즉시 재시작한다.
 	if not muted and _music_current != "":
 		_start_music(_music_current, _MUSIC_VOL.get(_music_current, -9.0))
 
@@ -126,10 +126,19 @@ func _notification(what: int) -> void:
 			AudioServer.set_bus_mute(0, false)
 
 
+## UI 효과음 — 일시정지 중에도 재생된다(메뉴/패널/보상 연출 전용).
+func play_ui(sound: String, pitch_vary: float = 0.1, base_pitch: float = 1.0) -> void:
+	play(sound, pitch_vary, base_pitch, true)
+
+
 ## base_pitch: 무기 특성별 기준 음높이(1.0=원음). pitch_vary: 매 발 랜덤 변주(반복 단조로움 방지).
-func play(sound: String, pitch_vary: float = 0.1, base_pitch: float = 1.0) -> void:
+## 게임이 멈춰 있는 동안(레벨업/상점/일시정지 등) 전투 효과음은 재생하지 않는다 — UI 피드백은
+## play_ui() 를 통해서만 통과한다.
+func play(sound: String, pitch_vary: float = 0.1, base_pitch: float = 1.0, ui: bool = false) -> void:
 	if muted:
 		return
+	if not ui and get_tree().paused:
+		return   # 정지 화면 뒤에서 전투음이 새어 나오지 않게
 	var p: AudioStreamPlayer = _players.get(sound)
 	if p == null or p.stream == null:
 		return
@@ -194,17 +203,26 @@ func _start_music(track: String, target_db: float) -> void:
 	var variants: Array = _MUSIC.get(track, [])
 	if variants.is_empty():
 		return
-	var stream = load(variants[randi() % variants.size()])
+	var stream = load(_pick_variant(track, variants))
 	if stream == null:
 		return
 	if stream is AudioStreamMP3:
-		# 단일 트랙(타이틀)은 엔진 루프로 심리스 반복, 복수 트랙(게임)은 루프를 끄고
-		# finished 시그널에서 다음 곡을 랜덤으로 이어 붙인다(로테이션).
-		stream.loop = variants.size() == 1
+		stream.loop = true   # 시작 시 결정된 곡을 심리스 루프(중간 로테이션 없음)
 	_music_player.stream = stream
 	_music_player.volume_db = -40.0
 	_music_player.play()
 	_fade_music_to(target_db, _MUSIC_FADE)
+
+
+## 트랙의 재생 곡 결정 — 게임 BGM 은 선택 테마 인덱스로 고정되어 같은 테마는 항상 같은 곡.
+func _pick_variant(track: String, variants: Array) -> String:
+	if variants.size() <= 1 or track != "game":
+		return variants[0]
+	var idx := 0
+	var t: ThemeData = ThemeManager.selected()
+	if t != null:
+		idx = maxi(0, GameData.themes.find(t))
+	return variants[idx % variants.size()]
 
 
 ## 사망 시 음악을 낮추고(true) 부활 시 되돌린다(false). 다시하기는 play_music 이 복구.

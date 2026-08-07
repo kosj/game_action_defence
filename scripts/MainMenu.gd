@@ -435,7 +435,7 @@ func _on_power_dim_input(event: InputEvent) -> void:
 
 func _on_power_buy(id: String) -> void:
 	if MetaManager.buy(id):
-		SoundManager.play("gold", 0.03, 1.25)
+		SoundManager.play_ui("gold", 0.03, 1.25)
 	_refresh_power()
 
 
@@ -546,12 +546,12 @@ func _on_char_pick(id: String) -> void:
 		return
 	if CharacterManager.is_unlocked(c):
 		CharacterManager.select(id)
-		SoundManager.play("gold", 0.03, 1.2)
+		SoundManager.play_ui("gold", 0.03, 1.2)
 	elif c.unlock_cost > 0 and CharacterManager.try_buy(id):
 		CharacterManager.select(id)   # 구매 성공 → 즉시 선택
-		SoundManager.play("gold", 0.02, 1.0)
+		SoundManager.play_ui("gold", 0.02, 1.0)
 	else:
-		SoundManager.play("player_hurt", 0.2, 1.0)   # 해금 불가(골드 부족/도전과제 미달)
+		SoundManager.play_ui("player_hurt", 0.2, 1.0)   # 해금 불가(골드 부족/도전과제 미달)
 	_refresh_character()
 	_refresh_char_button()
 
@@ -900,12 +900,12 @@ func _on_theme_pick(id: String) -> void:
 		return
 	if ThemeManager.is_unlocked(t):
 		ThemeManager.select(id)
-		SoundManager.play("gold", 0.03, 1.2)
+		SoundManager.play_ui("gold", 0.03, 1.2)
 	elif t.unlock_cost > 0 and ThemeManager.try_buy(id):
 		ThemeManager.select(id)
-		SoundManager.play("gold", 0.02, 1.0)
+		SoundManager.play_ui("gold", 0.02, 1.0)
 	else:
-		SoundManager.play("player_hurt", 0.2, 1.0)
+		SoundManager.play_ui("player_hurt", 0.2, 1.0)
 	_refresh_theme()
 	_refresh_theme_button()
 

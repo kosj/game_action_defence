@@ -357,7 +357,7 @@ func _on_upgrade_pressed(id: String) -> void:
 	var cost := _get_cost(upg)
 	if _gate_hint(id) != "" or cost == -1 or not Events.spend_gold(cost):
 		return
-	SoundManager.play("gold", 0.03, 1.25)   # 구매 확정 피드백(띠링)
+	SoundManager.play_ui("gold", 0.03, 1.25)   # 구매 확정 피드백(띠링)
 
 	match id:
 		"speed":            Events.upgrade_speed += 1
