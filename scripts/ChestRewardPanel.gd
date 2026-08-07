@@ -333,6 +333,13 @@ func _reveal() -> void:
 	spark.emitting = true
 	add_child(spark)
 
+	# 폭죽 홀더 — 보상 패널보다 먼저 추가해, 늦게 터지는 폭죽도 항상 UI "뒤"에 그려진다.
+	var fw_holder := Control.new()
+	fw_holder.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fw_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(fw_holder)
+	_launch_fireworks(fw_holder)
+
 	# 중앙 패널 — 등급색 테두리, 스케일 팝.
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -407,6 +414,60 @@ func _reveal() -> void:
 		3:
 			SoundManager.play("boom", 0.05, 1.2)
 			SoundManager.play("gold", 0.05, 0.7)
+
+
+## 등급에 비례해 화면 곳곳에 폭죽을 연달아 터뜨린다(보상 UI 뒤). 전설은 중앙 피날레 대형 폭죽까지.
+func _launch_fireworks(holder: Control) -> void:
+	var rarity := int(get_meta("rarity"))
+	var bursts: int = [3, 5, 8, 13][rarity]
+	var fw_tw := create_tween()
+	for i in bursts:
+		fw_tw.tween_interval(0.05 if i == 0 else randf_range(0.10, 0.22))
+		fw_tw.tween_callback(_pop_firework.bind(holder, 1.0))
+	if rarity == 3:
+		fw_tw.tween_interval(0.25)
+		fw_tw.tween_callback(_pop_firework.bind(holder, 1.9))
+
+
+## 폭죽 1발 — 원샷 방사 폭발 + 중력 낙하 + 페이드. size_mul 로 피날레 대형화.
+func _pop_firework(holder: Control, size_mul: float) -> void:
+	if _closed or not is_instance_valid(holder):
+		return
+	var rarity := int(get_meta("rarity"))
+	var pos := Vector2(randf_range(90, 630), randf_range(220, 920))
+	if size_mul > 1.5:
+		pos = Vector2(360, 470)   # 피날레는 중앙 상단
+	# 색 변주 — 등급색·밝은 등급색·흰 불꽃을 섞고, 전설은 금/주황/백금 혼합.
+	var cols: Array = [_col, _col.lightened(0.35), Color(1, 1, 1)]
+	if rarity == 3:
+		cols = [Color(1.0, 0.82, 0.25), Color(1.0, 0.55, 0.2), Color(1.0, 1.0, 0.9)]
+	var p := CPUParticles2D.new()
+	p.position = pos
+	p.amount = int((22 + rarity * 6) * size_mul)
+	p.lifetime = 0.9
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.spread = 180.0
+	p.gravity = Vector2(0, 260)
+	p.initial_velocity_min = 150.0 * size_mul
+	p.initial_velocity_max = 340.0 * size_mul
+	p.damping_min = 40.0
+	p.damping_max = 110.0
+	p.scale_amount_min = 1.4
+	p.scale_amount_max = 3.2 * size_mul
+	p.color = cols[randi() % cols.size()]
+	var ramp := Gradient.new()   # 수명 끝에서 자연스럽게 사그라들도록 알파 페이드
+	ramp.set_color(0, Color(1, 1, 1, 1))
+	ramp.set_color(1, Color(1, 1, 1, 0))
+	p.color_ramp = ramp
+	p.emitting = true
+	holder.add_child(p)
+	# 원샷 방출이 끝나면 스스로 정리 — 외부 타이머·람다 캡처가 없어 조기 닫힘에도 안전하다.
+	p.finished.connect(p.queue_free)
+	if size_mul > 1.5:
+		SoundManager.play("boom", 0.05, 1.5)   # 피날레는 낮게 쿵
+	else:
+		SoundManager.play("gold", 0.08, 1.35 + randf() * 0.3)
 
 
 func _on_dim_input(e: InputEvent) -> void:
