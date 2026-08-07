@@ -39,20 +39,20 @@ func _physics_process(delta: float) -> void:
 		if _timers[id] <= 0.0:
 			_timers.erase(id)
 
-	# 칼날 리치 안의 좀비에게 피해
+	# 칼날 리치 안의 좀비에게 피해 — 전체 그룹 풀 스캔 대신 공간 해시 주변 후보만 검사
+	# (칼날 6개 × 좀비 수백에서 프레임당 수천 번의 거리 계산이 수십 번으로 줄어든다).
 	var dmg := 1 + Events.upgrade_orb_damage
 	var r_sq := HIT_RADIUS * HIT_RADIUS
-	for z in get_tree().get_nodes_in_group("zombies"):
-		if not is_instance_valid(z):
+	for z in Events.zombies_near(global_position):
+		if not is_instance_valid(z) or not z.is_in_group("zombies"):
 			continue
 		if global_position.distance_squared_to(z.global_position) < r_sq:
-			var id := z.get_instance_id()
+			var id: int = z.get_instance_id()
 			if not _timers.has(id):
 				z.take_damage(dmg)
 				_timers[id] = HIT_COOLDOWN
 				_spawn_hit_fx(z.global_position)
-
-	queue_redraw()
+	# 그리기는 로컬 좌표 기준 정적 — 회전은 노드 변환이 처리하므로 매 프레임 redraw 불필요.
 
 
 func _draw() -> void:

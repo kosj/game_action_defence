@@ -411,12 +411,12 @@ func _random_spawn_pos() -> Vector2:
 # 훑어 살짝 밀어내 겹쳐 쌓이는 것을 막는다. 이웃 검사 수를 상한 처리해 대량에서도 O(n·k).
 const SEP_RADIUS := 26.0
 const SEP_CELL := 26.0
-const SEP_STRENGTH := 0.30
-const SEP_MAX_PUSH := 5.0
+const SEP_STRENGTH := 0.55   # 2프레임에 1번 실행하므로 1회 밀어내는 양을 2배 근사로 키운다
+const SEP_MAX_PUSH := 8.0
 const SEP_MAX_NEIGHBORS := 6
 ## 플레이어로부터 이 거리 안의 좀비만 분리 처리한다. 화면 밖 좀비는 겹쳐도 보이지 않으므로
 ## 계산할 이유가 없다 — 좀비가 수천이어도 실제 처리 대상은 화면 주변 수백으로 묶인다.
-const SEP_ACTIVE_R := 950.0
+const SEP_ACTIVE_R := 760.0
 
 # 프레임마다 새 Dictionary/Array 를 만들면(좀비 1만 → 소배열 1만 개 할당) 할당·GC 부담이 폭증한다.
 # 버퍼를 멤버로 두고 clear() 재사용하며, 위치는 PackedVector2Array 로 담아 per-entry 할당을 없앤다.
@@ -427,6 +427,10 @@ var _sep_pos: PackedVector2Array = PackedVector2Array()
 
 func _physics_process(_delta: float) -> void:
 	if _game_over or not is_instance_valid(player):
+		return
+	# 분리는 30Hz(2 물리 프레임에 1번)로 충분하다 — 겹침 해소는 누적 효과라 시각 차이가 없고,
+	# 대량 좀비에서 프레임 비용이 절반으로 준다(SEP_STRENGTH/MAX_PUSH 로 1회 보정량을 키움).
+	if Engine.get_physics_frames() % 2 != 0:
 		return
 	var zs := Events.live_zombies()
 	if zs.size() < 2:

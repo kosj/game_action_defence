@@ -74,8 +74,7 @@ func _physics_process(delta: float) -> void:
 		_ret_vel = _ret_vel.limit_length(_speed * 1.6)
 		global_position += _ret_vel * delta
 	_hit_check()
-	if _spr == null:
-		queue_redraw()
+	# 절차 드로잉은 로컬 좌표 기준 정적 — 회전은 노드 변환이 처리하므로 매 프레임 redraw 불필요.
 
 
 func _hit_check() -> void:

@@ -12,7 +12,7 @@ const GOLD := preload("res://scenes/Gold.tscn")
 const ENEMY_BULLET := preload("res://scenes/EnemyBullet.tscn")
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 ## 이 거리(제곱)보다 멀면 화면 밖으로 보고 연출을 생략한다(뷰포트 720x1280 반대각 ≈ 734).
-const _ANIM_CULL_SQ := 950.0 * 950.0
+const _ANIM_CULL_SQ := 760.0 * 760.0
 const _DamageNumber := preload("res://scripts/DamageNumber.gd")
 
 # 행동 패턴 파라미터
@@ -149,8 +149,10 @@ func _physics_process(delta: float) -> void:
 		_:         _behave_chase(delta)
 	# 이번 프레임 이동량으로 걷기 애니메이션을 진행(behave 가 _face() 로 좌우 방향을 갱신하므로,
 	# 여기서는 그 방향(_facing)에 발딛기 스쿼시를 더한다).
-	if vis:
-		_animate_walk(global_position.distance_to(prev_pos))
+	# 걷기 연출은 30Hz(2프레임에 1번, 이동량 2배 보정)로 갱신 — 시각 차이는 없고 대량 좀비에서
+	# 프레임당 스프라이트 속성 쓰기(scale/position/rotation × 수백)가 절반으로 준다.
+	if vis and (Engine.get_physics_frames() + _lod_phase) % 2 == 0:
+		_animate_walk(global_position.distance_to(prev_pos) * 2.0)
 	# 넉백은 걷기 애니메이션에 반영하지 않고 순수 위치 이동으로만 적용(빠르게 감쇠).
 	if _knockback != Vector2.ZERO:
 		global_position += _knockback * delta
