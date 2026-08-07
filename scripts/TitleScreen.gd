@@ -258,6 +258,10 @@ func _input(event: InputEvent) -> void:
 
 func _start_game() -> void:
 	_started = true
+	# 메뉴 버튼과 같은 탭 효과음. 웹은 첫 입력 시 오디오가 풀리므로, 자동재생 정책에 막혀
+	# 아직 무음이던 타이틀 BGM 도 이 시점에 다시 킥해 확실히 재생시킨다.
+	SoundManager.play("gold", 0.03, 1.25)
+	SoundManager.play_music("title")
 	var tw := create_tween()
 	tw.tween_property(_fade, "color:a", 1.0, 0.4)
 	tw.tween_callback(func(): get_tree().change_scene_to_file(MENU_SCENE))
