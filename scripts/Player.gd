@@ -259,7 +259,9 @@ func _handle_move() -> void:
 		joystick = get_tree().get_first_node_in_group("joystick")
 
 	var input := Vector2.ZERO
-	if joystick:
+	if Cheats.autoplay:
+		input = Cheats.auto_move_dir(self)   # 자동플레이 치트 — 조종 AI 가 이동을 대신한다
+	elif joystick:
 		input = joystick.get_value()
 
 	velocity = input * move_speed * _ext_slow

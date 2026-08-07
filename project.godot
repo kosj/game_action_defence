@@ -30,6 +30,7 @@ RankingManager="*res://scripts/RankingManager.gd"
 AdManager="*res://scripts/AdManager.gd"
 Locale="*res://scripts/Locale.gd"
 UITheme="*res://scripts/UITheme.gd"
+Cheats="*res://scripts/Cheats.gd"
 SceneFade="*res://scripts/SceneFade.gd"
 
 [gui]

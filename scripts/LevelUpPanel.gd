@@ -14,6 +14,24 @@ var _showing: bool = false
 var _did_pause: bool = false   # 이 패널이 직접 일시정지를 걸었는가(상점 등 다른 정지와 충돌 방지)
 var _evo_mode: bool = false     # 진화 선택 모드(진화 상자 개봉 시) — 일반 레벨업과 분리
 var _evo_rules: Array = []      # 진화 모드에서 제시할 진화 규칙들
+var _auto_t: float = 0.0        # 자동플레이 치트 — 카드가 뜬 뒤 이 시간이 지나면 무작위 선택
+
+
+## 자동플레이 치트: 패널이 떠 있으면 잠시 보여준 뒤 카드를 무작위로 골라준다(진화 선택 포함).
+func _process(delta: float) -> void:
+	if not (_showing and Cheats.autoplay):
+		_auto_t = 0.0
+		return
+	_auto_t += delta
+	if _auto_t < 0.7:
+		return
+	_auto_t = 0.0
+	var cards := _card_box.get_children()
+	if cards.is_empty():
+		return
+	var btn := cards[randi() % cards.size()] as Button
+	if btn != null:
+		btn.pressed.emit()
 
 
 func _ready() -> void:

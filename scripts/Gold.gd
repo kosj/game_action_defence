@@ -28,6 +28,11 @@ const LIVE_CAP := 140
 static func reset_live() -> void:
 	_live.clear()
 
+
+## 필드에 살아있는 젬 목록(읽기 전용 용도 — 자동플레이 수집 탐색 등).
+static func live_gems() -> Array:
+	return _live
+
 @onready var body: Sprite2D = $Body
 
 var player: Node2D = null
