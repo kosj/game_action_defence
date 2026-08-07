@@ -105,9 +105,10 @@ func _ready() -> void:
 	_base_move_speed = move_speed
 	_base_attack_cooldown = attack_cooldown
 	_base_max_health = max_health
+	contact_cooldown = GameData.balance.contact_cooldown   # 밸런스 테이블(res://data/balance.tres)
 	_recompute_combat_stats()
 	health = max_health
-	_hurt_timer = 5.0   # 시작 시 5초 무적 (프리워밍·첫 좀비 도착 전 보호)
+	_hurt_timer = GameData.balance.start_invuln   # 시작 무적 (프리워밍·첫 좀비 도착 전 보호)
 	Events.update_player_health(health, max_health)
 	Events.shop_closed.connect(apply_upgrades)
 	Events.inventory_changed.connect(apply_upgrades)   # 상자 보상 등 어떤 경로로 무기를 얻어도 즉시 모듈 부착
@@ -228,7 +229,7 @@ func _tick_regen(delta: float) -> void:
 	if Events.upgrade_regen <= 0 or health >= max_health:
 		return
 	_regen_accum += delta
-	var interval := 12.0 / float(Events.upgrade_regen)   # Lv1=12초/회복, Lv5=2.4초/회복
+	var interval := GameData.balance.regen_interval_lv1 / float(Events.upgrade_regen)   # Lv n = Lv1 간격/n
 	if _regen_accum >= interval:
 		_regen_accum = 0.0
 		health = mini(max_health, health + 1)

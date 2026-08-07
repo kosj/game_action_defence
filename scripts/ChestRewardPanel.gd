@@ -52,11 +52,12 @@ static func open(parent: Node) -> void:
 ## ── 추첨 ──────────────────────────────────────────────────────────────
 ## 등급 → 등급 내 보상 종류 → 수치(경과 시간 스케일). 반환: {rarity(int), text, apply(Callable)}.
 static func _roll() -> Dictionary:
-	# 행운(rabbits_foot) 레벨이 상위 등급 확률을 키운다.
+	# 행운(rabbits_foot) 레벨이 상위 등급 확률을 키운다. 가중치는 밸런스 테이블에서.
+	var bal := GameData.balance
 	var luck := int(Events.passives.get("rabbits_foot", 0))
-	var w_leg := 2.0 + 1.0 * luck
-	var w_epic := 11.0 + 2.0 * luck
-	var w_rare := 27.0 + 3.0 * luck
+	var w_leg: float = bal.chest_w_legendary + bal.chest_w_legendary_luck * luck
+	var w_epic: float = bal.chest_w_epic + bal.chest_w_epic_luck * luck
+	var w_rare: float = bal.chest_w_rare + bal.chest_w_rare_luck * luck
 	var w_common := maxf(10.0, 100.0 - w_leg - w_epic - w_rare)
 	var roll := randf() * (w_leg + w_epic + w_rare + w_common)
 	var rarity := 0
@@ -65,7 +66,7 @@ static func _roll() -> Dictionary:
 	elif roll < w_leg + w_epic + w_rare: rarity = 1
 
 	# 골드는 경과 시간에 따라 증가(후반 상자가 더 달다).
-	var gscale := 1.0 + (Events.elapsed_time / 60.0) * 0.10
+	var gscale := 1.0 + (Events.elapsed_time / 60.0) * bal.chest_gold_scale_per_min
 	# 등급이 높을수록 보상 개수가 많다(1/2/3/4). 첫 보상은 해당 등급 풀에서,
 	# 나머지 보너스는 하위 등급(일반 60%/고급 40%) 풀에서 추가로 뽑는다.
 	var count := int(_RARITY[rarity]["count"])

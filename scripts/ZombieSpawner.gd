@@ -30,22 +30,18 @@ const THEME_BOSSES: Dictionary = {
 	"mutation":   {"archetype": "summoner", "name": "PRIME MUTATION", "hp_mul": 1.20, "speed_mul": 0.60, "contact": 2, "tint": Color(0.42, 0.85, 0.35), "proj": Color(0.5, 1.0, 0.6),   "sprite": "res://assets/sprites/boss_mutation.png"},
 }
 
-## 서머너 소환 시 전장 과밀 상한.
-const SUMMON_ALIVE_CAP: int = 44
-
-## 스웜 이벤트: 주기적으로 한 무리가 한 방향에서 떼로 몰려온다(뱀서식 긴장 스파이크).
-const SWARM_MIN_INTERVAL := 15.0
-const SWARM_MAX_INTERVAL := 24.0
-const SWARM_TELEGRAPH := 1.0
-const SWARM_COUNT := 12
-const SWARM_ELITE_CHANCE := 0.35
-const SWARM_SPREAD := 70.0
-const SWARM_ELITE_HP_MULT := 1.7
-const SWARM_ELITE_SCALE := 1.35
-const SWARM_START_SECONDS := 30.0   # 이 시각(초) 이후부터 랜덤 스웜 발동
+## 스웜 이벤트: 주기적으로 한 무리가 떼로 몰려온다(뱀서식 긴장 스파이크).
+## 스웜/보스/스폰 예산 수치는 전부 밸런스 테이블(res://data/balance.tres)에서 조정한다.
 var _swarm_cd: float = 0.0
 var _swarm_tel: float = -1.0
 var _swarm_elite: bool = false
+
+## 밸런스 테이블 캐시(GameData.balance).
+var _bal: BalanceData = null
+
+## 스폰 큐: 대량 스폰(스웜/치트/호위)을 한 프레임에 다 만들지 않고 프레임당 예산만큼만
+## 처리한다 — 수십~수백 인스턴스 동시 생성으로 인한 프레임 스파이크(웹에선 프리즈/크래시)를 없앤다.
+var _spawn_queue: Array = []   # [{ "t": type_dict, "p": Vector2 }]
 
 ## 좀비 조합 티어. 경과 시간(_diff.tier_seconds 마다 +1)으로 골라진다.
 ##   0 Walker  1 Sprinter  2 Bloater  3 Gaunt(weaver)  4 Foreman  5 Toxic
@@ -97,6 +93,7 @@ var _escort_accum: float = 0.0
 func _ready() -> void:
 	_build_types()   # 데이터 에셋(GameData)에서 좀비 종류 테이블 구성
 	_diff = GameData.difficulty
+	_bal = GameData.balance
 	player = get_tree().get_first_node_in_group("player")
 	Events.player_died.connect(func(): _game_over = true)
 	Events.player_revived.connect(func(): _game_over = false)
@@ -109,7 +106,7 @@ func _ready() -> void:
 	_next_boss_at = float(_boss_count + 1) * _diff.boss_seconds
 	_next_elite_at = (floor(_elapsed / _diff.elite_seconds) + 1.0) * _diff.elite_seconds
 	_cleared = Events.did_clear
-	_swarm_cd = randf_range(SWARM_MIN_INTERVAL, SWARM_MAX_INTERVAL)
+	_swarm_cd = randf_range(_bal.swarm_interval_min, _bal.swarm_interval_max)
 	Cheats.time_skip.connect(_on_time_skip)
 	Cheats.spawn_fill.connect(_on_spawn_fill)
 	Events.wave_changed.emit(Events.total_kills)                 # HUD 킬 카운트 초기화
@@ -127,13 +124,17 @@ func _on_time_skip(seconds: float) -> void:
 	Events.run_progress.emit(_elapsed, _diff.clear_seconds)
 
 
-## 치트: 좀비를 현재 동시 출현 상한(_max_z)까지 즉시 채운다 — 대량 전투/성능 확인용.
+## 치트: 좀비를 현재 동시 출현 상한(_max_z)까지 채운다 — 대량 전투/성능 확인용.
+## 스폰 큐로 분산 생성되므로 수백 마리도 프레임 스파이크 없이 순차 등장한다.
 func _on_spawn_fill() -> void:
 	if not is_instance_valid(player):
 		return
-	var room := _max_z() - _alive_zombies
+	var room := _max_z() - _effective_alive()
 	for i in range(room):
-		_spawn_one(_pick_type(WEIGHTS[_tier()]))
+		var d: Dictionary = _pick_type(WEIGHTS[_tier()]).duplicate()
+		d["max_health"] = maxi(1, int(round(float(d["max_health"]) * _hp_mult())))
+		d["speed"] = float(d["speed"]) * _speed_mult()
+		_queue_spawn(d, _random_spawn_pos())
 	if room > 0:
 		Events.shake(4.0)
 
@@ -171,6 +172,7 @@ func _process(delta: float) -> void:
 
 	_elapsed += delta
 	_tick_elapsed()
+	_drain_spawn_queue()   # 대기 중인 대량 스폰을 프레임 예산만큼 처리
 
 	# 30분 생존 = 클리어(1회 알림). 승리 조건은 아니며, 이후 무한 하드모드로 계속된다.
 	if not _cleared and _elapsed >= _diff.clear_seconds:
@@ -185,7 +187,7 @@ func _process(delta: float) -> void:
 	# 연속 스폰 — 간격과 동시 출현 상한은 경과 시간에 따라 계속 강화된다.
 	_accum += delta
 	if _accum >= _spawn_interval():
-		if _alive_zombies < _max_z():
+		if _effective_alive() < _max_z():
 			_accum = 0.0
 			_spawn_one(_pick_type(WEIGHTS[_tier()]))
 
@@ -206,7 +208,7 @@ func _process(delta: float) -> void:
 		_escort_accum += delta
 		if _escort_accum >= 1.6:
 			_escort_accum = 0.0
-			if _alive_zombies < _max_z():
+			if _effective_alive() < _max_z():
 				_spawn_one(_pick_type(WEIGHTS[_tier()]))
 
 	_tick_swarm(delta)
@@ -227,17 +229,43 @@ func _on_zombie_killed() -> void:
 	Events.wave_changed.emit(Events.total_kills)   # HUD 킬 카운트
 
 
-## 좀비 1마리 스폰. 체력/이속은 총 처치 수 기반 난이도 배수로 강화한다.
-func _spawn_one(type_data: Dictionary) -> void:
+## 살아있는 좀비 + 스폰 대기열 — 상한 판정은 대기열까지 포함해야 큐가 쌓인 동안 초과 스폰이 없다.
+func _effective_alive() -> int:
+	return _alive_zombies + _spawn_queue.size()
+
+
+## 대량 스폰 진입점 — 즉시 만들지 않고 큐에 넣는다(type_data 는 최종 스탯이 반영된 dict).
+func _queue_spawn(type_data: Dictionary, pos: Vector2) -> void:
+	_spawn_queue.append({"t": type_data, "p": pos})
+
+
+## 스폰 큐 소화 — 프레임당 예산(_bal.spawn_budget_per_frame)만큼만 실제 인스턴스를 만든다.
+func _drain_spawn_queue() -> void:
+	var budget: int = _bal.spawn_budget_per_frame
+	while budget > 0 and not _spawn_queue.is_empty():
+		var req: Dictionary = _spawn_queue.pop_front()
+		_spawn_at(req["t"], req["p"])
+		budget -= 1
+
+
+## 좀비 1마리를 지정 위치에 스폰(type_data 는 최종 스탯 dict).
+func _spawn_at(type_data: Dictionary, pos: Vector2) -> void:
 	if not is_instance_valid(player):
 		return
 	var z := Pool.acquire(ZOMBIE, get_tree().current_scene)
-	z.global_position = _random_spawn_pos()
+	z.global_position = pos
+	z.setup(type_data)
+	_alive_zombies += 1
+
+
+## 좀비 1마리 즉시 스폰(연속 스폰·호위 등 소량용). 체력/이속은 난이도 배수로 강화한다.
+func _spawn_one(type_data: Dictionary) -> void:
+	if not is_instance_valid(player):
+		return
 	var d := type_data.duplicate()
 	d["max_health"] = maxi(1, int(round(float(type_data["max_health"]) * _hp_mult())))
 	d["speed"] = float(type_data["speed"]) * _speed_mult()
-	z.setup(d)
-	_alive_zombies += 1
+	_spawn_at(d, _random_spawn_pos())
 
 
 ## 스웜 이벤트 틱: 경고(swarm_incoming) → SWARM_TELEGRAPH 후 클러스터 등장. 보스 전투 중엔 발동 안 함.
@@ -247,55 +275,54 @@ func _tick_swarm(delta: float) -> void:
 		if _swarm_tel <= 0.0:
 			_spawn_swarm()
 		return
-	if _boss_alive or _elapsed < SWARM_START_SECONDS:
+	if _boss_alive or _elapsed < _bal.swarm_start_seconds:
 		return
 	_swarm_cd -= delta
-	if _swarm_cd <= 0.0 and _alive_zombies < _max_z():
-		_trigger_swarm(randf() < SWARM_ELITE_CHANCE)
+	if _swarm_cd <= 0.0 and _effective_alive() < _max_z():
+		_trigger_swarm(randf() < _bal.swarm_elite_chance)
 
 
 ## 스웜 예약: 경고를 띄우고 텔레그래프를 시작한다. 랜덤/엘리트 팩 공통 진입점.
 func _trigger_swarm(elite: bool) -> void:
-	_swarm_cd = randf_range(SWARM_MIN_INTERVAL, SWARM_MAX_INTERVAL)
+	_swarm_cd = randf_range(_bal.swarm_interval_min, _bal.swarm_interval_max)
 	_swarm_elite = elite
-	_swarm_tel = SWARM_TELEGRAPH
+	_swarm_tel = _bal.swarm_telegraph
 	Events.swarm_incoming.emit(_swarm_elite)
 
 
-## 스웜 규모: 시간이 갈수록 떼가 커진다 — 초반 12마리에서 후반 수십 마리로 불어난다.
+## 스웜 규모: 시간이 갈수록 떼가 커진다 — 초반 소수에서 후반 수십 마리로 불어난다.
 func _swarm_count() -> int:
-	return mini(SWARM_COUNT + int(_elapsed / 120.0) * 6, 84)
+	return mini(_bal.swarm_base_count + int(_elapsed / 120.0) * _bal.swarm_count_per_2min, _bal.swarm_count_max)
 
 
 ## 한 방향에서 한 종을 떼로 스폰. 엘리트면 더 크고 강하며 보상도 크다.
 ## 떼가 충분히 커지면(후반) 한 방향 클러스터 대신 화면 가장자리를 빙 둘러 사방에서 등장해
-## 조여드는 포위망이 화면을 꽉 채운다.
+## 조여드는 포위망이 화면을 꽉 채운다. 실제 생성은 스폰 큐가 프레임 예산으로 분산 처리.
 func _spawn_swarm() -> void:
 	if not is_instance_valid(player):
 		return
 	var base_type: Dictionary = _pick_type(WEIGHTS[_tier()])
 	var count := _swarm_count()
-	var ring := count >= 28
+	var ring := count >= _bal.swarm_ring_threshold
 	var center := _random_spawn_pos()
 	var ring_r := get_viewport().get_visible_rect().size.length() * 0.5 + spawn_margin
+	var d := base_type.duplicate()
+	var hp_mult := _hp_mult()
+	if _swarm_elite:
+		hp_mult *= _bal.swarm_elite_hp_mult
+		d["scale"] = float(base_type.get("scale", 1.0)) * _bal.swarm_elite_scale
+		d["score"] = int(base_type.get("score", 10)) * 3
+		d["contact"] = int(base_type.get("contact", 1)) + 1
+	d["max_health"] = maxi(1, int(round(float(base_type["max_health"]) * hp_mult)))
+	d["speed"] = float(base_type["speed"]) * _speed_mult()
 	for i in range(count):
-		var z := Pool.acquire(ZOMBIE, get_tree().current_scene)
+		var pos: Vector2
 		if ring:
 			var a := TAU * (float(i) + randf() * 0.6) / float(count)
-			z.global_position = player.global_position + Vector2.from_angle(a) * (ring_r + randf_range(0.0, 140.0))
+			pos = player.global_position + Vector2.from_angle(a) * (ring_r + randf_range(0.0, 140.0))
 		else:
-			z.global_position = center + Vector2(randf_range(-SWARM_SPREAD, SWARM_SPREAD), randf_range(-SWARM_SPREAD, SWARM_SPREAD))
-		var d := base_type.duplicate()
-		var hp_mult := _hp_mult()
-		if _swarm_elite:
-			hp_mult *= SWARM_ELITE_HP_MULT
-			d["scale"] = float(base_type.get("scale", 1.0)) * SWARM_ELITE_SCALE
-			d["score"] = int(base_type.get("score", 10)) * 3
-			d["contact"] = int(base_type.get("contact", 1)) + 1
-		d["max_health"] = maxi(1, int(round(float(base_type["max_health"]) * hp_mult)))
-		d["speed"] = float(base_type["speed"]) * _speed_mult()
-		z.setup(d)
-		_alive_zombies += 1
+			pos = center + Vector2(randf_range(-_bal.swarm_spread, _bal.swarm_spread), randf_range(-_bal.swarm_spread, _bal.swarm_spread))
+		_queue_spawn(d, pos)
 	Events.shake(4.0)
 
 
@@ -324,10 +351,10 @@ func _spawn_boss() -> void:
 	# 좀비 체력 곡선을 boss_curve_scale 만큼 반영해 보스도 후반까지 녹지 않게 한다.
 	# (예전의 분당 +3% 는 후반 보스를 순삭되게 만들었다.)
 	var time_scale := 1.0 + (_hp_mult() / Events.diff_enemy_hp_mult() - 1.0) * _diff.boss_curve_scale
-	var boss_hp := int(round(float(90 + 70 * (_boss_count - 1)) * Events.diff_boss_hp_mult() * time_scale * float(bt["hp_mul"])))
+	var boss_hp := int(round(float(_bal.boss_base_hp + _bal.boss_hp_per_count * (_boss_count - 1)) * Events.diff_boss_hp_mult() * time_scale * float(bt["hp_mul"])))
 	var stats := {
 		"max_health": boss_hp,
-		"speed": (104.0 + 9.0 * _boss_count) * Events.diff_enemy_speed_mult() * float(bt["speed_mul"]),
+		"speed": (_bal.boss_base_speed + _bal.boss_speed_per_count * float(_boss_count)) * Events.diff_enemy_speed_mult() * float(bt["speed_mul"]),
 		"contact_damage": int(bt["contact"]),
 		"score": 200 * _boss_count,
 		"gold": 12 + 4 * _boss_count,
@@ -340,7 +367,7 @@ func _spawn_boss() -> void:
 	boss.setup(stats)
 
 	# 호위 정예 좀비 — 빠른(스프린터)/탱커(공사장) 혼합.
-	var escorts := 3 + _boss_count
+	var escorts := _bal.boss_escort_base + _boss_count
 	for i in range(escorts):
 		_spawn_one(ZOMBIE_TYPES[1] if i % 2 == 0 else ZOMBIE_TYPES[4])
 
@@ -349,7 +376,7 @@ func _spawn_boss() -> void:
 func _on_boss_summon(count: int) -> void:
 	if not _boss_alive or _game_over:
 		return
-	var room := maxi(0, SUMMON_ALIVE_CAP - _alive_zombies)
+	var room := maxi(0, _bal.summon_alive_cap - _effective_alive())
 	var n := mini(count, room)
 	for i in range(n):
 		_spawn_one(ZOMBIE_TYPES[3] if i % 2 == 0 else ZOMBIE_TYPES[1])

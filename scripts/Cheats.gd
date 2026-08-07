@@ -9,8 +9,9 @@ signal spawn_fill                  # 좀비를 현재 동시 출현 상한까지
 
 var autoplay: bool = false
 
-const _THREAT_R := 340.0   # 좀비 위협 감지 반경
-const _BOSS_R := 460.0     # 보스는 더 멀리서부터 피한다
+const _AVOID_R := 200.0    # 이 안의 좀비로부터 도망(너무 크면 겁쟁이가 되어 교전을 못 한다)
+const _BOSS_R := 360.0     # 보스는 더 멀리서부터 피한다
+const _ENGAGE_R := 300.0   # 최근접 적이 이보다 멀면 접근 — 무기 사거리 안에 적을 유지(카이팅)
 const _GEM_R := 480.0      # 젬 수집 감지 반경
 
 const _Gem := preload("res://scripts/Gold.gd")
@@ -22,18 +23,25 @@ func toggle_autoplay() -> void:
 
 
 ## 자동플레이 이동 방향(정규화, 없으면 ZERO). Player._handle_move 가 조이스틱 대신 사용한다.
+## 카이팅 조종: 가까운 위협은 피하되, 적이 사거리 밖으로 멀어지면 다가가 교전 거리를 유지한다
+## — 도망만 다니면 무기가 한 발도 못 쏘므로, "쏘면서 피하는" 뱀서식 무빙을 흉내낸다.
 func auto_move_dir(p: Node2D) -> Vector2:
 	var pos := p.global_position
 	var repel := Vector2.ZERO
 	var danger := 0.0
+	var nearest: Node2D = null
+	var nearest_d := INF
 	for z in Events.live_zombies():
 		if not is_instance_valid(z):
 			continue
 		var d: Vector2 = pos - z.global_position
 		var dl := d.length()
-		if dl < 1.0 or dl > _THREAT_R:
+		if dl < nearest_d:
+			nearest_d = dl
+			nearest = z
+		if dl < 1.0 or dl > _AVOID_R:
 			continue
-		var w := 1.0 - dl / _THREAT_R
+		var w := 1.0 - dl / _AVOID_R
 		repel += (d / dl) * w * w
 		danger += w * w
 	for b in p.get_tree().get_nodes_in_group("boss"):
@@ -45,7 +53,10 @@ func auto_move_dir(p: Node2D) -> Vector2:
 			var w2 := (1.0 - dl2 / _BOSS_R) * 2.5
 			repel += (d2 / dl2) * w2
 			danger += w2
-	var out := repel
+	var out := repel * 1.4
+	# 교전 거리 유지: 주변이 안전한데 최근접 적이 멀면 다가간다 — 자동 조준 무기가 계속 사격한다.
+	if danger < 0.5 and nearest != null and nearest_d > _ENGAGE_R:
+		out += (nearest.global_position - pos).normalized() * 0.8
 	# 위협이 약할 때만 젬을 주우러 간다 — 수집 욕심에 포위당하지 않도록 위협도로 끌림을 줄인다.
 	if danger < 0.9:
 		var best: Node2D = null

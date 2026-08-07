@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="BalanceData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/BalanceData.gd" id="1_bal00"]
+
+[resource]
+script = ExtResource("1_bal00")
+contact_cooldown = 0.4
+regen_interval_lv1 = 12.0
+start_invuln = 5.0
+spawn_budget_per_frame = 12
+swarm_interval_min = 15.0
+swarm_interval_max = 24.0
+swarm_base_count = 12
+swarm_count_per_2min = 6
+swarm_count_max = 84
+swarm_ring_threshold = 28
+swarm_elite_chance = 0.35
+swarm_elite_hp_mult = 1.7
+swarm_elite_scale = 1.35
+swarm_start_seconds = 30.0
+swarm_spread = 70.0
+swarm_telegraph = 1.0
+boss_base_hp = 90
+boss_hp_per_count = 70
+boss_base_speed = 104.0
+boss_speed_per_count = 9.0
+boss_escort_base = 3
+summon_alive_cap = 44
+chest_interval_min = 24.0
+chest_interval_max = 40.0
+chest_max_active = 2
+chest_gold_scale_per_min = 0.1
+chest_w_legendary = 2.0
+chest_w_legendary_luck = 1.0
+chest_w_epic = 11.0
+chest_w_epic_luck = 2.0
+chest_w_rare = 27.0
+chest_w_rare_luck = 3.0
+gem_live_cap = 140

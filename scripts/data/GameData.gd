@@ -7,6 +7,7 @@ extends Node
 const ZOMBIE_DB_PATH := "res://data/zombies.tres"
 const META_DB_PATH := "res://data/meta_upgrades.tres"
 const DIFFICULTY_PATH := "res://data/difficulty.tres"
+const BALANCE_PATH := "res://data/balance.tres"
 const ITEM_CATALOG_PATH := "res://data/item_catalog.tres"
 const CHARACTER_DB_PATH := "res://data/character_db.tres"
 const ACHIEVEMENT_DB_PATH := "res://data/achievements.tres"
@@ -18,6 +19,7 @@ var _zombie_by_id: Dictionary = {}
 var meta_upgrades: Array[MetaUpgradeData] = []   # 상점 표시 순서
 
 var difficulty: DifficultyData = null     # 시간 기반 난이도 곡선
+var balance: BalanceData = null           # 전투/보상 밸런스 테이블
 
 # 무기/패시브/진화 카탈로그(뱀서식 아이템). 배열 순서 = 표시/뽑기 순서.
 var weapon_defs: Array[WeaponData] = []
@@ -39,6 +41,7 @@ func _ready() -> void:
 	_load_zombies()
 	_load_meta()
 	_load_difficulty()
+	_load_balance()
 	_load_items()
 	_load_characters()
 	_load_achievements()
@@ -119,6 +122,16 @@ func _load_difficulty() -> void:
 	if difficulty == null:
 		difficulty = DifficultyData.new()   # 폴백: 기본값(런 안정성 보장)
 		push_warning("GameData: %s 없음 — 기본 난이도 사용" % DIFFICULTY_PATH)
+
+
+func _load_balance() -> void:
+	if ResourceLoader.exists(BALANCE_PATH):
+		var b = load(BALANCE_PATH)
+		if b is BalanceData:
+			balance = b
+	if balance == null:
+		balance = BalanceData.new()   # 폴백: 기본값(런 안정성 보장)
+		push_warning("GameData: %s 없음 — 기본 밸런스 사용" % BALANCE_PATH)
 
 
 func _load_meta() -> void:

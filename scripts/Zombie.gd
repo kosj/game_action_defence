@@ -53,6 +53,7 @@ var _fuse_active: bool = false   # bomber 점화 여부
 var _fuse_timer: float = 0.0
 var _flash: float = 0.0      # 피격 잔광 잔여 시간 — 매 프레임 Tween 생성 대신 직접 감쇠
 var _walk_phase: float = 0.0     # 걷기 애니메이션 위상(이동 거리로 진행)
+var _lod_phase: int = 0          # 화면 밖 LOD 틱 위상(개체별로 어긋나게 분산)
 var _body_base_scale: float = 1.0   # 종류별 기본 스프라이트 스케일(스쿼시는 이 값을 기준으로)
 var _facing: float = 1.0            # 사이드뷰 좌우 방향: 1=오른쪽, -1=왼쪽(회전 대신 수평 플립)
 
@@ -69,6 +70,7 @@ func _ready() -> void:
 
 func on_spawn() -> void:
 	add_to_group("zombies")   # 재사용 시 멱등 재등록(안전)
+	_lod_phase = randi() % 3
 	health = max_health
 	_flash = 0.0
 	_knockback = Vector2.ZERO
@@ -128,6 +130,12 @@ func _physics_process(delta: float) -> void:
 	# 화면 밖 좀비는 보이지 않으므로 연출(잔광·걷기 애니메이션)을 건너뛴다 — 이동/추적은 그대로라
 	# 게임플레이는 동일하고, 대량 좀비에서 스프라이트 갱신 비용만 사라진다.
 	var vis := global_position.distance_squared_to(player.global_position) <= _ANIM_CULL_SQ
+	# 화면 밖 LOD: 3 물리 프레임에 1번만 처리(델타 3배 보정) — 이동 거리는 동일하고 대량
+	# 좀비의 화면 밖 스크립트 비용이 1/3 로 줄어든다. 개체별 위상으로 부하가 프레임에 분산된다.
+	if not vis:
+		if (Engine.get_physics_frames() + _lod_phase) % 3 != 0:
+			return
+		delta *= 3.0
 	# 피격 잔광: Tween 대신 잔여 시간을 직접 감쇠(대량 동시 피격 시 Tween 폭증 방지)
 	if _flash > 0.0:
 		_flash = maxf(0.0, _flash - delta)
