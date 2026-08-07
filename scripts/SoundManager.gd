@@ -15,12 +15,12 @@ const _SOUNDS: Dictionary = {
 }
 
 const _VOLUMES: Dictionary = {
-	"shoot":       -8.0,
+	"shoot":       -10.0,
 	"laser":       -9.0,
 	"boom":        -4.0,
 	"zombie_hit":  -6.0,
 	"zombie_die":  -3.0,
-	"gold":        -4.0,
+	"gold":        -8.0,
 	"player_hurt":  0.0,
 }
 
