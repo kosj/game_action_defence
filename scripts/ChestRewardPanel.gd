@@ -11,10 +11,10 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 
 ## 등급 정의 — 확률 가중치(행운 패시브가 상위 등급을 끌어올린다)와 연출 파라미터.
 const _RARITY := [
-	{"key": "common",    "title": "COMMON",        "col": Color(0.80, 0.84, 0.90), "flash": 0.0,  "shake": 0.0, "spark": 14, "hold": 1.6},
-	{"key": "rare",      "title": "RARE !",        "col": Color(0.35, 0.65, 1.00), "flash": 0.25, "shake": 3.0, "spark": 26, "hold": 2.0},
-	{"key": "epic",      "title": "EPIC !!",       "col": Color(0.75, 0.45, 1.00), "flash": 0.5,  "shake": 6.0, "spark": 44, "hold": 2.4},
-	{"key": "legendary", "title": "LEGENDARY !!!", "col": Color(1.00, 0.82, 0.25), "flash": 0.85, "shake": 10.0, "spark": 70, "hold": 3.0},
+	{"key": "common",    "title": "COMMON",        "col": Color(0.80, 0.84, 0.90), "flash": 0.0,  "shake": 0.0, "spark": 14, "hold": 1.6, "build": 0.7},
+	{"key": "rare",      "title": "RARE !",        "col": Color(0.35, 0.65, 1.00), "flash": 0.25, "shake": 3.0, "spark": 26, "hold": 2.0, "build": 1.0},
+	{"key": "epic",      "title": "EPIC !!",       "col": Color(0.75, 0.45, 1.00), "flash": 0.5,  "shake": 6.0, "spark": 44, "hold": 2.4, "build": 1.4},
+	{"key": "legendary", "title": "LEGENDARY !!!", "col": Color(1.00, 0.82, 0.25), "flash": 0.85, "shake": 10.0, "spark": 70, "hold": 3.0, "build": 1.9},
 ]
 
 static var _open_now: bool = false   # 동시 개봉 가드 — 이미 열려 있으면 연출 없이 즉시 지급
@@ -140,10 +140,20 @@ static func _player() -> Node:
 
 
 ## ── 연출 ──────────────────────────────────────────────────────────────
+## 2단계 리빌: (1) 기대(암시) — 등급색 글로우가 두근거리며 커지고 틱 사운드가 점점 높아진다.
+##            (2) 공개(짜잔) — 섬광 + 파티클 분출 + 패널 팝으로 보상을 드러낸다.
+## 탭: 기대 단계에서는 즉시 공개로 건너뛰고, 공개 후에는 닫는다.
 func _setup(reward: Dictionary) -> void:
 	_apply = reward["apply"]
 	set_meta("rarity", reward["rarity"])
 	set_meta("text", reward["text"])
+
+
+var _phase: int = 0            # 0=기대(암시) 1=공개
+var _antic: Control = null     # 기대 단계 노드 묶음(공개 시 일괄 제거)
+var _buildup_tw: Tween = null
+var _rar: Dictionary = {}
+var _col := Color.WHITE
 
 
 func _ready() -> void:
@@ -152,12 +162,10 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_did_pause = not get_tree().paused
 	get_tree().paused = true
+	_rar = _RARITY[int(get_meta("rarity"))]
+	_col = _rar["col"]
 
-	var rar: Dictionary = _RARITY[int(get_meta("rarity"))]
-	var col: Color = rar["col"]
-	_auto_left = float(rar["hold"])
-
-	# 어둠 + 입력 캐쳐(탭 = 닫기)
+	# 어둠 + 입력 캐쳐(탭 = 스킵/닫기)
 	var dim := ColorRect.new()
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.color = Color(0, 0, 0, 0.0)
@@ -166,8 +174,106 @@ func _ready() -> void:
 	add_child(dim)
 	create_tween().tween_property(dim, "color:a", 0.72, 0.15)
 
+	_build_anticipation()
+
+
+## 기대 단계 — 등급색만으로 "뭔가 좋은 게 나올 것 같다"를 암시한다(등급이 높을수록 길고 강하게).
+func _build_anticipation() -> void:
+	_antic = Control.new()
+	_antic.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_antic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_antic)
+
+	var build := float(_rar["build"])
+
+	# 등급색 방사형 글로우 — 두근거리며 점점 커진다.
+	var grad := Gradient.new()
+	grad.set_color(0, Color(_col.r, _col.g, _col.b, 0.55))
+	grad.set_color(1, Color(_col.r, _col.g, _col.b, 0.0))
+	var gtex := GradientTexture2D.new()
+	gtex.gradient = grad
+	gtex.fill = GradientTexture2D.FILL_RADIAL
+	gtex.fill_from = Vector2(0.5, 0.5)
+	gtex.fill_to = Vector2(1.0, 0.5)
+	gtex.width = 256
+	gtex.height = 256
+	var glow := TextureRect.new()
+	glow.texture = gtex
+	glow.size = Vector2(430, 430)
+	glow.position = Vector2(360 - 215, 560 - 215)
+	glow.pivot_offset = Vector2(215, 215)
+	glow.scale = Vector2(0.45, 0.45)
+	glow.modulate.a = 0.0
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_antic.add_child(glow)
+	var gt := create_tween()
+	gt.set_parallel(true)
+	gt.tween_property(glow, "modulate:a", 1.0, 0.25)
+	gt.tween_property(glow, "scale", Vector2(1.15, 1.15), build).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+
+	# 두근거리는 "?" — 무엇이 나올지 모르는 긴장.
+	var q := Label.new()
+	q.text = "?"
+	q.add_theme_font_size_override("font_size", 88)
+	q.add_theme_color_override("font_color", Color(minf(_col.r * 1.2 + 0.1, 1.0), minf(_col.g * 1.2 + 0.1, 1.0), minf(_col.b * 1.2 + 0.1, 1.0)))
+	q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	q.size = Vector2(120, 140)
+	q.position = Vector2(360 - 60, 560 - 70)
+	q.pivot_offset = Vector2(60, 70)
+	UITheme.heading(q)
+	_antic.add_child(q)
+	var pulse := create_tween().set_loops()
+	pulse.tween_property(q, "scale", Vector2(1.14, 1.14), 0.16).set_trans(Tween.TRANS_SINE)
+	pulse.tween_property(q, "scale", Vector2(0.95, 0.95), 0.16).set_trans(Tween.TRANS_SINE)
+
+	# 은은한 상승 입자 — 등급이 높을수록 짙게.
+	var drift := CPUParticles2D.new()
+	drift.position = Vector2(360, 640)
+	drift.amount = 10 + 7 * int(get_meta("rarity"))
+	drift.lifetime = 1.3
+	drift.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	drift.emission_rect_extents = Vector2(170.0, 6.0)
+	drift.direction = Vector2(0, -1)
+	drift.spread = 14.0
+	drift.gravity = Vector2(0, -30)
+	drift.initial_velocity_min = 40.0
+	drift.initial_velocity_max = 110.0
+	drift.scale_amount_min = 1.2
+	drift.scale_amount_max = 2.6
+	drift.color = Color(_col.r, _col.g, _col.b, 0.7)
+	drift.emitting = true
+	_antic.add_child(drift)
+
+	# 틱 사운드 — 점점 높아지며 기대감을 조인다.
+	var ticks := 3 + int(get_meta("rarity"))
+	var tick_tw := create_tween()
+	for i in ticks:
+		tick_tw.tween_interval(build / float(ticks))
+		var pitch := 0.85 + 0.16 * float(i)
+		tick_tw.tween_callback(func(): SoundManager.play("gold", 0.02, pitch))
+
+	# 빌드업이 끝나면 공개.
+	_buildup_tw = create_tween()
+	_buildup_tw.tween_interval(build + 0.05)
+	_buildup_tw.tween_callback(_reveal)
+
+
+## 공개(짜잔) — 기대 단계를 걷어내고 섬광·파티클·패널 팝으로 보상을 드러낸다.
+func _reveal() -> void:
+	if _phase == 1 or _closed:
+		return
+	_phase = 1
+	if _buildup_tw and _buildup_tw.is_valid():
+		_buildup_tw.kill()
+	if _antic != null:
+		_antic.queue_free()
+		_antic = null
+	_auto_left = float(_rar["hold"])
+	var col := _col
+
 	# 등급 섬광(희귀 이상) — 화면 전체가 등급색으로 번쩍였다 사라진다.
-	var flash_a: float = rar["flash"]
+	var flash_a: float = _rar["flash"]
 	if flash_a > 0.0:
 		var flash := ColorRect.new()
 		flash.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -176,10 +282,10 @@ func _ready() -> void:
 		add_child(flash)
 		create_tween().tween_property(flash, "color:a", 0.0, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
-	# 반짝이 입자 — 등급이 높을수록 많고 화려하게(정지 중에도 동작: ALWAYS 상속).
+	# 반짝이 입자 분출 — 등급이 높을수록 많고 화려하게.
 	var spark := CPUParticles2D.new()
 	spark.position = Vector2(360, 560)
-	spark.amount = int(rar["spark"])
+	spark.amount = int(_rar["spark"])
 	spark.lifetime = 1.1
 	spark.one_shot = false
 	spark.explosiveness = 0.7
@@ -219,7 +325,7 @@ func _ready() -> void:
 	vb.add_child(head)
 
 	var title := Label.new()
-	title.text = rar["title"]
+	title.text = _rar["title"]
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 40)
 	title.add_theme_color_override("font_color", col)
@@ -241,7 +347,7 @@ func _ready() -> void:
 	hint.add_theme_color_override("font_color", Color(0.55, 0.58, 0.66))
 	vb.add_child(hint)
 
-	# 팝 등장 + (희귀 이상) 흔들림 연출. 정지 중에도 트윈이 돌도록 ALWAYS 노드에 바인딩된다.
+	# 팝 등장 + (희귀 이상) 흔들림 연출.
 	_panel.pivot_offset = Vector2(195, 90)
 	_panel.scale = Vector2(0.4, 0.4)
 	_panel.modulate.a = 0.0
@@ -249,7 +355,7 @@ func _ready() -> void:
 	tw.set_parallel(true)
 	tw.tween_property(_panel, "scale", Vector2.ONE, 0.32).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.tween_property(_panel, "modulate:a", 1.0, 0.18)
-	var shake_amt: float = rar["shake"]
+	var shake_amt: float = _rar["shake"]
 	if shake_amt > 0.0:
 		var st := create_tween()
 		for i in 6:
@@ -271,11 +377,14 @@ func _ready() -> void:
 
 func _on_dim_input(e: InputEvent) -> void:
 	if e is InputEventMouseButton and e.pressed:
-		_close()
+		if _phase == 0:
+			_reveal()   # 기대 단계 탭 = 바로 공개로 스킵
+		else:
+			_close()
 
 
 func _process(delta: float) -> void:
-	if _closed:
+	if _closed or _phase == 0:
 		return
 	_auto_left -= delta
 	if _auto_left <= 0.0:
