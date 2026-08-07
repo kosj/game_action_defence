@@ -26,6 +26,7 @@ const _MODULE_CLASSES := {
 	"turret": preload("res://scripts/Turret.gd"),
 	"drone": preload("res://scripts/Drone.gd"),
 	"tesla": preload("res://scripts/Tesla.gd"),
+	"boomerang": preload("res://scripts/Boomerang.gd"),
 }
 const _FXBurst  := preload("res://scripts/FXBurst.gd")
 const _SpriteFX := preload("res://scripts/SpriteFX.gd")
@@ -109,6 +110,7 @@ func _ready() -> void:
 	_hurt_timer = 5.0   # 시작 시 5초 무적 (프리워밍·첫 좀비 도착 전 보호)
 	Events.update_player_health(health, max_health)
 	Events.shop_closed.connect(apply_upgrades)
+	Events.inventory_changed.connect(apply_upgrades)   # 상자 보상 등 어떤 경로로 무기를 얻어도 즉시 모듈 부착
 	Events.shop_closed.connect(_autosave)
 	Events.screen_shake_requested.connect(_on_screen_shake)
 	Events.wave_complete.connect(func(_wave: int): _autosave())

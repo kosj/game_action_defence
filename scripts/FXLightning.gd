@@ -1,7 +1,7 @@
 extends Node2D
 ## 번개 타격 이펙트: 위에서 내려오는 굵은 지그재그 번개 + 꺽임 강조 + 분기 + 충돌 지점 플래시.
 
-var duration: float = 0.22
+var duration: float = 0.28
 var _time: float = 0.0
 var _bolt: PackedVector2Array = []
 var _branches: Array = []   # Array[PackedVector2Array]
@@ -13,6 +13,10 @@ const _JITTER := 38.0
 
 
 func _ready() -> void:
+	# 가산 혼합(ADD) — 겹치는 획이 서로 더해져 진짜 발광(이미시브)처럼 보인다.
+	var mat := CanvasItemMaterial.new()
+	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	material = mat
 	_bolt = _make_jagged(Vector2(0.0, -_DROP_HEIGHT), Vector2.ZERO, _SEGMENTS, _JITTER)
 	_joints = _bolt.slice(1, _bolt.size() - 1)
 	_branches = _make_branches()
@@ -55,22 +59,29 @@ func _draw() -> void:
 	var t := _time / duration
 	var a := 1.0 - t
 
-	# 본선: 굵은 외곽 글로우 -> 중간 톤 -> 가는 백색 코어 순으로 겹쳐 두께감 강조
-	draw_polyline(_bolt, Color(0.55, 0.85, 1.0, a * 0.35), 16.0, true)
-	draw_polyline(_bolt, Color(0.65, 0.88, 1.0, a * 0.7), 8.0, true)
-	draw_polyline(_bolt, Color(1.0, 1.0, 1.0, a), 3.5, true)
+	# 본선: 아주 넓은 대기 글로우 → 외곽 → 중간 → 두꺼운 백색 코어. 가산 혼합이라 겹칠수록
+	# 밝게 타올라 부피감 있는 발광 기둥으로 보인다.
+	draw_polyline(_bolt, Color(0.20, 0.45, 1.0, a * 0.16), 34.0, true)
+	draw_polyline(_bolt, Color(0.40, 0.70, 1.0, a * 0.30), 19.0, true)
+	draw_polyline(_bolt, Color(0.65, 0.88, 1.0, a * 0.65), 10.0, true)
+	draw_polyline(_bolt, Color(1.0, 1.0, 1.0, a), 5.0, true)
 
-	# 꺽이는 지점마다 밝은 점을 찍어 굴절을 시각적으로 강조
+	# 꺽이는 지점 — 발광 마디(코어 + 글로우 2겹)로 굴절을 강조
 	for joint in _joints:
-		draw_circle(joint, 6.0, Color(1.0, 1.0, 1.0, a * 0.9))
-		draw_circle(joint, 10.0, Color(0.6, 0.88, 1.0, a * 0.4))
+		draw_circle(joint, 7.0, Color(1.0, 1.0, 1.0, a * 0.9))
+		draw_circle(joint, 13.0, Color(0.6, 0.88, 1.0, a * 0.40))
+		draw_circle(joint, 20.0, Color(0.35, 0.6, 1.0, a * 0.18))
 
-	# 분기 가지: 본선보다 얇게
+	# 분기 가지: 본선보다 얇게(글로우 포함)
 	for branch in _branches:
-		draw_polyline(branch, Color(0.6, 0.88, 1.0, a * 0.5), 6.0, true)
-		draw_polyline(branch, Color(1.0, 1.0, 1.0, a * 0.85), 2.5, true)
+		draw_polyline(branch, Color(0.35, 0.6, 1.0, a * 0.25), 12.0, true)
+		draw_polyline(branch, Color(0.6, 0.88, 1.0, a * 0.5), 6.5, true)
+		draw_polyline(branch, Color(1.0, 1.0, 1.0, a * 0.85), 3.0, true)
 
-	draw_circle(Vector2.ZERO, 34.0 * (1.0 - t * 0.5), Color(0.6, 0.88, 1.0, a * 0.35))
+	# 착탄 지점 — 넓은 대기광 + 코어 글로우 + 바깥으로 퍼지는 충격 링
+	draw_circle(Vector2.ZERO, 84.0 * (1.0 - t * 0.35), Color(0.35, 0.6, 1.0, a * 0.14))
+	draw_circle(Vector2.ZERO, 40.0 * (1.0 - t * 0.5), Color(0.6, 0.88, 1.0, a * 0.40))
+	draw_arc(Vector2.ZERO, 18.0 + 74.0 * t, 0.0, TAU, 30, Color(0.75, 0.92, 1.0, (1.0 - t) * 0.5), 4.0, true)
 	if t < 0.4:
 		var ft := t / 0.4
-		draw_circle(Vector2.ZERO, 14.0 * (1.0 - ft), Color(1.0, 1.0, 1.0, (1.0 - ft) * 0.9))
+		draw_circle(Vector2.ZERO, 20.0 * (1.0 - ft), Color(1.0, 1.0, 1.0, (1.0 - ft)))
