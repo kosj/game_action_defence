@@ -8,8 +8,19 @@ const BULLET := preload("res://scenes/Bullet.tscn")
 const ORBIT_SPEED := 1.4    # 공전 각속도(rad/s)
 const FIRE_RANGE := 420.0
 
+## 전용 아트가 있으면 절차 드로잉 대신 스프라이트로 그린다(부메랑과 같은 규약).
+const _SPRITE_PATH := "res://assets/sprites/drone.png"
+
 var _orbit: float = 0.0
 var _t: float = 0.0
+var _tex: Texture2D = null
+
+
+func _ready() -> void:
+	if ResourceLoader.exists(_SPRITE_PATH):
+		var t = load(_SPRITE_PATH)
+		if t is Texture2D:
+			_tex = t
 
 
 func _count(lvl: int) -> int:
@@ -79,6 +90,13 @@ func _nearest_to(from: Vector2, rng: float) -> Node2D:
 
 
 func _draw() -> void:
+	if _tex != null:
+		var side := maxf(_tex.get_size().x, _tex.get_size().y)
+		var sz: Vector2 = _tex.get_size() * (34.0 / maxf(side, 1.0))
+		for p in _positions():
+			var bob: float = sin(_orbit * 3.0 + p.angle() * 2.0) * 2.5   # 드론별 위상차 호버링
+			draw_texture_rect(_tex, Rect2(p + Vector2(0.0, bob) - sz * 0.5, sz), false)
+		return
 	for p in _positions():
 		draw_circle(p, 7.0, Color(_data.color.r, _data.color.g, _data.color.b, 0.95))
 		draw_circle(p, 3.5, Color(1.0, 1.0, 1.0, 0.9))
