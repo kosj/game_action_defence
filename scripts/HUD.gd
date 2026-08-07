@@ -74,6 +74,9 @@ var _goal_label: Label = null
 var _pause_btn: Button = null
 var _pause_dim: ColorRect = null
 var _pause_panel: PanelContainer = null
+var _cheat_box: VBoxContainer = null      # 일시정지 메뉴의 치트 하위 메뉴(접이식)
+var _cheat_auto_btn: Button = null        # 자동플레이 토글 버튼(라벨 ON/OFF 갱신)
+var _auto_tag: Label = null               # 자동플레이 중임을 알리는 화면 표시
 
 
 func _ready() -> void:
@@ -923,6 +926,62 @@ func _build_pause_menu() -> void:
 	_UIStyle.apply_button_style(menu, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
 	menu.pressed.connect(_on_main_menu_pressed)
 	vb.add_child(menu)
+
+	# ── 치트 하위 메뉴(접이식) — 자동플레이/시간 점프/골드/레벨업 ─────────────
+	var cheats := Button.new()
+	cheats.text = "CHEATS"
+	cheats.custom_minimum_size = Vector2(0, 48)
+	cheats.add_theme_font_size_override("font_size", 19)
+	_UIStyle.apply_button_style(cheats, Color(0.26, 0.16, 0.30), Color(0.7, 0.5, 0.85))
+	vb.add_child(cheats)
+
+	_cheat_box = VBoxContainer.new()
+	_cheat_box.add_theme_constant_override("separation", 8)
+	_cheat_box.visible = false
+	vb.add_child(_cheat_box)
+	cheats.pressed.connect(func(): _cheat_box.visible = not _cheat_box.visible)
+
+	_cheat_auto_btn = _make_cheat_button("AUTO-PLAY: OFF", _on_cheat_autoplay)
+	_make_cheat_button("TIME +5 MIN", func(): Cheats.time_skip.emit(300.0))
+	_make_cheat_button("GOLD +500", func(): Events.add_gold(500))
+	_make_cheat_button("LEVEL UP +1", func(): Events.bonus_level())
+	Cheats.changed.connect(_refresh_cheat_ui)
+
+	# 자동플레이 동작 중 표시 — 일시정지 버튼 아래 작은 태그.
+	_auto_tag = Label.new()
+	_auto_tag.text = "AUTO"
+	_auto_tag.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_auto_tag.offset_left = -60.0
+	_auto_tag.offset_right = -12.0
+	_auto_tag.offset_top = 198.0
+	_auto_tag.offset_bottom = 220.0
+	_auto_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_auto_tag.add_theme_font_size_override("font_size", 15)
+	_auto_tag.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6))
+	_auto_tag.visible = false
+	add_child(_auto_tag)
+
+
+func _make_cheat_button(text: String, on_pressed: Callable) -> Button:
+	var b := Button.new()
+	b.text = text
+	b.custom_minimum_size = Vector2(0, 44)
+	b.add_theme_font_size_override("font_size", 17)
+	_UIStyle.apply_button_style(b, Color(0.14, 0.15, 0.22), Color(0.55, 0.45, 0.7))
+	b.pressed.connect(on_pressed)
+	_cheat_box.add_child(b)
+	return b
+
+
+func _on_cheat_autoplay() -> void:
+	Cheats.toggle_autoplay()
+
+
+func _refresh_cheat_ui() -> void:
+	if _cheat_auto_btn:
+		_cheat_auto_btn.text = "AUTO-PLAY: ON" if Cheats.autoplay else "AUTO-PLAY: OFF"
+	if _auto_tag:
+		_auto_tag.visible = Cheats.autoplay
 
 
 func _on_pause_pressed() -> void:

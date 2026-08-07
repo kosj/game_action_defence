@@ -110,8 +110,20 @@ func _ready() -> void:
 	_next_elite_at = (floor(_elapsed / _diff.elite_seconds) + 1.0) * _diff.elite_seconds
 	_cleared = Events.did_clear
 	_swarm_cd = randf_range(SWARM_MIN_INTERVAL, SWARM_MAX_INTERVAL)
+	Cheats.time_skip.connect(_on_time_skip)
 	Events.wave_changed.emit(Events.total_kills)                 # HUD 킬 카운트 초기화
 	Events.run_progress.emit(_elapsed, _diff.clear_seconds)      # HUD 클리어 진행바 초기화
+
+
+## 치트: 경과 시간 점프 — 난이도 시계를 앞으로 당기고 보스/엘리트 예약 시각을 재정렬한다.
+func _on_time_skip(seconds: float) -> void:
+	_elapsed += seconds
+	Events.elapsed_time = _elapsed
+	_boss_count = int(_elapsed / _diff.boss_seconds)
+	_next_boss_at = float(_boss_count + 1) * _diff.boss_seconds
+	_next_elite_at = (floor(_elapsed / _diff.elite_seconds) + 1.0) * _diff.elite_seconds
+	Events.elapsed_changed.emit(_elapsed)
+	Events.run_progress.emit(_elapsed, _diff.clear_seconds)
 
 
 # ── 난이도 곡선(경과 시간 기준) ──────────────────────────────────────
@@ -238,15 +250,29 @@ func _trigger_swarm(elite: bool) -> void:
 	Events.swarm_incoming.emit(_swarm_elite)
 
 
+## 스웜 규모: 시간이 갈수록 떼가 커진다 — 초반 12마리에서 후반 수십 마리로 불어난다.
+func _swarm_count() -> int:
+	return mini(SWARM_COUNT + int(_elapsed / 120.0) * 6, 84)
+
+
 ## 한 방향에서 한 종을 떼로 스폰. 엘리트면 더 크고 강하며 보상도 크다.
+## 떼가 충분히 커지면(후반) 한 방향 클러스터 대신 화면 가장자리를 빙 둘러 사방에서 등장해
+## 조여드는 포위망이 화면을 꽉 채운다.
 func _spawn_swarm() -> void:
 	if not is_instance_valid(player):
 		return
 	var base_type: Dictionary = _pick_type(WEIGHTS[_tier()])
+	var count := _swarm_count()
+	var ring := count >= 28
 	var center := _random_spawn_pos()
-	for i in range(SWARM_COUNT):
+	var ring_r := get_viewport().get_visible_rect().size.length() * 0.5 + spawn_margin
+	for i in range(count):
 		var z := Pool.acquire(ZOMBIE, get_tree().current_scene)
-		z.global_position = center + Vector2(randf_range(-SWARM_SPREAD, SWARM_SPREAD), randf_range(-SWARM_SPREAD, SWARM_SPREAD))
+		if ring:
+			var a := TAU * (float(i) + randf() * 0.6) / float(count)
+			z.global_position = player.global_position + Vector2.from_angle(a) * (ring_r + randf_range(0.0, 140.0))
+		else:
+			z.global_position = center + Vector2(randf_range(-SWARM_SPREAD, SWARM_SPREAD), randf_range(-SWARM_SPREAD, SWARM_SPREAD))
 		var d := base_type.duplicate()
 		var hp_mult := _hp_mult()
 		if _swarm_elite:
