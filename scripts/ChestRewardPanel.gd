@@ -17,6 +17,17 @@ const _RARITY := [
 	{"key": "legendary", "title": "LEGENDARY !!!", "col": Color(1.00, 0.82, 0.25), "flash": 0.85, "shake": 10.0, "spark": 70, "hold": 3.0, "build": 1.9, "count": 4},
 ]
 
+## 카드 앞면 아이콘 — 아이템은 카탈로그 아이콘, 나머지는 종류별 범용 아이콘/엠블럼.
+const _ICON_XP := preload("res://assets/ui/icons/hud_xp.png")
+const _ICON_MAGNET := preload("res://assets/ui/icons/passive_magnet.png")
+const _ICON_HEAL := preload("res://assets/ui/icons/passive_regen.png")
+
+## 아이콘이 없는 보상 종류의 다이아 엠블럼 색.
+const _KIND_COL := {
+	"gold": Color(1.0, 0.84, 0.30), "levelup": Color(0.50, 1.0, 0.60),
+	"revive": Color(1.0, 0.50, 0.60), "meta": Color(0.80, 0.55, 1.0),
+}
+
 static var _open_now: bool = false   # 동시 개봉 가드 — 이미 열려 있으면 연출 없이 즉시 지급
 
 var _did_pause: bool = false
@@ -60,14 +71,20 @@ static func _roll() -> Dictionary:
 	var count := int(_RARITY[rarity]["count"])
 	var texts: Array = []
 	var applies: Array = []
+	var icons: Array = []   # 카드 앞면 아이콘(Texture2D 또는 null)
+	var kinds: Array = []   # 보상 종류 키 — 아이콘 없을 때 엠블럼 색 결정
 	var main := _roll_tier(rarity, gscale)
 	texts.append(main["text"])
 	applies.append(main["apply"])
+	icons.append(main.get("icon"))
+	kinds.append(main.get("kind", "gold"))
 	for i in range(count - 1):
 		var extra := _roll_tier(1 if randf() < 0.4 else 0, gscale)
 		texts.append(extra["text"])
 		applies.append(extra["apply"])
-	return {"rarity": rarity, "texts": texts, "applies": applies}
+		icons.append(extra.get("icon"))
+		kinds.append(extra.get("kind", "gold"))
+	return {"rarity": rarity, "texts": texts, "applies": applies, "icons": icons, "kinds": kinds}
 
 
 static func _roll_tier(t: int, gs: float) -> Dictionary:
@@ -81,54 +98,54 @@ static func _roll_tier(t: int, gs: float) -> Dictionary:
 static func _roll_common(gs: float) -> Dictionary:
 	if randf() < 0.6:
 		var g := int(randi_range(15, 35) * gs)
-		return {"rarity": 0, "text": "+%d Gold" % g, "apply": func(): Events.add_gold(g)}
+		return {"rarity": 0, "text": "+%d Gold" % g, "kind": "gold", "icon": null, "apply": func(): Events.add_gold(g)}
 	var xp := maxi(5, int(Events.xp_to_next * 0.3))
-	return {"rarity": 0, "text": "+%d XP" % xp, "apply": func(): Events.add_xp(xp)}
+	return {"rarity": 0, "text": "+%d XP" % xp, "kind": "xp", "icon": _ICON_XP, "apply": func(): Events.add_xp(xp)}
 
 
 static func _roll_rare(gs: float) -> Dictionary:
 	var r := randi() % 3
 	if r == 0:
 		var g := int(randi_range(50, 90) * gs)
-		return {"rarity": 1, "text": "+%d Gold" % g, "apply": func(): Events.add_gold(g)}
+		return {"rarity": 1, "text": "+%d Gold" % g, "kind": "gold", "icon": null, "apply": func(): Events.add_gold(g)}
 	if r == 1:
 		var pick := _random_grantable_item()
 		if not pick.is_empty():
 			var id: String = pick["id"]
 			var owned := int(Events.weapons.get(id, Events.passives.get(id, 0)))
 			var label: String = ("New item!  %s" % pick["name"]) if owned == 0 else ("%s  Lv +1" % pick["name"])
-			return {"rarity": 1, "text": label, "apply": func(): Events.grant_item(id)}
+			return {"rarity": 1, "text": label, "kind": "item", "icon": pick.get("icon"), "apply": func(): Events.grant_item(id)}
 		# 지급 가능한 아이템이 없으면 자석으로 폴백
 	var magnet := func():
 		var pl := _player()
 		if pl != null and pl.has_method("activate_gold_magnet"):
 			pl.activate_gold_magnet(8.0)
-	return {"rarity": 1, "text": "XP Magnet  8s", "apply": magnet}
+	return {"rarity": 1, "text": "XP Magnet  8s", "kind": "magnet", "icon": _ICON_MAGNET, "apply": magnet}
 
 
 static func _roll_epic(gs: float) -> Dictionary:
 	var r := randi() % 3
 	if r == 0:
-		return {"rarity": 2, "text": "FREE LEVEL UP", "apply": func(): Events.bonus_level()}
+		return {"rarity": 2, "text": "FREE LEVEL UP", "kind": "levelup", "icon": null, "apply": func(): Events.bonus_level()}
 	if r == 1:
 		var do_heal := func():
 			var pl := _player()
 			if pl != null and pl.has_method("heal"):
 				pl.heal(999)
-		return {"rarity": 2, "text": "Full Heal", "apply": do_heal}
+		return {"rarity": 2, "text": "Full Heal", "kind": "heal", "icon": _ICON_HEAL, "apply": do_heal}
 	var g := int(randi_range(130, 200) * gs)
-	return {"rarity": 2, "text": "+%d Gold" % g, "apply": func(): Events.add_gold(g)}
+	return {"rarity": 2, "text": "+%d Gold" % g, "kind": "gold", "icon": null, "apply": func(): Events.add_gold(g)}
 
 
 static func _roll_legendary(gs: float) -> Dictionary:
 	var r := randi() % 3
 	if r == 0:
-		return {"rarity": 3, "text": "+1 REVIVE", "apply": func(): Events.revives_left += 1}
+		return {"rarity": 3, "text": "+1 REVIVE", "kind": "revive", "icon": null, "apply": func(): Events.revives_left += 1}
 	if r == 1:
 		var mg := randi_range(40, 80)
-		return {"rarity": 3, "text": "+%d Meta Gold (permanent)" % mg, "apply": func(): MetaManager.reward_gold(mg)}
+		return {"rarity": 3, "text": "+%d Meta Gold (permanent)" % mg, "kind": "meta", "icon": null, "apply": func(): MetaManager.reward_gold(mg)}
 	var g := int(randi_range(280, 420) * gs)
-	return {"rarity": 3, "text": "JACKPOT  +%d Gold" % g, "apply": func(): Events.add_gold(g)}
+	return {"rarity": 3, "text": "JACKPOT  +%d Gold" % g, "kind": "gold", "icon": null, "apply": func(): Events.add_gold(g)}
 
 
 ## 새 슬롯 여유/만렙 규칙을 지켜 지급 가능한 아이템 하나를 무작위로 고른다(없으면 {}).
@@ -163,7 +180,9 @@ static func _player() -> Node:
 func _setup(reward: Dictionary) -> void:
 	_applies = reward["applies"]
 	set_meta("rarity", reward["rarity"])
-	set_meta("text", "\n".join(reward["texts"]))
+	set_meta("texts", reward["texts"])
+	set_meta("icons", reward["icons"])
+	set_meta("kinds", reward["kinds"])
 	set_meta("count", reward["texts"].size())
 
 
@@ -232,29 +251,23 @@ func _build_anticipation() -> void:
 	gt.tween_property(glow, "modulate:a", 1.0, 0.25)
 	gt.tween_property(glow, "scale", Vector2(1.15, 1.15), build).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
-	# 두근거리는 "?" — 개수가 곧 이번 상자의 보상 개수(등급 암시와 함께 이중 힌트).
+	# 두근거리는 카드 뒷면 — 장수가 곧 이번 상자의 보상 개수(등급 암시와 함께 이중 힌트).
 	var qn := int(get_meta("count", 1))
-	var qcol := Color(minf(_col.r * 1.2 + 0.1, 1.0), minf(_col.g * 1.2 + 0.1, 1.0), minf(_col.b * 1.2 + 0.1, 1.0))
-	var spacing := 96.0
+	var cw := 92.0 if qn >= 3 else 108.0
+	var ch := cw * 1.32
+	var spacing := cw + 14.0
 	var start_x := 360.0 - spacing * float(qn - 1) * 0.5
 	for qi in qn:
-		var q := Label.new()
-		q.text = "?"
-		q.add_theme_font_size_override("font_size", 74 if qn >= 3 else 88)
-		q.add_theme_color_override("font_color", qcol)
-		q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		q.size = Vector2(96, 140)
-		q.position = Vector2(start_x + spacing * float(qi) - 48.0, 560 - 70)
-		q.pivot_offset = Vector2(48, 70)
-		UITheme.heading(q)
-		_antic.add_child(q)
+		var card := _make_card_back(cw, ch)
+		card.position = Vector2(start_x + spacing * float(qi) - cw * 0.5, 560.0 - ch * 0.5)
+		card.pivot_offset = Vector2(cw * 0.5, ch * 0.5)
+		_antic.add_child(card)
 		# 개체마다 주기를 살짝 달리해 자연스럽게 어긋나며 두근거린다.
 		var pulse := create_tween().set_loops()
 		_antic_tws.append(pulse)
 		var dur := 0.15 + 0.025 * float(qi)
-		pulse.tween_property(q, "scale", Vector2(1.14, 1.14), dur).set_trans(Tween.TRANS_SINE)
-		pulse.tween_property(q, "scale", Vector2(0.95, 0.95), dur).set_trans(Tween.TRANS_SINE)
+		pulse.tween_property(card, "scale", Vector2(1.10, 1.10), dur).set_trans(Tween.TRANS_SINE)
+		pulse.tween_property(card, "scale", Vector2(0.95, 0.95), dur).set_trans(Tween.TRANS_SINE)
 
 	# 은은한 상승 입자 — 등급이 높을수록 짙게.
 	var drift := CPUParticles2D.new()
@@ -373,13 +386,36 @@ func _reveal() -> void:
 	UITheme.heading(title)
 	vb.add_child(title)
 
-	var what := Label.new()
-	what.text = String(get_meta("text"))
-	what.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	what.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	what.add_theme_font_size_override("font_size", 26)
-	what.add_theme_color_override("font_color", Color(0.94, 0.95, 0.98))
-	vb.add_child(what)
+	# 보상 카드 줄 — 뒷면으로 깔린 카드가 순차적으로 뒤집히며 아이콘+이름을 드러낸다.
+	var texts: Array = get_meta("texts")
+	var icons: Array = get_meta("icons")
+	var kinds: Array = get_meta("kinds")
+	var n := texts.size()
+	var cw := 128.0 if n >= 4 else (140.0 if n == 3 else 152.0)
+	var ch := cw * 1.30
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	vb.add_child(row)
+	for i in n:
+		var card := PanelContainer.new()
+		card.custom_minimum_size = Vector2(cw, ch)
+		card.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 1.0), col, 14, 3))
+		card.pivot_offset = Vector2(cw * 0.5, ch * 0.5)
+		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(card)
+		var back := _card_back_content(cw)
+		card.add_child(back)
+		var face := _card_face_content(String(texts[i]), icons[i], String(kinds[i]))
+		face.visible = false
+		card.add_child(face)
+		# 플립: 가로 스케일을 접었다 펴며 뒷면 → 앞면 전환(카드별 시차).
+		var ft := create_tween()
+		ft.tween_interval(0.35 + 0.22 * float(i))
+		ft.tween_property(card, "scale:x", 0.06, 0.13).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		ft.tween_callback(_flip_swap.bind(back, face, i))
+		ft.tween_property(card, "scale:x", 1.0, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_auto_left += 0.4 + 0.22 * float(n)   # 플립이 다 보이도록 자동 닫힘 여유 추가
 
 	var hint := Label.new()
 	hint.text = "tap to continue"
@@ -468,6 +504,78 @@ func _pop_firework(holder: Control, size_mul: float) -> void:
 		SoundManager.play("boom", 0.05, 1.5)   # 피날레는 낮게 쿵
 	else:
 		SoundManager.play("gold", 0.08, 1.35 + randf() * 0.3)
+
+
+## 카드 1장(뒷면, 기대 단계용 수동 배치) — 어두운 바탕 + 등급색 테두리/엠블럼.
+func _make_card_back(w: float, h: float) -> PanelContainer:
+	var card := PanelContainer.new()
+	card.size = Vector2(w, h)
+	card.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 1.0), _col, 14, 3))
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card.add_child(_card_back_content(w))
+	return card
+
+
+## 카드 뒷면 내용물 — 중앙에 등급색 다이아 엠블럼.
+func _card_back_content(w: float) -> Control:
+	var cc := CenterContainer.new()
+	cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var s := w * 0.34
+	var d := ColorRect.new()
+	d.custom_minimum_size = Vector2(s, s)
+	d.pivot_offset = Vector2(s * 0.5, s * 0.5)
+	d.rotation = PI / 4.0
+	d.color = Color(_col.r, _col.g, _col.b, 0.75)
+	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cc.add_child(d)
+	return cc
+
+
+## 카드 앞면 내용물 — 보상 아이콘(없으면 종류색 다이아) + 이름.
+func _card_face_content(text: String, icon: Variant, kind: String) -> Control:
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 10)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if icon is Texture2D:
+		var tr := TextureRect.new()
+		tr.texture = icon
+		tr.custom_minimum_size = Vector2(52, 52)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(tr)
+	else:
+		var cc := CenterContainer.new()
+		cc.custom_minimum_size = Vector2(52, 52)
+		cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var d := ColorRect.new()
+		d.custom_minimum_size = Vector2(34, 34)
+		d.pivot_offset = Vector2(17, 17)
+		d.rotation = PI / 4.0
+		d.color = _KIND_COL.get(kind, Color(0.9, 0.9, 0.95))
+		d.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cc.add_child(d)
+		box.add_child(cc)
+	var lb := Label.new()
+	lb.text = text
+	lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	lb.add_theme_font_size_override("font_size", 16)
+	lb.add_theme_color_override("font_color", Color(0.94, 0.95, 0.98))
+	lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_child(lb)
+	return box
+
+
+## 플립 중간점 — 뒷면을 숨기고 앞면을 드러낸다(카드별 시차 사운드 포함).
+func _flip_swap(back: Control, face: Control, i: int) -> void:
+	if not (is_instance_valid(back) and is_instance_valid(face)):
+		return
+	back.visible = false
+	face.visible = true
+	SoundManager.play("gold", 0.04, 1.2 + 0.12 * float(i))
 
 
 func _on_dim_input(e: InputEvent) -> void:

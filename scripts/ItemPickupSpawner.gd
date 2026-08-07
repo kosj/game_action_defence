@@ -4,8 +4,8 @@ extends Node
 
 const ITEM_PICKUP := preload("res://scenes/ItemPickup.tscn")
 
-@export var spawn_interval_min: float = 13.0
-@export var spawn_interval_max: float = 22.0
+@export var spawn_interval_min: float = 24.0
+@export var spawn_interval_max: float = 40.0
 @export var max_active: int = 2
 @export var spawn_margin: float = 60.0
 
