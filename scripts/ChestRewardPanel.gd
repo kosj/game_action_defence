@@ -150,7 +150,9 @@ func _setup(reward: Dictionary) -> void:
 
 
 var _phase: int = 0            # 0=기대(암시) 1=공개
+var _phase0_t: float = 0.0     # 기대 단계 경과(초) — 트윈이 죽어도 _process 가 공개를 보장(데드맨 스위치)
 var _antic: Control = null     # 기대 단계 노드 묶음(공개 시 일괄 제거)
+var _antic_tws: Array = []     # 기대 단계 트윈들 — 공개 시 전부 kill(해제된 노드 참조 에러 방지)
 var _buildup_tw: Tween = null
 var _rar: Dictionary = {}
 var _col := Color.WHITE
@@ -207,6 +209,7 @@ func _build_anticipation() -> void:
 	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_antic.add_child(glow)
 	var gt := create_tween()
+	_antic_tws.append(gt)
 	gt.set_parallel(true)
 	gt.tween_property(glow, "modulate:a", 1.0, 0.25)
 	gt.tween_property(glow, "scale", Vector2(1.15, 1.15), build).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
@@ -224,6 +227,7 @@ func _build_anticipation() -> void:
 	UITheme.heading(q)
 	_antic.add_child(q)
 	var pulse := create_tween().set_loops()
+	_antic_tws.append(pulse)
 	pulse.tween_property(q, "scale", Vector2(1.14, 1.14), 0.16).set_trans(Tween.TRANS_SINE)
 	pulse.tween_property(q, "scale", Vector2(0.95, 0.95), 0.16).set_trans(Tween.TRANS_SINE)
 
@@ -248,6 +252,7 @@ func _build_anticipation() -> void:
 	# 틱 사운드 — 점점 높아지며 기대감을 조인다.
 	var ticks := 3 + int(get_meta("rarity"))
 	var tick_tw := create_tween()
+	_antic_tws.append(tick_tw)
 	for i in ticks:
 		tick_tw.tween_interval(build / float(ticks))
 		var pitch := 0.85 + 0.16 * float(i)
@@ -266,6 +271,10 @@ func _reveal() -> void:
 	_phase = 1
 	if _buildup_tw and _buildup_tw.is_valid():
 		_buildup_tw.kill()
+	for tw0 in _antic_tws:
+		if tw0 and tw0.is_valid():
+			tw0.kill()
+	_antic_tws.clear()
 	if _antic != null:
 		_antic.queue_free()
 		_antic = null
@@ -384,11 +393,24 @@ func _on_dim_input(e: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
-	if _closed or _phase == 0:
+	if _closed:
+		return
+	if _phase == 0:
+		# 안전장치 — 빌드업 트윈이 어떤 이유로든 죽어도 시간이 되면 반드시 공개한다.
+		_phase0_t += delta
+		if _phase0_t >= float(_rar["build"]) + 1.0:
+			_reveal()
 		return
 	_auto_left -= delta
 	if _auto_left <= 0.0:
 		_close()
+
+
+## 씬 전환 등으로 패널이 닫히지 못한 채 제거될 때 — 일시정지·정적 가드가 영구히 남지 않게 복구.
+func _exit_tree() -> void:
+	_open_now = false
+	if not _closed and _did_pause and get_tree() != null:
+		get_tree().paused = false
 
 
 ## 닫기: 게임 재개 → 보상 적용(레벨업 패널 등이 이어서 뜰 수 있게 재개 후 적용) → 해제.
