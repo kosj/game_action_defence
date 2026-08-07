@@ -566,6 +566,14 @@ func _load_saved_state() -> void:
 	SaveManager.pending_continue = false
 
 
+## 외부 보상(보물상자 등)용 회복 — 최대 체력까지, HUD 갱신 포함.
+func heal(amount: int) -> void:
+	if _dead or amount <= 0:
+		return
+	health = mini(max_health, health + amount)
+	Events.update_player_health(health, max_health)
+
+
 func _autosave() -> void:
 	SaveManager.save_game(self)
 

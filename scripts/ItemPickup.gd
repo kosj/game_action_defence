@@ -3,6 +3,7 @@ extends Area2D
 ## 풀링되며 "item_pickups" 그룹으로 동시 등장 수를 제한한다.
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
+const _ChestReward := preload("res://scripts/ChestRewardPanel.gd")
 
 @export var collect_radius: float = 34.0
 @export var lifetime: float = 26.0
@@ -93,11 +94,9 @@ func _collect_evochest() -> void:
 
 
 func _collect_chest() -> void:
-	# 보물상자: 랜덤 골드 획득 + 금색 반짝임 연출.
-	Events.add_gold(randi_range(CHEST_GOLD_MIN, CHEST_GOLD_MAX))
-	SoundManager.play("gold", 0.05, 1.15)
+	# 보물상자: 등급(일반/고급/희귀/전설) 추첨 → 게임을 멈추는 리빌 연출 → 닫힐 때 보상 적용.
 	_FXBurst.spawn(get_tree().current_scene, global_position, CHEST_COLOR, 90.0, 0.5)
-	Events.shake(3.0)
+	_ChestReward.open(get_tree().current_scene)
 
 
 func _collect_bomb() -> void:
