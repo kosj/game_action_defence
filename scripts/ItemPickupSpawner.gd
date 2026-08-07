@@ -16,6 +16,10 @@ var _game_over: bool = false
 
 
 func _ready() -> void:
+	# 스폰 주기/상한은 밸런스 테이블(res://data/balance.tres)에서.
+	spawn_interval_min = GameData.balance.chest_interval_min
+	spawn_interval_max = GameData.balance.chest_interval_max
+	max_active = GameData.balance.chest_max_active
 	player = get_tree().get_first_node_in_group("player")
 	Events.player_died.connect(func(): _game_over = true)
 	Events.player_revived.connect(func(): _game_over = false)   # 부활 시 스폰 재개

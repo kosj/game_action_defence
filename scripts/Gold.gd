@@ -21,7 +21,6 @@ const PULL_STEER := 0.14      # 속도 방향을 플레이어 쪽으로 재정�
 ## (각자 매 프레임 자석 판정) 프레임이 급락한다. 초과 시 가장 오래된 젬을 즉시 흡수(경험치는
 ## 그대로 지급)해 개수를 묶는다 — 사실상 자동 자석 청소.
 static var _live: Array = []
-const LIVE_CAP := 140
 
 
 ## 판 전환 시 정적 추적 목록 초기화 — 씬 해제로 무효화된 참조가 판 간 쌓이지 않도록 Main 이 호출.
@@ -65,13 +64,14 @@ func on_spawn() -> void:
 	_enforce_cap()
 
 
-## 젬 개수 상한 유지 — 오래된 것부터 즉시 흡수해 필드를 정리한다.
+## 젬 개수 상한 유지 — 오래된 것부터 즉시 흡수해 필드를 정리한다. 상한은 밸런스 테이블에서.
 func _enforce_cap() -> void:
-	if _live.size() <= LIVE_CAP:
+	var cap: int = GameData.balance.gem_live_cap
+	if _live.size() <= cap:
 		return
 	# 먼저 죽은/무효 참조를 걷어낸다(게임 재시작·수집으로 남은 것) — 그것만으로 상한 이하가 될 수 있다.
 	_live = _live.filter(func(g): return is_instance_valid(g) and g._alive)
-	while _live.size() > LIVE_CAP:
+	while _live.size() > cap:
 		var g: Object = _live[0]
 		if g == self:   # 자기 자신은 유지(방금 스폰) — 다른 게 없으면 중단
 			break
