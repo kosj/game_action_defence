@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="ItemCatalogDB" load_steps=93 format=3]
+[gd_resource type="Resource" script_class="ItemCatalogDB" load_steps=94 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/EvolutionData.gd" id="1_npvid"]
 [ext_resource type="Script" path="res://scripts/data/PassiveData.gd" id="2_trnf4"]
@@ -841,8 +841,29 @@ proj_scale = 1.0
 area_radius = 340.0
 area_duration = 0.0
 
+[sub_resource type="Resource" id="Resource_boomr1"]
+script = ExtResource("14_20nvg")
+id = "boomerang"
+display = "Boomerang"
+desc = "Returning blade, hits twice"
+color = Color(0.95, 0.7, 0.35, 1)
+max_level = 8
+evolved = false
+module = "boomerang"
+fire_interval = 1.35
+pellets = 1
+spread = 0.0
+pierce = 0
+knockback = 110.0
+proj_speed = 560.0
+proj_damage = 3
+dmg_per_level = 2
+proj_scale = 1.0
+area_radius = 250.0
+area_duration = 0.0
+
 [resource]
 script = ExtResource("13_ogmwu")
-weapons = Array[ExtResource("14_20nvg")]([SubResource("Resource_b5sf2"), SubResource("Resource_2uxij"), SubResource("Resource_wuykr"), SubResource("Resource_et8pr"), SubResource("Resource_mqr3a"), SubResource("Resource_brm1b"), SubResource("Resource_d5nkj"), SubResource("Resource_y3lj6"), SubResource("Resource_ty2ne"), SubResource("Resource_h3kib"), SubResource("Resource_ffcci"), SubResource("Resource_b3dfo"), SubResource("Resource_iwi26"), SubResource("Resource_7eqki"), SubResource("Resource_rqy8n"), SubResource("Resource_n8jci"), SubResource("Resource_2o11w"), SubResource("Resource_mlbls"), SubResource("Resource_tjdw4"), SubResource("Resource_xpfej"), SubResource("Resource_th4eu"), SubResource("Resource_n3p4e"), SubResource("Resource_13fla"), SubResource("Resource_mbldu"), SubResource("Resource_suojf"), SubResource("Resource_1d04s"), SubResource("Resource_0wvrx"), SubResource("Resource_nmib0")])
+weapons = Array[ExtResource("14_20nvg")]([SubResource("Resource_b5sf2"), SubResource("Resource_2uxij"), SubResource("Resource_wuykr"), SubResource("Resource_et8pr"), SubResource("Resource_mqr3a"), SubResource("Resource_brm1b"), SubResource("Resource_d5nkj"), SubResource("Resource_y3lj6"), SubResource("Resource_ty2ne"), SubResource("Resource_h3kib"), SubResource("Resource_ffcci"), SubResource("Resource_b3dfo"), SubResource("Resource_iwi26"), SubResource("Resource_7eqki"), SubResource("Resource_rqy8n"), SubResource("Resource_n8jci"), SubResource("Resource_2o11w"), SubResource("Resource_mlbls"), SubResource("Resource_tjdw4"), SubResource("Resource_xpfej"), SubResource("Resource_th4eu"), SubResource("Resource_n3p4e"), SubResource("Resource_13fla"), SubResource("Resource_mbldu"), SubResource("Resource_suojf"), SubResource("Resource_1d04s"), SubResource("Resource_0wvrx"), SubResource("Resource_nmib0"), SubResource("Resource_boomr1")])
 passives = Array[ExtResource("2_trnf4")]([SubResource("Resource_rh71o"), SubResource("Resource_n7ycd"), SubResource("Resource_yt0yw"), SubResource("Resource_ssecv"), SubResource("Resource_ng0ac"), SubResource("Resource_fhi5r"), SubResource("Resource_bygr5"), SubResource("Resource_bvlkp"), SubResource("Resource_oso51"), SubResource("Resource_p7g4n")])
 evolutions = Array[ExtResource("1_npvid")]([SubResource("Resource_ysekj"), SubResource("Resource_xiw26"), SubResource("Resource_20xfe"), SubResource("Resource_roa8l"), SubResource("Resource_2wntj"), SubResource("Resource_qpij3"), SubResource("Resource_qfltj"), SubResource("Resource_vpue0"), SubResource("Resource_0jyiy"), SubResource("Resource_p4uto"), SubResource("Resource_k81bh"), SubResource("Resource_nnv0g")])
