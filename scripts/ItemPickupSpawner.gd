@@ -44,7 +44,7 @@ func _process(delta: float) -> void:
 
 func _spawn_item() -> void:
 	var p := Pool.acquire(ITEM_PICKUP, get_tree().current_scene)
-	p.kind = "bomb" if randf() < 0.25 else "chest"   # 75% 보물상자, 25% 폭탄
+	p.kind = "chest"   # 필드 스폰은 보물상자만(폭탄 스폰 제거)
 	p.global_position = _random_spawn_pos()
 
 
