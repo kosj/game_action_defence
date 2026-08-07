@@ -11,17 +11,17 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 
 ## 등급 정의 — 확률 가중치(행운 패시브가 상위 등급을 끌어올린다)와 연출 파라미터.
 const _RARITY := [
-	{"key": "common",    "title": "COMMON",        "col": Color(0.80, 0.84, 0.90), "flash": 0.0,  "shake": 0.0, "spark": 14, "hold": 1.6, "build": 0.7},
-	{"key": "rare",      "title": "RARE !",        "col": Color(0.35, 0.65, 1.00), "flash": 0.25, "shake": 3.0, "spark": 26, "hold": 2.0, "build": 1.0},
-	{"key": "epic",      "title": "EPIC !!",       "col": Color(0.75, 0.45, 1.00), "flash": 0.5,  "shake": 6.0, "spark": 44, "hold": 2.4, "build": 1.4},
-	{"key": "legendary", "title": "LEGENDARY !!!", "col": Color(1.00, 0.82, 0.25), "flash": 0.85, "shake": 10.0, "spark": 70, "hold": 3.0, "build": 1.9},
+	{"key": "common",    "title": "COMMON",        "col": Color(0.80, 0.84, 0.90), "flash": 0.0,  "shake": 0.0, "spark": 14, "hold": 1.6, "build": 0.7, "count": 1},
+	{"key": "rare",      "title": "RARE !",        "col": Color(0.35, 0.65, 1.00), "flash": 0.25, "shake": 3.0, "spark": 26, "hold": 2.0, "build": 1.0, "count": 2},
+	{"key": "epic",      "title": "EPIC !!",       "col": Color(0.75, 0.45, 1.00), "flash": 0.5,  "shake": 6.0, "spark": 44, "hold": 2.4, "build": 1.4, "count": 3},
+	{"key": "legendary", "title": "LEGENDARY !!!", "col": Color(1.00, 0.82, 0.25), "flash": 0.85, "shake": 10.0, "spark": 70, "hold": 3.0, "build": 1.9, "count": 4},
 ]
 
 static var _open_now: bool = false   # 동시 개봉 가드 — 이미 열려 있으면 연출 없이 즉시 지급
 
 var _did_pause: bool = false
 var _closed: bool = false
-var _apply: Callable            # 닫힐 때 실행할 보상 적용
+var _applies: Array = []        # 닫힐 때 실행할 보상 적용(등급이 높을수록 여러 개)
 var _panel: PanelContainer
 var _auto_left: float = 0.0
 
@@ -30,7 +30,8 @@ var _auto_left: float = 0.0
 static func open(parent: Node) -> void:
 	var reward := _roll()
 	if _open_now:
-		reward["apply"].call()   # 겹침(연속 개봉) — 연출 생략하고 보상만 지급
+		for a in reward["applies"]:   # 겹침(연속 개봉) — 연출 생략하고 보상만 지급
+			a.call()
 		return
 	var p = (load("res://scripts/ChestRewardPanel.gd") as GDScript).new()
 	p._setup(reward)
@@ -54,11 +55,27 @@ static func _roll() -> Dictionary:
 
 	# 골드는 경과 시간에 따라 증가(후반 상자가 더 달다).
 	var gscale := 1.0 + (Events.elapsed_time / 60.0) * 0.10
-	match rarity:
-		3: return _roll_legendary(gscale)
-		2: return _roll_epic(gscale)
-		1: return _roll_rare(gscale)
-		_: return _roll_common(gscale)
+	# 등급이 높을수록 보상 개수가 많다(1/2/3/4). 첫 보상은 해당 등급 풀에서,
+	# 나머지 보너스는 하위 등급(일반 60%/고급 40%) 풀에서 추가로 뽑는다.
+	var count := int(_RARITY[rarity]["count"])
+	var texts: Array = []
+	var applies: Array = []
+	var main := _roll_tier(rarity, gscale)
+	texts.append(main["text"])
+	applies.append(main["apply"])
+	for i in range(count - 1):
+		var extra := _roll_tier(1 if randf() < 0.4 else 0, gscale)
+		texts.append(extra["text"])
+		applies.append(extra["apply"])
+	return {"rarity": rarity, "texts": texts, "applies": applies}
+
+
+static func _roll_tier(t: int, gs: float) -> Dictionary:
+	match t:
+		3: return _roll_legendary(gs)
+		2: return _roll_epic(gs)
+		1: return _roll_rare(gs)
+		_: return _roll_common(gs)
 
 
 static func _roll_common(gs: float) -> Dictionary:
@@ -144,9 +161,10 @@ static func _player() -> Node:
 ##            (2) 공개(짜잔) — 섬광 + 파티클 분출 + 패널 팝으로 보상을 드러낸다.
 ## 탭: 기대 단계에서는 즉시 공개로 건너뛰고, 공개 후에는 닫는다.
 func _setup(reward: Dictionary) -> void:
-	_apply = reward["apply"]
+	_applies = reward["applies"]
 	set_meta("rarity", reward["rarity"])
-	set_meta("text", reward["text"])
+	set_meta("text", "\n".join(reward["texts"]))
+	set_meta("count", reward["texts"].size())
 
 
 var _phase: int = 0            # 0=기대(암시) 1=공개
@@ -214,22 +232,29 @@ func _build_anticipation() -> void:
 	gt.tween_property(glow, "modulate:a", 1.0, 0.25)
 	gt.tween_property(glow, "scale", Vector2(1.15, 1.15), build).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
-	# 두근거리는 "?" — 무엇이 나올지 모르는 긴장.
-	var q := Label.new()
-	q.text = "?"
-	q.add_theme_font_size_override("font_size", 88)
-	q.add_theme_color_override("font_color", Color(minf(_col.r * 1.2 + 0.1, 1.0), minf(_col.g * 1.2 + 0.1, 1.0), minf(_col.b * 1.2 + 0.1, 1.0)))
-	q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	q.size = Vector2(120, 140)
-	q.position = Vector2(360 - 60, 560 - 70)
-	q.pivot_offset = Vector2(60, 70)
-	UITheme.heading(q)
-	_antic.add_child(q)
-	var pulse := create_tween().set_loops()
-	_antic_tws.append(pulse)
-	pulse.tween_property(q, "scale", Vector2(1.14, 1.14), 0.16).set_trans(Tween.TRANS_SINE)
-	pulse.tween_property(q, "scale", Vector2(0.95, 0.95), 0.16).set_trans(Tween.TRANS_SINE)
+	# 두근거리는 "?" — 개수가 곧 이번 상자의 보상 개수(등급 암시와 함께 이중 힌트).
+	var qn := int(get_meta("count", 1))
+	var qcol := Color(minf(_col.r * 1.2 + 0.1, 1.0), minf(_col.g * 1.2 + 0.1, 1.0), minf(_col.b * 1.2 + 0.1, 1.0))
+	var spacing := 96.0
+	var start_x := 360.0 - spacing * float(qn - 1) * 0.5
+	for qi in qn:
+		var q := Label.new()
+		q.text = "?"
+		q.add_theme_font_size_override("font_size", 74 if qn >= 3 else 88)
+		q.add_theme_color_override("font_color", qcol)
+		q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		q.size = Vector2(96, 140)
+		q.position = Vector2(start_x + spacing * float(qi) - 48.0, 560 - 70)
+		q.pivot_offset = Vector2(48, 70)
+		UITheme.heading(q)
+		_antic.add_child(q)
+		# 개체마다 주기를 살짝 달리해 자연스럽게 어긋나며 두근거린다.
+		var pulse := create_tween().set_loops()
+		_antic_tws.append(pulse)
+		var dur := 0.15 + 0.025 * float(qi)
+		pulse.tween_property(q, "scale", Vector2(1.14, 1.14), dur).set_trans(Tween.TRANS_SINE)
+		pulse.tween_property(q, "scale", Vector2(0.95, 0.95), dur).set_trans(Tween.TRANS_SINE)
 
 	# 은은한 상승 입자 — 등급이 높을수록 짙게.
 	var drift := CPUParticles2D.new()
@@ -421,6 +446,7 @@ func _close() -> void:
 	_open_now = false
 	if _did_pause:
 		get_tree().paused = false
-	if _apply.is_valid():
-		_apply.call()
+	for a in _applies:
+		if a is Callable and a.is_valid():
+			a.call()
 	queue_free()

@@ -540,8 +540,13 @@ func _build_loadout() -> void:
 	# 밝은 필드 위에서도 잘 읽히도록 반투명 어두운 패널을 배경에 깔고(내용에 맞춰 자동 크기),
 	# 그 안에 아이템 목록을 담는다.
 	var panel := PanelContainer.new()
+	# 좌측 "하단" 정렬 — 바닥 목표 힌트(하단 44px) 바로 위에 붙이고, 아이템이 늘면 위로 자란다.
+	panel.anchor_top = 1.0
+	panel.anchor_bottom = 1.0
 	panel.offset_left = 8.0
-	panel.offset_top = 158.0
+	panel.offset_top = -54.0
+	panel.offset_bottom = -54.0
+	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.0, 0.0, 0.0, 0.40)
