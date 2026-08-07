@@ -268,13 +268,13 @@ func _on_swarm_incoming(elite: bool) -> void:
 
 ## 도전과제 달성 토스트 — 화면 상단 중앙에 잠깐 떴다 사라진다(코드로 즉석 생성).
 func _on_achievement_unlocked(title: String) -> void:
-	SoundManager.play("gold", 0.0, 1.4)   # 달성 보상 하이톤 차임
+	SoundManager.play_ui("gold", 0.0, 1.4)   # 달성 보상 하이톤 차임
 	_show_toast("[*]  %s" % title, Color(1.0, 0.85, 0.35), 150.0)
 
 
 ## 끝없는 과제 완료 — 보상 골드를 함께 표시(살짝 아래에 띄워 도전과제 토스트와 겹치지 않게).
 func _on_quest_completed(title: String, reward: int) -> void:
-	SoundManager.play("gold", 0.0, 1.5)
+	SoundManager.play_ui("gold", 0.0, 1.5)
 	_show_toast("[+]  Quest: %s   +%d gold" % [title, reward], Color(0.6, 1.0, 0.6), 190.0)
 
 

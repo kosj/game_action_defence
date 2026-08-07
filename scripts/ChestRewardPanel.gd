@@ -295,7 +295,7 @@ func _build_anticipation() -> void:
 	for i in ticks:
 		tick_tw.tween_interval(build / float(ticks))
 		var pitch := 0.85 + 0.16 * float(i)
-		tick_tw.tween_callback(func(): SoundManager.play("gold", 0.02, pitch))
+		tick_tw.tween_callback(func(): SoundManager.play_ui("gold", 0.02, pitch))
 
 	# 빌드업이 끝나면 공개.
 	_buildup_tw = create_tween()
@@ -443,14 +443,14 @@ func _reveal() -> void:
 
 	# 등급별 사운드 — 전설은 겹쳐서 임팩트.
 	match int(get_meta("rarity")):
-		0: SoundManager.play("gold", 0.05, 1.1)
-		1: SoundManager.play("gold", 0.05, 1.25)
+		0: SoundManager.play_ui("gold", 0.05, 1.1)
+		1: SoundManager.play_ui("gold", 0.05, 1.25)
 		2:
-			SoundManager.play("gold", 0.05, 0.9)
-			SoundManager.play("laser", 0.05, 1.4)
+			SoundManager.play_ui("gold", 0.05, 0.9)
+			SoundManager.play_ui("laser", 0.05, 1.4)
 		3:
-			SoundManager.play("boom", 0.05, 1.2)
-			SoundManager.play("gold", 0.05, 0.7)
+			SoundManager.play_ui("boom", 0.05, 1.2)
+			SoundManager.play_ui("gold", 0.05, 0.7)
 
 
 ## 등급에 비례해 화면 곳곳에 폭죽을 연달아 터뜨린다(보상 UI 뒤). 전설은 중앙 피날레 대형 폭죽까지.
@@ -502,9 +502,9 @@ func _pop_firework(holder: Control, size_mul: float) -> void:
 	# 원샷 방출이 끝나면 스스로 정리 — 외부 타이머·람다 캡처가 없어 조기 닫힘에도 안전하다.
 	p.finished.connect(p.queue_free)
 	if size_mul > 1.5:
-		SoundManager.play("boom", 0.05, 1.5)   # 피날레는 낮게 쿵
+		SoundManager.play_ui("boom", 0.05, 1.5)   # 피날레는 낮게 쿵
 	else:
-		SoundManager.play("gold", 0.08, 1.35 + randf() * 0.3)
+		SoundManager.play_ui("gold", 0.08, 1.35 + randf() * 0.3)
 
 
 ## 카드 1장(뒷면, 기대 단계용 수동 배치) — 어두운 바탕 + 등급색 테두리/엠블럼.
@@ -576,7 +576,7 @@ func _flip_swap(back: Control, face: Control, i: int) -> void:
 		return
 	back.visible = false
 	face.visible = true
-	SoundManager.play("gold", 0.04, 1.2 + 0.12 * float(i))
+	SoundManager.play_ui("gold", 0.04, 1.2 + 0.12 * float(i))
 
 
 func _on_dim_input(e: InputEvent) -> void:
