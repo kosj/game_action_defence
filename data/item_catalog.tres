@@ -295,9 +295,9 @@ area_duration = 0.0
 [sub_resource type="Resource" id="Resource_et8pr"]
 script = ExtResource("14_20nvg")
 id = "garlic"
-display = "Garlic Aura"
-desc = "Damages foes around you"
-color = Color(0.45, 0.82, 1, 1)
+display = "Sunlight Aura"
+desc = "Sunlight zombies hate"
+color = Color(1, 0.85, 0.45, 1)
 max_level = 8
 evolved = false
 icon = ExtResource("18_3evq3")
