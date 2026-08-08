@@ -22,6 +22,23 @@ const _ICON_XP := preload("res://assets/ui/icons/hud_xp.png")
 const _ICON_MAGNET := preload("res://assets/ui/icons/passive_magnet.png")
 const _ICON_HEAL := preload("res://assets/ui/icons/passive_regen.png")
 
+## 전용 보상 아이콘(선택) — 파일이 있으면 사용하고 없으면 종류색 다이아 엠블럼으로 폴백.
+## 아트가 준비되는 대로 아래 경로에 넣기만 하면 코드 수정 없이 적용된다.
+const _REWARD_ICON_PATHS := {
+	"gold": "res://assets/ui/icons/reward_gold.png",
+	"levelup": "res://assets/ui/icons/reward_levelup.png",
+	"revive": "res://assets/ui/icons/reward_revive.png",
+	"meta": "res://assets/ui/icons/reward_meta.png",
+}
+
+static func _reward_icon(kind: String) -> Texture2D:
+	var path: String = _REWARD_ICON_PATHS.get(kind, "")
+	if path != "" and ResourceLoader.exists(path):
+		var t = load(path)
+		if t is Texture2D:
+			return t
+	return null
+
 ## 아이콘이 없는 보상 종류의 다이아 엠블럼 색.
 const _KIND_COL := {
 	"gold": Color(1.0, 0.84, 0.30), "levelup": Color(0.50, 1.0, 0.60),
@@ -99,7 +116,7 @@ static func _roll_tier(t: int, gs: float) -> Dictionary:
 static func _roll_common(gs: float) -> Dictionary:
 	if randf() < 0.6:
 		var g := int(randi_range(15, 35) * gs)
-		return {"rarity": 0, "text": "+%d Gold" % g, "kind": "gold", "icon": null, "apply": func(): Events.add_gold(g)}
+		return {"rarity": 0, "text": "+%d Gold" % g, "kind": "gold", "icon": _reward_icon("gold"), "apply": func(): Events.add_gold(g)}
 	var xp := maxi(5, int(Events.xp_to_next * 0.3))
 	return {"rarity": 0, "text": "+%d XP" % xp, "kind": "xp", "icon": _ICON_XP, "apply": func(): Events.add_xp(xp)}
 
@@ -108,7 +125,7 @@ static func _roll_rare(gs: float) -> Dictionary:
 	var r := randi() % 3
 	if r == 0:
 		var g := int(randi_range(50, 90) * gs)
-		return {"rarity": 1, "text": "+%d Gold" % g, "kind": "gold", "icon": null, "apply": func(): Events.add_gold(g)}
+		return {"rarity": 1, "text": "+%d Gold" % g, "kind": "gold", "icon": _reward_icon("gold"), "apply": func(): Events.add_gold(g)}
 	if r == 1:
 		var pick := _random_grantable_item()
 		if not pick.is_empty():
@@ -127,7 +144,7 @@ static func _roll_rare(gs: float) -> Dictionary:
 static func _roll_epic(gs: float) -> Dictionary:
 	var r := randi() % 3
 	if r == 0:
-		return {"rarity": 2, "text": "FREE LEVEL UP", "kind": "levelup", "icon": null, "apply": func(): Events.bonus_level()}
+		return {"rarity": 2, "text": "FREE LEVEL UP", "kind": "levelup", "icon": _reward_icon("levelup"), "apply": func(): Events.bonus_level()}
 	if r == 1:
 		var do_heal := func():
 			var pl := _player()
@@ -135,18 +152,18 @@ static func _roll_epic(gs: float) -> Dictionary:
 				pl.heal(999)
 		return {"rarity": 2, "text": "Full Heal", "kind": "heal", "icon": _ICON_HEAL, "apply": do_heal}
 	var g := int(randi_range(130, 200) * gs)
-	return {"rarity": 2, "text": "+%d Gold" % g, "kind": "gold", "icon": null, "apply": func(): Events.add_gold(g)}
+	return {"rarity": 2, "text": "+%d Gold" % g, "kind": "gold", "icon": _reward_icon("gold"), "apply": func(): Events.add_gold(g)}
 
 
 static func _roll_legendary(gs: float) -> Dictionary:
 	var r := randi() % 3
 	if r == 0:
-		return {"rarity": 3, "text": "+1 REVIVE", "kind": "revive", "icon": null, "apply": func(): Events.revives_left += 1}
+		return {"rarity": 3, "text": "+1 REVIVE", "kind": "revive", "icon": _reward_icon("revive"), "apply": func(): Events.revives_left += 1}
 	if r == 1:
 		var mg := randi_range(40, 80)
-		return {"rarity": 3, "text": "+%d Meta Gold (permanent)" % mg, "kind": "meta", "icon": null, "apply": func(): MetaManager.reward_gold(mg)}
+		return {"rarity": 3, "text": "+%d Meta Gold (permanent)" % mg, "kind": "meta", "icon": _reward_icon("meta"), "apply": func(): MetaManager.reward_gold(mg)}
 	var g := int(randi_range(280, 420) * gs)
-	return {"rarity": 3, "text": "JACKPOT  +%d Gold" % g, "kind": "gold", "icon": null, "apply": func(): Events.add_gold(g)}
+	return {"rarity": 3, "text": "JACKPOT  +%d Gold" % g, "kind": "gold", "icon": _reward_icon("gold"), "apply": func(): Events.add_gold(g)}
 
 
 ## 새 슬롯 여유/만렙 규칙을 지켜 지급 가능한 아이템 하나를 무작위로 고른다(없으면 {}).
