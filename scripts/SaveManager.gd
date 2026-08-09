@@ -72,6 +72,11 @@ func save_game(player: Node) -> void:
 		"current_wave": Events.current_wave,
 		"elapsed_time": Events.elapsed_time,
 		"player_health": player.health,
+		"level": Events.level,               # 레벨업 곡선 진행(누락 시 이어하기마다 Lv1 로 리셋되던 것 보강)
+		"xp": Events.xp,
+		"xp_to_next": Events.xp_to_next,
+		"revives_left": Events.revives_left, # 소모한 부활이 복구되거나 상자 +1 부활이 유실되지 않게
+		"did_clear": Events.did_clear,       # 30분 클리어 알림이 이어하기 후 재발동하지 않게
 		"upgrade_speed": Events.upgrade_speed,
 		"upgrade_atk_speed": Events.upgrade_atk_speed,
 		"upgrade_bullet_damage": Events.upgrade_bullet_damage,
@@ -116,6 +121,13 @@ func apply_to_events(data: Dictionary) -> void:
 	Events.score = data.get("score", 0)
 	Events.current_wave = data.get("current_wave", 1)
 	Events.elapsed_time = data.get("elapsed_time", 0.0)
+	Events.level = int(data.get("level", 1))
+	Events.xp = int(data.get("xp", 0))
+	Events.xp_to_next = int(data.get("xp_to_next", Events.xp_to_next))
+	Events.did_clear = bool(data.get("did_clear", false))
+	# reset() 이 메타 강화 기준으로 채운 부활 횟수를 저장 시점 값으로 되돌린다(구 세이브는 그대로).
+	if data.has("revives_left"):
+		Events.revives_left = int(data.get("revives_left", 0))
 	Events.upgrade_speed = data.get("upgrade_speed", 0)
 	Events.upgrade_atk_speed = data.get("upgrade_atk_speed", 0)
 	Events.upgrade_bullet_damage = data.get("upgrade_bullet_damage", 0)

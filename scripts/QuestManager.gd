@@ -30,6 +30,7 @@ func _ready() -> void:
 	Events.zombie_killed.connect(func(): _advance("kills", 1))
 	Events.boss_died.connect(func(): _advance("bosses", 1))
 	Events.wave_complete.connect(func(_w: int): _advance("waves", 1))
+	Events.wave_complete.connect(func(_w: int): _flush())   # 주기 저장 — 런 중 강제 종료(웹 탭 닫힘) 대비
 	Events.player_died.connect(_flush)
 
 
@@ -67,9 +68,10 @@ func _complete(t: Dictionary) -> void:
 	var reward := _reward(t, tier)
 	_count[id] = int(_count[id]) - goal
 	_tier[id] = tier + 1
-	MetaManager.reward_gold(reward)   # 메타 은행에 즉시 적립
+	var title := "%s %s" % [t["title"], _roman(tier + 1)]
+	RewardInbox.push_reward(title, reward, "quest")   # 자동 지급 대신 보관함 적립 — 메뉴에서 직접 수령
 	# 완료한 과제 이름 + 보상 통지(HUD 토스트).
-	Events.quest_completed.emit("%s %s" % [t["title"], _roman(tier + 1)], reward)
+	Events.quest_completed.emit(title, reward)
 	_save()   # 보상 유실 방지 — 완료 즉시 저장
 
 

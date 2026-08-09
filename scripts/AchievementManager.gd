@@ -16,6 +16,7 @@ func _ready() -> void:
 	Events.boss_died.connect(func(): _add("boss_kills", 1))
 	Events.elapsed_changed.connect(func(sec: float): _set_max("best_time", int(sec)))
 	Events.level_up.connect(func(lvl: int): _set_max("best_level", lvl))
+	Events.wave_complete.connect(func(_w: int): _flush())   # 주기 저장 — 런 중 강제 종료(웹 탭 닫힘) 대비
 	Events.player_died.connect(_flush)
 
 
@@ -54,7 +55,7 @@ func _check(metric: String) -> void:
 func _unlock(a: AchievementData) -> void:
 	_unlocked[a.id] = true
 	if a.reward_gold > 0:
-		MetaManager.reward_gold(a.reward_gold)   # 메타 은행에 즉시 적립
+		RewardInbox.push_reward(a.display, a.reward_gold, "achievement")   # 보관함 적립 — 메뉴에서 직접 수령
 	Events.achievement_unlocked.emit(a.display)
 	_save()   # 해금은 즉시 저장(보상 유실 방지)
 
