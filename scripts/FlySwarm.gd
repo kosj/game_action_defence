@@ -48,11 +48,15 @@ func _physics_process(delta: float) -> void:
 	queue_redraw()
 
 
+## 핏빛 연출 — 어두운 도심 바닥에서도 또렷하게 읽히도록 붉은 위험 링 + 진홍 파리 구름.
 func _draw() -> void:
 	var fade := clampf(_life / 1.0, 0.0, 1.0)
-	# 부패한 기운의 탁한 아우라(옅게) — 범위를 읽을 수 있게.
-	draw_circle(Vector2.ZERO, BITE_R, Color(0.18, 0.20, 0.10, 0.13 * fade))
-	draw_arc(Vector2.ZERO, BITE_R, 0.0, TAU, 28, Color(0.35, 0.38, 0.20, 0.28 * fade), 1.5, true)
+	var pulse := 0.5 + 0.5 * sin(_age * 6.0)   # 두근거리는 경고 맥동
+	# 핏빛 위험 범위 — 안쪽 채움 + 이중 링(바깥 밝은 적색, 안쪽 진홍).
+	draw_circle(Vector2.ZERO, BITE_R, Color(0.55, 0.04, 0.04, (0.16 + 0.07 * pulse) * fade))
+	draw_circle(Vector2.ZERO, BITE_R * 0.4, Color(0.85, 0.10, 0.08, 0.16 * fade))   # 중심부 핏빛 심장
+	draw_arc(Vector2.ZERO, BITE_R, 0.0, TAU, 30, Color(1.0, 0.28, 0.20, (0.55 + 0.25 * pulse) * fade), 2.6, true)
+	draw_arc(Vector2.ZERO, BITE_R * (0.84 + 0.07 * pulse), 0.0, TAU, 26, Color(0.9, 0.10, 0.10, 0.32 * fade), 1.6, true)
 	# 파리들 — 각자 다른 주기로 불규칙하게 흩어졌다 모이며 윙윙댄다(벌보다 빠르고 산만한 궤적).
 	for i in FLIES:
 		var fi := float(i)
@@ -61,5 +65,5 @@ func _draw() -> void:
 		var rr := BITE_R * (0.20 + 0.62 * absf(sin(_age * 2.4 + fi * 1.31 + _seed)))
 		var p := Vector2.from_angle(a + wob) * rr
 		p += Vector2(sin(_age * 17.0 + fi), cos(_age * 15.0 + fi * 1.7)) * 2.2   # 미세 진동(윙윙)
-		draw_circle(p, 2.2, Color(0.06, 0.06, 0.05, fade))                       # 검은 몸통
-		draw_circle(p + Vector2(0.8, -0.8), 1.0, Color(0.45, 0.50, 0.30, 0.75 * fade))   # 탁한 날개 반짝
+		draw_circle(p, 2.6, Color(0.14, 0.02, 0.02, fade))                        # 검붉은 몸통
+		draw_circle(p + Vector2(0.8, -0.8), 1.2, Color(1.0, 0.38, 0.28, 0.85 * fade))   # 핏빛 날개 반짝
