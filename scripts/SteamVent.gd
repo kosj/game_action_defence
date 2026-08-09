@@ -62,13 +62,37 @@ func _burst() -> void:
 	SoundManager.play("boom", 0.05, 1.3)
 
 
+## 정체가 읽히는 연출: 항상 보이는 금속 통풍구(맨홀) 베이스 + 대기 중 스멀거리는 증기,
+## 분출 직전에는 위험 반경이 점점 차오르는 경고 링과 노란 점멸로 "곧 터진다"를 예고한다.
 func _draw() -> void:
 	var ph := fmod(_phase_t, TELEGRAPH + ACTIVE + COOLDOWN)
-	# 지면 균열
-	draw_line(Vector2(-14, 4), Vector2(6, -3), Color(0.1, 0.1, 0.12, 0.9), 3.0)
-	draw_line(Vector2(6, -3), Vector2(16, 6), Color(0.1, 0.1, 0.12, 0.9), 3.0)
+	# 금속 통풍구 베이스 — 어두운 원판 + 밝은 림 + 배기 슬릿 3줄(무엇인지 한눈에 보이게).
+	draw_circle(Vector2.ZERO, 16.0, Color(0.16, 0.17, 0.20, 0.95))
+	draw_arc(Vector2.ZERO, 16.0, 0.0, TAU, 20, Color(0.55, 0.58, 0.66, 0.9), 2.2, true)
+	for i in 3:
+		var y := -6.0 + 6.0 * float(i)
+		draw_line(Vector2(-8, y), Vector2(8, y), Color(0.42, 0.45, 0.52, 0.9), 2.5)
 	if ph < TELEGRAPH:
+		# 경고: 위험 반경 링이 차오르고(호가 자라며 회전) 통풍구가 노랗게 점멸.
 		var p := ph / TELEGRAPH
-		draw_arc(Vector2.ZERO, BURST_R, 0.0, TAU, 28, Color(0.8, 0.85, 0.95, 0.2 + 0.4 * p), 2.0, true)
+		var blink := 0.5 + 0.5 * sin(_age * 18.0)
+		draw_arc(Vector2.ZERO, 16.0, 0.0, TAU, 20, Color(1.0, 0.85, 0.25, 0.4 + 0.5 * blink * p), 2.5, true)
+		draw_circle(Vector2.ZERO, BURST_R, Color(1.0, 0.9, 0.4, 0.05 + 0.09 * p))
+		draw_arc(Vector2.ZERO, BURST_R, 0.0, TAU, 32, Color(0.85, 0.88, 0.95, 0.25 + 0.35 * p), 2.0, true)
+		var sweep := _age * 2.5
+		draw_arc(Vector2.ZERO, BURST_R, sweep, sweep + TAU * p, 32, Color(1.0, 0.85, 0.3, 0.55 + 0.3 * blink), 3.5, true)
 	elif ph < TELEGRAPH + ACTIVE:
-		draw_circle(Vector2.ZERO, BURST_R, Color(0.9, 0.93, 0.98, 0.22))
+		# 분출: 범위 전체가 증기로 번쩍 + 수직 증기 기둥.
+		draw_circle(Vector2.ZERO, BURST_R, Color(0.9, 0.93, 0.98, 0.30))
+		draw_arc(Vector2.ZERO, BURST_R, 0.0, TAU, 32, Color(1.0, 1.0, 1.0, 0.7), 3.0, true)
+		for i in 4:
+			var fi := float(i)
+			draw_circle(Vector2(sin(_age * 20.0 + fi * 2.1) * 7.0, -14.0 - fi * 16.0), 11.0 - fi * 1.8,
+				Color(0.92, 0.95, 1.0, 0.5 - fi * 0.1))
+	else:
+		# 대기: 슬릿에서 스멀스멀 새어 나오는 작은 증기 — 살아있는 위험임을 계속 알린다.
+		for i in 2:
+			var fi := float(i)
+			var t := fmod(_age * 0.9 + fi * 0.5, 1.0)
+			draw_circle(Vector2(sin(_age * 3.0 + fi * 3.7) * 5.0, -10.0 - t * 22.0), 3.5 + t * 3.0,
+				Color(0.85, 0.88, 0.94, 0.30 * (1.0 - t)))
