@@ -57,6 +57,13 @@ var _quest_dim: ColorRect
 var _quest_panel: PanelContainer
 var _quest_list: VBoxContainer
 
+# 보상 보관함(REWARDS) — 퀘스트/도전과제 보상을 유저가 직접 수령하는 패널.
+var _rewards_btn: Button
+var _rewards_dim: ColorRect
+var _rewards_panel: PanelContainer
+var _rewards_list: VBoxContainer
+var _rewards_total: Label
+
 # ── 테마(아레나) 선택 오버레이 ──
 var _theme_btn: Button
 var _theme_dim: ColorRect
@@ -200,6 +207,15 @@ func _build_ui() -> void:
 	_quest_btn.pressed.connect(_on_quests_pressed)
 	box.add_child(_quest_btn)
 
+	_rewards_btn = Button.new()
+	_rewards_btn.custom_minimum_size = Vector2(300, 56)
+	_rewards_btn.add_theme_font_size_override("font_size", 20)
+	_UIStyle.apply_button_style(_rewards_btn, Color(0.26, 0.20, 0.06), Color(1.0, 0.85, 0.35))
+	_rewards_btn.pressed.connect(_on_rewards_pressed)
+	box.add_child(_rewards_btn)
+	RewardInbox.changed.connect(_refresh_rewards_badge)
+	_refresh_rewards_badge()
+
 	_rank_btn = Button.new()
 	_rank_btn.custom_minimum_size = Vector2(300, 56)
 	_rank_btn.add_theme_font_size_override("font_size", 22)
@@ -237,6 +253,7 @@ func _build_ui() -> void:
 	_refresh_char_button()
 	_build_achievement_panel()
 	_build_quest_panel()
+	_build_rewards_panel()
 	_build_theme_panel()
 	_refresh_theme_button()
 
@@ -707,7 +724,7 @@ func _build_quest_panel() -> void:
 	vb.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "완료하면 즉시 골드 보상 → 다음 과제 자동 생성(목표·보상 상승)"
+	hint.text = "완료 보상은 REWARDS 보관함에 쌓입니다 → 다음 과제 자동 생성(목표·보상 상승)"
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size = Vector2(440, 0)
@@ -728,6 +745,180 @@ func _build_quest_panel() -> void:
 	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
 	close.pressed.connect(_on_quests_close)
 	vb.add_child(close)
+
+
+## ── 보상 보관함(REWARDS) — 유저가 직접 "CLAIM"을 눌러 수령 ─────────────────
+func _build_rewards_panel() -> void:
+	_rewards_dim = ColorRect.new()
+	_rewards_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_rewards_dim.color = Color(0, 0, 0, 0.6)
+	_rewards_dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	_rewards_dim.visible = false
+	_rewards_dim.gui_input.connect(func(e: InputEvent):
+		if e is InputEventScreenTouch and e.pressed or e is InputEventMouseButton and e.pressed:
+			_on_rewards_close())
+	add_child(_rewards_dim)
+
+	_rewards_panel = PanelContainer.new()
+	_rewards_panel.anchor_left = 0.5
+	_rewards_panel.anchor_right = 0.5
+	_rewards_panel.anchor_top = 0.5
+	_rewards_panel.anchor_bottom = 0.5
+	_rewards_panel.offset_left = -245.0
+	_rewards_panel.offset_right = 245.0
+	_rewards_panel.offset_top = -280.0
+	_rewards_panel.offset_bottom = 280.0
+	_rewards_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.15, 0.11, 0.04, 0.98), Color(1.0, 0.85, 0.35)))
+	_rewards_panel.visible = false
+	add_child(_rewards_panel)
+
+	var margin := MarginContainer.new()
+	for m in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + m, 22)
+	_rewards_panel.add_child(margin)
+
+	var vb := VBoxContainer.new()
+	vb.add_theme_constant_override("separation", 12)
+	margin.add_child(vb)
+
+	var title := Label.new()
+	title.text = "REWARDS"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+	vb.add_child(title)
+
+	var hint := Label.new()
+	hint.text = "퀘스트·도전과제 보상은 여기에 쌓입니다. CLAIM 을 눌러 메타 골드로 받으세요."
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	hint.custom_minimum_size = Vector2(440, 0)
+	hint.add_theme_font_size_override("font_size", 14)
+	hint.add_theme_color_override("font_color", Color(0.82, 0.76, 0.62))
+	vb.add_child(hint)
+
+	vb.add_child(HSeparator.new())
+
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(440, 260)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vb.add_child(scroll)
+	_rewards_list = VBoxContainer.new()
+	_rewards_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_rewards_list.add_theme_constant_override("separation", 10)
+	scroll.add_child(_rewards_list)
+
+	_rewards_total = Label.new()
+	_rewards_total.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_rewards_total.add_theme_font_size_override("font_size", 16)
+	_rewards_total.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+	vb.add_child(_rewards_total)
+
+	var claim_all := Button.new()
+	claim_all.text = "CLAIM ALL"
+	claim_all.custom_minimum_size = Vector2(0, 54)
+	claim_all.add_theme_font_size_override("font_size", 22)
+	_UIStyle.apply_button_style(claim_all, Color(0.45, 0.32, 0.06), Color(1.0, 0.88, 0.4))
+	claim_all.pressed.connect(_on_claim_all_pressed)
+	vb.add_child(claim_all)
+
+	var close := Button.new()
+	close.text = "Close"
+	close.custom_minimum_size = Vector2(0, 48)
+	close.add_theme_font_size_override("font_size", 20)
+	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
+	close.pressed.connect(_on_rewards_close)
+	vb.add_child(close)
+
+
+## 대기 보상 개수를 버튼 라벨에 배지로 표시.
+func _refresh_rewards_badge() -> void:
+	if _rewards_btn == null:
+		return
+	var n: int = RewardInbox.count()
+	_rewards_btn.text = "Rewards (%d)" % n if n > 0 else "Rewards"
+
+
+func _refresh_rewards() -> void:
+	for c in _rewards_list.get_children():
+		c.queue_free()
+	var entries: Array = RewardInbox.entries
+	if entries.is_empty():
+		var empty := Label.new()
+		empty.text = "받을 보상이 없습니다"
+		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		empty.add_theme_font_size_override("font_size", 16)
+		empty.add_theme_color_override("font_color", Color(0.6, 0.58, 0.5))
+		_rewards_list.add_child(empty)
+		_rewards_total.text = ""
+		return
+	var total := 0
+	for i in entries.size():
+		var e: Dictionary = entries[i]
+		total += int(e["gold"])
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+
+		var name_box := VBoxContainer.new()
+		name_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name_box.add_theme_constant_override("separation", 1)
+		var head := Label.new()
+		head.text = String(e["title"])
+		head.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		head.add_theme_font_size_override("font_size", 16)
+		head.add_theme_color_override("font_color", Color(0.95, 0.93, 0.85))
+		name_box.add_child(head)
+		var sub := Label.new()
+		sub.text = "%s   +%d gold" % ["Quest" if e["src"] == "quest" else "Achievement", int(e["gold"])]
+		sub.add_theme_font_size_override("font_size", 13)
+		sub.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+		name_box.add_child(sub)
+		row.add_child(name_box)
+
+		var btn := Button.new()
+		btn.text = "CLAIM"
+		btn.custom_minimum_size = Vector2(96, 44)
+		btn.add_theme_font_size_override("font_size", 16)
+		_UIStyle.apply_button_style(btn, Color(0.14, 0.36, 0.16), Color(0.5, 0.95, 0.5))
+		btn.pressed.connect(_on_claim_pressed.bind(i))
+		row.add_child(btn)
+		_rewards_list.add_child(row)
+	_rewards_total.text = "Total waiting:  +%d gold" % total
+
+
+func _on_claim_pressed(index: int) -> void:
+	var got: int = RewardInbox.claim(index)
+	if got > 0:
+		SoundManager.play_ui("gold", 0.03, 1.25)
+	_refresh_rewards()
+	_refresh_meta_gold_labels()
+
+
+func _on_claim_all_pressed() -> void:
+	var got: int = RewardInbox.claim_all()
+	if got > 0:
+		SoundManager.play_ui("gold", 0.03, 1.1)
+		SoundManager.play_ui("gold", 0.03, 1.4)
+	_refresh_rewards()
+	_refresh_meta_gold_labels()
+
+
+## 파워업/캐릭터/테마 패널의 메타 골드 라벨을 갱신(열려 있지 않아도 안전).
+func _refresh_meta_gold_labels() -> void:
+	for lbl in [_power_gold_label, _char_gold_label, _theme_gold_label]:
+		if lbl != null and lbl.text != "":
+			lbl.text = "Gold: %d" % MetaManager.meta_gold
+
+
+func _on_rewards_pressed() -> void:
+	_refresh_rewards()
+	_rewards_dim.visible = true
+	_rewards_panel.visible = true
+
+
+func _on_rewards_close() -> void:
+	_rewards_dim.visible = false
+	_rewards_panel.visible = false
 
 
 ## 활성 과제를 매번 새로 그린다(티어가 바뀌므로 재생성이 간단·정확).
