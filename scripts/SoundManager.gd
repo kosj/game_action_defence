@@ -20,6 +20,9 @@ const _SOUNDS: Dictionary = {
 	"defeat":      "res://assets/audio/sfx_defeat.ogg",      # 사망(게임오버) 스팅어
 	"victory":     "res://assets/audio/sfx_victory.ogg",     # 30분 클리어 징글
 	"ui_click":    "res://assets/audio/sfx_ui_click.ogg",    # 메뉴/버튼 탭
+	"ult_quake":   "res://assets/audio/sfx_ult_quake.ogg",  # 궁극기: 지진(베테랑)
+	"ult_arrow":   "res://assets/audio/sfx_ult_arrow.ogg",  # 궁극기: 화살비(헌터)
+	"ult_orbital": "res://assets/audio/sfx_ult_orbital.ogg",# 궁극기: 궤도 폭격(엔지니어)
 }
 
 const _VOLUMES: Dictionary = {
@@ -37,6 +40,9 @@ const _VOLUMES: Dictionary = {
 	"defeat":      -5.0,
 	"victory":     -7.0,
 	"ui_click":    -6.0,
+	"ult_quake":   -3.0,
+	"ult_arrow":   -3.0,
+	"ult_orbital": -3.0,
 }
 
 ## 배경음악 트랙 — 트랙 이름 → 파일 목록. 게임 BGM 은 선택 테마로 곡이 결정되어(테마 인덱스
