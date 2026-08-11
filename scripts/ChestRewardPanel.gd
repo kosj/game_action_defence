@@ -429,18 +429,23 @@ func _reveal() -> void:
 		var face := _card_face_content(String(texts[i]), icons[i], String(kinds[i]))
 		face.visible = false
 		card.add_child(face)
-		# 플립: 가로 스케일을 접었다 펴며 뒷면 → 앞면 전환(카드별 시차, 기대감 있게 느긋히).
-		# 펴지는 순간 축하 폭죽. 플립 중 화면 탭 = 남은 카드 즉시 전부 공개(_on_dim_input).
+		# "?" 뒷면의 작은 카드가 확대되며 등장 → 잠깐 뜸 → 플립으로 공개(카드별 시차).
+		# 펴지는 순간 축하 폭죽. 연출 중 화면 탭 = 남은 카드 즉시 전부 공개(_on_dim_input).
 		_flip_cards.append({"card": card, "back": back, "face": face})
+		card.modulate.a = 0.0
+		card.scale = Vector2(0.4, 0.4)
 		var ft := create_tween()
 		_flip_tws.append(ft)
-		ft.tween_interval(0.55 + 0.32 * float(i))
+		ft.tween_interval(0.20 + 0.34 * float(i))
+		ft.tween_property(card, "modulate:a", 1.0, 0.20)
+		ft.parallel().tween_property(card, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		ft.tween_interval(0.28)
 		ft.tween_property(card, "scale:x", 0.06, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		ft.tween_callback(_flip_swap.bind(back, face, i))
 		ft.tween_property(card, "scale:x", 1.0, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		ft.tween_callback(_pop_firework.bind(fw_holder, 0.8))
 		ft.tween_callback(_pop_firework.bind(fw_holder, 0.8))
-	_auto_left += 0.6 + 0.32 * float(n)   # 플립이 다 보이도록 자동 닫힘 여유 추가
+	_auto_left += 1.0 + 0.34 * float(n)   # 확대+플립이 다 보이도록 자동 닫힘 여유 추가
 
 	var hint := Label.new()
 	hint.text = "tap to continue"
@@ -465,6 +470,9 @@ func _reveal() -> void:
 			st.tween_property(center, "position", off, 0.04)
 		st.tween_property(center, "position", Vector2.ZERO, 0.05)
 
+	# 공개 팡파르(sfx_fanfare.ogg) — 파일이 있으면 등급별 사운드 위에 겹친다.
+	if SoundManager.has_stream("fanfare"):
+		SoundManager.play_ui("fanfare", 0.03, 1.0)
 	# 등급별 사운드 — 전설은 겹쳐서 임팩트.
 	match int(get_meta("rarity")):
 		0: SoundManager.play_ui("gold", 0.05, 1.1)
@@ -542,8 +550,18 @@ func _make_card_back(w: float, h: float) -> PanelContainer:
 	return card
 
 
-## 카드 뒷면 내용물 — 중앙에 등급색 다이아 엠블럼.
+## 카드 뒷면 내용물 — 전용 아트(assets/ui/card_back.png)가 있으면 그 이미지를, 없으면
+## 등급색 다이아 엠블럼 + 두근거리는 "?" 를 그린다.
+const _CARD_BACK_PATH := "res://assets/ui/card_back.png"
+
 func _card_back_content(w: float) -> Control:
+	if ResourceLoader.exists(_CARD_BACK_PATH):
+		var tr := TextureRect.new()
+		tr.texture = load(_CARD_BACK_PATH)
+		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		return tr
 	var cc := CenterContainer.new()
 	cc.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var s := w * 0.34
@@ -551,9 +569,19 @@ func _card_back_content(w: float) -> Control:
 	d.custom_minimum_size = Vector2(s, s)
 	d.pivot_offset = Vector2(s * 0.5, s * 0.5)
 	d.rotation = PI / 4.0
-	d.color = Color(_col.r, _col.g, _col.b, 0.75)
+	d.color = Color(_col.r, _col.g, _col.b, 0.55)
 	d.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cc.add_child(d)
+	var q := Label.new()
+	q.text = "?"
+	q.add_theme_font_size_override("font_size", int(w * 0.42))
+	q.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
+	q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	q.set_anchors_preset(Control.PRESET_FULL_RECT)
+	q.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	UITheme.heading(q)
+	cc.add_child(q)
 	return cc
 
 
@@ -596,12 +624,16 @@ func _card_face_content(text: String, icon: Variant, kind: String) -> Control:
 
 
 ## 플립 중간점 — 뒷면을 숨기고 앞면을 드러낸다(카드별 시차 사운드 포함).
+## 전용 플립 사운드(sfx_card_flip.ogg)가 있으면 우선 사용, 없으면 코인음 폴백.
 func _flip_swap(back: Control, face: Control, i: int) -> void:
 	if not (is_instance_valid(back) and is_instance_valid(face)):
 		return
 	back.visible = false
 	face.visible = true
-	SoundManager.play_ui("gold", 0.04, 1.2 + 0.12 * float(i))
+	if SoundManager.has_stream("card_flip"):
+		SoundManager.play_ui("card_flip", 0.06, 1.0 + 0.08 * float(i))
+	else:
+		SoundManager.play_ui("gold", 0.04, 1.2 + 0.12 * float(i))
 
 
 ## 카드 플립이 아직 안 끝난 카드가 있는가.
@@ -629,6 +661,7 @@ func _finish_flips() -> void:
 			face.visible = true
 		if is_instance_valid(card):
 			card.scale = Vector2.ONE
+			card.modulate.a = 1.0
 	SoundManager.play_ui("gold", 0.04, 1.4)
 
 

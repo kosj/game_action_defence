@@ -12,6 +12,9 @@ const _SOUNDS: Dictionary = {
 	"zombie_die":  "res://assets/audio/sfx_zombie_die.ogg",
 	"gold":        "res://assets/audio/sfx_coin.wav",    # 마리오풍 코인 획득음(띠링)
 	"player_hurt": "res://assets/audio/sfx_player_hurt.ogg",
+	# 선택 사운드 — 파일이 아직 없으면 조용히 생략되고, 넣는 순간 자동 적용된다.
+	"card_flip":   "res://assets/audio/sfx_card_flip.ogg",   # 보상 카드 플립 스냅
+	"fanfare":     "res://assets/audio/sfx_fanfare.ogg",     # 보물상자 공개 팡파르
 }
 
 const _VOLUMES: Dictionary = {
@@ -69,10 +72,11 @@ func _ready() -> void:
 	muted = _read_setting()
 	for key in _SOUNDS:
 		var p := AudioStreamPlayer.new()
-		var stream = load(_SOUNDS[key])
-		if stream:
-			p.stream = stream
-			p.volume_db = _VOLUMES.get(key, 0.0)
+		if ResourceLoader.exists(_SOUNDS[key]):   # 선택 사운드는 파일이 있을 때만 로드
+			var stream = load(_SOUNDS[key])
+			if stream:
+				p.stream = stream
+				p.volume_db = _VOLUMES.get(key, 0.0)
 		add_child(p)
 		_players[key] = p
 
@@ -86,6 +90,12 @@ func _ready() -> void:
 	Events.player_revived.connect(_duck_music.bind(false))
 
 	_setup_web_visibility()
+
+
+## 이 사운드의 스트림이 실제로 로드되어 있는가(선택 사운드의 폴백 분기용).
+func has_stream(sound: String) -> bool:
+	var p: AudioStreamPlayer = _players.get(sound)
+	return p != null and p.stream != null
 
 
 # 웹(브라우저)에서는 탭을 백그라운드로 보내도 NOTIFICATION_APPLICATION_FOCUS_OUT 이 확실히
@@ -164,6 +174,8 @@ func play(sound: String, pitch_vary: float = 0.1, base_pitch: float = 1.0, ui: b
 ## 트랙 재생/전환. 같은 트랙이면 볼륨만 원상 복구(덕킹 해제·씬 전환 시 이어 재생).
 ## 음소거 중에는 트랙 이름만 기억해 뒀다가 사운드를 켜면 이어서 시작한다.
 func play_music(track: String) -> void:
+	if _music_player == null or not is_instance_valid(_music_player):
+		return   # 초기화 전/해체 중 호출 가드
 	var target: float = _MUSIC_VOL.get(track, -9.0)
 	if track == _music_current:
 		_music_ducked = false   # 다시하기 등 재진입 — 사망 덕킹이 남아있으면 복구
@@ -188,6 +200,8 @@ func play_music(track: String) -> void:
 
 
 func stop_music(fade: float = 0.6) -> void:
+	if _music_player == null or not is_instance_valid(_music_player):
+		return
 	_music_current = ""
 	if not _music_player.playing:
 		return
@@ -198,6 +212,8 @@ func stop_music(fade: float = 0.6) -> void:
 
 
 func _start_music(track: String, target_db: float) -> void:
+	if _music_player == null or not is_instance_valid(_music_player):
+		return   # 씬 트리 해체 중(종료) 콜백 경합 가드
 	if track != _music_current:
 		return   # 페이드 중 다른 트랙으로 다시 전환된 경우
 	var variants: Array = _MUSIC.get(track, [])
@@ -227,6 +243,8 @@ func _pick_variant(track: String, variants: Array) -> String:
 
 ## 사망 시 음악을 낮추고(true) 부활 시 되돌린다(false). 다시하기는 play_music 이 복구.
 func _duck_music(down: bool) -> void:
+	if _music_player == null or not is_instance_valid(_music_player):
+		return
 	_music_ducked = down
 	if muted or not _music_player.playing or _music_current == "":
 		return
@@ -235,6 +253,8 @@ func _duck_music(down: bool) -> void:
 
 
 func _fade_music_to(db: float, dur: float) -> void:
+	if _music_player == null or not is_instance_valid(_music_player):
+		return
 	_kill_music_tween()
 	_music_tween = create_tween()
 	_music_tween.tween_property(_music_player, "volume_db", db, dur)
