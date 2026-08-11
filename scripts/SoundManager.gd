@@ -25,6 +25,8 @@ const _VOLUMES: Dictionary = {
 	"zombie_die":  -3.0,
 	"gold":        -8.0,
 	"player_hurt":  0.0,
+	"card_flip":   -6.0,
+	"fanfare":     -9.0,
 }
 
 ## 배경음악 트랙 — 트랙 이름 → 파일 목록. 게임 BGM 은 선택 테마로 곡이 결정되어(테마 인덱스
