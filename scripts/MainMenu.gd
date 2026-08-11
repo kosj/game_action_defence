@@ -256,6 +256,23 @@ func _build_ui() -> void:
 	_build_rewards_panel()
 	_build_theme_panel()
 	_refresh_theme_button()
+	call_deferred("_prewarm_panels")
+
+
+## 첫 오픈 렌더 스톨 방지 — 무거운 패널(초상화·아이콘 텍스처)을 시작 직후 투명하게 1회
+## 렌더시켜 GPU 업로드를 미리 끝낸다. 이후 실제 오픈은 즉시 표시된다.
+func _prewarm_panels() -> void:
+	var panels: Array = [_power_panel, _char_panel]
+	for p in panels:
+		if p != null:
+			p.modulate.a = 0.0
+			p.visible = true
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for p in panels:
+		if p != null:
+			p.visible = false
+			p.modulate.a = 1.0
 
 
 ## 옵션 패널(언어 / 사운드 On/Off) — Option 버튼으로 열고 닫는 오버레이.
@@ -359,6 +376,21 @@ func _on_close_options() -> void:
 
 
 ## 메타 성장(PowerUp) 오버레이 — 은행 골드로 영구 강화를 구매한다.
+## 영구 강화 종류(effect_kind) → 아이콘 썸네일 경로.
+const _POWER_ICONS := {
+	"bullet_damage": "res://assets/ui/icons/passive_gunpowder.png",
+	"max_health": "res://assets/ui/icons/passive_armor.png",
+	"move_speed": "res://assets/ui/icons/passive_swift.png",
+	"atk_speed": "res://assets/ui/icons/passive_haste.png",
+	"crit": "res://assets/ui/icons/passive_crit.png",
+	"regen": "res://assets/ui/icons/passive_regen.png",
+	"area": "res://assets/ui/icons/passive_magnet.png",
+	"gold_mult": "res://assets/ui/icons/reward_gold.png",
+	"xp_mult": "res://assets/ui/icons/hud_xp.png",
+	"revive": "res://assets/ui/icons/reward_revive.png",
+}
+
+
 func _build_power_panel() -> void:
 	_power_dim = ColorRect.new()
 	_power_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -368,22 +400,20 @@ func _build_power_panel() -> void:
 	_power_dim.gui_input.connect(_on_power_dim_input)
 	add_child(_power_dim)
 
+	# 전체 화면 레이아웃 — 캐릭터 선택과 동일 규격(가장자리 여백만 남기고 화면을 채운다).
 	_power_panel = PanelContainer.new()
-	_power_panel.anchor_left = 0.5
-	_power_panel.anchor_right = 0.5
-	_power_panel.anchor_top = 0.5
-	_power_panel.anchor_bottom = 0.5
-	_power_panel.offset_left = -235.0
-	_power_panel.offset_right = 235.0
-	_power_panel.offset_top = -300.0
-	_power_panel.offset_bottom = 300.0
+	_power_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_power_panel.offset_left = 12.0
+	_power_panel.offset_right = -12.0
+	_power_panel.offset_top = 30.0
+	_power_panel.offset_bottom = -30.0
 	_power_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.12, 0.08, 0.16, 0.98), Color(0.6, 0.45, 0.9)))
 	_power_panel.visible = false
 	add_child(_power_panel)
 
 	var margin := MarginContainer.new()
 	for m in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + m, 22)
+		margin.add_theme_constant_override("margin_" + m, 24)
 	_power_panel.add_child(margin)
 
 	var vb := VBoxContainer.new()
@@ -393,8 +423,9 @@ func _build_power_panel() -> void:
 	var title := Label.new()
 	title.text = "PERMANENT UPGRADES"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_font_size_override("font_size", 30)
 	title.add_theme_color_override("font_color", Color(0.85, 0.7, 1.0))
+	UITheme.heading(title)
 	vb.add_child(title)
 
 	_power_gold_label = Label.new()
@@ -406,23 +437,42 @@ func _build_power_panel() -> void:
 	vb.add_child(HSeparator.new())
 
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 350)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.scroll_deadzone = 24   # 터치 드래그가 버튼 클릭에 먹히지 않고 스크롤로 이어지게
 	vb.add_child(scroll)
 	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", 8)
+	list.add_theme_constant_override("separation", 10)
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
 
 	_power_rows.clear()
 	for u in MetaManager.upgrades():
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(400, 62)
+		btn.custom_minimum_size = Vector2(0, 86)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.add_theme_font_size_override("font_size", 18)
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		_UIStyle.apply_button_style(btn, Color(0.22, 0.16, 0.28), Color(0.6, 0.45, 0.9))
 		btn.pressed.connect(_on_power_buy.bind(String(u["id"])))
 		list.add_child(btn)
+		# 강화 종류별 아이콘 썸네일 — 버튼 좌측에 고정.
+		var icon_path: String = _POWER_ICONS.get(String(u.get("kind", "")), "")
+		if icon_path != "" and ResourceLoader.exists(icon_path):
+			var tr := TextureRect.new()
+			tr.texture = load(icon_path)
+			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			tr.anchor_top = 0.0
+			tr.anchor_bottom = 1.0
+			tr.offset_left = 14.0
+			tr.offset_right = 72.0
+			tr.offset_top = 14.0
+			tr.offset_bottom = -14.0
+			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			btn.add_child(tr)
+			_UIStyle.set_button_content_margin_left(btn, 86)
 		_power_rows.append({"btn": btn, "u": u})
 
 	var close := Button.new()
@@ -504,6 +554,7 @@ func _build_character_panel() -> void:
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.scroll_deadzone = 24   # 터치 드래그가 버튼 클릭에 먹히지 않고 스크롤로 이어지게
 	vb.add_child(scroll)
 	var rows_box := VBoxContainer.new()
 	rows_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -517,6 +568,7 @@ func _build_character_panel() -> void:
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.add_theme_font_size_override("font_size", 19)
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT   # 썸네일 오른쪽에서 좌측 정렬(겹침 방지)
 		btn.pressed.connect(_on_char_pick.bind(String(c.id)))
 		rows_box.add_child(btn)
 		# 캐릭터 썸네일 — 전용 초상화(assets/ui/portraits/portrait_<id>.png)가 있으면 우선 사용,
@@ -578,6 +630,9 @@ func _refresh_character() -> void:
 			_UIStyle.apply_button_style(btn, Color(0.10, 0.10, 0.12), Color(0.30, 0.30, 0.34))
 			if thumb:
 				thumb.modulate = Color(0.35, 0.35, 0.4)   # 잠금 — 실루엣처럼 어둡게
+		# apply_button_style 이 스타일박스를 새로 깔아 썸네일용 좌측 컨텐츠 마진이 사라진다 — 재적용.
+		if thumb:
+			_UIStyle.set_button_content_margin_left(btn, 172)
 
 
 ## 캐릭터 시작 스탯 보정 요약 한 줄(비싼 캐릭터일수록 좋은 수치가 한눈에 비교되게).
@@ -850,6 +905,7 @@ func _build_rewards_panel() -> void:
 
 	var scroll := ScrollContainer.new()
 	scroll.custom_minimum_size = Vector2(440, 260)
+	scroll.scroll_deadzone = 24   # 터치 드래그가 버튼 클릭에 먹히지 않고 스크롤로 이어지게
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vb.add_child(scroll)
 	_rewards_list = VBoxContainer.new()
