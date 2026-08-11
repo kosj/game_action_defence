@@ -30,7 +30,7 @@ const _MUSIC: Dictionary = {
 	"title": ["res://assets/audio/bgm_title.mp3"],                                   # Ashes over Dune(타이틀·메뉴)
 	"game":  ["res://assets/audio/bgm_game_1.mp3", "res://assets/audio/bgm_game_2.mp3"],   # Iron Siege / Iron Faultline
 }
-const _MUSIC_VOL: Dictionary = {"title": -14.0, "game": -16.0}
+const _MUSIC_VOL: Dictionary = {"title": -20.0, "game": -22.0}
 const _MUSIC_FADE := 0.9        # 트랙 전환 크로스페이드(초)
 const _DUCK_DB := -14.0         # 사망 시 음악을 낮추는 상대량(dB)
 

@@ -3,7 +3,7 @@ extends Node2D
 ## 플레이어를 추적해 손으로 돌아온다. 왕복 각각에서 적을 관통 타격(정점에서 피격 목록 리셋 —
 ## 갔다 오며 같은 적을 두 번 때릴 수 있다). 전용 아트가 있으면 스프라이트, 없으면 절차 드로잉.
 
-const HIT_R := 30.0          # 타격 판정 반경
+const HIT_R := 37.5          # 타격 판정 반경(1.25x 확대)
 const SPIN := 14.0           # 회전 속도(rad/s) — 빙글빙글 도는 맛
 const RETURN_ACCEL := 2600.0 # 귀환 가속
 const CATCH_R := 26.0        # 플레이어 도달 판정
@@ -45,7 +45,7 @@ func _ready() -> void:
 			_spr = Sprite2D.new()
 			_spr.texture = tex
 			var side := maxf(tex.get_size().x, tex.get_size().y)
-			_spr.scale = Vector2.ONE * (44.0 / maxf(side, 1.0))
+			_spr.scale = Vector2.ONE * (55.0 / maxf(side, 1.0))   # 1.25x 확대
 			add_child(_spr)
 
 
@@ -98,9 +98,10 @@ func _draw() -> void:
 		return
 	var wood := Color(0.78, 0.55, 0.28)
 	var edge := Color(0.95, 0.78, 0.45)
+	const S := 1.25   # 전체 1.25x 확대(타격 반경과 일치)
 	for f in [1.0, -1.0]:
 		var arm := PackedVector2Array([
-			Vector2(0, 0) , Vector2(20.0 * f, -6.0), Vector2(19.0 * f, 3.0), Vector2(2.0 * f, 6.0)])
+			Vector2(0, 0) , Vector2(20.0 * S * f, -6.0 * S), Vector2(19.0 * S * f, 3.0 * S), Vector2(2.0 * S * f, 6.0 * S)])
 		draw_colored_polygon(arm, wood)
-		draw_polyline(PackedVector2Array([Vector2(0, -2), Vector2(18.0 * f, -6.0)]), edge, 2.0)
-	draw_circle(Vector2.ZERO, 3.4, edge)
+		draw_polyline(PackedVector2Array([Vector2(0, -2.0 * S), Vector2(18.0 * S * f, -6.0 * S)]), edge, 2.5)
+	draw_circle(Vector2.ZERO, 3.4 * S, edge)

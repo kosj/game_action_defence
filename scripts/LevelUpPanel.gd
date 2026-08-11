@@ -148,8 +148,15 @@ func _stagger_cards() -> void:
 
 ## 뽑기 후보: 보유 아이템(만렙 미만)은 "레벨업", 미보유 아이템은 슬롯 여유가 있으면 "새 아이템".
 ## 각 후보 = {"item": 카탈로그 dict, "lv": 현재레벨, "is_new": bool}. 무작위 n개.
+const ULT_MIN_LEVEL := 8   # 이 레벨부터 캐릭터 궁극기가 카드로 등장(중후반 해금)
+
+
 func _draw_choices(n: int) -> Array:
 	var choices: Array = []
+	# 캐릭터 궁극기 — 중후반(레벨 8+)에 미보유면 반드시 선택지에 포함(슬롯 규칙 무시, 놓칠 수 없게).
+	var ult := _ult_choice()
+	if not ult.is_empty():
+		choices.append({"kind": "item", "data": ult})
 	# 진화는 레벨업 카드가 아니라 "진화 보물상자" 개봉으로만 발동한다(Phase 3-B). 여기선 일반 아이템만.
 	var avail: Array = []
 	_collect(ItemDB.weapons(), Events.weapons, Events.weapons.size() < ItemDB.MAX_WEAPON_SLOTS, avail)
@@ -160,6 +167,21 @@ func _draw_choices(n: int) -> Array:
 		if choices.size() >= n:
 			break
 	return choices
+
+
+## 선택 캐릭터의 궁극기 해금 카드(레벨 8+ & 미보유일 때만, 아니면 {}).
+func _ult_choice() -> Dictionary:
+	if Events.level < ULT_MIN_LEVEL:
+		return {}
+	var c: CharacterData = CharacterManager.selected()
+	if c == null or c.ultimate_weapon == "":
+		return {}
+	if int(Events.weapons.get(c.ultimate_weapon, 0)) > 0:
+		return {}
+	var w: WeaponData = GameData.weapon_def(c.ultimate_weapon)
+	if w == null:
+		return {}
+	return {"item": ItemDB._w_dict(w), "lv": 0, "is_new": true}
 
 
 func _collect(catalog: Array, inv: Dictionary, slot_free: bool, out: Array) -> void:
