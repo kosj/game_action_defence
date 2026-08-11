@@ -15,6 +15,11 @@ const _SOUNDS: Dictionary = {
 	# 선택 사운드 — 파일이 아직 없으면 조용히 생략되고, 넣는 순간 자동 적용된다.
 	"card_flip":   "res://assets/audio/sfx_card_flip.ogg",   # 보상 카드 플립 스냅
 	"fanfare":     "res://assets/audio/sfx_fanfare.ogg",     # 보물상자 공개 팡파르
+	"level_up":    "res://assets/audio/sfx_level_up.ogg",    # 레벨업 카드 등장 징글
+	"boss_alarm":  "res://assets/audio/sfx_boss_alarm.ogg",  # 보스 등장 경보
+	"defeat":      "res://assets/audio/sfx_defeat.ogg",      # 사망(게임오버) 스팅어
+	"victory":     "res://assets/audio/sfx_victory.ogg",     # 30분 클리어 징글
+	"ui_click":    "res://assets/audio/sfx_ui_click.ogg",    # 메뉴/버튼 탭
 }
 
 const _VOLUMES: Dictionary = {
@@ -27,6 +32,11 @@ const _VOLUMES: Dictionary = {
 	"player_hurt":  0.0,
 	"card_flip":   -6.0,
 	"fanfare":     -9.0,
+	"level_up":    -8.0,
+	"boss_alarm":  -6.0,
+	"defeat":      -5.0,
+	"victory":     -7.0,
+	"ui_click":    -10.0,
 }
 
 ## 배경음악 트랙 — 트랙 이름 → 파일 목록. 게임 BGM 은 선택 테마로 곡이 결정되어(테마 인덱스

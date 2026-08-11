@@ -109,6 +109,8 @@ func _present() -> void:
 	_did_pause = not get_tree().paused   # 이미 정지 중(상점 등)이면 우리가 해제하지 않는다
 	get_tree().paused = true
 	visible = true
+	if SoundManager.has_stream("level_up"):
+		SoundManager.play_ui("level_up", 0.03, 1.0)   # 레벨업 징글(파일 있을 때만)
 	# 레벨업 축하 폭죽 — 패널 주변 화면 전역에 금빛/청색 폭죽을 쏟아붓는다.
 	FireworksFX.celebrate(_fw_holder, Rect2(70, 190, 580, 760),
 		[Color(1.0, 0.85, 0.35), Color(0.5, 0.8, 1.0), Color(1.0, 1.0, 0.9)], 40)
