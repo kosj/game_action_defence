@@ -14,7 +14,26 @@ const MAX_PASSIVE_SLOTS := 6
 ## dict {id,name,desc,color,max,evolved} 로 어댑팅해 제공한다(형태 유지, 회귀 없음).
 
 static func _w_dict(w: WeaponData) -> Dictionary:
-	return {"id": w.id, "name": w.display, "desc": w.desc, "color": w.color, "max": w.max_level, "evolved": w.evolved, "icon": w.icon}
+	return {"id": w.id, "name": w.display, "desc": w.desc, "color": w.color, "max": w.max_level, "evolved": w.evolved, "icon": _icon_or_fallback(w)}
+
+
+## 카탈로그에 아이콘이 비어 있으면 규약 경로(assets/ui/icons/weapon_<id>.png)를 자동 탐색 —
+## 아이콘 이미지를 넣기만 하면 .tres 수정 없이 카드/HUD 에 적용된다(궁극기 등).
+static var _icon_cache: Dictionary = {}
+
+static func _icon_or_fallback(w: WeaponData) -> Texture2D:
+	if w.icon != null:
+		return w.icon
+	if _icon_cache.has(w.id):
+		return _icon_cache[w.id]
+	var tex: Texture2D = null
+	var path := "res://assets/ui/icons/weapon_%s.png" % w.id
+	if ResourceLoader.exists(path):
+		var t = load(path)
+		if t is Texture2D:
+			tex = t
+	_icon_cache[w.id] = tex
+	return tex
 
 
 static func _p_dict(p: PassiveData) -> Dictionary:

@@ -57,7 +57,10 @@ func _activate() -> void:
 	_FXBurst.spawn(get_tree().current_scene, global_position, _data.color, 150.0, 0.5)
 	match weapon_id:
 		"ult_quake":
-			SoundManager.play("boom", 0.08, 0.55)   # 낮게 우르릉
+			if SoundManager.has_stream("ult_quake"):
+				SoundManager.play("ult_quake", 0.04, 1.0)
+			else:
+				SoundManager.play("boom", 0.08, 0.55)   # 낮게 우르릉
 			_cracks.clear()
 			for i in 8:   # 플레이어에서 화면 밖으로 뻗는 방사형 균열
 				var ang := TAU * (float(i) + _h(i) * 0.6) / 8.0
@@ -70,11 +73,17 @@ func _activate() -> void:
 					pts.append(pos)
 				_cracks.append(pts)
 		"ult_arrowstorm":
-			SoundManager.play("laser", 0.08, 1.35)
-			SoundManager.play("boom", 0.06, 1.1)
+			if SoundManager.has_stream("ult_arrow"):
+				SoundManager.play("ult_arrow", 0.04, 1.0)
+			else:
+				SoundManager.play("laser", 0.08, 1.35)
+				SoundManager.play("boom", 0.06, 1.1)
 		_:
-			SoundManager.play("laser", 0.08, 0.8)
-			SoundManager.play("boom", 0.08, 0.9)
+			if SoundManager.has_stream("ult_orbital"):
+				SoundManager.play("ult_orbital", 0.04, 1.0)
+			else:
+				SoundManager.play("laser", 0.08, 0.8)
+				SoundManager.play("boom", 0.08, 0.9)
 
 
 func _damage_tick() -> void:
@@ -129,19 +138,41 @@ func _draw_quake(c: Color, fade: float) -> void:
 		draw_arc(Vector2.ZERO, maxf(ring_r, 8.0), 0.0, TAU, 40, Color(c.r, c.g, c.b, 0.30 * fade * (1.0 - ring_r / SCREEN_R)), 6.0, true)
 
 
+## 화살비 — 화살 하나하나가 하늘에서 쏟아져 땅에 콱콱 꽂히는 사이클을 반복한다.
+##   각 화살: 낙하(스트릭 + 화살 실루엣) → 착지(먼지 링 + 꽂힌 화살이 잠시 남음).
+##   목표 지점·주기는 결정적 난수로 고정되어 프레임 간 흔들리지 않는다.
 func _draw_arrowstorm(c: Color, fade: float) -> void:
-	# 화살 비 — 화면 전역에 대각으로 쏟아지는 스트릭. 개체별 위상/열이 결정적 난수로 고정된다.
-	var drop := Vector2(-0.35, 1.0).normalized()   # 낙하 방향(살짝 왼쪽으로 기울어진 비)
-	for i in 30:
-		var x := (_h(i) - 0.5) * 2.0 * SCREEN_R
-		var speed := 1500.0 + _h(i * 7) * 700.0
-		var span := SCREEN_R * 2.2
-		var t := fmod(_pulse * speed + _h(i * 13) * span, span)
-		var head := Vector2(x, -SCREEN_R) + drop * t
-		var tail := head - drop * (90.0 + _h(i * 3) * 60.0)
-		draw_line(tail, head, Color(c.r, c.g, c.b, 0.35 * fade), 3.5, true)
-		draw_line(head - drop * 26.0, head, Color(1.0, 1.0, 1.0, 0.8 * fade), 2.0, true)
-		draw_circle(head, 3.2, Color(1.0, 1.0, 1.0, 0.9 * fade))   # 빛나는 촉
+	var drop := Vector2(-0.22, 1.0).normalized()   # 낙하 방향(살짝 기울어진 폭우)
+	for i in 42:
+		var cycle := 0.42 + _h(i * 11) * 0.25           # 화살별 낙하+꽂힘 주기(초)
+		var raw := _pulse / cycle + _h(i * 13)
+		var t := fmod(raw, 1.0)                          # 0..0.62 낙하, 0.62..1 꽂힘
+		var bucket := int(raw)                           # 사이클마다 착지 지점이 바뀐다
+		var target := Vector2((_h(i * 29 + bucket) - 0.5) * 1.8 * 640.0,
+			(_h(i * 47 + bucket * 3) - 0.5) * 1.8 * 520.0)
+		if t < 0.62:
+			# 낙하: 위에서 목표 지점으로 빠르게 떨어지는 화살 + 꼬리 스트릭.
+			var p := t / 0.62
+			var head := target + drop * (-(1.0 - p) * 560.0)
+			var tail := head - drop * 46.0
+			draw_line(head - drop * 130.0, head, Color(c.r, c.g, c.b, 0.28 * fade), 3.0, true)   # 꼬리 잔상
+			draw_line(tail, head, Color(0.92, 0.96, 1.0, 0.9 * fade), 2.2, true)                 # 화살대
+			var perp := drop.orthogonal()
+			draw_line(head, head - drop * 9.0 + perp * 4.0, Color(1.0, 1.0, 1.0, 0.9 * fade), 2.0, true)   # 촉
+			draw_line(head, head - drop * 9.0 - perp * 4.0, Color(1.0, 1.0, 1.0, 0.9 * fade), 2.0, true)
+			draw_line(tail, tail - drop * 7.0 + perp * 5.0, Color(c.r, c.g, c.b, 0.75 * fade), 1.6, true)  # 깃
+			draw_line(tail, tail - drop * 7.0 - perp * 5.0, Color(c.r, c.g, c.b, 0.75 * fade), 1.6, true)
+		else:
+			# 꽂힘: 착지 먼지 링이 퍼지고, 비스듬히 꽂힌 화살이 잠시 남는다.
+			var s := (t - 0.62) / 0.38
+			var a := (1.0 - s) * fade
+			draw_arc(target, 6.0 + 22.0 * s, 0.0, TAU, 16, Color(0.85, 0.9, 1.0, 0.5 * a), 2.0, true)
+			draw_circle(target, 4.0, Color(1.0, 1.0, 1.0, 0.8 * a))
+			var shaft := target - drop * 26.0
+			draw_line(shaft, target, Color(0.92, 0.96, 1.0, 0.85 * a), 2.2, true)
+			var perp2 := drop.orthogonal()
+			draw_line(shaft, shaft - drop * 6.0 + perp2 * 4.5, Color(c.r, c.g, c.b, 0.7 * a), 1.5, true)
+			draw_line(shaft, shaft - drop * 6.0 - perp2 * 4.5, Color(c.r, c.g, c.b, 0.7 * a), 1.5, true)
 
 
 func _draw_orbital(c: Color, fade: float) -> void:
