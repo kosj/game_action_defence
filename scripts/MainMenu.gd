@@ -466,72 +466,84 @@ func _build_character_panel() -> void:
 	_char_dim.gui_input.connect(_on_char_dim_input)
 	add_child(_char_dim)
 
+	# 전체 화면 레이아웃 — 좁은 중앙 프레임 대신 화면을 꽉 채워 썸네일·스탯이 시원하게 보인다.
 	_char_panel = PanelContainer.new()
-	_char_panel.anchor_left = 0.5
-	_char_panel.anchor_right = 0.5
-	_char_panel.anchor_top = 0.5
-	_char_panel.anchor_bottom = 0.5
-	_char_panel.offset_left = -250.0
-	_char_panel.offset_right = 250.0
-	_char_panel.offset_top = -280.0
-	_char_panel.offset_bottom = 280.0
+	_char_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_char_panel.offset_left = 12.0
+	_char_panel.offset_right = -12.0
+	_char_panel.offset_top = 30.0
+	_char_panel.offset_bottom = -30.0
 	_char_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.07, 0.13, 0.16, 0.98), Color(0.4, 0.8, 0.95)))
 	_char_panel.visible = false
 	add_child(_char_panel)
 
 	var margin := MarginContainer.new()
 	for m in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + m, 22)
+		margin.add_theme_constant_override("margin_" + m, 24)
 	_char_panel.add_child(margin)
 
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 12)
+	vb.add_theme_constant_override("separation", 14)
 	margin.add_child(vb)
 
 	var title := Label.new()
 	title.text = "CHOOSE YOUR SURVIVOR"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_font_size_override("font_size", 32)
 	title.add_theme_color_override("font_color", Color(0.6, 0.9, 1.0))
+	UITheme.heading(title)
 	vb.add_child(title)
 
 	_char_gold_label = Label.new()
 	_char_gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_char_gold_label.add_theme_font_size_override("font_size", 18)
+	_char_gold_label.add_theme_font_size_override("font_size", 20)
 	_char_gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
 	vb.add_child(_char_gold_label)
 
 	vb.add_child(HSeparator.new())
 
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vb.add_child(scroll)
+	var rows_box := VBoxContainer.new()
+	rows_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows_box.add_theme_constant_override("separation", 16)
+	scroll.add_child(rows_box)
+
 	_char_rows.clear()
 	for c in GameData.characters:
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(430, 104)
-		btn.add_theme_font_size_override("font_size", 17)
+		btn.custom_minimum_size = Vector2(0, 168)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.add_theme_font_size_override("font_size", 19)
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		btn.pressed.connect(_on_char_pick.bind(String(c.id)))
-		vb.add_child(btn)
-		# 캐릭터 썸네일 — 버튼 좌측에 전용 스프라이트(잠금 상태는 _refresh_character 가 어둡게).
+		rows_box.add_child(btn)
+		# 캐릭터 썸네일 — 전용 초상화(assets/ui/portraits/portrait_<id>.png)가 있으면 우선 사용,
+		# 없으면 인게임 스프라이트. 잠금 상태는 _refresh_character 가 실루엣처럼 어둡게 한다.
 		var thumb: TextureRect = null
-		if c.sprite_path != "" and ResourceLoader.exists(c.sprite_path):
+		var tex_path := "res://assets/ui/portraits/portrait_%s.png" % c.id
+		if not ResourceLoader.exists(tex_path):
+			tex_path = c.sprite_path
+		if tex_path != "" and ResourceLoader.exists(tex_path):
 			thumb = TextureRect.new()
-			thumb.texture = load(c.sprite_path)
+			thumb.texture = load(tex_path)
 			thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 			thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			thumb.anchor_top = 0.0
 			thumb.anchor_bottom = 1.0
-			thumb.offset_left = 10.0
-			thumb.offset_right = 88.0
-			thumb.offset_top = 8.0
-			thumb.offset_bottom = -8.0
+			thumb.offset_left = 14.0
+			thumb.offset_right = 158.0
+			thumb.offset_top = 10.0
+			thumb.offset_bottom = -10.0
 			thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			btn.add_child(thumb)
-			_UIStyle.set_button_content_margin_left(btn, 100)
+			_UIStyle.set_button_content_margin_left(btn, 172)
 		_char_rows.append({"btn": btn, "c": c, "thumb": thumb})
 
 	var close := Button.new()
 	close.text = "Close"
-	close.custom_minimum_size = Vector2(0, 52)
+	close.custom_minimum_size = Vector2(0, 56)
 	close.add_theme_font_size_override("font_size", 22)
 	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
 	close.pressed.connect(_on_character_close)
