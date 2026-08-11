@@ -714,6 +714,8 @@ func _on_rewarded_granted(placement: String) -> void:
 	get_tree().paused = false
 	if _pause_btn:
 		_pause_btn.visible = true   # 부활 → 일시정지 버튼 복귀
+	if _loadout_box:
+		_loadout_box.visible = true   # 로드아웃 표시 복귀
 	player.revive()
 
 
@@ -789,10 +791,10 @@ func _build_gameover_stats() -> void:
 		grid.add_child(val)
 		_go_vals[row[1]] = val
 
-	# 정보(제목·통계)를 위로, 버튼을 아래로 밀어 사이를 벌린다 — 하단 여백 제거 + 정보/버튼 이격.
+	# 정보(제목·통계)와 버튼 사이 고정 간격 — 통계가 2줄뿐이라 확장 스페이서를 쓰면
+	# 패널 중앙이 텅 비어 보인다. 고정 간격 + VBox 중앙 정렬로 짜임새 있게 모은다.
 	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 16)
-	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	gap.custom_minimum_size = Vector2(0, 22)
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(gap)
 	vbox.move_child(gap, holder.get_index() + 1)
@@ -804,6 +806,8 @@ func _on_player_died() -> void:
 	SaveManager.delete_save()   # 사망 시 진행 실패 — 체크포인트 무효화
 	if _pause_btn:
 		_pause_btn.visible = false   # 게임오버 패널과 겹치지 않도록 일시정지 버튼 숨김
+	if _loadout_box:
+		_loadout_box.visible = false   # 좌하단 로드아웃이 게임오버 버튼을 가리지 않게
 	# 부활 버튼은 아직 안 썼고 광고가 준비됐을 때만 노출.
 	_revive_btn.visible = not _revive_used and AdManager.is_rewarded_ready()
 	_show_end_panel(false)
@@ -815,6 +819,8 @@ func _on_game_won() -> void:
 	if _pause_btn:
 		_pause_btn.visible = false
 	_revive_btn.visible = false
+	if _loadout_box:
+		_loadout_box.visible = false
 	game_over_label.text = "VICTORY!"
 	game_over_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	_show_end_panel(true)
