@@ -124,6 +124,11 @@ var passives: Dictionary = {}
 
 ## 레벨업 카드 선택 — 무기/패시브 아이템 1레벨 획득 후 스탯 재계산.
 func grant_item(id: String) -> void:
+	# 광역 궁극기(ult_*)는 캐릭터 전용 1종만 — 다른 캐릭터의 궁극기는 어떤 경로로도 획득 불가.
+	if id.begins_with("ult_"):
+		var c: CharacterData = CharacterManager.selected()
+		if c == null or c.ultimate_weapon != id:
+			return
 	if ItemDB.is_weapon(id):
 		weapons[id] = int(weapons.get(id, 0)) + 1
 	else:
