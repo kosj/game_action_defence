@@ -11,10 +11,10 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 
 ## 등급 정의 — 확률 가중치(행운 패시브가 상위 등급을 끌어올린다)와 연출 파라미터.
 const _RARITY := [
-	{"key": "common",    "title": "COMMON",        "col": Color(0.80, 0.84, 0.90), "flash": 0.0,  "shake": 0.0, "spark": 14, "hold": 1.6, "build": 0.7, "count": 1},
-	{"key": "rare",      "title": "RARE !",        "col": Color(0.35, 0.65, 1.00), "flash": 0.25, "shake": 3.0, "spark": 26, "hold": 2.0, "build": 1.0, "count": 2},
-	{"key": "epic",      "title": "EPIC !!",       "col": Color(0.75, 0.45, 1.00), "flash": 0.5,  "shake": 6.0, "spark": 44, "hold": 2.4, "build": 1.4, "count": 3},
-	{"key": "legendary", "title": "LEGENDARY !!!", "col": Color(1.00, 0.82, 0.25), "flash": 0.85, "shake": 10.0, "spark": 70, "hold": 3.0, "build": 1.9, "count": 4},
+	{"key": "common",    "title": "COMMON",        "col": Color(0.80, 0.84, 0.90), "flash": 0.0,  "shake": 0.0, "spark": 14, "hold": 1.6, "build": 1.1, "count": 1},
+	{"key": "rare",      "title": "RARE !",        "col": Color(0.35, 0.65, 1.00), "flash": 0.25, "shake": 3.0, "spark": 26, "hold": 2.0, "build": 1.5, "count": 2},
+	{"key": "epic",      "title": "EPIC !!",       "col": Color(0.75, 0.45, 1.00), "flash": 0.5,  "shake": 6.0, "spark": 44, "hold": 2.4, "build": 2.0, "count": 3},
+	{"key": "legendary", "title": "LEGENDARY !!!", "col": Color(1.00, 0.82, 0.25), "flash": 0.85, "shake": 10.0, "spark": 70, "hold": 3.0, "build": 2.6, "count": 4},
 ]
 
 ## 카드 앞면 아이콘 — 아이템은 카탈로그 아이콘, 나머지는 종류별 범용 아이콘/엠블럼.
@@ -205,6 +205,8 @@ func _setup(reward: Dictionary) -> void:
 
 
 var _phase: int = 0            # 0=기대(암시) 1=공개
+var _flip_tws: Array = []      # 카드 플립 트윈들 — 탭 스킵 시 일괄 kill
+var _flip_cards: Array = []    # [{card, back, face}] — 탭 스킵 시 즉시 앞면 공개용
 var _phase0_t: float = 0.0     # 기대 단계 경과(초) — 트윈이 죽어도 _process 가 공개를 보장(데드맨 스위치)
 var _antic: Control = null     # 기대 단계 노드 묶음(공개 시 일괄 제거)
 var _antic_tws: Array = []     # 기대 단계 트윈들 — 공개 시 전부 kill(해제된 노드 참조 에러 방지)
@@ -427,15 +429,18 @@ func _reveal() -> void:
 		var face := _card_face_content(String(texts[i]), icons[i], String(kinds[i]))
 		face.visible = false
 		card.add_child(face)
-		# 플립: 가로 스케일을 접었다 펴며 뒷면 → 앞면 전환(카드별 시차). 펴지는 순간 축하 폭죽.
+		# 플립: 가로 스케일을 접었다 펴며 뒷면 → 앞면 전환(카드별 시차, 기대감 있게 느긋히).
+		# 펴지는 순간 축하 폭죽. 플립 중 화면 탭 = 남은 카드 즉시 전부 공개(_on_dim_input).
+		_flip_cards.append({"card": card, "back": back, "face": face})
 		var ft := create_tween()
-		ft.tween_interval(0.35 + 0.22 * float(i))
-		ft.tween_property(card, "scale:x", 0.06, 0.13).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		_flip_tws.append(ft)
+		ft.tween_interval(0.55 + 0.32 * float(i))
+		ft.tween_property(card, "scale:x", 0.06, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		ft.tween_callback(_flip_swap.bind(back, face, i))
-		ft.tween_property(card, "scale:x", 1.0, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		ft.tween_property(card, "scale:x", 1.0, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		ft.tween_callback(_pop_firework.bind(fw_holder, 0.8))
 		ft.tween_callback(_pop_firework.bind(fw_holder, 0.8))
-	_auto_left += 0.4 + 0.22 * float(n)   # 플립이 다 보이도록 자동 닫힘 여유 추가
+	_auto_left += 0.6 + 0.32 * float(n)   # 플립이 다 보이도록 자동 닫힘 여유 추가
 
 	var hint := Label.new()
 	hint.text = "tap to continue"
@@ -475,10 +480,11 @@ func _reveal() -> void:
 ## 등급에 비례해 화면 곳곳에 폭죽을 연달아 터뜨린다(보상 UI 뒤). 전설은 중앙 피날레 대형 폭죽까지.
 func _launch_fireworks(holder: Control) -> void:
 	var rarity := int(get_meta("rarity"))
-	var bursts: int = [6, 9, 13, 20][rarity]   # 축하 밀도 증량 — 등급이 높을수록 쏟아진다
+	var bursts: int = [24, 36, 52, 80][rarity]   # 축하 밀도 4배 — 등급이 높을수록 쏟아진다
 	var fw_tw := create_tween()
-	for i in bursts:
-		fw_tw.tween_interval(0.05 if i == 0 else randf_range(0.10, 0.22))
+	for i in range(bursts / 2):   # 틱마다 2발씩 짧은 간격으로 — 화면이 폭죽으로 가득 찬다
+		fw_tw.tween_interval(0.03 if i == 0 else randf_range(0.05, 0.11))
+		fw_tw.tween_callback(_pop_firework.bind(holder, 1.0))
 		fw_tw.tween_callback(_pop_firework.bind(holder, 1.0))
 	if rarity == 3:
 		fw_tw.tween_interval(0.25)
@@ -598,10 +604,40 @@ func _flip_swap(back: Control, face: Control, i: int) -> void:
 	SoundManager.play_ui("gold", 0.04, 1.2 + 0.12 * float(i))
 
 
+## 카드 플립이 아직 안 끝난 카드가 있는가.
+func _flips_pending() -> bool:
+	for info in _flip_cards:
+		var face: Control = info["face"]
+		if is_instance_valid(face) and not face.visible:
+			return true
+	return false
+
+
+## 탭 스킵 — 남은 플립을 즉시 완료해 모든 카드 앞면을 보여준다.
+func _finish_flips() -> void:
+	for tw in _flip_tws:
+		if tw and tw.is_valid():
+			tw.kill()
+	_flip_tws.clear()
+	for info in _flip_cards:
+		var card: Control = info["card"]
+		var back: Control = info["back"]
+		var face: Control = info["face"]
+		if is_instance_valid(back):
+			back.visible = false
+		if is_instance_valid(face):
+			face.visible = true
+		if is_instance_valid(card):
+			card.scale = Vector2.ONE
+	SoundManager.play_ui("gold", 0.04, 1.4)
+
+
 func _on_dim_input(e: InputEvent) -> void:
 	if e is InputEventMouseButton and e.pressed:
 		if _phase == 0:
 			_reveal()   # 기대 단계 탭 = 바로 공개로 스킵
+		elif _flips_pending():
+			_finish_flips()   # 플립 연출 중 탭 = 남은 카드 즉시 전부 공개
 		else:
 			_close()
 

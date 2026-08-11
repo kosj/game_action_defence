@@ -32,13 +32,14 @@ static func burst(parent: Node, pos: Vector2, color: Color, size_mul: float = 1.
 	SoundManager.play_ui("gold", 0.08, 1.3 + randf() * 0.3)
 
 
-## 영역 안 무작위 위치에 count 발을 시차 발사(첫 발은 즉시에 가깝게).
+## 영역 안 무작위 위치에 count 발을 시차 발사 — 틱마다 2발씩 짧은 간격으로 쏟아붓는다.
 static func celebrate(parent: Node, region: Rect2, cols: Array, count: int) -> void:
 	if not is_instance_valid(parent) or cols.is_empty():
 		return
 	var tw := parent.create_tween()
-	for i in count:
-		tw.tween_interval(0.03 if i == 0 else randf_range(0.09, 0.20))
+	for i in range(maxi(1, count / 2)):
+		tw.tween_interval(0.03 if i == 0 else randf_range(0.05, 0.11))
+		tw.tween_callback(_pop_random.bind(parent, region, cols))
 		tw.tween_callback(_pop_random.bind(parent, region, cols))
 
 
