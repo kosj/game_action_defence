@@ -427,12 +427,14 @@ func _reveal() -> void:
 		var face := _card_face_content(String(texts[i]), icons[i], String(kinds[i]))
 		face.visible = false
 		card.add_child(face)
-		# 플립: 가로 스케일을 접었다 펴며 뒷면 → 앞면 전환(카드별 시차).
+		# 플립: 가로 스케일을 접었다 펴며 뒷면 → 앞면 전환(카드별 시차). 펴지는 순간 축하 폭죽.
 		var ft := create_tween()
 		ft.tween_interval(0.35 + 0.22 * float(i))
 		ft.tween_property(card, "scale:x", 0.06, 0.13).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		ft.tween_callback(_flip_swap.bind(back, face, i))
 		ft.tween_property(card, "scale:x", 1.0, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		ft.tween_callback(_pop_firework.bind(fw_holder, 0.8))
+		ft.tween_callback(_pop_firework.bind(fw_holder, 0.8))
 	_auto_left += 0.4 + 0.22 * float(n)   # 플립이 다 보이도록 자동 닫힘 여유 추가
 
 	var hint := Label.new()
@@ -473,7 +475,7 @@ func _reveal() -> void:
 ## 등급에 비례해 화면 곳곳에 폭죽을 연달아 터뜨린다(보상 UI 뒤). 전설은 중앙 피날레 대형 폭죽까지.
 func _launch_fireworks(holder: Control) -> void:
 	var rarity := int(get_meta("rarity"))
-	var bursts: int = [3, 5, 8, 13][rarity]
+	var bursts: int = [6, 9, 13, 20][rarity]   # 축하 밀도 증량 — 등급이 높을수록 쏟아진다
 	var fw_tw := create_tween()
 	for i in bursts:
 		fw_tw.tween_interval(0.05 if i == 0 else randf_range(0.10, 0.22))

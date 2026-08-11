@@ -15,6 +15,7 @@ var _did_pause: bool = false   # 이 패널이 직접 일시정지를 걸었는�
 var _evo_mode: bool = false     # 진화 선택 모드(진화 상자 개봉 시) — 일반 레벨업과 분리
 var _evo_rules: Array = []      # 진화 모드에서 제시할 진화 규칙들
 var _auto_t: float = 0.0        # 자동플레이 치트 — 카드가 뜬 뒤 이 시간이 지나면 무작위 선택
+var _fw_holder: Control = null  # 축하 폭죽 홀더(패널 뒤)
 
 
 ## 자동플레이 치트: 패널이 떠 있으면 잠시 보여준 뒤 카드를 무작위로 골라준다(진화 선택 포함).
@@ -48,6 +49,12 @@ func _build_ui() -> void:
 	_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_dim.color = Color(0, 0, 0, 0.62)
 	add_child(_dim)
+
+	# 축하 폭죽 홀더 — 패널 뒤(어둠 위)에 깔려 카드 UI 를 가리지 않는다.
+	_fw_holder = Control.new()
+	_fw_holder.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fw_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_fw_holder)
 
 	var center := CenterContainer.new()
 	center.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -102,6 +109,9 @@ func _present() -> void:
 	_did_pause = not get_tree().paused   # 이미 정지 중(상점 등)이면 우리가 해제하지 않는다
 	get_tree().paused = true
 	visible = true
+	# 레벨업 축하 폭죽 — 패널 주변 화면 전역에 금빛/청색 폭죽을 연달아.
+	FireworksFX.celebrate(_fw_holder, Rect2(70, 190, 580, 760),
+		[Color(1.0, 0.85, 0.35), Color(0.5, 0.8, 1.0), Color(1.0, 1.0, 0.9)], 9)
 	_refresh()
 	_panel.scale = Vector2(0.85, 0.85)
 	_panel.modulate.a = 0.0
