@@ -186,6 +186,8 @@ func _on_high_score_changed(high: int) -> void:
 
 
 func _on_boss_spawned(max_health: int) -> void:
+	if SoundManager.has_stream("boss_alarm"):
+		SoundManager.play("boss_alarm", 0.03, 1.0)   # 보스 등장 경보(파일 있을 때만)
 	_boss_max = maxi(max_health, 1)
 	boss_name_label.text = Events.boss_display_name   # 보스 타입 이름 표시(BRUTE/GUNNER…)
 	boss_fill.size.x = BOSS_BAR_W
@@ -463,6 +465,8 @@ func _on_run_progress(elapsed: float, clear: float) -> void:
 
 ## 30분 생존 클리어 — 웨이브 클리어 배너를 재사용해 크게 알린다(승리 아님, 이후 무한 하드모드).
 func _on_run_cleared() -> void:
+	if SoundManager.has_stream("victory"):
+		SoundManager.play_ui("victory", 0.02, 1.0)   # 30분 클리어 징글(파일 있을 때만)
 	wave_clear_label.text = Locale.t("run_cleared")
 	wave_clear_label.visible = true
 	wave_clear_bg.visible = true
@@ -795,6 +799,8 @@ func _build_gameover_stats() -> void:
 
 
 func _on_player_died() -> void:
+	if SoundManager.has_stream("defeat"):
+		SoundManager.play_ui("defeat", 0.02, 1.0)   # 게임오버 스팅어(파일 있을 때만)
 	SaveManager.delete_save()   # 사망 시 진행 실패 — 체크포인트 무효화
 	if _pause_btn:
 		_pause_btn.visible = false   # 게임오버 패널과 겹치지 않도록 일시정지 버튼 숨김

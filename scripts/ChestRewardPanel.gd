@@ -131,7 +131,7 @@ static func _roll_rare(gs: float) -> Dictionary:
 		if not pick.is_empty():
 			var id: String = pick["id"]
 			var owned := int(Events.weapons.get(id, Events.passives.get(id, 0)))
-			var label: String = ("New item!  %s" % pick["name"]) if owned == 0 else ("%s  Lv +1" % pick["name"])
+			var label: String = ("NEW  %s" % pick["name"]) if owned == 0 else ("%s  Lv+1" % pick["name"])
 			return {"rarity": 1, "text": label, "kind": "item", "icon": pick.get("icon"), "apply": func(): Events.grant_item(id)}
 		# 지급 가능한 아이템이 없으면 자석으로 폴백
 	var magnet := func():
@@ -161,9 +161,9 @@ static func _roll_legendary(gs: float) -> Dictionary:
 		return {"rarity": 3, "text": "+1 REVIVE", "kind": "revive", "icon": _reward_icon("revive"), "apply": func(): Events.revives_left += 1}
 	if r == 1:
 		var mg := randi_range(40, 80)
-		return {"rarity": 3, "text": "+%d Meta Gold (permanent)" % mg, "kind": "meta", "icon": _reward_icon("meta"), "apply": func(): MetaManager.reward_gold(mg)}
+		return {"rarity": 3, "text": "+%d Meta Gold" % mg, "kind": "meta", "icon": _reward_icon("meta"), "apply": func(): MetaManager.reward_gold(mg)}
 	var g := int(randi_range(280, 420) * gs)
-	return {"rarity": 3, "text": "JACKPOT  +%d Gold" % g, "kind": "gold", "icon": _reward_icon("gold"), "apply": func(): Events.add_gold(g)}
+	return {"rarity": 3, "text": "JACKPOT\n+%d Gold" % g, "kind": "gold", "icon": _reward_icon("gold"), "apply": func(): Events.add_gold(g)}
 
 
 ## 새 슬롯 여유/만렙 규칙을 지켜 지급 가능한 아이템 하나를 무작위로 고른다(없으면 {}).
@@ -423,6 +423,7 @@ func _reveal() -> void:
 		card.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 1.0), col, 14, 3))
 		card.pivot_offset = Vector2(cw * 0.5, ch * 0.5)
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		card.clip_contents = true   # 긴 보상 텍스트가 카드 밖으로 흘러넘치지 않게
 		row.add_child(card)
 		var back := _card_back_content(cw)
 		card.add_child(back)
@@ -437,9 +438,9 @@ func _reveal() -> void:
 		var ft := create_tween()
 		_flip_tws.append(ft)
 		ft.tween_interval(0.20 + 0.34 * float(i))
-		ft.tween_property(card, "modulate:a", 1.0, 0.20)
-		ft.parallel().tween_property(card, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		ft.tween_interval(0.28)
+		ft.tween_property(card, "modulate:a", 1.0, 0.18)
+		ft.parallel().tween_property(card, "scale", Vector2.ONE, 0.62).set_trans(Tween.TRANS_ELASTIC).set_ease(Tween.EASE_OUT)
+		ft.tween_interval(0.24)
 		ft.tween_property(card, "scale:x", 0.06, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 		ft.tween_callback(_flip_swap.bind(back, face, i))
 		ft.tween_property(card, "scale:x", 1.0, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -616,7 +617,7 @@ func _card_face_content(text: String, icon: Variant, kind: String) -> Control:
 	lb.text = text
 	lb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lb.add_theme_font_size_override("font_size", 16)
+	lb.add_theme_font_size_override("font_size", 14)
 	lb.add_theme_color_override("font_color", Color(0.94, 0.95, 0.98))
 	lb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	box.add_child(lb)
