@@ -416,6 +416,8 @@ func reset() -> void:
 			weapons[_char.start_weapon] = 1
 		if _char.signature_passive != "":
 			passives[_char.signature_passive] = 1
+		if _char.ultimate_weapon != "":
+			weapons[_char.ultimate_weapon] = 1   # 캐릭터 궁극기 — Lv1 보유, 레벨업 카드로만 강화
 	MetaManager.apply_run_start()         # 영구 강화 배수(골드/경험치) 설정
 	ItemDB.recompute(weapons, passives)   # 인벤토리 → upgrade_* 정합화(메타 시작 보정 포함)
 	gold_changed.emit(total_gold)
