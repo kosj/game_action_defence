@@ -29,6 +29,11 @@ extends Resource
 ## 조건부 고유 트레잇 키(Phase 4-B): "veteran"/"hunter"/"engineer" 등.
 @export var trait_key: String = ""
 
+## 캐릭터 전용 궁극기 아이템(id) — 런 시작 시 Lv1 보유. 주기적으로 자동 발동해 일정 시간
+## 화면 전체의 적에게 지속 피해를 준다(레벨업 카드로 강화). 카탈로그의 evolved=true 무기라
+## 다른 캐릭터의 뽑기/상자에는 등장하지 않는다.
+@export var ultimate_weapon: String = ""
+
 ## 해금 게이팅(Phase 5-C). 둘 다 비어있으면(cost 0 & achievement "") 기본 해금.
 @export var unlock_cost: int = 0            # 메타 골드로 구매 해금(0=구매 게이트 없음)
 @export var unlock_achievement: String = "" # 이 도전과제 달성 시 자동 해금(""=없음)

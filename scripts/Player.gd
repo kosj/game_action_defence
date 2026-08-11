@@ -27,6 +27,7 @@ const _MODULE_CLASSES := {
 	"drone": preload("res://scripts/Drone.gd"),
 	"tesla": preload("res://scripts/Tesla.gd"),
 	"boomerang": preload("res://scripts/Boomerang.gd"),
+	"ultimate": preload("res://scripts/Ultimate.gd"),
 }
 const _FXBurst  := preload("res://scripts/FXBurst.gd")
 const _SpriteFX := preload("res://scripts/SpriteFX.gd")

@@ -506,12 +506,28 @@ func _build_character_panel() -> void:
 	_char_rows.clear()
 	for c in GameData.characters:
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(430, 92)
-		btn.add_theme_font_size_override("font_size", 18)
+		btn.custom_minimum_size = Vector2(430, 104)
+		btn.add_theme_font_size_override("font_size", 17)
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		btn.pressed.connect(_on_char_pick.bind(String(c.id)))
 		vb.add_child(btn)
-		_char_rows.append({"btn": btn, "c": c})
+		# 캐릭터 썸네일 — 버튼 좌측에 전용 스프라이트(잠금 상태는 _refresh_character 가 어둡게).
+		var thumb: TextureRect = null
+		if c.sprite_path != "" and ResourceLoader.exists(c.sprite_path):
+			thumb = TextureRect.new()
+			thumb.texture = load(c.sprite_path)
+			thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			thumb.anchor_top = 0.0
+			thumb.anchor_bottom = 1.0
+			thumb.offset_left = 10.0
+			thumb.offset_right = 88.0
+			thumb.offset_top = 8.0
+			thumb.offset_bottom = -8.0
+			thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			btn.add_child(thumb)
+			_UIStyle.set_button_content_margin_left(btn, 100)
+		_char_rows.append({"btn": btn, "c": c, "thumb": thumb})
 
 	var close := Button.new()
 	close.text = "Close"
@@ -536,15 +552,36 @@ func _refresh_character() -> void:
 	for row in _char_rows:
 		var c: CharacterData = row["c"]
 		var btn: Button = row["btn"]
+		var thumb: TextureRect = row.get("thumb")
 		if CharacterManager.is_unlocked(c):
-			btn.text = "%s%s\n%s" % ["> " if c.id == sel else "", c.display, c.desc]
+			btn.text = "%s%s\n%s\n%s" % ["> " if c.id == sel else "", c.display, c.desc, _char_stat_line(c)]
 			if c.id == sel:
 				_UIStyle.apply_button_style(btn, Color(c.color.r * 0.30, c.color.g * 0.30, c.color.b * 0.30, 1.0), c.color)
 			else:
 				_UIStyle.apply_button_style(btn, Color(0.14, 0.16, 0.20), Color(0.35, 0.40, 0.48))
+			if thumb:
+				thumb.modulate = Color.WHITE
 		else:
-			btn.text = "[-] %s\n%s" % [c.display, _unlock_hint(c)]
+			btn.text = "[-] %s\n%s\n%s" % [c.display, _char_stat_line(c), _unlock_hint(c)]
 			_UIStyle.apply_button_style(btn, Color(0.10, 0.10, 0.12), Color(0.30, 0.30, 0.34))
+			if thumb:
+				thumb.modulate = Color(0.35, 0.35, 0.4)   # 잠금 — 실루엣처럼 어둡게
+
+
+## 캐릭터 시작 스탯 보정 요약 한 줄(비싼 캐릭터일수록 좋은 수치가 한눈에 비교되게).
+func _char_stat_line(c: CharacterData) -> String:
+	var parts: Array = []
+	if c.bonus_max_health > 0: parts.append("HP+%d" % c.bonus_max_health)
+	if c.bonus_bullet_damage > 0: parts.append("DMG+%d" % c.bonus_bullet_damage)
+	if c.bonus_move_speed > 0: parts.append("SPD+%d" % c.bonus_move_speed)
+	if c.bonus_atk_speed > 0: parts.append("ATK+%d" % c.bonus_atk_speed)
+	if c.bonus_area > 0: parts.append("AREA+%d" % c.bonus_area)
+	if c.bonus_crit > 0: parts.append("CRIT+%d" % c.bonus_crit)
+	if c.bonus_greed > 0: parts.append("LOOT+%d" % c.bonus_greed)
+	var ult: WeaponData = GameData.weapon_def(c.ultimate_weapon)
+	if ult != null:
+		parts.append("ULT: %s" % ult.display)
+	return "  ".join(parts)
 
 
 ## 잠긴 캐릭터의 해금 조건 안내 문구.
