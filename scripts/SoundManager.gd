@@ -33,10 +33,10 @@ const _VOLUMES: Dictionary = {
 	"card_flip":   -6.0,
 	"fanfare":     -9.0,
 	"level_up":    -8.0,
-	"boss_alarm":  -6.0,
+	"boss_alarm":   0.0,
 	"defeat":      -5.0,
 	"victory":     -7.0,
-	"ui_click":    -10.0,
+	"ui_click":    -6.0,
 }
 
 ## 배경음악 트랙 — 트랙 이름 → 파일 목록. 게임 BGM 은 선택 테마로 곡이 결정되어(테마 인덱스

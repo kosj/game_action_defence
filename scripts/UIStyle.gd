@@ -64,6 +64,10 @@ static func apply_button_style(btn: Button, _bg: Color, border: Color, _radius: 
 	btn.add_theme_color_override("font_disabled_color", Color(0.5, 0.5, 0.55))
 	# 포커스 시 그려지는 기본 흰색 아웃라인 제거(터치 UI 라 키보드 포커스 테두리가 불필요·거슬림).
 	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	# 전역 버튼 탭 사운드 — 스타일이 여러 번 재적용돼도 1회만 연결(메타 가드).
+	if not btn.has_meta("_click_snd"):
+		btn.set_meta("_click_snd", true)
+		btn.pressed.connect(func(): SoundManager.play_ui("ui_click", 0.06, 1.0))
 
 
 ## 버튼 4종 StyleBox 의 좌측 콘텐츠 여백을 한 번에 조정(좌측에 슬롯/띠를 놓을 자리 확보).
