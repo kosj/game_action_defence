@@ -17,13 +17,6 @@ var _evo_rules: Array = []      # 진화 모드에서 제시할 진화 규칙들
 var _auto_t: float = 0.0        # 자동플레이 치트 — 카드가 뜬 뒤 이 시간이 지나면 무작위 선택
 var _fw_holder: Control = null  # 축하 폭죽 홀더(패널 뒤)
 
-# 카드 리빌 연출 상태 — "?" 뒷면의 작은 카드가 확대되며 등장 → 순차 플립으로 공개.
-# 연출 중 화면 탭 = 즉시 전부 공개(스킵).
-var _reveal_tws: Array = []
-var _covers: Array = []
-var _revealing: bool = false
-var _opened: int = 0
-
 
 ## 자동플레이 치트: 패널이 떠 있으면 잠시 보여준 뒤 카드를 무작위로 골라준다(진화 선택 포함).
 func _process(delta: float) -> void:
@@ -55,7 +48,6 @@ func _build_ui() -> void:
 	_dim = ColorRect.new()
 	_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_dim.color = Color(0, 0, 0, 0.62)
-	_dim.gui_input.connect(_on_dim_input)   # 리빌 중 화면 탭 = 즉시 전부 공개
 	add_child(_dim)
 
 	# 축하 폭죽 홀더 — 패널 뒤(어둠 위)에 깔려 카드 UI 를 가리지 않는다.
@@ -153,101 +145,15 @@ func _refresh() -> void:
 	_stagger_cards()
 
 
-## 카드 리빌 연출 — "?" 뒷면의 작은 카드가 순차적으로 확대 등장한 뒤 플립으로 공개된다.
-## 기대감을 위한 빌드업(카드당 ~0.9초 시차)이며, 연출 중 화면을 탭하면 즉시 전부 공개된다.
+## 카드 등장 연출 — 위에서부터 순차적으로(stagger) 페이드 인 해 선택지가 착착 깔리는 느낌을 준다.
 func _stagger_cards() -> void:
-	call_deferred("_begin_card_reveal")   # 레이아웃 확정(size) 후 시작
-
-
-func _begin_card_reveal() -> void:
-	_clear_reveal()
-	_revealing = true
-	_opened = 0
 	var i := 0
 	for c in _card_box.get_children():
-		var btn := c as Button
-		if btn == null:
-			continue
-		btn.disabled = true
-		btn.mouse_filter = Control.MOUSE_FILTER_IGNORE   # 리빌 중 탭은 dim 이 받아 스킵 처리
-		btn.pivot_offset = btn.size * 0.5
-		# 뒷면 커버 — 어두운 카드 등판 + 두근거리는 "?".
-		var cover := PanelContainer.new()
-		cover.set_anchors_preset(Control.PRESET_FULL_RECT)
-		cover.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 1.0), Color(1.0, 0.82, 0.3), 14, 3))
-		cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var q := Label.new()
-		q.text = "?"
-		q.add_theme_font_size_override("font_size", 44)
-		q.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
-		q.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		q.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		UITheme.heading(q)
-		cover.add_child(q)
-		btn.add_child(cover)
-		_covers.append(cover)
-		# 작게 시작 → 확대 등장 → 잠깐 뜸 → 플립 공개.
-		btn.modulate.a = 0.0
-		btn.scale = Vector2(0.4, 0.4)
+		c.modulate.a = 0.0
 		var tw := create_tween()
-		_reveal_tws.append(tw)
-		tw.tween_interval(0.20 + 0.34 * float(i))
-		tw.tween_property(btn, "modulate:a", 1.0, 0.22)
-		tw.parallel().tween_property(btn, "scale", Vector2.ONE, 0.55).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		tw.tween_interval(0.22)
-		tw.tween_property(btn, "scale:x", 0.05, 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-		tw.tween_callback(_open_card.bind(btn, cover))
-		tw.tween_property(btn, "scale:x", 1.0, 0.20).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.tween_interval(0.05 * float(i))
+		tw.tween_property(c, "modulate:a", 1.0, 0.22)
 		i += 1
-	if i == 0:
-		_revealing = false
-
-
-## 플립 중간점 — 커버를 걷고 카드를 활성화한다.
-func _open_card(btn: Button, cover: Control) -> void:
-	if is_instance_valid(cover):
-		cover.visible = false
-	if is_instance_valid(btn):
-		btn.disabled = false
-		btn.mouse_filter = Control.MOUSE_FILTER_STOP
-	SoundManager.play_ui("gold", 0.04, 1.25 + 0.1 * float(_opened))
-	_opened += 1
-	if _opened >= _covers.size():
-		_revealing = false
-
-
-## 연출 스킵 — 모든 카드를 즉시 공개 상태로.
-func _finish_reveal() -> void:
-	for tw in _reveal_tws:
-		if tw and tw.is_valid():
-			tw.kill()
-	_reveal_tws.clear()
-	for c in _card_box.get_children():
-		var btn := c as Button
-		if btn == null:
-			continue
-		btn.scale = Vector2.ONE
-		btn.modulate.a = 1.0
-		btn.disabled = false
-		btn.mouse_filter = Control.MOUSE_FILTER_STOP
-	for cover in _covers:
-		if is_instance_valid(cover):
-			cover.visible = false
-	_revealing = false
-
-
-func _clear_reveal() -> void:
-	for tw in _reveal_tws:
-		if tw and tw.is_valid():
-			tw.kill()
-	_reveal_tws.clear()
-	_covers.clear()
-	_revealing = false
-
-
-func _on_dim_input(e: InputEvent) -> void:
-	if _revealing and ((e is InputEventMouseButton and e.pressed) or (e is InputEventScreenTouch and e.pressed)):
-		_finish_reveal()
 
 
 ## 뽑기 후보: 보유 아이템(만렙 미만)은 "레벨업", 미보유 아이템은 슬롯 여유가 있으면 "새 아이템".
