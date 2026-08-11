@@ -33,7 +33,7 @@ func upgrades() -> Array:
 	var out: Array = []
 	for u in GameData.meta_upgrades:
 		out.append({"id": u.id, "name": u.name, "desc": u.desc, "max": u.max_level,
-			"base_cost": u.base_cost, "cost_mul": u.cost_mul})
+			"base_cost": u.base_cost, "cost_mul": u.cost_mul, "kind": u.effect_kind})
 	return out
 
 
