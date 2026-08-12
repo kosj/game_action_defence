@@ -1122,12 +1122,29 @@ func _build_theme_panel() -> void:
 	_theme_rows.clear()
 	for t in GameData.themes:
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(430, 84)
+		btn.custom_minimum_size = Vector2(430, 104)
 		btn.add_theme_font_size_override("font_size", 18)
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		btn.pressed.connect(_on_theme_pick.bind(String(t.id)))
 		vb.add_child(btn)
-		_theme_rows.append({"btn": btn, "t": t})
+		# 테마 썸네일 — assets/ui/thumbs/theme_<id>.png 가 있으면 좌측에 표시(잠금 시 어둡게).
+		var thumb: TextureRect = null
+		var tex_path := "res://assets/ui/thumbs/theme_%s.png" % t.id
+		if ResourceLoader.exists(tex_path):
+			thumb = TextureRect.new()
+			thumb.texture = load(tex_path)
+			thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			thumb.anchor_top = 0.0
+			thumb.anchor_bottom = 1.0
+			thumb.offset_left = 10.0
+			thumb.offset_right = 118.0
+			thumb.offset_top = 8.0
+			thumb.offset_bottom = -8.0
+			thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			btn.add_child(thumb)
+			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		_theme_rows.append({"btn": btn, "t": t, "thumb": thumb})
 
 	var close := Button.new()
 	close.text = "Close"
@@ -1150,15 +1167,23 @@ func _refresh_theme() -> void:
 	for row in _theme_rows:
 		var t: ThemeData = row["t"]
 		var btn: Button = row["btn"]
+		var thumb: TextureRect = row.get("thumb")
 		if ThemeManager.is_unlocked(t):
 			btn.text = "%s%s\n%s" % ["> " if t.id == sel else "", t.display, t.desc]
 			if t.id == sel:
 				_UIStyle.apply_button_style(btn, Color(t.tile_b.r, t.tile_b.g, t.tile_b.b, 1.0), t.mark)
 			else:
 				_UIStyle.apply_button_style(btn, Color(0.14, 0.16, 0.20), Color(0.35, 0.40, 0.48))
+			if thumb:
+				thumb.modulate = Color.WHITE
 		else:
 			btn.text = "[-] %s\n%s" % [t.display, _theme_unlock_hint(t)]
 			_UIStyle.apply_button_style(btn, Color(0.10, 0.10, 0.12), Color(0.30, 0.30, 0.34))
+			if thumb:
+				thumb.modulate = Color(0.35, 0.35, 0.4)
+		# apply_button_style 이 스타일박스를 새로 깔아 좌측 여백이 사라진다 — 썸네일이 있으면 재적용.
+		if thumb:
+			_UIStyle.set_button_content_margin_left(btn, 130)
 
 
 func _theme_unlock_hint(t: ThemeData) -> String:

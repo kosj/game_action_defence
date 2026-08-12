@@ -34,6 +34,8 @@ func _strike() -> void:
 	var hits := mini(bolts, candidates.size())
 	var dmg := 2 + Events.upgrade_lightning_damage
 	var splash_dmg := maxi(1, dmg / 2)
+	if SoundManager.has_stream("lightning"):
+		SoundManager.play("lightning", 0.08, 1.0)   # 낙뢰 크랙(볼리당 1회, 파일 있을 때만)
 
 	for i in range(hits):
 		var target: Node2D = candidates[i]

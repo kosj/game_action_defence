@@ -23,6 +23,8 @@ const _SOUNDS: Dictionary = {
 	"ult_quake":   "res://assets/audio/sfx_ult_quake.ogg",  # 궁극기: 지진(베테랑)
 	"ult_arrow":   "res://assets/audio/sfx_ult_arrow.ogg",  # 궁극기: 화살비(헌터)
 	"ult_orbital": "res://assets/audio/sfx_ult_orbital.ogg",# 궁극기: 궤도 폭격(엔지니어)
+	"fly_swarm":   "res://assets/audio/sfx_fly_swarm.ogg",  # 흡혈 파리떼 출현 윙윙
+	"lightning":   "res://assets/audio/sfx_lightning.ogg",  # 번개 낙뢰 타격
 }
 
 const _VOLUMES: Dictionary = {
@@ -43,6 +45,8 @@ const _VOLUMES: Dictionary = {
 	"ult_quake":   -3.0,
 	"ult_arrow":   -3.0,
 	"ult_orbital": -3.0,
+	"fly_swarm":   -7.0,
+	"lightning":   -7.0,
 }
 
 ## 배경음악 트랙 — 트랙 이름 → 파일 목록. 게임 BGM 은 선택 테마로 곡이 결정되어(테마 인덱스
@@ -69,6 +73,7 @@ const _MIN_INTERVAL := {
 	"boom": 60,
 	"laser": 45,
 	"player_hurt": 90,
+	"lightning": 120,
 }
 const _COMBO_WINDOW := 380   # ms — 이 안에 연속되면 콤보로 보고 음을 살짝 올린다(마리오 동전 느낌)
 
