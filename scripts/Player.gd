@@ -343,7 +343,7 @@ func _fit_shadow() -> void:
 ## 없으면 절차적 걷기(발딛기 스쿼시 + 수직 바운스 + 좌우 뒤뚱). 좌우 방향은 _facing 으로 플립.
 const _RUN_FRAME_PER_PX := 0.1    # 이동 픽셀당 프레임 진행량(속도에 맞춰 다리가 빨라진다)
 const _RUN_STEP_FRAMES := 4.0     # 한 걸음 = 시트 4프레임(접지-스탠스-차기-공중)
-const _RUN_BOB := 3.0             # 걸음당 수직 바운스(px) — 작은 스케일에서 달리기가 읽히게 증폭
+const _RUN_BOB := 1.6             # 걸음당 수직 바운스(px) — 프레임 아트를 보조하는 수준만(과하면 들썩임)
 const _RUN_LEAN := 0.05           # 달리는 동안 전방 기울임(rad)
 
 func _animate_walk(moved: float) -> void:
@@ -370,7 +370,7 @@ func _animate_walk(moved: float) -> void:
 		# 절차 연출로 증폭해 작은 화면에서도 뛰는 느낌이 읽히게 한다.
 		var bob := absf(sin(_walk_phase * PI / _RUN_STEP_FRAMES))
 		body.position.y = -bob * _RUN_BOB
-		body.scale = Vector2(fx * (1.0 + 0.03 * (1.0 - bob)), _body_base_scale.y * (1.0 - 0.04 * (1.0 - bob)))
+		body.scale = Vector2(fx * (1.0 + 0.015 * (1.0 - bob)), _body_base_scale.y * (1.0 - 0.02 * (1.0 - bob)))
 		body.rotation = _RUN_LEAN * _facing
 		return
 	if moved <= 0.01:
