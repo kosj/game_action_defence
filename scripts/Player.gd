@@ -130,7 +130,12 @@ func _ready() -> void:
 ## 러닝 시트(assets/sprites/run_<id>.png, 가로 균등 분할 스트립)가 있으면 프레임 애니메이션을
 ## 우선 사용하고, 없으면 단일 스프라이트 + 절차 걷기(스쿼시/바운스)로 폴백한다.
 ## 프레임 수는 캐릭터 데이터(run_frames)가 정한다 — 시트의 고유 포즈 수와 일치해야 한다.
+## 전용 대기 포즈(assets/sprites/idle_<id>.png, 단일 그림)가 있으면 멈출 때 그 이미지로
+## 교체하고, 없으면 시트 0번 칸(다리 모은 중립 포즈)으로 폴백한다.
 var _run_frames: int = 0         # 0 = 시트 없음(절차 걷기)
+var _sheet_tex: Texture2D = null
+var _idle_tex: Texture2D = null
+var _idle_shown: bool = false
 
 func _apply_character_sprite() -> void:
 	var c: CharacterData = CharacterManager.selected()
@@ -144,6 +149,12 @@ func _apply_character_sprite() -> void:
 			body.hframes = maxi(1, c.run_frames)
 			body.frame = 0
 			_run_frames = body.hframes
+			_sheet_tex = sheet
+			var idle_path := "res://assets/sprites/idle_%s.png" % c.id
+			if ResourceLoader.exists(idle_path):
+				var itex = load(idle_path)
+				if itex is Texture2D:
+					_idle_tex = itex
 			if c.sprite_scale > 0.0:
 				body.scale = Vector2(c.sprite_scale, c.sprite_scale)
 			return
@@ -330,21 +341,37 @@ func _fit_shadow() -> void:
 
 ## 걷기 연출. 러닝 시트가 있으면 이동 거리에 비례해 프레임을 넘기고(멈추면 1프레임 대기 포즈),
 ## 없으면 절차적 걷기(발딛기 스쿼시 + 수직 바운스 + 좌우 뒤뚱). 좌우 방향은 _facing 으로 플립.
-const _RUN_FRAME_PER_PX := 0.08   # 이동 픽셀당 프레임 진행량(속도에 맞춰 다리가 빨라진다)
+const _RUN_FRAME_PER_PX := 0.1    # 이동 픽셀당 프레임 진행량(속도에 맞춰 다리가 빨라진다)
+const _RUN_STEP_FRAMES := 4.0     # 한 걸음 = 시트 4프레임(접지-스탠스-차기-공중)
+const _RUN_BOB := 3.0             # 걸음당 수직 바운스(px) — 작은 스케일에서 달리기가 읽히게 증폭
+const _RUN_LEAN := 0.05           # 달리는 동안 전방 기울임(rad)
 
 func _animate_walk(moved: float) -> void:
 	var fx := _body_base_scale.x * _facing
 	if _run_frames > 0:
-		body.scale = Vector2(fx, _body_base_scale.y)
-		body.rotation = 0.0
 		if moved <= 0.01:
 			_walk_phase = 0.0
-			body.frame = 0
+			if _idle_tex != null and not _idle_shown:
+				body.texture = _idle_tex   # 전용 대기 포즈로 교체
+				body.hframes = 1
+				_idle_shown = true
+			body.frame = 0   # 대기 그림 없으면 0번 칸 = 다리 모은 중립 포즈(시트 조립 시 보장)
+			body.scale = Vector2(fx, _body_base_scale.y)
 			body.position.y = move_toward(body.position.y, 0.0, 0.6)
+			body.rotation = move_toward(body.rotation, 0.0, 0.02)
 			return
+		if _idle_shown:
+			body.texture = _sheet_tex   # 대기 -> 이동: 러닝 시트 복귀
+			body.hframes = _run_frames
+			_idle_shown = false
 		_walk_phase += moved * _RUN_FRAME_PER_PX
 		body.frame = int(_walk_phase) % _run_frames
-		body.position.y = -absf(sin(_walk_phase * PI)) * 1.0   # 발구름에 맞춘 미세 바운스
+		# 걸음 주기(4프레임)에 맞춘 바운스 + 착지 스쿼시 — 아트의 미묘한 다리 차이를
+		# 절차 연출로 증폭해 작은 화면에서도 뛰는 느낌이 읽히게 한다.
+		var bob := absf(sin(_walk_phase * PI / _RUN_STEP_FRAMES))
+		body.position.y = -bob * _RUN_BOB
+		body.scale = Vector2(fx * (1.0 + 0.03 * (1.0 - bob)), _body_base_scale.y * (1.0 - 0.04 * (1.0 - bob)))
+		body.rotation = _RUN_LEAN * _facing
 		return
 	if moved <= 0.01:
 		_walk_phase = 0.0
