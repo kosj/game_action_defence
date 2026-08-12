@@ -57,7 +57,6 @@ start_weapon = "turret"
 signature_passive = "battery"
 sprite_path = "res://assets/sprites/player_engineer.png"
 sprite_scale = 0.66
-run_frames = 7
 bonus_max_health = 2
 bonus_bullet_damage = 1
 bonus_move_speed = 1
