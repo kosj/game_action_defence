@@ -314,6 +314,14 @@ func _fit_shadow() -> void:
 		return
 	var tex: Vector2 = body.texture.get_size()
 	tex.x /= float(maxi(1, body.hframes))   # 러닝 시트면 프레임 1칸 폭 기준
+	# 시트 칸 폭은 보폭·무기까지 포함해 실제 몸통보다 훨씬 넓다(그림자가 ~2배로 커지는
+	# 원인). 단일 스프라이트가 있으면 그 폭으로 그림자를 잡아 시트 도입 전 크기를 유지한다.
+	if _run_frames > 0:
+		var c: CharacterData = CharacterManager.selected()
+		if c != null and c.sprite_path != "" and ResourceLoader.exists(c.sprite_path):
+			var single = load(c.sprite_path)
+			if single is Texture2D:
+				tex.x = single.get_size().x
 	# 그림자를 캐릭터 폭에 맞게 크게(1.28x) + 약간 더 도톰한 타원으로 — 발밑 존재감을 준다.
 	var sx: float = (tex.x * _body_base_scale.x * 1.28) / 128.0
 	shadow.scale = Vector2(sx, sx * 0.52)
