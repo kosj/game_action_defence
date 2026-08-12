@@ -127,9 +127,9 @@ func _ready() -> void:
 
 ## 선택 캐릭터 전용 스프라이트를 Body 에 적용. 데이터가 없거나 경로가 비면 씬 기본 player.png 유지.
 ## sprite_scale(>0)로 스프라이트별 크기 편차를 정규화한다. _body_base_scale 캡처 전에 호출한다.
-## 러닝 시트(assets/sprites/run_<id>.png, 가로 8프레임 스트립)가 있으면 프레임 애니메이션을
+## 러닝 시트(assets/sprites/run_<id>.png, 가로 균등 분할 스트립)가 있으면 프레임 애니메이션을
 ## 우선 사용하고, 없으면 단일 스프라이트 + 절차 걷기(스쿼시/바운스)로 폴백한다.
-const RUN_FRAMES := 8            # 러닝 시트의 프레임 수(가로 균등 분할)
+## 프레임 수는 캐릭터 데이터(run_frames)가 정한다 — 시트의 고유 포즈 수와 일치해야 한다.
 var _run_frames: int = 0         # 0 = 시트 없음(절차 걷기)
 
 func _apply_character_sprite() -> void:
@@ -141,9 +141,9 @@ func _apply_character_sprite() -> void:
 		var sheet = load(run_path)
 		if sheet is Texture2D:
 			body.texture = sheet
-			body.hframes = RUN_FRAMES
+			body.hframes = maxi(1, c.run_frames)
 			body.frame = 0
-			_run_frames = RUN_FRAMES
+			_run_frames = body.hframes
 			if c.sprite_scale > 0.0:
 				body.scale = Vector2(c.sprite_scale, c.sprite_scale)
 			return
