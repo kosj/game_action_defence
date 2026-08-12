@@ -22,6 +22,8 @@ func _ready() -> void:
 	z_index = 1   # 유닛 위를 떠다니는 벌레 구름
 	_player = get_tree().get_first_node_in_group("player")
 	_seed = randf() * 100.0
+	if SoundManager.has_stream("fly_swarm"):
+		SoundManager.play("fly_swarm", 0.06, 1.0)   # 출현 윙윙(파일 있을 때만)
 
 
 func _physics_process(delta: float) -> void:
