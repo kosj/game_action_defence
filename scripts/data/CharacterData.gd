@@ -16,6 +16,9 @@ extends Resource
 ## 캐릭터 전용 스프라이트 경로(빈 문자열이면 씬 기본 player.png 사용). 사이드뷰·오른쪽 향함.
 @export var sprite_path: String = ""
 @export var sprite_scale: float = 1.0   # body 스케일(스프라이트 크기 정규화용)
+## 러닝 시트(run_<id>.png)의 가로 프레임 수. 원본 아트의 고유 포즈 수에 맞춰 시트를
+## 만들고 여기 기록한다 — 7포즈를 8칸에 욱여넣으면 중복 프레임에서 스터터가 생긴다.
+@export var run_frames: int = 8
 
 ## 시작 스탯 보정 — recompute 말미에 upgrade_* 에 더해진다(패시브/무기 위에 얹힘).
 @export var bonus_max_health: int = 0
