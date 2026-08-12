@@ -127,11 +127,27 @@ func _ready() -> void:
 
 ## 선택 캐릭터 전용 스프라이트를 Body 에 적용. 데이터가 없거나 경로가 비면 씬 기본 player.png 유지.
 ## sprite_scale(>0)로 스프라이트별 크기 편차를 정규화한다. _body_base_scale 캡처 전에 호출한다.
+## 러닝 시트(assets/sprites/run_<id>.png, 가로 8프레임 스트립)가 있으면 프레임 애니메이션을
+## 우선 사용하고, 없으면 단일 스프라이트 + 절차 걷기(스쿼시/바운스)로 폴백한다.
+const RUN_FRAMES := 8            # 러닝 시트의 프레임 수(가로 균등 분할)
+var _run_frames: int = 0         # 0 = 시트 없음(절차 걷기)
+
 func _apply_character_sprite() -> void:
 	var c: CharacterData = CharacterManager.selected()
-	if c == null or c.sprite_path == "":
+	if c == null:
 		return
-	if not ResourceLoader.exists(c.sprite_path):
+	var run_path := "res://assets/sprites/run_%s.png" % c.id
+	if ResourceLoader.exists(run_path) and body is Sprite2D:
+		var sheet = load(run_path)
+		if sheet is Texture2D:
+			body.texture = sheet
+			body.hframes = RUN_FRAMES
+			body.frame = 0
+			_run_frames = RUN_FRAMES
+			if c.sprite_scale > 0.0:
+				body.scale = Vector2(c.sprite_scale, c.sprite_scale)
+			return
+	if c.sprite_path == "" or not ResourceLoader.exists(c.sprite_path):
 		return
 	var tex = load(c.sprite_path)
 	if tex is Texture2D and body is Sprite2D:
@@ -297,15 +313,31 @@ func _fit_shadow() -> void:
 	if body.texture == null:
 		return
 	var tex: Vector2 = body.texture.get_size()
+	tex.x /= float(maxi(1, body.hframes))   # 러닝 시트면 프레임 1칸 폭 기준
 	# 그림자를 캐릭터 폭에 맞게 크게(1.28x) + 약간 더 도톰한 타원으로 — 발밑 존재감을 준다.
 	var sx: float = (tex.x * _body_base_scale.x * 1.28) / 128.0
 	shadow.scale = Vector2(sx, sx * 0.52)
 	shadow.position = Vector2(0.0, tex.y * _body_base_scale.y * 0.46)
 
 
-## 절차적 걷기 — 발딛기 스쿼시 + 수직 바운스 + 좌우 뒤뚱. 좌우 방향은 _facing 으로 플립.
+## 걷기 연출. 러닝 시트가 있으면 이동 거리에 비례해 프레임을 넘기고(멈추면 1프레임 대기 포즈),
+## 없으면 절차적 걷기(발딛기 스쿼시 + 수직 바운스 + 좌우 뒤뚱). 좌우 방향은 _facing 으로 플립.
+const _RUN_FRAME_PER_PX := 0.08   # 이동 픽셀당 프레임 진행량(속도에 맞춰 다리가 빨라진다)
+
 func _animate_walk(moved: float) -> void:
 	var fx := _body_base_scale.x * _facing
+	if _run_frames > 0:
+		body.scale = Vector2(fx, _body_base_scale.y)
+		body.rotation = 0.0
+		if moved <= 0.01:
+			_walk_phase = 0.0
+			body.frame = 0
+			body.position.y = move_toward(body.position.y, 0.0, 0.6)
+			return
+		_walk_phase += moved * _RUN_FRAME_PER_PX
+		body.frame = int(_walk_phase) % _run_frames
+		body.position.y = -absf(sin(_walk_phase * PI)) * 1.0   # 발구름에 맞춘 미세 바운스
+		return
 	if moved <= 0.01:
 		_walk_phase = 0.0
 		body.scale = Vector2(fx, _body_base_scale.y)
