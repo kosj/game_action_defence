@@ -870,6 +870,8 @@ func _build_goal_hint() -> void:
 
 
 func _on_wave_complete(wave: int) -> void:
+	if SoundManager.has_stream("wave_clear"):
+		SoundManager.play_ui("wave_clear", 0.02, 1.0)   # 웨이브 클리어 스팅어(파일 있을 때만)
 	wave_clear_label.text = Locale.t("wave_clear_fmt") % wave
 	wave_clear_label.visible = true
 	wave_clear_bg.visible = true

@@ -476,7 +476,10 @@ func _free_revive() -> void:
 	_attack_accum = 0.0
 	Events.update_player_health(health, max_health)
 	Events.shake(9.0)
-	SoundManager.play("gold", 0.0, 0.7)
+	if SoundManager.has_stream("revive"):
+		SoundManager.play("revive", 0.02, 1.0)
+	else:
+		SoundManager.play("gold", 0.0, 0.7)
 
 
 func _die() -> void:
