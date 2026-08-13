@@ -8,15 +8,8 @@ extends Control
 ## 셀셰이딩 톤에 맞춰 하늘은 부드러운 그라데이션 대신 납작한 색 띠(band)로 쌓고,
 ## 건물은 지붕 형태(계단/안테나/물탱크)를 섞어 실루엣이 밋밋해지지 않게 한다.
 ##
-## assets/ui/bg_intro.png 일러스트가 있으면 그것을 배경으로 쓴다. 이때 송신탑 "구조물"은
-## 일러스트가 담당하고, 꼭대기의 맥동하는 신호 불빛과 잔불은 코드가 그 위에 계속 얹는다
-## — 인트로 서사의 핵심(아직 살아 있는 신호)이 정지 화면이 되지 않도록. INTRO_ART_PROMPT.md 참고.
-
-const BG_PATH := "res://assets/ui/bg_intro.png"
-
-## 일러스트 사용 시 송신탑 꼭대기(신호등)의 화면 내 비율 좌표. 일러스트를 바꿔 위치가
-## 어긋나면 이 값만 조정하면 된다(코드 드로잉 배경일 때는 쓰이지 않는다).
-const ART_BEACON := Vector2(0.70, 0.335)
+## 배경 이미지를 두지 않고 전부 코드로 그린다 — 해상도에 자동으로 맞고, 별·잔불·비컨이
+## 살아 움직이며, 에셋 임포트/라이선스 부담이 없다(UIIcon 등 프로젝트의 코드 드로잉 방식과 동일).
 
 # 타이틀 아트에서 뽑은 팔레트(위→아래).
 const SKY_TOP   := Color(0.06, 0.03, 0.06)
@@ -40,14 +33,9 @@ var _stars: Array = []    # [Vector2(0..1 비율), 크기, 위상]
 var _embers: Array = []   # [x(0..1), y0(0..1), 속도, 크기, 위상]
 var _blds: Array = []     # 사전 계산한 건물 [Rect2, 색, 지붕타입, 창문 Rect2 배열]
 var _built_for := Vector2.ZERO   # _blds 를 만들 때의 화면 크기(리사이즈 시 재생성)
-var _art: Texture2D = null
 
 
 func _ready() -> void:
-	if ResourceLoader.exists(BG_PATH):
-		var t = load(BG_PATH)
-		if t is Texture2D:
-			_art = t
 	_seed_stars()
 	_seed_embers()
 	set_process(true)
@@ -80,11 +68,6 @@ func _draw() -> void:
 	var s := size
 	if s.x <= 1.0 or s.y <= 1.0:
 		return
-	if _art:
-		_draw_art(s)      # 일러스트가 구조물(도시·송신탑)을 담당
-		_draw_beacon_light(s, Vector2(s.x * ART_BEACON.x, s.y * ART_BEACON.y))
-		_draw_embers(s)
-		return
 	_draw_sky(s)
 	_draw_stars(s)
 	_draw_glow(s)
@@ -92,16 +75,6 @@ func _draw() -> void:
 	_draw_buildings(s)
 	_draw_beacon(s)
 	_draw_embers(s)
-
-
-## 일러스트를 화면에 꽉 차게(cover) 그린다 — 비율 유지, 넘치는 쪽은 잘라낸다.
-func _draw_art(s: Vector2) -> void:
-	var ts := Vector2(_art.get_size())
-	if ts.x <= 0.0 or ts.y <= 0.0:
-		return
-	var k := maxf(s.x / ts.x, s.y / ts.y)
-	var dst := ts * k
-	draw_texture_rect(_art, Rect2((s - dst) * 0.5, dst), false)
 
 
 ## 하늘 — 위(암적)에서 지평선(진홍)으로 가는 납작한 색 띠. 셀셰이딩 톤 유지.
@@ -251,7 +224,7 @@ func _draw_beacon(s: Vector2) -> void:
 	_draw_beacon_light(s, Vector2(bx, top_y - s.y * 0.006))
 
 
-## 맥동하는 신호 불빛(빛기둥 + 글로우 + 코어) — 코드 배경/일러스트 배경 양쪽에서 공용.
+## 맥동하는 신호 불빛(빛기둥 + 글로우 + 코어) — 탑 구조물과 분리해 두어 읽기 쉽게.
 func _draw_beacon_light(s: Vector2, light: Vector2) -> void:
 	var pulse: float = 0.5 + 0.5 * sin(_t * 2.3)
 	var bx := light.x
