@@ -276,7 +276,7 @@ func _build_options_panel() -> void:
 	_options_panel.offset_right = 210.0
 	_options_panel.offset_top = -240.0
 	_options_panel.offset_bottom = 240.0
-	_options_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 0.98), Color(0.35, 0.38, 0.5)))
+	_options_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_NEUTRAL))
 	_options_panel.visible = false
 	add_child(_options_panel)
 
@@ -294,7 +294,7 @@ func _build_options_panel() -> void:
 	_options_title = Label.new()
 	_options_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_options_title.add_theme_font_size_override("font_size", 30)
-	_options_title.add_theme_color_override("font_color", Color(0.95, 0.92, 0.98))
+	_options_title.add_theme_color_override("font_color", UITheme.TEXT)
 	UITheme.heading(_options_title)
 	vb.add_child(_options_title)
 
@@ -304,7 +304,7 @@ func _build_options_panel() -> void:
 	_lang_title = Label.new()
 	_lang_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_lang_title.add_theme_font_size_override("font_size", 18)
-	_lang_title.add_theme_color_override("font_color", Color(0.72, 0.76, 0.85))
+	_lang_title.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 	vb.add_child(_lang_title)
 
 	var lang_row := HBoxContainer.new()
@@ -325,7 +325,7 @@ func _build_options_panel() -> void:
 	_sound_title = Label.new()
 	_sound_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_sound_title.add_theme_font_size_override("font_size", 18)
-	_sound_title.add_theme_color_override("font_color", Color(0.72, 0.76, 0.85))
+	_sound_title.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 	vb.add_child(_sound_title)
 
 	var snd_row := HBoxContainer.new()
@@ -389,7 +389,7 @@ func _build_power_panel() -> void:
 	_power_panel.offset_right = -12.0
 	_power_panel.offset_top = 30.0
 	_power_panel.offset_bottom = -30.0
-	_power_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.12, 0.08, 0.16, 0.98), Color(0.6, 0.45, 0.9)))
+	_power_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_POWER))
 	_power_panel.visible = false
 	add_child(_power_panel)
 
@@ -406,7 +406,7 @@ func _build_power_panel() -> void:
 	title.text = "PERMANENT UPGRADES"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 30)
-	title.add_theme_color_override("font_color", Color(0.85, 0.7, 1.0))
+	title.add_theme_color_override("font_color", UITheme.SEC_POWER_TXT)
 	UITheme.heading(title)
 	vb.add_child(title)
 
@@ -505,7 +505,7 @@ func _build_character_panel() -> void:
 	_char_panel.offset_right = -12.0
 	_char_panel.offset_top = 30.0
 	_char_panel.offset_bottom = -30.0
-	_char_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.07, 0.13, 0.16, 0.98), Color(0.4, 0.8, 0.95)))
+	_char_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_CHAR))
 	_char_panel.visible = false
 	add_child(_char_panel)
 
@@ -522,7 +522,7 @@ func _build_character_panel() -> void:
 	title.text = "CHOOSE YOUR SURVIVOR"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 32)
-	title.add_theme_color_override("font_color", Color(0.6, 0.9, 1.0))
+	title.add_theme_color_override("font_color", UITheme.SEC_CHAR_TXT)
 	UITheme.heading(title)
 	vb.add_child(title)
 
@@ -696,7 +696,7 @@ func _build_achievement_panel() -> void:
 	_ach_panel.offset_right = 245.0
 	_ach_panel.offset_top = -300.0
 	_ach_panel.offset_bottom = 300.0
-	_ach_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.14, 0.11, 0.05, 0.98), Color(0.9, 0.75, 0.3)))
+	_ach_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_ACHIEVE))
 	_ach_panel.visible = false
 	add_child(_ach_panel)
 
@@ -713,7 +713,7 @@ func _build_achievement_panel() -> void:
 	title.text = "ACHIEVEMENTS"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	title.add_theme_color_override("font_color", UITheme.SEC_ACHIEVE_TXT)
 	vb.add_child(title)
 
 	vb.add_child(HSeparator.new())
@@ -791,7 +791,7 @@ func _build_quest_panel() -> void:
 	_quest_panel.offset_right = 245.0
 	_quest_panel.offset_top = -260.0
 	_quest_panel.offset_bottom = 260.0
-	_quest_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.06, 0.14, 0.07, 0.98), Color(0.45, 0.9, 0.5)))
+	_quest_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_QUEST))
 	_quest_panel.visible = false
 	add_child(_quest_panel)
 
@@ -808,7 +808,7 @@ func _build_quest_panel() -> void:
 	title.text = "QUESTS"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", Color(0.6, 1.0, 0.6))
+	title.add_theme_color_override("font_color", UITheme.SEC_QUEST_TXT)
 	vb.add_child(title)
 
 	var hint := Label.new()
@@ -856,7 +856,7 @@ func _build_rewards_panel() -> void:
 	_rewards_panel.offset_right = 245.0
 	_rewards_panel.offset_top = -280.0
 	_rewards_panel.offset_bottom = 280.0
-	_rewards_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.15, 0.11, 0.04, 0.98), Color(1.0, 0.85, 0.35)))
+	_rewards_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_REWARD))
 	_rewards_panel.visible = false
 	add_child(_rewards_panel)
 
@@ -873,7 +873,7 @@ func _build_rewards_panel() -> void:
 	title.text = "REWARDS"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+	title.add_theme_color_override("font_color", UITheme.SEC_REWARD_TXT)
 	vb.add_child(title)
 
 	var hint := Label.new()
@@ -1074,7 +1074,7 @@ func _build_theme_panel() -> void:
 	_theme_panel.offset_right = -12.0
 	_theme_panel.offset_top = 30.0
 	_theme_panel.offset_bottom = -30.0
-	_theme_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.12, 0.08, 0.98), Color(0.5, 0.85, 0.5)))
+	_theme_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_ARENA))
 	_theme_panel.visible = false
 	add_child(_theme_panel)
 
@@ -1091,7 +1091,7 @@ func _build_theme_panel() -> void:
 	title.text = "CHOOSE ARENA"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 32)
-	title.add_theme_color_override("font_color", Color(0.7, 1.0, 0.7))
+	title.add_theme_color_override("font_color", UITheme.SEC_ARENA_TXT)
 	UITheme.heading(title)
 	vb.add_child(title)
 
@@ -1266,7 +1266,7 @@ func _build_ranking_panel() -> void:
 	_rank_panel.offset_right = 210.0
 	_rank_panel.offset_top = -230.0
 	_rank_panel.offset_bottom = 230.0
-	_rank_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 0.98), Color(0.45, 0.40, 0.20)))
+	_rank_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_NEUTRAL))
 	_rank_panel.visible = false
 	add_child(_rank_panel)
 
@@ -1284,7 +1284,7 @@ func _build_ranking_panel() -> void:
 	_rank_title = Label.new()
 	_rank_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_rank_title.add_theme_font_size_override("font_size", 30)
-	_rank_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	_rank_title.add_theme_color_override("font_color", UITheme.SEC_REWARD)
 	UITheme.heading(_rank_title)
 	vb.add_child(_rank_title)
 

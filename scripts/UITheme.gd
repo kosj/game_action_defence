@@ -12,6 +12,28 @@ const ACCENT    := Color(1.00, 0.82, 0.25)   # 금색 강조
 const TEXT      := Color(0.90, 0.92, 0.96)
 const TEXT_DIM  := Color(0.66, 0.70, 0.78)
 
+# 로고("ZOMBIE BUSTER")에서 뽑은 색 — 타이틀/인트로 텍스트를 로고와 같은 문법으로 맞춘다.
+const LOGO_CREAM := Color(0.93, 0.90, 0.82)   # 글자 본체(크림)
+const LOGO_BLOOD := Color(0.70, 0.12, 0.13)   # 외곽선/흘러내림(핏빛)
+
+# 섹션 강조색 — 패널마다 흩어져 있던 색 리터럴을 한곳에 모은다. 화면이 늘어도 톤이 흔들리지
+# 않도록 새 패널은 반드시 아래 상수 중 하나를 쓸 것. (프레임 색은 텍스처 아트가 담당하므로
+# 실제로 눈에 보이는 건 제목 라벨 색이다 — SEC_*_TXT 는 어두운 패널 위에서 읽히게 밝힌 값.)
+const SEC_NEUTRAL := Color(0.35, 0.38, 0.50)   # 옵션·랭킹
+const SEC_POWER   := Color(0.60, 0.45, 0.90)   # 강화
+const SEC_CHAR    := Color(0.40, 0.80, 0.95)   # 캐릭터
+const SEC_ARENA   := Color(0.50, 0.85, 0.50)   # 아레나(테마)
+const SEC_QUEST   := Color(0.45, 0.90, 0.50)   # 과제
+const SEC_ACHIEVE := Color(0.90, 0.75, 0.30)   # 도전과제
+const SEC_REWARD  := Color(1.00, 0.85, 0.35)   # 보상함
+
+const SEC_POWER_TXT   := Color(0.85, 0.70, 1.00)
+const SEC_CHAR_TXT    := Color(0.60, 0.90, 1.00)
+const SEC_ARENA_TXT   := Color(0.70, 1.00, 0.70)
+const SEC_QUEST_TXT   := Color(0.60, 1.00, 0.60)
+const SEC_ACHIEVE_TXT := Color(1.00, 0.85, 0.40)
+const SEC_REWARD_TXT  := Color(1.00, 0.88, 0.45)
+
 const FONT_PATH := "res://assets/fonts/NotoSansCJK-Subset.otf"
 const BOLD_PATH := "res://assets/fonts/NotoSansCJK-Subset-Bold.otf"
 
