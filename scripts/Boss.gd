@@ -44,15 +44,28 @@ var _proj_color: Color = Color(0.55, 0.8, 1.0)
 var _pulse: float = 0.0
 var _enraged: bool = false      # 격노(페이즈≥1) 여부 — 기존 행동 분기 호환용
 var _phase: int = 0             # 다단계: 0=평상 / 1=66% 이하 / 2=33% 이하(추가 격화)
+var _bal: BalanceData = null    # 밸런스 테이블 캐시(피해량·격화 파라미터)
+var _alive_time: float = 0.0    # 생존 경과 — 지구전(카이팅) 방지 격화에 사용
+
+# ── 근접형(melee) 지면 강타 ──────────────────────────────────────────
+# 근접 보스가 "걸어오기만 하는 샌드백"이 되지 않도록, 사거리 안에 들면 예비 동작 후
+# 넓은 충격파를 내리찍는다. 표식(BossShell)이 곧 텔레그래프라 이동으로 회피 가능.
+const SLAM_RANGE := 300.0          # 이 거리 안이면 강타 시도
+const SLAM_COOLDOWN := 3.6         # 강타 간격(초)
+const SLAM_WARN := 0.55            # 표식 → 폭발 지연
+const SLAM_RADIUS := 175.0         # 충격파 반경
+var _slam_cd: float = 0.0
 
 # ── 거너(gunner) 전용 상태 ────────────────────────────────────────────
 const GUNNER_RANGE := 520.0        # 발사 사거리
 const GUNNER_KEEP_DIST := 300.0    # 유지하려는 거리(카이팅)
-const GUNNER_COOLDOWN := 2.0       # 발사 간격(초)
-const GUNNER_TELEGRAPH := 0.45     # 발사 예비 동작(총구 점멸) 시간 — 보고 피할 여지
-const GUNNER_PROJ_SPEED := 300.0   # 투사체 속도(플레이어 이속 220 대비 회피 가능)
+const GUNNER_COOLDOWN := 1.7       # 발사 간격(초)
+const GUNNER_TELEGRAPH := 0.4      # 발사 예비 동작(총구 점멸) 시간 — 보고 피할 여지
+const GUNNER_PROJ_SPEED := 370.0   # 투사체 속도(플레이어 이속 220 대비 — 직선 도주로는 못 뿌리침)
 var _fire_cd: float = 0.0
 var _telegraph_t: float = 0.0      # >0 이면 발사 예비 동작 중
+var _volley_pending: int = 0       # 2단계 연사: 남은 추가 일제사격 수
+var _volley_t: float = 0.0         # 추가 일제사격까지 남은 시간
 var _aim_dir: Vector2 = Vector2.RIGHT
 var _facing: float = 1.0            # 사이드뷰 좌우 방향(회전 대신 수평 플립)
 var _intro_scale_lock: bool = true # 등장 확대 트윈 중에는 스케일 플립을 보류(트윈 충돌 방지)
@@ -60,19 +73,20 @@ var _walk_phase: float = 0.0        # 걷기 바운스 위상(이동 거리로 �
 
 # ── 서머너(summoner) 전용 상태 ───────────────────────────────────────
 const SUMMON_KEEP_DIST := 260.0    # 유지 거리(플레이어에게서 물러나며 소환)
-const SUMMON_COOLDOWN := 5.0       # 소환 간격(초)
+const SUMMON_COOLDOWN := 4.0       # 소환 간격(초)
 const SUMMON_TELEGRAPH := 0.6      # 소환 예비 동작(소환진 점멸) 시간
-const SUMMON_COUNT := 3            # 1회 소환 수(격노 시 +2)
+const SUMMON_COUNT := 4            # 1회 소환 수(격노 시 +2)
 var _summon_cd: float = 0.0
 var _summon_tel: float = 0.0       # >0 이면 소환 예비 동작 중
 
 # ── 바머(bomber) 전용 상태 ───────────────────────────────────────────
 const BOMB_KEEP_DIST := 340.0      # 유지 거리(멀리서 포격)
-const BOMB_COOLDOWN := 3.2         # 포격 간격(초)
-const BOMB_WARN := 1.0             # 탄착 경고→폭발 지연(초) — 보고 피할 여지
-const BOMB_RADIUS := 88.0          # 폭발 반경
-const BOMB_DAMAGE := 2             # 폭발 피해
-const BOMB_SHELLS := 2             # 1회 포격 탄 수(격노 시 +2)
+const BOMB_COOLDOWN := 2.8         # 포격 간격(초)
+const BOMB_WARN := 0.85            # 탄착 경고→폭발 지연(초) — 보고 피할 여지
+const BOMB_RADIUS := 96.0          # 폭발 반경
+const BOMB_SHELLS := 3             # 1회 포격 탄 수(격노 시 +2)
+const BOMB_RING_COUNT := 7         # 2단계 포위 포격: 플레이어를 둘러싸는 탄 수
+const BOMB_RING_RADIUS := 190.0    # 포위 링 반경(빈틈으로 빠져나가야 한다)
 var _bomb_cd: float = 0.0
 
 # ── 버서커(berserk) 전용 상태 ────────────────────────────────────────
@@ -80,9 +94,11 @@ var _bomb_cd: float = 0.0
 # 대시 중 접촉 피해는 기존 접촉 시스템(높은 contact)이 그대로 처리한다.
 const BERSERK_STALK_TIME := 1.3
 const BERSERK_WIND := 0.5          # 대시 예비 동작(텔레그래프) 시간
-const BERSERK_DASH_SPEED := 640.0  # 대시 속도(플레이어 이속 220 대비 압도적 — 예측 회피 요구)
+const BERSERK_DASH_SPEED := 700.0  # 대시 속도(플레이어 이속 220 대비 압도적 — 예측 회피 요구)
 const BERSERK_DASH_TIME := 0.4
 const BERSERK_RECOVER := 0.7
+const BERSERK_QUAKE_R := 130.0     # 대시 종료 지점의 착지 충격파 반경
+var _dash_chain: int = 0           # 남은 연속 대시 수(페이즈≥1에서 연속 돌진)
 var _bstate: String = "stalk"
 var _is_final: bool = false        # 최종 보스(REAPER)면 처치 시 보너스 레벨업 대신 승리 처리
 var _bt: float = 0.0               # 현재 상태 경과 시간
@@ -95,10 +111,12 @@ func _ready() -> void:
 
 ## 스포너가 인스턴스 직후 호출 — 등장 회차/타입에 따른 스탯 주입 후 등장 연출.
 func setup(stats: Dictionary) -> void:
+	_bal = GameData.balance
 	max_health = stats.get("max_health", 80)
 	health = max_health
 	speed = stats.get("speed", 55.0)
-	contact_damage = stats.get("contact_damage", 2)
+	# 접촉 피해에 테이블 보정을 더한다 — 몸을 비비는 플레이가 확실히 아프도록.
+	contact_damage = stats.get("contact_damage", 2) + _bal.boss_contact_bonus
 	score_value = stats.get("score", 200)
 	gold_drop = stats.get("gold", 12)
 	_archetype = stats.get("archetype", "melee")
@@ -126,6 +144,11 @@ func setup(stats: Dictionary) -> void:
 	_summon_cd = SUMMON_COOLDOWN * 0.5
 	_summon_tel = 0.0
 	_bomb_cd = BOMB_COOLDOWN * 0.5
+	_slam_cd = SLAM_COOLDOWN * 0.55
+	_volley_pending = 0
+	_volley_t = 0.0
+	_dash_chain = 0
+	_alive_time = 0.0
 	_bstate = "stalk"
 	_bt = 0.0
 	body.modulate = _base_color
@@ -157,12 +180,20 @@ func _physics_process(delta: float) -> void:
 	var player: Node2D = get_tree().get_first_node_in_group("player")
 	if not is_instance_valid(player):
 		return
+	_alive_time += delta
+	# 2단계 연사 예약(거너): 첫 일제사격 뒤 짧은 간격으로 추가 탄막을 뿌린다.
+	if _volley_pending > 0:
+		_volley_t -= delta
+		if _volley_t <= 0.0:
+			_volley_pending -= 1
+			_volley_t = 0.22
+			_fire_volley(true)
 	match _archetype:
 		"gunner":   _behave_gunner(delta, player)
 		"summoner": _behave_summoner(delta, player)
 		"bomber":   _behave_bomber(delta, player)
 		"berserk":  _behave_berserk(delta, player)
-		_:          _behave_melee(player)   # melee 및 아직 미구현 아키타입의 기본 동작
+		_:          _behave_melee(delta, player)   # melee 및 아직 미구현 아키타입의 기본 동작
 	# 걷기 바운스 — 이동 속도에 비례해 위상을 올려 발 딛는 느낌(스케일 플립·확대와 독립).
 	if not _intro_scale_lock:
 		_walk_phase += velocity.length() * delta * 0.06
@@ -188,11 +219,37 @@ func _face(dir: Vector2) -> void:
 
 
 ## 근접 돌격(브루트) — 플레이어를 향해 직진. 기존 동작 그대로.
-func _behave_melee(player: Node2D) -> void:
-	var dir := (player.global_position - global_position).normalized()
+## 근접형(브루트) — 추적 + 사거리 안에서 지면 강타(광역 충격파).
+## 그냥 걸어오기만 하던 샌드백에서, 붙으면 위험한 압박형으로 바꾼다.
+func _behave_melee(delta: float, player: Node2D) -> void:
+	var to_p := player.global_position - global_position
+	var dir := to_p / maxf(to_p.length(), 0.001)
 	velocity = dir * speed
 	_face(dir)
 	move_and_slide()
+	_slam_cd -= delta
+	if _slam_cd <= 0.0 and to_p.length() <= SLAM_RANGE:
+		_slam_cd = SLAM_COOLDOWN * _cd_mult()
+		_do_slam(player)
+
+
+## 지면 강타 — 플레이어의 예상 위치에 충격파 표식을 찍는다(페이즈 2 는 좌우 여진 2발 추가).
+func _do_slam(player: Node2D) -> void:
+	if not _alive:
+		return
+	SoundManager.play("boom", 0.05, 0.85)
+	Events.shake(5.0)
+	var scene := get_tree().current_scene
+	var dmg: int = _bal.boss_slam_damage
+	var focus := _lead_point(player, 420.0)
+	_BossShell.spawn(scene, focus, SLAM_WARN, SLAM_RADIUS, dmg, Color(1.0, 0.45, 0.2))
+	if _phase >= 2:
+		# 광란: 본 강타 직후 좌우로 갈라지는 여진 — 제자리 회피를 막는다.
+		var quake_dirs: Array[float] = [-1.0, 1.0]
+		for sgn in quake_dirs:
+			var off: Vector2 = Vector2.from_angle(randf() * TAU) * SLAM_RADIUS * 1.15 * sgn
+			_BossShell.spawn(scene, focus + off, SLAM_WARN + 0.35, SLAM_RADIUS * 0.8, dmg,
+					Color(1.0, 0.35, 0.2))
 
 
 ## 사격형(거너) — 유지 거리를 두고 카이팅하며, 텔레그래프 후 조준 사격.
@@ -212,8 +269,8 @@ func _behave_gunner(delta: float, player: Node2D) -> void:
 	move_and_slide()
 
 	if _telegraph_t > 0.0:
-		# 예비 동작 중 — 조준 방향을 계속 갱신하다 종료 시 발사.
-		_aim_dir = dir
+		# 예비 동작 중 — 착탄 시점을 예측해 조준을 계속 갱신하다 종료 시 발사.
+		_aim_dir = (_lead_point(player, GUNNER_PROJ_SPEED) - global_position).normalized()
 		_telegraph_t -= delta
 		if _telegraph_t <= 0.0:
 			_fire_volley()
@@ -225,19 +282,25 @@ func _behave_gunner(delta: float, player: Node2D) -> void:
 			_fire_cd = GUNNER_COOLDOWN * _cd_mult()
 
 
-## 조준 방향 기준 스프레드 발사. 평상시 3발(±14°), 격노 시 방사형 9발.
-func _fire_volley() -> void:
+## 조준 방향 기준 스프레드 발사. 평상시 5발(±11°/±22°), 격노 시 방사형 9발(2단계 13발).
+## 2단계에서는 첫 사격 뒤 추가 일제사격 2회를 예약해(각 0.22초 간격, 회전 오프셋) 탄막을 겹친다.
+func _fire_volley(is_followup: bool = false) -> void:
 	if not _alive:
 		return
 	SoundManager.play("zombie_hit")
 	if _enraged:
 		var n := 9 if _phase < 2 else 13   # 2단계 광란: 더 촘촘한 방사형 탄막
+		var twist := 0.0 if not is_followup else TAU / float(n) * 0.5   # 후속탄은 반 칸 어긋나게
 		for i in range(n):
-			_fire_bullet(Vector2.from_angle(_aim_dir.angle() + TAU * i / n))
+			_fire_bullet(Vector2.from_angle(_aim_dir.angle() + twist + TAU * i / n))
 	else:
-		var spread := deg_to_rad(14.0)
-		for off in [-spread, 0.0, spread]:
+		var spread := deg_to_rad(11.0)
+		var offsets: Array[float] = [-spread * 2.0, -spread, 0.0, spread, spread * 2.0]
+		for off in offsets:
 			_fire_bullet(_aim_dir.rotated(off))
+	if _phase >= 2 and not is_followup:
+		_volley_pending = 2
+		_volley_t = 0.22
 
 
 func _fire_bullet(dir: Vector2) -> void:
@@ -245,7 +308,7 @@ func _fire_bullet(dir: Vector2) -> void:
 	p.global_position = global_position + dir * 24.0
 	p.direction = dir
 	p.speed = GUNNER_PROJ_SPEED
-	p.damage = 1
+	p.damage = _bal.boss_bullet_damage
 	p.color = _proj_color
 	p.queue_redraw()   # 색 주입 후 1회 그리기(EnemyBullet 은 매 프레임 redraw 하지 않음)
 
@@ -283,6 +346,16 @@ func _do_summon() -> void:
 	_FXBurst.spawn(get_tree().current_scene, global_position, Color(0.4, 1.0, 0.5), 70.0, 0.35)
 	# 소환은 스포너가 처리(살아있는 좀비 카운터·과밀 상한 일관성 유지).
 	Events.boss_summon.emit(SUMMON_COUNT + _extra_count())
+	# 소환진 부식 — 소환과 함께 발밑을 노리는 산성 장판을 깔아, 서머너를 무는 동안에도
+	# 계속 움직이게 만든다(페이즈가 오를수록 장판 수 증가).
+	var scene := get_tree().current_scene
+	var pl: Node2D = get_tree().get_first_node_in_group("player")
+	if is_instance_valid(pl):
+		for i in range(1 + _phase):
+			var pos: Vector2 = pl.global_position
+			if i > 0:
+				pos += Vector2.from_angle(randf() * TAU) * randf_range(80.0, 200.0)
+			_BossShell.spawn(scene, pos, 0.9, 92.0, _bal.boss_bomb_damage, Color(0.5, 1.0, 0.6))
 
 
 ## 포격형(바머) — 멀리서 거리를 유지하며, 플레이어 주변에 지연 폭발 탄을 투하.
@@ -306,18 +379,29 @@ func _behave_bomber(delta: float, player: Node2D) -> void:
 		_fire_barrage(player)
 
 
-## 플레이어 현재 위치 + 주변 무작위 지점에 탄착 표식을 뿌린다(첫 발은 발밑 조준).
+## 탄착 표식을 뿌린다. 첫 발은 "도망칠 곳"을 예측해 찍고(정지·직선 도주 차단),
+## 나머지는 그 주변을 덮는다. 2단계에서는 플레이어를 둘러싸는 포위 링을 추가로 깐다.
 func _fire_barrage(player: Node2D) -> void:
 	if not _alive:
 		return
 	SoundManager.play("zombie_hit")
 	var scene := get_tree().current_scene
+	var dmg: int = _bal.boss_bomb_damage
 	var shells := BOMB_SHELLS + _extra_count()
+	var focus := _lead_point(player, 260.0)   # 경고 시간 동안 달아날 지점을 예측
 	for i in range(shells):
-		var target := player.global_position
+		var target := focus
 		if i > 0:
-			target += Vector2.from_angle(randf() * TAU) * randf_range(60.0, 180.0)
-		_BossShell.spawn(scene, target, BOMB_WARN, BOMB_RADIUS, BOMB_DAMAGE, _proj_color)
+			target += Vector2.from_angle(randf() * TAU) * randf_range(70.0, 170.0)
+		_BossShell.spawn(scene, target, BOMB_WARN, BOMB_RADIUS, dmg, _proj_color)
+	if _phase >= 2:
+		# 광란: 포위 포격 — 링을 두르고 한 칸만 비워 이동을 강제한다.
+		var gap := randi() % BOMB_RING_COUNT
+		for i in range(BOMB_RING_COUNT):
+			if i == gap:
+				continue
+			var pos := player.global_position + Vector2.from_angle(TAU * float(i) / BOMB_RING_COUNT) * BOMB_RING_RADIUS
+			_BossShell.spawn(scene, pos, BOMB_WARN + 0.4, BOMB_RADIUS * 0.85, dmg, _proj_color)
 
 
 ## 돌진형(버서커) — 느린 추적 → 텔레그래프 → 초고속 대시 → 경직 순환.
@@ -345,12 +429,29 @@ func _behave_berserk(delta: float, player: Node2D) -> void:
 			velocity = _aim_dir * (BERSERK_DASH_SPEED * (1.3 if _phase >= 2 else (1.15 if _enraged else 1.0)))
 			move_and_slide()
 			if _bt >= BERSERK_DASH_TIME:
-				_bstate = "recover"; _bt = 0.0
+				_dash_end()
+				# 페이즈≥1: 연속 돌진 — 한 번 피했다고 안심할 수 없게 곧바로 재조준 후 재대시.
+				if _dash_chain > 0:
+					_dash_chain -= 1
+					_bstate = "wind"; _bt = BERSERK_WIND * haste * 0.45   # 짧은 재조준
+				else:
+					_bstate = "recover"; _bt = 0.0
 		"recover":
 			velocity = velocity * 0.85   # 관성 감쇠(급정지 대신 미끄러짐)
 			move_and_slide()
 			if _bt >= BERSERK_RECOVER * haste:
 				_bstate = "stalk"; _bt = 0.0
+				_dash_chain = 0 if _phase == 0 else (1 if _phase == 1 else 2)
+
+
+## 대시 종료 지점의 착지 충격파 — 대시를 피한 직후 붙어 있으면 대가를 치른다.
+func _dash_end() -> void:
+	if not _alive:
+		return
+	SoundManager.play("boom", 0.05, 0.95)
+	Events.shake(4.5)
+	_BossShell.spawn(get_tree().current_scene, global_position, 0.22, BERSERK_QUAKE_R,
+			_bal.boss_slam_damage, Color(1.0, 0.35, 0.35))
 
 
 func _process(delta: float) -> void:
@@ -454,8 +555,29 @@ func _enter_phase(n: int) -> void:
 
 
 ## 페이즈별 쿨다운 배수(작을수록 빠름): 평상 1.0 / 1단계 0.6 / 2단계 0.45.
+## 여기에 지구전 격화(_rage_mult)를 곱해, 오래 끌수록 공격이 촘촘해진다 — 무한 카이팅 봉쇄.
 func _cd_mult() -> float:
-	return 1.0 if _phase == 0 else (0.6 if _phase == 1 else 0.45)
+	var base := 1.0 if _phase == 0 else (0.6 if _phase == 1 else 0.45)
+	return base / _rage_mult()
+
+
+## 생존 시간 기반 격화 배수(1.0 → boss_rage_max). boss_rage_seconds 이후 60초에 걸쳐 상승.
+func _rage_mult() -> float:
+	if _bal == null or _alive_time <= _bal.boss_rage_seconds:
+		return 1.0
+	var t := (_alive_time - _bal.boss_rage_seconds) / 60.0
+	return lerpf(1.0, _bal.boss_rage_max, clampf(t, 0.0, 1.0))
+
+
+## 예측 조준 — 플레이어의 현재 속도로 착탄 시점 위치를 추정한다.
+## 정지·직선 도주가 안전하지 않게 만들어 "보고 피하는" 회피를 요구한다.
+func _lead_point(player: Node2D, travel_speed: float) -> Vector2:
+	var to_p := player.global_position - global_position
+	var pv: Vector2 = Vector2.ZERO
+	if player is CharacterBody2D:
+		pv = player.velocity
+	var t: float = to_p.length() / maxf(travel_speed, 1.0)
+	return player.global_position + pv * minf(t, 1.2)
 
 
 ## 페이즈별 추가 발사/소환 수: 평상 0 / 1단계 +2 / 2단계 +4.
