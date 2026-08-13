@@ -18,6 +18,47 @@ const _SLOT_TEX := preload("res://assets/ui/frames/item_slot.png")
 const _SLOT_INNER_INSET := 0.16      # 아이콘이 함몰부 안에 앉도록 하는 사방 여백 비율
 
 
+# ── HUD 전용 텍스처 (Phase 2) ────────────────────────────────────────────
+# assets/ui/hud/ 의 VARCO 생성 에셋. 아직 파일이 없을 수 있으므로 preload 대신
+# 존재 확인 후 load — 호출부는 null 이면 기존 플랫 스타일로 폴백한다.
+const _HUD_DIR := "res://assets/ui/hud/"
+
+
+## HUD 텍스처 로드(없으면 null). 이름은 "hud_top_bar.png" 같은 파일명.
+static func hud_tex(fname: String) -> Texture2D:
+	var path := _HUD_DIR + fname
+	if not ResourceLoader.exists(path):
+		return null
+	var t = load(path)
+	return t if t is Texture2D else null
+
+
+## 임의 텍스처를 나인패치 StyleBoxTexture 로 감싼다(게이지/바/슬롯 공용).
+static func tex_box(tex: Texture2D, margin: int, tint: Color = Color.WHITE) -> StyleBoxTexture:
+	var sb := StyleBoxTexture.new()
+	sb.texture = tex
+	sb.set_texture_margin_all(margin)
+	sb.modulate_color = tint
+	sb.draw_center = true
+	return sb
+
+
+## 텍스처 상단바(하단 골드 라인 포함 플레이트). 없으면 null — 호출부가 bottom_bar 폴백.
+static func hud_top_bar_box() -> StyleBoxTexture:
+	var tex := hud_tex("hud_top_bar.png")
+	if tex == null:
+		return null
+	var sb := StyleBoxTexture.new()
+	sb.texture = tex
+	# 마진은 tools/gen_hud_assets.py 의 나인패치 계약과 일치(리벳=좌우 30, 골드 라인=하단 14).
+	sb.texture_margin_left = 30
+	sb.texture_margin_right = 30
+	sb.texture_margin_top = 6
+	sb.texture_margin_bottom = 14
+	sb.draw_center = true
+	return sb
+
+
 ## 텍스처 나인패치 패널. bg/border/radius/border_w 인자는 하위 호환용으로 유지하되
 ## 프레임 아트가 시각을 담당하므로 무시된다(콘텐츠 여백만 프레임 안쪽으로 잡는다).
 static func panel(_bg: Color, _border: Color, _radius: int = 18, _border_w: int = 3) -> StyleBoxTexture:
