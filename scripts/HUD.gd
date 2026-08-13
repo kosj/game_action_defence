@@ -615,12 +615,12 @@ func _build_xp_bar() -> void:
 	bg.color = Color(0.0, 0.0, 0.0, 0.55)
 	bg.anchor_right = 1.0
 	bg.offset_top = 0.0
-	bg.offset_bottom = 6.0
+	bg.offset_bottom = 8.0
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
 	_xp_bg = bg
 	_xp_fill = ColorRect.new()
-	_xp_fill.color = Color(0.45, 0.80, 1.0, 0.95)
+	_xp_fill.color = Color(0.50, 0.84, 1.0, 1.0)
 	_xp_fill.anchor_right = 0.0
 	_xp_fill.anchor_bottom = 1.0
 	_xp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -633,14 +633,15 @@ func _build_xp_bar() -> void:
 	_level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if badge_tex:
+		# 레벨은 성장 게임의 핵심 정보 — 뱃지를 크게(64px), XP 바와 붙여 강조한다.
 		var badge := TextureRect.new()
 		badge.texture = badge_tex
 		badge.anchor_left = 0.5
 		badge.anchor_right = 0.5
-		badge.offset_left = -26.0
-		badge.offset_right = 26.0
-		badge.offset_top = 8.0
-		badge.offset_bottom = 60.0
+		badge.offset_left = -32.0
+		badge.offset_right = 32.0
+		badge.offset_top = 6.0
+		badge.offset_bottom = 70.0
 		badge.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		badge.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -650,10 +651,10 @@ func _build_xp_bar() -> void:
 		var cap := Label.new()
 		cap.text = "Lv"
 		cap.set_anchors_preset(Control.PRESET_TOP_WIDE)
-		cap.offset_top = 8.0
-		cap.offset_bottom = 20.0
+		cap.offset_top = 12.0
+		cap.offset_bottom = 26.0
 		cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		cap.add_theme_font_size_override("font_size", 10)
+		cap.add_theme_font_size_override("font_size", 11)
 		cap.add_theme_color_override("font_color", Color(1.0, 0.82, 0.35))
 		cap.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 		cap.add_theme_constant_override("outline_size", 2)
@@ -661,9 +662,9 @@ func _build_xp_bar() -> void:
 		badge.add_child(cap)
 		# 숫자는 캡션 아래로 살짝 내려 중앙 하단에 배치.
 		_level_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-		_level_label.offset_top = 13.0
-		_level_label.offset_bottom = -2.0
-		_level_label.add_theme_font_size_override("font_size", 16)
+		_level_label.offset_top = 18.0
+		_level_label.offset_bottom = -4.0
+		_level_label.add_theme_font_size_override("font_size", 20)
 		_level_label.add_theme_color_override("font_color", Color(0.95, 0.90, 0.75))
 		_level_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 		_level_label.add_theme_constant_override("outline_size", 3)
