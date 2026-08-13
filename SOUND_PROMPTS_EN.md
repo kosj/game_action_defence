@@ -181,6 +181,19 @@ than the texture.
 
 # Post-processing
 
+**The bundled importer does all of this for you.** Add an entry to `PLAN` in
+`tools/import_sfx.py` (source filename, the slice to keep, fade length) and run it —
+it decodes, trims the silent lead-in, cuts to length, fades the tail, normalizes and
+encodes straight into `assets/audio/`:
+
+```bash
+python3 tools/import_sfx.py                 # everything in PLAN
+python3 tools/import_sfx.py swing spit      # just these two
+SFX_SRC_DIR=~/Downloads python3 tools/import_sfx.py   # different source folder
+```
+
+The manual equivalent is below, for reference.
+
 Mix balance is handled in code (`SoundManager._VOLUMES`), **not** in the files. Normalize
 everything to the same loudness and let the game apply per-sound levels — otherwise the
 mix becomes impossible to manage.

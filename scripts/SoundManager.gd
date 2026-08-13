@@ -56,14 +56,16 @@ const _VOLUMES: Dictionary = {
 	"ult_orbital": -3.0,
 	"fly_swarm":   -7.0,
 	"lightning":   -7.0,
-	"bomber_fuse": -10.0,   # 경고 신호 — 전투음에 묻히지 않을 만큼만, 거슬리지 않게
+	"bomber_fuse":  -8.3,   # 경고 신호 — 전투음에 묻히면 안 되므로 파일의 1.7dB 부족분을 보정
 	"bomber_blast": -4.0,   # boom 과 동급 임팩트
 	"evolve":       -5.0,   # 런 최대 파워업 — level_up(-8)보다 확실히 크게
 	"wave_clear":   -8.0,
 	"horde":        -7.0,
 	"revive":       -5.0,
 	"swing":       -13.0,   # 초당 여러 번 — 배경으로 깔리는 정도
-	"holy_splash":  -9.0,
+	# 유리 깨짐은 트랜지언트가 강해 파일이 세트 기준(RMS -16dB)보다 3.3dB 낮게 인코딩됐다
+	# (피크 상한에 먼저 걸림). 그만큼 올리되, 트랜지언트는 RMS보다 크게 들리므로 절반만 보정.
+	"holy_splash":  -7.0,
 	"spit":        -14.0,   # 다수 스피터가 동시 발사 — 아주 작게
 }
 
