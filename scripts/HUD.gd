@@ -39,6 +39,10 @@ var _prev_score: int = -1
 var _max_health: int = 0
 var _low_hp_tween: Tween = null
 var _hp_fill_sb: StyleBoxFlat = null   # 체력 게이지 채움부 스타일(색을 비율에 따라 갱신)
+var _hp_ghost: Panel = null            # 피해 잔상 바 — 줄어든 체력만큼 밝은 잔량이 늦게 따라온다
+var _hp_ghost_tween: Tween = null
+var _gold_shown: float = 0.0           # 골드 롤링 카운터의 현재 표시값
+var _gold_roll_tween: Tween = null
 var _boss_max: int = 1
 var _weapon_tween: Tween = null
 var _weapon_base_text: String = ""
@@ -160,11 +164,26 @@ func _init_pivots() -> void:
 	game_over_panel.pivot_offset = game_over_panel.size * 0.5
 
 
+## 골드 표시 — 즉시 대입 대신 짧게 촤르륵 굴러가는 롤링 카운터(증감 모두).
 func _on_gold_changed(total: int) -> void:
-	gold_label.text = "%d" % total
-	if _prev_gold >= 0 and total > _prev_gold:
-		_pulse_gold()
+	if _prev_gold < 0:
+		# 최초 설정(씬 진입/이어하기)은 연출 없이 그대로.
+		_gold_shown = float(total)
+		gold_label.text = "%d" % total
+	else:
+		if total > _prev_gold:
+			_pulse_gold()
+		if _gold_roll_tween and _gold_roll_tween.is_valid():
+			_gold_roll_tween.kill()
+		_gold_roll_tween = create_tween()
+		_gold_roll_tween.tween_method(_set_gold_shown, _gold_shown, float(total), 0.35)\
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	_prev_gold = total
+
+
+func _set_gold_shown(v: float) -> void:
+	_gold_shown = v
+	gold_label.text = "%d" % int(round(v))
 
 
 func _pulse_gold() -> void:
@@ -318,15 +337,29 @@ func _on_player_health_changed(health: int, max_health: int) -> void:
 
 ## 체력을 하트 개수 대신 연속 게이지로 표시. 비율에 따라 초록→노랑→빨강으로 색이 바뀌고,
 ## 폭은 부드럽게 트윈된다. 라벨은 "현재 / 최대" 숫자를 함께 보여준다.
+## 피해 시에는 잔상 바가 이전 폭에 0.35초 머물렀다가 따라 줄어든다(깎인 양 강조).
 func _update_hp_bar(health: int, max_health: int) -> void:
 	var mx := maxi(max_health, 1)
 	var cur := clampi(health, 0, mx)
 	var ratio := float(cur) / float(mx)
+	var target := HP_BAR_W * ratio
 	hp_label.text = "HP %d / %d" % [cur, mx]
 	var tw := create_tween()
-	tw.tween_property(hp_fill, "size:x", HP_BAR_W * ratio, 0.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(hp_fill, "size:x", target, 0.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	if _hp_fill_sb:
 		_hp_fill_sb.bg_color = _hp_color(ratio)
+	if _hp_ghost:
+		if _hp_ghost_tween and _hp_ghost_tween.is_valid():
+			_hp_ghost_tween.kill()
+		if _prev_health >= 0 and cur < _prev_health:
+			# 피해: 잔상은 이전 폭에 잠시 머문 뒤 현재 폭으로 수축.
+			_hp_ghost_tween = create_tween()
+			_hp_ghost_tween.tween_interval(0.35)
+			_hp_ghost_tween.tween_property(_hp_ghost, "size:x", target, 0.30)\
+				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		else:
+			# 회복/초기화: 잔상이 보일 이유가 없다 — 즉시 현재 폭으로.
+			_hp_ghost.size.x = target
 
 
 ## 체력/보스 게이지를 둥근 모서리·테두리의 StyleBoxFlat 로 스타일링(각진 ColorRect 대체).
@@ -346,6 +379,21 @@ func _style_bars() -> void:
 	_hp_fill_sb.corner_detail = 6
 	_hp_fill_sb.anti_aliasing = true
 	hp_fill.add_theme_stylebox_override("panel", _hp_fill_sb)
+
+	# 피해 잔상 바 — 채움부 "뒤"에 깔리는 밝은 바. 피해 순간 이전 폭에 머물렀다가
+	# 잠시 뒤 현재 폭으로 따라 줄어들어, 방금 깎인 양이 시각적으로 남는다.
+	_hp_ghost = Panel.new()
+	_hp_ghost.offset_right = HP_BAR_W
+	_hp_ghost.offset_bottom = 26.0
+	_hp_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var ghost_sb := StyleBoxFlat.new()
+	ghost_sb.bg_color = Color(1.0, 0.55, 0.45, 0.85)
+	ghost_sb.set_corner_radius_all(6)
+	ghost_sb.corner_detail = 6
+	ghost_sb.anti_aliasing = true
+	_hp_ghost.add_theme_stylebox_override("panel", ghost_sb)
+	hp_bar.add_child(_hp_ghost)
+	hp_bar.move_child(_hp_ghost, hp_fill.get_index())   # 채움부 바로 아래(뒤)로
 
 	var boss_bg_sb := StyleBoxFlat.new()
 	boss_bg_sb.bg_color = Color(0.11, 0.02, 0.03, 0.9)
