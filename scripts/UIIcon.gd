@@ -6,7 +6,7 @@ class_name UIIcon
 @export var kind: String = "star"
 @export var color: Color = Color.WHITE
 
-const _KINDS := ["coin", "star", "flag", "clock", "trophy", "skull", "heart", "bolt", "sword", "orb"]
+const _KINDS := ["coin", "star", "flag", "clock", "trophy", "skull", "heart", "bolt", "sword", "orb", "gear"]
 
 ## 전용 아트가 있는 종류는 절차적 드로잉 대신 텍스처를 그린다(색 modulate 없이 원색 사용).
 ## 파일이 있는 것만 배선 — 나머지는 아래 _draw 의 벡터 드로잉으로 폴백.
@@ -51,6 +51,7 @@ func _draw() -> void:
 		"bolt":   draw_colored_polygon(_bolt_pts(c, r), color)
 		"sword":  _sword(c, r)
 		"orb":    _orb(c, r)
+		"gear":   _gear(c, r)
 		_:        draw_circle(c, r * 0.7, color)
 
 
@@ -129,3 +130,19 @@ func _orb(c: Vector2, r: float) -> void:
 	var w := maxf(2.0, r * 0.16)
 	draw_arc(c, r * 0.85, 0, TAU, 32, color, w, true)
 	draw_circle(c, r * 0.3, color)
+
+
+## 톱니바퀴(설정) — 사다리꼴 톱니 8개 + 몸통 원 + 가운데 구멍.
+func _gear(c: Vector2, r: float) -> void:
+	const TEETH := 8
+	for i in TEETH:
+		var a := TAU * float(i) / float(TEETH)
+		var dir := Vector2(cos(a), sin(a))
+		var perp := Vector2(-dir.y, dir.x)
+		draw_colored_polygon(PackedVector2Array([
+			c + dir * r * 0.58 + perp * r * 0.21,
+			c + dir * r * 0.98 + perp * r * 0.13,
+			c + dir * r * 0.98 - perp * r * 0.13,
+			c + dir * r * 0.58 - perp * r * 0.21]), color)
+	draw_circle(c, r * 0.66, color)
+	draw_circle(c, r * 0.27, Color(0, 0, 0, 0.6))
