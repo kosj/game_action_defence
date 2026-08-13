@@ -386,20 +386,21 @@ func _style_bars() -> void:
 ## 텍스처 게이지 — 프레임은 나인패치, 필은 무채색 스트립에 modulate 로 의미 색을 입힌다.
 ## 필/잔상은 프레임 림 안쪽으로 인셋(±4px)해 채널 안에 앉힌다.
 func _style_bars_textured(frame_tex: Texture2D, fill_tex: Texture2D) -> void:
-	hp_bg.add_theme_stylebox_override("panel", _UIStyle.tex_box(frame_tex, 8))
-	_hp_fill_sb = _UIStyle.tex_box(fill_tex, 6, Color(0.3, 0.85, 0.35))
+	# 마진/인셋은 tools/gen_hud_assets.py 의 나인패치 계약(프레임 7, 필 4, 채널 시작 4px)과 일치.
+	hp_bg.add_theme_stylebox_override("panel", _UIStyle.tex_box(frame_tex, 7))
+	_hp_fill_sb = _UIStyle.tex_box(fill_tex, 4, Color(0.3, 0.85, 0.35))
 	hp_fill.add_theme_stylebox_override("panel", _hp_fill_sb)
 	hp_fill.offset_left = 4.0
-	hp_fill.offset_top = 3.0
-	hp_fill.offset_bottom = 23.0
+	hp_fill.offset_top = 4.0
+	hp_fill.offset_bottom = 22.0
 	_hp_fill_max = HP_BAR_W - 8.0
 	hp_fill.size.x = _hp_fill_max
 
-	boss_bg.add_theme_stylebox_override("panel", _UIStyle.tex_box(frame_tex, 8))
-	boss_fill.add_theme_stylebox_override("panel", _UIStyle.tex_box(fill_tex, 6, Color(0.92, 0.22, 0.22)))
+	boss_bg.add_theme_stylebox_override("panel", _UIStyle.tex_box(frame_tex, 7))
+	boss_fill.add_theme_stylebox_override("panel", _UIStyle.tex_box(fill_tex, 4, Color(0.92, 0.22, 0.22)))
 	boss_fill.offset_left = 4.0
-	boss_fill.offset_top = 27.0
-	boss_fill.offset_bottom = 37.0
+	boss_fill.offset_top = 28.0
+	boss_fill.offset_bottom = 36.0
 	_boss_fill_max = BOSS_BAR_W - 8.0
 
 
@@ -445,10 +446,10 @@ func _build_hp_ghost(fill_tex: Texture2D) -> void:
 	_hp_ghost = Panel.new()
 	_hp_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if fill_tex:
-		_hp_ghost.add_theme_stylebox_override("panel", _UIStyle.tex_box(fill_tex, 6, Color(1.0, 0.55, 0.45, 0.85)))
+		_hp_ghost.add_theme_stylebox_override("panel", _UIStyle.tex_box(fill_tex, 4, Color(1.0, 0.55, 0.45, 0.85)))
 		_hp_ghost.offset_left = 4.0
-		_hp_ghost.offset_top = 3.0
-		_hp_ghost.offset_bottom = 23.0
+		_hp_ghost.offset_top = 4.0
+		_hp_ghost.offset_bottom = 22.0
 	else:
 		var ghost_sb := StyleBoxFlat.new()
 		ghost_sb.bg_color = Color(1.0, 0.55, 0.45, 0.85)
@@ -772,7 +773,7 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var slot_tex := _UIStyle.hud_tex("hud_slot_small.png")
 	if slot_tex:
-		frame.add_theme_stylebox_override("panel", _UIStyle.tex_box(slot_tex, 10))
+		frame.add_theme_stylebox_override("panel", _UIStyle.tex_box(slot_tex, 12))
 	else:
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = Color(0.04, 0.05, 0.08, 0.75)

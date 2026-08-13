@@ -50,11 +50,11 @@ static func hud_top_bar_box() -> StyleBoxTexture:
 		return null
 	var sb := StyleBoxTexture.new()
 	sb.texture = tex
-	# 장식(골드 라인·리벳)이 하단에 몰려 있어 하단 마진을 크게 — 실물 보고 조정.
-	sb.texture_margin_left = 48
-	sb.texture_margin_right = 48
-	sb.texture_margin_top = 16
-	sb.texture_margin_bottom = 64
+	# 마진은 tools/gen_hud_assets.py 의 나인패치 계약과 일치(리벳=좌우 30, 골드 라인=하단 14).
+	sb.texture_margin_left = 30
+	sb.texture_margin_right = 30
+	sb.texture_margin_top = 6
+	sb.texture_margin_bottom = 14
 	sb.draw_center = true
 	return sb
 
