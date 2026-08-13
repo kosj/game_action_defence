@@ -20,6 +20,7 @@ var _running: bool = true
 var _seq: Tween
 var _lines: Array = []
 var _begin_btn: Button
+var _goal_label: Label   # 인트로 서사 → 인게임 목표를 잇는 한 줄(마지막에 함께 등장)
 
 
 ## 인트로를 parent 위에 띄우고 재생. 끝나면 on_done 을 호출한다.
@@ -37,8 +38,8 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
-	# 1) 밤하늘 그라데이션
-	var sky := UITheme.make_gradient_bg(Color(0.06, 0.07, 0.14), Color(0.01, 0.01, 0.03))
+	# 1) 밤하늘 그라데이션 — 배경 일러스트와 같은 암적색 톤(타이틀 아트 계열)
+	var sky := UITheme.make_gradient_bg(Color(0.06, 0.03, 0.06), Color(0.02, 0.015, 0.03))
 	sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(sky)
 
@@ -66,8 +67,11 @@ func _build_ui() -> void:
 	title.anchor_right = 1.0
 	title.offset_top = 96.0
 	title.offset_bottom = 156.0
-	title.add_theme_font_size_override("font_size", 40)
-	title.add_theme_color_override("font_color", Color(0.95, 0.30, 0.25))
+	# 로고("ZOMBIE BUSTER")와 같은 문법 — 크림색 본체 + 핏빛 외곽선으로 직전 화면과 이어지게.
+	title.add_theme_font_size_override("font_size", 44)
+	title.add_theme_color_override("font_color", UITheme.LOGO_CREAM)
+	title.add_theme_color_override("font_outline_color", UITheme.LOGO_BLOOD)
+	title.add_theme_constant_override("outline_size", 10)
 	UITheme.heading(title)
 	title.modulate.a = 0.0
 	add_child(title)
@@ -79,8 +83,8 @@ func _build_ui() -> void:
 	center.alignment = BoxContainer.ALIGNMENT_CENTER
 	center.anchor_left = 0.08
 	center.anchor_right = 0.92
-	center.anchor_top = 0.30
-	center.anchor_bottom = 0.82
+	center.anchor_top = 0.26
+	center.anchor_bottom = 0.70
 	center.add_theme_constant_override("separation", 30)
 	add_child(center)
 
@@ -109,6 +113,27 @@ func _build_ui() -> void:
 	_UIStyle.apply_button_style(skip, Color(0.16, 0.17, 0.22), Color(0.45, 0.48, 0.56))
 	skip.pressed.connect(_finish)
 	add_child(skip)
+
+	# 목표 한 줄 — 서사("신호를 살려두어라")와 인게임 카운트다운 목표를 잇는 다리.
+	# HUD 하단 힌트와 같은 문구/포맷을 써서 인트로 → 전투 화면이 자연스럽게 이어진다.
+	_goal_label = Label.new()
+	var clear_s := 1800
+	if GameData.difficulty != null:
+		clear_s = int(GameData.difficulty.clear_seconds)
+	_goal_label.text = Locale.t("hud_goal_fmt") % ("%02d:%02d" % [clear_s / 60, clear_s % 60])
+	_goal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_goal_label.anchor_left = 0.0
+	_goal_label.anchor_right = 1.0
+	_goal_label.anchor_top = 0.755
+	_goal_label.anchor_bottom = 0.755
+	_goal_label.offset_bottom = 40.0
+	_goal_label.add_theme_font_size_override("font_size", 20)
+	_goal_label.add_theme_color_override("font_color", Color(1.0, 0.62, 0.42))
+	_goal_label.add_theme_color_override("font_outline_color", Color(0.12, 0.02, 0.02, 0.9))
+	_goal_label.add_theme_constant_override("outline_size", 5)
+	_goal_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_goal_label.modulate.a = 0.0
+	add_child(_goal_label)
 
 	# 시작 버튼 (하단 중앙) — 본문이 다 나온 뒤 페이드인
 	_begin_btn = Button.new()
@@ -141,6 +166,9 @@ func _run_sequence() -> void:
 
 func _show_begin() -> void:
 	_running = false
+	if is_instance_valid(_goal_label):
+		var gtw := create_tween()
+		gtw.tween_property(_goal_label, "modulate:a", 1.0, 0.5)
 	if not is_instance_valid(_begin_btn):
 		return
 	_begin_btn.disabled = false
