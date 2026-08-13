@@ -83,6 +83,14 @@ const STRINGS: Dictionary = {
 	"run_cleared":     {"en": "SURVIVED 30:00\nCLEAR!", "ko": "30분 생존\n클리어!", "ja": "30分 生存\nクリア！"},
 	"hud_magnet_fmt":  {"en": "XP Magnet  %ds", "ko": "잼 자석  %d초", "ja": "ジェム磁石  %d秒"},
 	"hud_revive":      {"en": "REVIVE  (Watch Ad)", "ko": "부활  (광고 시청)", "ja": "復活（広告を視聴）"},
+	# 서브셋 폰트 주의: 일본어는 한자 글리프가 서브셋에 없을 수 있어 가나 위주로 쓴다.
+	"hud_goal_fmt":    {"en": "SURVIVE %s → CLEAR", "ko": "%s 생존 → 클리어", "ja": "%s 生存 → クリア"},
+	"hud_overtime":    {"en": "OVERTIME", "ko": "연장전", "ja": "OVERTIME"},
+	"hud_swarm":       {"en": "!! SWARM !!", "ko": "!! 좀비 무리 !!", "ja": "!! ゾンビラッシュ !!"},
+	"hud_elite":       {"en": "!! ELITE PACK !!", "ko": "!! 정예 무리 !!", "ja": "!! エリート !!"},
+	"go_victory":      {"en": "VICTORY!", "ko": "승리!", "ja": "VICTORY!"},
+	"pause_title":     {"en": "PAUSED", "ko": "일시정지", "ja": "ポーズ"},
+	"pause_time_fmt":  {"en": "Time  %s", "ko": "생존 시간  %s", "ja": "タイム  %s"},
 
 	# ── 게임오버 패널 ─────────────────────────────────────────────────────
 	"go_score_fmt":      {"en": "Score  %d", "ko": "점수  %d", "ja": "スコア  %d"},

@@ -14,7 +14,6 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var buff_label: Label = $BuffLabel
 @onready var wave_label: Label = $WaveLabel
 @onready var time_label: Label = $TimeLabel
-@onready var progress_label: Label = $ProgressLabel
 @onready var score_label: Label = $ScoreLabel
 @onready var high_score_label: Label = $HighScoreLabel
 @onready var flash_overlay: ColorRect = $FlashOverlay
@@ -32,7 +31,7 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 @onready var main_menu_button: Button = $GameOverPanel/Margin/VBoxContainer/MainMenuButton
 
 const BOSS_BAR_W := 400.0
-const HP_BAR_W := 204.0   # 체력 게이지 채움부의 최대 폭(씬의 BarFill 0~204)
+const HP_BAR_W := 296.0   # 체력 게이지 채움부의 최대 폭(씬의 BarFill 0~296)
 
 var _prev_health: int = -1
 var _prev_gold: int = -1
@@ -62,18 +61,25 @@ var _go_vals: Dictionary = {}   # "score"/"best"/"wave"/"kills"/"time" -> Label
 var _swarm_banner: Label = null
 var _swarm_tween: Tween = null
 
-# 인게임 레벨 표시 — 코드로 생성. 웨이브 바 아래 얇은 경험치 바 + 좌측 레벨 라벨.
+# 인게임 레벨 표시 — 코드로 생성. 화면 최상단 경험치 바 + 상단바 중앙의 레벨 뱃지(알약형).
+var _xp_bg: ColorRect = null
 var _xp_fill: ColorRect = null
 var _level_label: Label = null
+var _prev_level: int = -1   # 레벨업 감지(뱃지 펄스)용
 
-# 장착 로드아웃(무기/패시브) 표시 + 목표 힌트 — 코드로 생성.
+# 장착 로드아웃(무기/패시브) — 아이콘 슬롯 그리드(무기 1줄 + 패시브 1줄) + 목표 힌트.
 var _loadout_box: VBoxContainer = null
+var _weapon_row: HBoxContainer = null
+var _passive_row: HBoxContainer = null
+var _prev_inv: Dictionary = {}   # id -> level. 신규 획득/레벨업 슬롯 펄스 감지용
 var _goal_label: Label = null
 
 # 일시정지 메뉴(게임 중 메인메뉴 나가기)
 var _pause_btn: Button = null
 var _pause_dim: ColorRect = null
 var _pause_panel: PanelContainer = null
+var _pause_time: Label = null             # 일시정지 화면의 생존 시간(HUD 에서 옮겨 온 경과 시간)
+var _stat_icons: Array = []               # 상단 우측 스탯 아이콘들 — 세이프에어리어 이동 대상
 var _cheat_box: VBoxContainer = null      # 일시정지 메뉴의 치트 하위 메뉴(접이식)
 var _cheat_auto_btn: Button = null        # 자동플레이 토글 버튼(라벨 ON/OFF 갱신)
 var _auto_tag: Label = null               # 자동플레이 중임을 알리는 화면 표시
@@ -89,7 +95,7 @@ func _ready() -> void:
 	_UIStyle.apply_button_style(main_menu_button, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
 	_style_bars()
 	# 전장 위에 뜨는 상단 라벨들에 어두운 외곽선을 넣어 가독성을 확보한다.
-	for lbl in [gold_label, score_label, wave_label, time_label, high_score_label, progress_label, hp_label]:
+	for lbl in [gold_label, score_label, wave_label, time_label, high_score_label, hp_label]:
 		UITheme.outline_label(lbl)
 	UITheme.outline_label(boss_name_label, 6, Color(0.18, 0.0, 0.0, 0.75))
 	restart_button.text = Locale.t("go_retry")
@@ -104,6 +110,7 @@ func _ready() -> void:
 	_build_gameover_stats()
 	_build_blur_overlay()
 	_build_pause_menu()
+	_apply_safe_area()
 	UITheme.heading(wave_clear_label)
 	UITheme.heading($GameOverPanel/Margin/VBoxContainer/GameOverLabel)
 	call_deferred("_init_pivots")
@@ -112,7 +119,6 @@ func _ready() -> void:
 	Events.player_health_changed.connect(_on_player_health_changed)
 	Events.player_died.connect(_on_player_died)
 	Events.wave_changed.connect(_on_wave_changed)
-	Events.elapsed_changed.connect(_on_elapsed_changed)
 	Events.run_progress.connect(_on_run_progress)
 	Events.run_cleared.connect(_on_run_cleared)
 	Events.wave_complete.connect(_on_wave_complete)
@@ -137,7 +143,6 @@ func _ready() -> void:
 	if Events.player_max_health > 0:
 		_on_player_health_changed(Events.player_health, Events.player_max_health)
 	_on_wave_changed(Events.total_kills)
-	_on_elapsed_changed(Events.elapsed_time)
 	_on_run_progress(Events.elapsed_time, GameData.difficulty.clear_seconds)
 	_on_score_changed(Events.score)
 	_on_high_score_changed(Events.high_score)
@@ -239,7 +244,7 @@ func _on_boss_died() -> void:
 func _build_swarm_banner() -> void:
 	_swarm_banner = Label.new()
 	_swarm_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_swarm_banner.offset_top = 300.0   # 무기/버프 라벨(y188~252)·보스 바와 겹치지 않게 아래로
+	_swarm_banner.offset_top = 260.0   # 무기/버프 라벨(y160~224)·보스 바(y112~152)와 겹치지 않게 아래로
 	_swarm_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_swarm_banner.add_theme_font_size_override("font_size", 30)
 	_swarm_banner.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25))
@@ -254,7 +259,7 @@ func _build_swarm_banner() -> void:
 func _on_swarm_incoming(elite: bool) -> void:
 	if _swarm_banner == null:
 		return
-	_swarm_banner.text = "!! ELITE PACK" if elite else "!! SWARM"
+	_swarm_banner.text = Locale.t("hud_elite") if elite else Locale.t("hud_swarm")
 	_swarm_banner.add_theme_color_override("font_color", Color(1.0, 0.55, 0.25) if elite else Color(1.0, 0.85, 0.25))
 	if _swarm_tween and _swarm_tween.is_valid():
 		_swarm_tween.kill()
@@ -448,19 +453,20 @@ func _on_wave_changed(kills: int) -> void:
 	wave_label.text = Locale.t("hud_kills_fmt") % kills
 
 
-func _on_elapsed_changed(seconds: float) -> void:
-	var m := int(seconds) / 60
-	var s := int(seconds) % 60
-	time_label.text = "%02d:%02d" % [m, s]
-
-
-## 시간 기반 진행: 30분(clear) 생존까지의 진행률을 바/라벨로 보여준다. 클리어 후엔 "OVERTIME".
+## 메인 타이머 — 클리어(30분)까지의 "남은 시간" 카운트다운 하나만 보여준다(경과·진행률 라벨 통합).
+## 카운트다운 자체가 목표를 전달하고, 경과 시간은 일시정지 패널/게임오버 통계에서 확인한다.
+## 클리어 후엔 금색 "연장전 +MM:SS" 카운트업으로 전환, 막판 1분은 붉게 강조.
 func _on_run_progress(elapsed: float, clear: float) -> void:
 	if elapsed >= clear:
-		progress_label.text = "OVERTIME"
+		var over := int(elapsed - clear)
+		time_label.text = "%s +%02d:%02d" % [Locale.t("hud_overtime"), over / 60, over % 60]
+		time_label.add_theme_font_size_override("font_size", 19)
+		time_label.add_theme_color_override("font_color", Color(1.0, 0.82, 0.25))
 	else:
 		var remain := int(ceil(clear - elapsed))
-		progress_label.text = "%02d:%02d" % [remain / 60, remain % 60]
+		time_label.text = "%02d:%02d" % [remain / 60, remain % 60]
+		if remain <= 60:
+			time_label.add_theme_color_override("font_color", Color(1.0, 0.45, 0.4))
 
 
 ## 30분 생존 클리어 — 웨이브 클리어 배너를 재사용해 크게 알린다(승리 아님, 이후 무한 하드모드).
@@ -503,16 +509,17 @@ func _build_fog() -> void:
 	move_child(fog, 0)   # 최하단으로 — 월드 위, 모든 HUD 위젯 아래
 
 
-## 경험치 바 — 화면 "최상단 엣지"(전 너비)로 배치해 보스 체력바(y138~)와 겹치지 않게 한다.
-## 레벨 라벨은 상단 바의 빈 중앙(골드=좌, 웨이브=우 사이)에 둔다.
+## 경험치 바 — 화면 최상단 엣지(전 너비) + 상단바 중앙의 알약형 레벨 뱃지.
+## 뱃지가 XP 바와 같은 시안 톤을 공유해 "레벨 ↔ 경험치"가 한 덩어리로 읽히게 한다.
 func _build_xp_bar() -> void:
 	var bg := ColorRect.new()
-	bg.color = Color(0.0, 0.0, 0.0, 0.5)
+	bg.color = Color(0.0, 0.0, 0.0, 0.55)
 	bg.anchor_right = 1.0
 	bg.offset_top = 0.0
-	bg.offset_bottom = 5.0
+	bg.offset_bottom = 6.0
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
+	_xp_bg = bg
 	_xp_fill = ColorRect.new()
 	_xp_fill.color = Color(0.45, 0.80, 1.0, 0.95)
 	_xp_fill.anchor_right = 0.0
@@ -523,14 +530,24 @@ func _build_xp_bar() -> void:
 	_level_label = Label.new()
 	_level_label.anchor_left = 0.5
 	_level_label.anchor_right = 0.5
-	_level_label.offset_left = -70.0
-	_level_label.offset_right = 70.0
-	_level_label.offset_top = 8.0
+	_level_label.offset_left = -56.0
+	_level_label.offset_right = 56.0
+	_level_label.offset_top = 12.0
+	_level_label.offset_bottom = 40.0
 	_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_level_label.add_theme_font_size_override("font_size", 20)
-	_level_label.add_theme_color_override("font_color", Color(0.62, 0.86, 1.0))
-	_level_label.add_theme_color_override("font_outline_color", Color(0.02, 0.05, 0.09))
-	_level_label.add_theme_constant_override("outline_size", 4)
+	_level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_level_label.add_theme_font_size_override("font_size", 19)
+	_level_label.add_theme_color_override("font_color", Color(0.72, 0.90, 1.0))
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.03, 0.08, 0.13, 0.85)
+	sb.set_corner_radius_all(14)
+	sb.corner_detail = 6
+	sb.anti_aliasing = true
+	sb.set_border_width_all(1)
+	sb.border_color = Color(0.45, 0.80, 1.0, 0.55)
+	sb.content_margin_left = 12.0
+	sb.content_margin_right = 12.0
+	_level_label.add_theme_stylebox_override("normal", sb)
 	_level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_level_label)
 
@@ -539,15 +556,25 @@ func _on_xp_changed(xp: int, xp_to_next: int, level: int) -> void:
 	if _xp_fill:
 		_xp_fill.anchor_right = clampf(float(xp) / float(maxi(xp_to_next, 1)), 0.0, 1.0)
 	if _level_label:
-		_level_label.text = "Lv.%d" % level
+		_level_label.text = "Lv %d" % level
+		# 레벨업 순간 뱃지 펄스(초기 -1 → 첫 설정은 제외).
+		if _prev_level >= 0 and level > _prev_level:
+			_level_label.pivot_offset = _level_label.size * 0.5
+			_level_label.scale = Vector2(1.3, 1.3)
+			var tw := create_tween()
+			tw.tween_property(_level_label, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_prev_level = level
 
 
-## 장착 로드아웃 — 화면 좌측에 무기/패시브를 아이템 색의 라벨로 세로 나열.
+## 장착 로드아웃 — 좌하단 아이콘 슬롯 그리드(무기 1줄 + 패시브 1줄, 각 최대 6칸).
+## 텍스트 리스트(후반 16줄+)가 화면 좌측을 덮던 것을 슬롯 두 줄로 압축한다.
+## 레벨은 슬롯 우하단 뱃지 숫자로, 신규 획득/레벨업 슬롯은 잠깐 펄스로 알린다.
+const _LOADOUT_SLOT_PX := 44
+
 func _build_loadout() -> void:
-	# 밝은 필드 위에서도 잘 읽히도록 반투명 어두운 패널을 배경에 깔고(내용에 맞춰 자동 크기),
-	# 그 안에 아이템 목록을 담는다.
+	# 밝은 필드 위에서도 잘 읽히도록 반투명 어두운 패널을 배경에 깔고(내용에 맞춰 자동 크기).
 	var panel := PanelContainer.new()
-	# 좌측 "하단" 정렬 — 바닥 목표 힌트(하단 44px) 바로 위에 붙이고, 아이템이 늘면 위로 자란다.
+	# 좌측 "하단" 정렬 — 바닥 목표 힌트(하단 44px) 바로 위에 붙인다.
 	panel.anchor_top = 1.0
 	panel.anchor_bottom = 1.0
 	panel.offset_left = 8.0
@@ -557,31 +584,45 @@ func _build_loadout() -> void:
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(0.0, 0.0, 0.0, 0.40)
-	sb.set_corner_radius_all(8)
-	sb.content_margin_left = 8.0
-	sb.content_margin_right = 10.0
+	sb.set_corner_radius_all(10)
+	sb.content_margin_left = 7.0
+	sb.content_margin_right = 7.0
 	sb.content_margin_top = 6.0
 	sb.content_margin_bottom = 6.0
 	panel.add_theme_stylebox_override("panel", sb)
 	add_child(panel)
 
 	_loadout_box = VBoxContainer.new()
-	_loadout_box.add_theme_constant_override("separation", 3)
+	_loadout_box.add_theme_constant_override("separation", 5)
 	_loadout_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(_loadout_box)
 
+	_weapon_row = HBoxContainer.new()
+	_passive_row = HBoxContainer.new()
+	for row in [_weapon_row, _passive_row]:
+		row.add_theme_constant_override("separation", 5)
+		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_loadout_box.add_child(row)
+
 
 func _on_inventory_changed() -> void:
-	if _loadout_box == null:
+	if _weapon_row == null:
 		return
-	for c in _loadout_box.get_children():
-		_loadout_box.remove_child(c)
-		c.queue_free()
-	_add_loadout_lines(Events.weapons)
-	_add_loadout_lines(Events.passives)
+	for row in [_weapon_row, _passive_row]:
+		for c in row.get_children():
+			row.remove_child(c)
+			c.queue_free()
+	_fill_loadout_row(_weapon_row, Events.weapons)
+	_fill_loadout_row(_passive_row, Events.passives)
+	_passive_row.visible = _passive_row.get_child_count() > 0
+	# 이번 변경으로 늘어난 항목 레벨을 스냅샷 — 다음 변경에서 펄스 대상 판별.
+	_prev_inv = {}
+	for inv in [Events.weapons, Events.passives]:
+		for id in inv.keys():
+			_prev_inv[id] = int(inv[id])
 
 
-func _add_loadout_lines(inv: Dictionary) -> void:
+func _fill_loadout_row(row: HBoxContainer, inv: Dictionary) -> void:
 	for id in inv.keys():
 		var lv: int = int(inv[id])
 		if lv <= 0:
@@ -589,42 +630,99 @@ func _add_loadout_lines(inv: Dictionary) -> void:
 		var m := ItemDB.meta(String(id))
 		if m.is_empty():
 			continue
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 4)
-		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		var icon = m.get("icon")
-		if icon != null and icon is Texture2D:
-			var tex := TextureRect.new()
-			tex.texture = icon
-			tex.custom_minimum_size = Vector2(24, 24)
-			tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			row.add_child(tex)
-		var lbl := Label.new()
-		lbl.text = "%s  %d" % [m["name"], lv]
-		lbl.add_theme_font_size_override("font_size", 19)
-		lbl.add_theme_color_override("font_color", m["color"])
-		lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-		lbl.add_theme_constant_override("outline_size", 4)
-		lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		row.add_child(lbl)
-		_loadout_box.add_child(row)
+		var slot := _make_loadout_slot(m, lv)
+		row.add_child(slot)
+		# 신규 획득 또는 레벨 상승 슬롯은 펄스로 시선 유도(첫 빌드는 _prev_inv 가 비어 전체 제외).
+		if not _prev_inv.is_empty() and lv > int(_prev_inv.get(id, 0)):
+			_pulse_slot(slot)
 
 
-## 목표 힌트 — 화면 하단에 "최종 웨이브까지 생존" 안내(목표 명확화).
+## 슬롯 위젯: 어두운 함몰 사각 + 아이콘 + 우하단 레벨 뱃지. (Phase 2 에서 나인패치 프레임으로 교체)
+## PanelContainer 는 자식 rect 를 강제 배치해 뱃지 앵커가 무시되므로 일반 Control 로 직접 쌓는다.
+func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
+	var slot := Control.new()
+	slot.custom_minimum_size = Vector2(_LOADOUT_SLOT_PX, _LOADOUT_SLOT_PX)
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var frame := Panel.new()
+	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.04, 0.05, 0.08, 0.75)
+	sb.set_corner_radius_all(8)
+	sb.corner_detail = 5
+	sb.anti_aliasing = true
+	sb.set_border_width_all(1)
+	var tint: Color = meta.get("color", Color.WHITE)
+	sb.border_color = Color(tint.r, tint.g, tint.b, 0.55)   # 아이템 색은 테두리 힌트로만
+	frame.add_theme_stylebox_override("panel", sb)
+	slot.add_child(frame)
+
+	var icon = meta.get("icon")
+	if icon != null and icon is Texture2D:
+		var tex := TextureRect.new()
+		tex.texture = icon
+		tex.set_anchors_preset(Control.PRESET_FULL_RECT)
+		tex.offset_left = 5.0
+		tex.offset_top = 5.0
+		tex.offset_right = -5.0
+		tex.offset_bottom = -5.0
+		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(tex)
+
+	var badge := Label.new()
+	badge.text = str(lv)
+	badge.add_theme_font_size_override("font_size", 13)
+	badge.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
+	badge.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+	badge.add_theme_constant_override("outline_size", 4)
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	badge.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	badge.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	badge.offset_right = -3.0
+	badge.offset_bottom = -1.0
+	slot.add_child(badge)
+	return slot
+
+
+func _pulse_slot(slot: Control) -> void:
+	# 레이아웃 직후에는 size 가 0 일 수 있어 한 프레임 뒤 중심 피벗으로 펄스.
+	# (Callable.call_deferred 는 4.2+ 라 4.1 호환을 위해 Node.call_deferred 사용)
+	call_deferred("_pulse_slot_now", slot)
+
+
+func _pulse_slot_now(slot: Control) -> void:
+	if not is_instance_valid(slot):
+		return
+	slot.pivot_offset = slot.size * 0.5
+	slot.scale = Vector2(1.35, 1.35)
+	var tw := create_tween()
+	tw.tween_property(slot, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## 목표 힌트 — 게임 시작 직후 잠깐만 보여주고 페이드 아웃(카운트다운 타이머가 이후 목표를 전달).
 func _build_goal_hint() -> void:
 	_goal_label = Label.new()
 	_goal_label.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	_goal_label.offset_top = -44.0
 	_goal_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_goal_label.text = "SURVIVE 30:00  →  CLEAR"
+	var clear := int(GameData.difficulty.clear_seconds)
+	_goal_label.text = Locale.t("hud_goal_fmt") % ("%02d:%02d" % [clear / 60, clear % 60])
 	_goal_label.add_theme_font_size_override("font_size", 15)
 	_goal_label.add_theme_color_override("font_color", Color(0.85, 0.7, 0.75, 0.7))
 	_goal_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 	_goal_label.add_theme_constant_override("outline_size", 3)
 	_goal_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_goal_label)
+	# 이어하기(경과 진행 중)로 들어온 판은 즉시, 새 판은 8초 후 사라진다.
+	var hold := 8.0 if Events.elapsed_time < 5.0 else 2.0
+	var tw := create_tween()
+	tw.tween_interval(hold)
+	tw.tween_property(_goal_label, "modulate:a", 0.0, 1.2)
+	tw.tween_callback(func(): _goal_label.visible = false)
 
 
 func _on_wave_complete(wave: int) -> void:
@@ -732,7 +830,7 @@ func _build_hud_icons() -> void:
 ## 아이콘을 화면 오른쪽 끝(EDGE_MARGIN)에 정확히 맞추고, 라벨 텍스트는 그 왼쪽으로 물려준다.
 func _right_stat_icon(kind: String, label: Label, col: Color) -> void:
 	const SZ := 18.0
-	const EDGE_MARGIN := 10.0   # 화면 오른쪽 끝 여백
+	const EDGE_MARGIN := 70.0   # 오른쪽 끝의 일시정지 버튼(44px + 여백)을 비켜 간다
 	const GAP := 6.0            # 아이콘과 텍스트 사이 간격
 	var ic := UIIcon.make(kind, SZ, col)
 	# 모든 앵커/오프셋을 명시해 아이콘 사각형을 화면 안에 가두고(이전엔 offset_right
@@ -747,6 +845,7 @@ func _right_stat_icon(kind: String, label: Label, col: Color) -> void:
 	ic.offset_top = cy - SZ * 0.5
 	ic.offset_bottom = cy + SZ * 0.5
 	add_child(ic)
+	_stat_icons.append(ic)
 	# 라벨 오른쪽 끝을 아이콘 왼쪽까지 당겨 텍스트와 아이콘이 겹치지 않게 한다.
 	label.offset_right = -EDGE_MARGIN - SZ - GAP
 
@@ -821,7 +920,7 @@ func _on_game_won() -> void:
 	_revive_btn.visible = false
 	if _loadout_box:
 		_loadout_box.visible = false
-	game_over_label.text = "VICTORY!"
+	game_over_label.text = Locale.t("go_victory")
 	game_over_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	_show_end_panel(true)
 
@@ -868,11 +967,12 @@ func _on_restart_pressed() -> void:
 func _build_pause_menu() -> void:
 	_pause_btn = Button.new()
 	_pause_btn.text = ""   # "❚❚" 글리프는 서브셋 폰트에 없어 깨지므로 텍스트 대신 막대 2개를 직접 그린다.
+	# 상단바(96px) 우측 끝에 정착 — 두 줄(처치/시간) 높이에 걸쳐 세로 중앙.
 	_pause_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_pause_btn.offset_left = -56.0
-	_pause_btn.offset_right = -12.0
-	_pause_btn.offset_top = 150.0
-	_pause_btn.offset_bottom = 194.0
+	_pause_btn.offset_left = -58.0
+	_pause_btn.offset_right = -14.0
+	_pause_btn.offset_top = 26.0
+	_pause_btn.offset_bottom = 70.0
 	_UIStyle.apply_button_style(_pause_btn, Color(0.12, 0.13, 0.18, 0.9), Color(0.5, 0.55, 0.68))
 	_pause_btn.pressed.connect(_on_pause_pressed)
 	add_child(_pause_btn)
@@ -916,12 +1016,19 @@ func _build_pause_menu() -> void:
 	margin.add_child(vb)
 
 	var title := Label.new()
-	title.text = "PAUSED"
+	title.text = Locale.t("pause_title")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 34)
 	title.add_theme_color_override("font_color", Color(0.8, 0.85, 1.0))
 	vb.add_child(title)
 	UITheme.heading(title)
+
+	# 경과(생존) 시간 — 상단 HUD 에서 뺀 정보를 여기서 확인한다.
+	_pause_time = Label.new()
+	_pause_time.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pause_time.add_theme_font_size_override("font_size", 18)
+	_pause_time.add_theme_color_override("font_color", Color(0.66, 0.70, 0.78))
+	vb.add_child(_pause_time)
 
 	var resume := Button.new()
 	resume.text = Locale.t("pause_resume")
@@ -966,8 +1073,8 @@ func _build_pause_menu() -> void:
 	_auto_tag.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	_auto_tag.offset_left = -60.0
 	_auto_tag.offset_right = -12.0
-	_auto_tag.offset_top = 198.0
-	_auto_tag.offset_bottom = 220.0
+	_auto_tag.offset_top = 100.0
+	_auto_tag.offset_bottom = 122.0
 	_auto_tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_auto_tag.add_theme_font_size_override("font_size", 15)
 	_auto_tag.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6))
@@ -1000,6 +1107,10 @@ func _refresh_cheat_ui() -> void:
 func _on_pause_pressed() -> void:
 	if get_tree().paused:   # 레벨업/상점 등 다른 정지 중이면 무시
 		return
+	if _pause_time:
+		var m := int(Events.elapsed_time) / 60
+		var s := int(Events.elapsed_time) % 60
+		_pause_time.text = Locale.t("pause_time_fmt") % ("%02d:%02d" % [m, s])
 	get_tree().paused = true
 	_pause_dim.visible = true
 	_pause_panel.visible = true
@@ -1013,6 +1124,24 @@ func _on_resume_pressed() -> void:
 	if _pause_btn:
 		_pause_btn.visible = true
 	get_tree().paused = false
+
+
+## 노치/펀치홀 세이프에어리어 — 상단 인셋만큼 상단 고정 위젯들을 아래로 내린다.
+## 데스크톱/웹은 인셋 0 이라 무동작. canvas_items 스트레치(keep)라 창→캔버스 스케일로 환산한다.
+func _apply_safe_area() -> void:
+	var win := DisplayServer.window_get_size()
+	if win.y <= 0:
+		return
+	var inset_px := float(DisplayServer.get_display_safe_area().position.y)
+	if inset_px <= 0.0:
+		return
+	var inset := inset_px * get_viewport().get_visible_rect().size.y / float(win.y)
+	top_bg.offset_bottom += inset   # 바 배경은 노치 뒤까지 채우고, 내용만 아래로 민다
+	for c in [get_node("CoinIcon"), gold_label, hp_bar, wave_label, time_label,
+			_level_label, _xp_bg, _pause_btn, _auto_tag, boss_bar, weapon_label, buff_label] + _stat_icons:
+		if c is Control:
+			c.offset_top += inset
+			c.offset_bottom += inset
 
 
 func _on_main_menu_pressed() -> void:
