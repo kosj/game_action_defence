@@ -43,6 +43,7 @@ func _physics_process(delta: float) -> void:
 
 
 func _swing() -> void:
+	SoundManager.play("swing", 0.12, 1.0)   # 휘두르는 휙 소리(파일 있을 때만 — 스로틀 적용)
 	var lvl := _level()
 	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1)
 	var reach := _reach()

@@ -324,6 +324,8 @@ func _spawn_swarm() -> void:
 			pos = center + Vector2(randf_range(-_bal.swarm_spread, _bal.swarm_spread), randf_range(-_bal.swarm_spread, _bal.swarm_spread))
 		_queue_spawn(d, pos)
 	Events.shake(4.0)
+	# 떼가 몰려온다는 청각 경고 — 포위 스폰(ring)은 더 낮게 깔아 압박감을 준다.
+	SoundManager.play("horde", 0.05, 0.85 if ring else 1.0)
 
 
 ## 선택 테마의 전용 보스 정의(없으면 빈 dict).

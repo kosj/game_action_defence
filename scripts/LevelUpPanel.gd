@@ -275,6 +275,11 @@ func _on_pick(id: String) -> void:
 
 
 func _on_evolve(base_id: String, into_id: String) -> void:
+	# 런 최대 파워업 — 레벨업 징글보다 한 단계 웅장한 전용 팡파르(없으면 팡파르/레벨업으로 폴백).
+	if SoundManager.has_stream("evolve"):
+		SoundManager.play_ui("evolve", 0.02, 1.0)
+	elif SoundManager.has_stream("fanfare"):
+		SoundManager.play_ui("fanfare", 0.02, 0.9)
 	Events.evolve(base_id, into_id)
 	var player := get_tree().get_first_node_in_group("player")
 	if is_instance_valid(player) and player.has_method("apply_upgrades"):

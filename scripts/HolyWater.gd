@@ -26,6 +26,7 @@ func _cast() -> void:
 	var scene := get_tree().current_scene
 	var zone_r := ZONE_RADIUS * Events.area_mult()   # 패시브 '배터리' 반경 보정
 	var r_sq := zone_r * zone_r
+	SoundManager.play("holy_splash", 0.1, 1.0)   # 투척 1회당 한 번(동시 투척이어도 겹치지 않게)
 	for i in range(count):
 		var pos := global_position + Vector2.from_angle(randf() * TAU) * randf_range(CAST_MIN, CAST_MAX)
 		_FXBurst.spawn(scene, pos, Color(0.4, 0.82, 1.0), zone_r, 0.4)

@@ -238,6 +238,7 @@ func _behave_spitter(delta: float) -> void:
 
 
 func _spit(dir: Vector2) -> void:
+	SoundManager.play("spit", 0.12, 1.0)   # 원거리 공격 예고 — 날아오는 산성탄을 소리로 먼저 알린다
 	var p := Pool.acquire(ENEMY_BULLET, get_tree().current_scene)
 	p.global_position = global_position
 	p.direction = dir
@@ -263,6 +264,7 @@ func _behave_bomber(delta: float) -> void:
 	if to_p.length() <= BOMB_TRIGGER:
 		_fuse_active = true
 		_fuse_timer = BOMB_FUSE
+		SoundManager.play("bomber_fuse", 0.06, 1.0)   # 점화 경고 — 도망칠 0.55초를 소리로도 알린다
 
 
 func _explode() -> void:
@@ -273,6 +275,10 @@ func _explode() -> void:
 			player.take_hit(_contact_damage)
 	_FXBurst.spawn(get_tree().current_scene, global_position, Color(1.0, 0.45, 0.15), BOMB_RADIUS, 0.4)
 	Events.shake(5.0)   # 자폭 폭발 타격감
+	if SoundManager.has_stream("bomber_blast"):
+		SoundManager.play("bomber_blast", 0.08, 1.0)
+	else:
+		SoundManager.play("boom", 0.1, 0.75)   # 폴백 — 일반 폭발보다 낮고 둔탁하게
 	_die()   # 처치로 집계 — 웨이브 진행/골드 드랍 처리
 
 

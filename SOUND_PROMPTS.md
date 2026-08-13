@@ -113,3 +113,45 @@ a discharging electrical fizzle
 3. 끝부분이 뚝 끊기지 않는지(테일 자연 감쇠 확인, 필요 시 100ms 페이드아웃).
 4. 게임에서 확인: BGM 위에서 존재감이 있는지, 샷건 `boom`·`laser`와 헷갈리지 않는지,
    3종을 연달아 들었을 때 클래스 개성이 구분되는지.
+
+---
+
+# 신규 효과음 프롬프트 (연출 대비 사운드 공백 보완)
+
+> 코드에는 재생 호출이 이미 들어가 있고, 아래 파일명으로 `assets/audio/` 에 넣는 순간
+> 자동 적용된다(파일이 없으면 조용히 생략 — SoundManager 선택 사운드 패턴).
+> 궁극기와 달리 **짧은 원샷**이므로 길이·톤 기준이 다르다.
+
+## 공통 스타일 베이스 (아래 프롬프트 뒤에 붙이기)
+```
+retro-modern 2D game sound effect, punchy transient, dry and tight, mono
+compatible, clean, no music, no voice, no silence at the beginning
+```
+
+| 파일명 | 길이 | 프롬프트 |
+|---|---|---|
+| `sfx_bomber_blast.ogg` | 0.8~1.2s | `close-range suicide bomber explosion, sharp flesh-and-shrapnel burst with a short punchy low thump, dry and tight, no long reverb tail` |
+| `sfx_bomber_fuse.ogg` | 0.5s | `short urgent warning beep sequence, three quick rising electronic ticks like a bomb fuse about to blow, small and dry` |
+| `sfx_evolve.ogg` | 1.5~2.5s | `triumphant weapon evolution fanfare, a rising magical power surge that transforms into a bright metallic bloom, heroic and rewarding, short orchestral hit with shimmer` |
+| `sfx_wave_clear.ogg` | 0.8~1.2s | `short positive achievement stinger, two or three bright ascending notes with a satisfying finish, clean and crisp, not a long fanfare` |
+| `sfx_horde.ogg` | 1.5~2s | `a distant crowd of zombies growling and shrieking together, a low ominous mass of undead voices swelling closer, menacing, layered many voices` |
+| `sfx_revive.ogg` | 1.5~2s | `heroic revival sound, a soft holy choir-like chime swelling up with a warm energy surge and a heartbeat resuming, uplifting and dramatic` |
+| `sfx_swing.ogg` | 0.25s | `a quick heavy bat swing whoosh cutting through air, short and dry, no impact, no hit` |
+| `sfx_holy_splash.ogg` | 0.6~0.9s | `a glass vial shattering on the ground and holy water splashing, bright glass shards with a soft magical shimmer, wet and crisp` |
+| `sfx_spit.ogg` | 0.4s | `a wet guttural acid spit projectile launch from a monster, short slimy hawking burst, disgusting and organic` |
+
+## 볼륨 기준 (SoundManager 에 이미 설정됨)
+`evolve`/`revive`/`bomber_blast` 는 -4~-5dB로 크게, `swing`(-13) / `spit`(-14) 는
+초당 여러 번 울리므로 아주 작게 잡혀 있다. **생성 파일은 전부 같은 라우드니스로
+노멀라이즈**하고 세기 조절은 SoundManager 값으로 한다(파일마다 제각각이면 관리 불가).
+
+```bash
+ffmpeg -i in.wav -af loudnorm=I=-16:TP=-1 -c:a libvorbis -q:a 6 assets/audio/sfx_swing.ogg
+```
+
+## 주의
+- `swing`/`spit`/`holy_splash`/`bomber_fuse`/`horde` 는 **반복 재생**되는 소리다.
+  꼬리가 길거나 개성이 강하면 몇 분 만에 귀에 거슬린다 — 짧고 건조하게(`dry`, `short`).
+- `bomber_blast` 는 기존 `boom`(샷건/폭발물)과 구분되어야 한다. 파편·살점 느낌을 넣고
+  잔향을 줄여 "가까이서 터진 좀비"로 들리게 한다.
+- `wave_clear` 는 `victory`(30분 클리어)보다 확실히 가볍고 짧아야 한다 — 웨이브마다 울린다.

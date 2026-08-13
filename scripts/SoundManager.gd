@@ -25,6 +25,15 @@ const _SOUNDS: Dictionary = {
 	"ult_orbital": "res://assets/audio/sfx_ult_orbital.ogg",# 궁극기: 궤도 폭격(엔지니어)
 	"fly_swarm":   "res://assets/audio/sfx_fly_swarm.ogg",  # 흡혈 파리떼 출현 윙윙
 	"lightning":   "res://assets/audio/sfx_lightning.ogg",  # 번개 낙뢰 타격
+	"bomber_fuse": "res://assets/audio/sfx_bomber_fuse.ogg", # 자폭 좀비 점화(0.55초 도망 경고)
+	"bomber_blast":"res://assets/audio/sfx_bomber_blast.ogg",# 자폭 좀비 폭발
+	"evolve":      "res://assets/audio/sfx_evolve.ogg",      # 무기 진화 팡파르
+	"wave_clear":  "res://assets/audio/sfx_wave_clear.ogg",  # 웨이브 클리어 스팅어
+	"horde":       "res://assets/audio/sfx_horde.ogg",       # 좀비 떼 스폰 으르렁
+	"revive":      "res://assets/audio/sfx_revive.ogg",      # 무료 부활(재기) 차임
+	"swing":       "res://assets/audio/sfx_swing.ogg",       # 근접 무기 휘두르기 휙
+	"holy_splash": "res://assets/audio/sfx_holy_splash.ogg", # 성수 착탄(유리 깨짐+물)
+	"spit":        "res://assets/audio/sfx_spit.ogg",        # 스피터 좀비 산성 발사
 }
 
 const _VOLUMES: Dictionary = {
@@ -47,6 +56,15 @@ const _VOLUMES: Dictionary = {
 	"ult_orbital": -3.0,
 	"fly_swarm":   -7.0,
 	"lightning":   -7.0,
+	"bomber_fuse": -10.0,   # 경고 신호 — 전투음에 묻히지 않을 만큼만, 거슬리지 않게
+	"bomber_blast": -4.0,   # boom 과 동급 임팩트
+	"evolve":       -5.0,   # 런 최대 파워업 — level_up(-8)보다 확실히 크게
+	"wave_clear":   -8.0,
+	"horde":        -7.0,
+	"revive":       -5.0,
+	"swing":       -13.0,   # 초당 여러 번 — 배경으로 깔리는 정도
+	"holy_splash":  -9.0,
+	"spit":        -14.0,   # 다수 스피터가 동시 발사 — 아주 작게
 }
 
 ## 배경음악 트랙 — 트랙 이름 → 파일 목록. 게임 BGM 은 선택 테마로 곡이 결정되어(테마 인덱스
@@ -74,6 +92,12 @@ const _MIN_INTERVAL := {
 	"laser": 45,
 	"player_hurt": 90,
 	"lightning": 120,
+	"swing": 100,          # 근접 스윙 — 무기 여러 개가 겹쳐도 한 번만
+	"spit": 130,           # 스피터 다수가 동시 발사해도 산발적으로만
+	"bomber_fuse": 200,    # 여러 마리가 동시 점화해도 경고음은 하나로
+	"bomber_blast": 70,
+	"holy_splash": 160,
+	"horde": 500,          # 떼 스폰이 연달아도 으르렁은 겹치지 않게
 }
 const _COMBO_WINDOW := 380   # ms — 이 안에 연속되면 콤보로 보고 음을 살짝 올린다(마리오 동전 느낌)
 
