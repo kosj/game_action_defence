@@ -38,7 +38,9 @@ var _prev_gold: int = -1
 var _prev_score: int = -1
 var _max_health: int = 0
 var _low_hp_tween: Tween = null
-var _hp_fill_sb: StyleBoxFlat = null   # 체력 게이지 채움부 스타일(색을 비율에 따라 갱신)
+var _hp_fill_sb: StyleBox = null       # 체력 게이지 채움부 스타일 — Flat(bg_color) 또는 Texture(modulate)
+var _hp_fill_max := HP_BAR_W           # 채움부 최대 폭(텍스처 프레임 모드에선 림만큼 안쪽으로 준다)
+var _boss_fill_max := BOSS_BAR_W
 var _hp_ghost: Panel = null            # 피해 잔상 바 — 줄어든 체력만큼 밝은 잔량이 늦게 따라온다
 var _hp_ghost_tween: Tween = null
 var _gold_shown: float = 0.0           # 골드 롤링 카운터의 현재 표시값
@@ -69,6 +71,7 @@ var _swarm_tween: Tween = null
 var _xp_bg: ColorRect = null
 var _xp_fill: ColorRect = null
 var _level_label: Label = null
+var _level_badge: Control = null   # VARCO 원형 뱃지 텍스처 모드일 때만(라벨은 그 위 숫자)
 var _prev_level: int = -1   # 레벨업 감지(뱃지 펄스)용
 
 # 장착 로드아웃(무기/패시브) — 아이콘 슬롯 그리드(무기 1줄 + 패시브 1줄) + 목표 힌트.
@@ -92,7 +95,12 @@ var _auto_tag: Label = null               # 자동플레이 중임을 알리는 
 func _ready() -> void:
 	# 게임오버로 트리를 일시정지해도 HUD(게임오버 패널·버튼·블러)는 계속 동작해야 한다.
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	top_bg.add_theme_stylebox_override("panel", _UIStyle.bottom_bar(Color(0.05, 0.06, 0.09, 0.62)))
+	# 상단바 — VARCO 텍스처(hud_top_bar.png)가 있으면 사용, 없으면 기존 반투명 플랫 바.
+	var bar_box := _UIStyle.hud_top_bar_box()
+	if bar_box:
+		top_bg.add_theme_stylebox_override("panel", bar_box)
+	else:
+		top_bg.add_theme_stylebox_override("panel", _UIStyle.bottom_bar(Color(0.05, 0.06, 0.09, 0.62)))
 	wave_clear_bg.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.30, 0.14, 0.92), Color(1.0, 0.85, 0.2), 26, 3))
 	game_over_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.05, 0.06, 0.96), Color(0.85, 0.25, 0.22), 22, 3))
 	_UIStyle.apply_button_style(restart_button, Color(0.55, 0.16, 0.16), Color(0.95, 0.35, 0.3))
@@ -214,7 +222,7 @@ func _on_boss_spawned(max_health: int) -> void:
 		SoundManager.play("boss_alarm", 0.03, 1.0)   # 보스 등장 경보(파일 있을 때만)
 	_boss_max = maxi(max_health, 1)
 	boss_name_label.text = Events.boss_display_name   # 보스 타입 이름 표시(BRUTE/GUNNER…)
-	boss_fill.size.x = BOSS_BAR_W
+	boss_fill.size.x = _boss_fill_max
 	boss_bar.visible = true
 	boss_bar.modulate.a = 0.0
 	var tw := create_tween()
@@ -250,7 +258,7 @@ func _on_boss_health_changed(health: int, max_health: int) -> void:
 	_boss_max = maxi(max_health, 1)
 	var ratio := clampf(float(health) / float(_boss_max), 0.0, 1.0)
 	var tw := create_tween()
-	tw.tween_property(boss_fill, "size:x", BOSS_BAR_W * ratio, 0.12)
+	tw.tween_property(boss_fill, "size:x", _boss_fill_max * ratio, 0.12)
 
 
 func _on_boss_died() -> void:
@@ -342,12 +350,14 @@ func _update_hp_bar(health: int, max_health: int) -> void:
 	var mx := maxi(max_health, 1)
 	var cur := clampi(health, 0, mx)
 	var ratio := float(cur) / float(mx)
-	var target := HP_BAR_W * ratio
+	var target := _hp_fill_max * ratio
 	hp_label.text = "HP %d / %d" % [cur, mx]
 	var tw := create_tween()
 	tw.tween_property(hp_fill, "size:x", target, 0.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	if _hp_fill_sb:
+	if _hp_fill_sb is StyleBoxFlat:
 		_hp_fill_sb.bg_color = _hp_color(ratio)
+	elif _hp_fill_sb is StyleBoxTexture:
+		_hp_fill_sb.modulate_color = _hp_color(ratio)
 	if _hp_ghost:
 		if _hp_ghost_tween and _hp_ghost_tween.is_valid():
 			_hp_ghost_tween.kill()
@@ -362,8 +372,39 @@ func _update_hp_bar(health: int, max_health: int) -> void:
 			_hp_ghost.size.x = target
 
 
-## 체력/보스 게이지를 둥근 모서리·테두리의 StyleBoxFlat 로 스타일링(각진 ColorRect 대체).
+## 체력/보스 게이지 스타일 — VARCO 텍스처(프레임+필)가 있으면 나인패치, 없으면 플랫 폴백.
 func _style_bars() -> void:
+	var frame_tex := _UIStyle.hud_tex("hud_gauge_frame.png")
+	var fill_tex := _UIStyle.hud_tex("hud_gauge_fill.png")
+	if frame_tex and fill_tex:
+		_style_bars_textured(frame_tex, fill_tex)
+	else:
+		_style_bars_flat()
+	_build_hp_ghost(fill_tex)
+
+
+## 텍스처 게이지 — 프레임은 나인패치, 필은 무채색 스트립에 modulate 로 의미 색을 입힌다.
+## 필/잔상은 프레임 림 안쪽으로 인셋(±4px)해 채널 안에 앉힌다.
+func _style_bars_textured(frame_tex: Texture2D, fill_tex: Texture2D) -> void:
+	hp_bg.add_theme_stylebox_override("panel", _UIStyle.tex_box(frame_tex, 8))
+	_hp_fill_sb = _UIStyle.tex_box(fill_tex, 6, Color(0.3, 0.85, 0.35))
+	hp_fill.add_theme_stylebox_override("panel", _hp_fill_sb)
+	hp_fill.offset_left = 4.0
+	hp_fill.offset_top = 3.0
+	hp_fill.offset_bottom = 23.0
+	_hp_fill_max = HP_BAR_W - 8.0
+	hp_fill.size.x = _hp_fill_max
+
+	boss_bg.add_theme_stylebox_override("panel", _UIStyle.tex_box(frame_tex, 8))
+	boss_fill.add_theme_stylebox_override("panel", _UIStyle.tex_box(fill_tex, 6, Color(0.92, 0.22, 0.22)))
+	boss_fill.offset_left = 4.0
+	boss_fill.offset_top = 27.0
+	boss_fill.offset_bottom = 37.0
+	_boss_fill_max = BOSS_BAR_W - 8.0
+
+
+## 플랫 게이지(폴백) — 둥근 모서리·테두리의 StyleBoxFlat.
+func _style_bars_flat() -> void:
 	var hp_bg_sb := StyleBoxFlat.new()
 	hp_bg_sb.bg_color = Color(0.09, 0.03, 0.05, 0.9)
 	hp_bg_sb.set_corner_radius_all(7)
@@ -373,27 +414,13 @@ func _style_bars() -> void:
 	hp_bg_sb.border_color = Color(0, 0, 0, 0.55)
 	hp_bg.add_theme_stylebox_override("panel", hp_bg_sb)
 
-	_hp_fill_sb = StyleBoxFlat.new()
-	_hp_fill_sb.bg_color = Color(0.3, 0.85, 0.35)
-	_hp_fill_sb.set_corner_radius_all(6)
-	_hp_fill_sb.corner_detail = 6
-	_hp_fill_sb.anti_aliasing = true
+	var fill_sb := StyleBoxFlat.new()
+	fill_sb.bg_color = Color(0.3, 0.85, 0.35)
+	fill_sb.set_corner_radius_all(6)
+	fill_sb.corner_detail = 6
+	fill_sb.anti_aliasing = true
+	_hp_fill_sb = fill_sb
 	hp_fill.add_theme_stylebox_override("panel", _hp_fill_sb)
-
-	# 피해 잔상 바 — 채움부 "뒤"에 깔리는 밝은 바. 피해 순간 이전 폭에 머물렀다가
-	# 잠시 뒤 현재 폭으로 따라 줄어들어, 방금 깎인 양이 시각적으로 남는다.
-	_hp_ghost = Panel.new()
-	_hp_ghost.offset_right = HP_BAR_W
-	_hp_ghost.offset_bottom = 26.0
-	_hp_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var ghost_sb := StyleBoxFlat.new()
-	ghost_sb.bg_color = Color(1.0, 0.55, 0.45, 0.85)
-	ghost_sb.set_corner_radius_all(6)
-	ghost_sb.corner_detail = 6
-	ghost_sb.anti_aliasing = true
-	_hp_ghost.add_theme_stylebox_override("panel", ghost_sb)
-	hp_bar.add_child(_hp_ghost)
-	hp_bar.move_child(_hp_ghost, hp_fill.get_index())   # 채움부 바로 아래(뒤)로
 
 	var boss_bg_sb := StyleBoxFlat.new()
 	boss_bg_sb.bg_color = Color(0.11, 0.02, 0.03, 0.9)
@@ -410,6 +437,29 @@ func _style_bars() -> void:
 	boss_fill_sb.corner_detail = 6
 	boss_fill_sb.anti_aliasing = true
 	boss_fill.add_theme_stylebox_override("panel", boss_fill_sb)
+
+
+## 피해 잔상 바 — 채움부 "뒤"에 깔리는 밝은 바. 피해 순간 이전 폭에 머물렀다가
+## 잠시 뒤 현재 폭으로 따라 줄어들어, 방금 깎인 양이 시각적으로 남는다.
+func _build_hp_ghost(fill_tex: Texture2D) -> void:
+	_hp_ghost = Panel.new()
+	_hp_ghost.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if fill_tex:
+		_hp_ghost.add_theme_stylebox_override("panel", _UIStyle.tex_box(fill_tex, 6, Color(1.0, 0.55, 0.45, 0.85)))
+		_hp_ghost.offset_left = 4.0
+		_hp_ghost.offset_top = 3.0
+		_hp_ghost.offset_bottom = 23.0
+	else:
+		var ghost_sb := StyleBoxFlat.new()
+		ghost_sb.bg_color = Color(1.0, 0.55, 0.45, 0.85)
+		ghost_sb.set_corner_radius_all(6)
+		ghost_sb.corner_detail = 6
+		ghost_sb.anti_aliasing = true
+		_hp_ghost.add_theme_stylebox_override("panel", ghost_sb)
+		_hp_ghost.offset_bottom = 26.0
+	_hp_ghost.size.x = _hp_fill_max
+	hp_bar.add_child(_hp_ghost)
+	hp_bar.move_child(_hp_ghost, hp_fill.get_index())   # 채움부 바로 아래(뒤)로
 
 
 ## 체력 비율에 따른 게이지 색: 높음=초록, 중간=노랑, 낮음=빨강(선형 보간).
@@ -575,42 +625,67 @@ func _build_xp_bar() -> void:
 	_xp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bg.add_child(_xp_fill)
 
+	# 레벨 표시 — VARCO 원형 뱃지 텍스처가 있으면 뱃지+숫자, 없으면 알약형 라벨.
+	var badge_tex := _UIStyle.hud_tex("hud_badge_level.png")
 	_level_label = Label.new()
-	_level_label.anchor_left = 0.5
-	_level_label.anchor_right = 0.5
-	_level_label.offset_left = -56.0
-	_level_label.offset_right = 56.0
-	_level_label.offset_top = 12.0
-	_level_label.offset_bottom = 40.0
 	_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_level_label.add_theme_font_size_override("font_size", 19)
-	_level_label.add_theme_color_override("font_color", Color(0.72, 0.90, 1.0))
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.03, 0.08, 0.13, 0.85)
-	sb.set_corner_radius_all(14)
-	sb.corner_detail = 6
-	sb.anti_aliasing = true
-	sb.set_border_width_all(1)
-	sb.border_color = Color(0.45, 0.80, 1.0, 0.55)
-	sb.content_margin_left = 12.0
-	sb.content_margin_right = 12.0
-	_level_label.add_theme_stylebox_override("normal", sb)
 	_level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_level_label)
+	if badge_tex:
+		var badge := TextureRect.new()
+		badge.texture = badge_tex
+		badge.anchor_left = 0.5
+		badge.anchor_right = 0.5
+		badge.offset_left = -26.0
+		badge.offset_right = 26.0
+		badge.offset_top = 8.0
+		badge.offset_bottom = 60.0
+		badge.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		badge.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(badge)
+		_level_badge = badge
+		# 원형 면 위엔 숫자만(폭이 좁아 "Lv" 접두는 생략) — XP 바가 바로 위라 레벨로 읽힌다.
+		_level_label.set_anchors_preset(Control.PRESET_FULL_RECT)
+		_level_label.add_theme_font_size_override("font_size", 17)
+		_level_label.add_theme_color_override("font_color", Color(0.95, 0.90, 0.75))
+		_level_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+		_level_label.add_theme_constant_override("outline_size", 3)
+		badge.add_child(_level_label)
+	else:
+		_level_label.anchor_left = 0.5
+		_level_label.anchor_right = 0.5
+		_level_label.offset_left = -56.0
+		_level_label.offset_right = 56.0
+		_level_label.offset_top = 12.0
+		_level_label.offset_bottom = 40.0
+		_level_label.add_theme_font_size_override("font_size", 19)
+		_level_label.add_theme_color_override("font_color", Color(0.72, 0.90, 1.0))
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.03, 0.08, 0.13, 0.85)
+		sb.set_corner_radius_all(14)
+		sb.corner_detail = 6
+		sb.anti_aliasing = true
+		sb.set_border_width_all(1)
+		sb.border_color = Color(0.45, 0.80, 1.0, 0.55)
+		sb.content_margin_left = 12.0
+		sb.content_margin_right = 12.0
+		_level_label.add_theme_stylebox_override("normal", sb)
+		add_child(_level_label)
 
 
 func _on_xp_changed(xp: int, xp_to_next: int, level: int) -> void:
 	if _xp_fill:
 		_xp_fill.anchor_right = clampf(float(xp) / float(maxi(xp_to_next, 1)), 0.0, 1.0)
 	if _level_label:
-		_level_label.text = "Lv %d" % level
+		_level_label.text = str(level) if _level_badge else "Lv %d" % level
 		# 레벨업 순간 뱃지 펄스(초기 -1 → 첫 설정은 제외).
 		if _prev_level >= 0 and level > _prev_level:
-			_level_label.pivot_offset = _level_label.size * 0.5
-			_level_label.scale = Vector2(1.3, 1.3)
+			var target: Control = _level_badge if _level_badge else _level_label
+			target.pivot_offset = target.size * 0.5
+			target.scale = Vector2(1.3, 1.3)
 			var tw := create_tween()
-			tw.tween_property(_level_label, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tw.tween_property(target, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_prev_level = level
 
 
@@ -695,15 +770,19 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 	var frame := Panel.new()
 	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.04, 0.05, 0.08, 0.75)
-	sb.set_corner_radius_all(8)
-	sb.corner_detail = 5
-	sb.anti_aliasing = true
-	sb.set_border_width_all(1)
-	var tint: Color = meta.get("color", Color.WHITE)
-	sb.border_color = Color(tint.r, tint.g, tint.b, 0.55)   # 아이템 색은 테두리 힌트로만
-	frame.add_theme_stylebox_override("panel", sb)
+	var slot_tex := _UIStyle.hud_tex("hud_slot_small.png")
+	if slot_tex:
+		frame.add_theme_stylebox_override("panel", _UIStyle.tex_box(slot_tex, 10))
+	else:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.04, 0.05, 0.08, 0.75)
+		sb.set_corner_radius_all(8)
+		sb.corner_detail = 5
+		sb.anti_aliasing = true
+		sb.set_border_width_all(1)
+		var tint: Color = meta.get("color", Color.WHITE)
+		sb.border_color = Color(tint.r, tint.g, tint.b, 0.55)   # 아이템 색은 테두리 힌트로만
+		frame.add_theme_stylebox_override("panel", sb)
 	slot.add_child(frame)
 
 	var icon = meta.get("icon")
@@ -1024,21 +1103,35 @@ func _build_pause_menu() -> void:
 	_UIStyle.apply_button_style(_pause_btn, Color(0.12, 0.13, 0.18, 0.9), Color(0.5, 0.55, 0.68))
 	_pause_btn.pressed.connect(_on_pause_pressed)
 	add_child(_pause_btn)
-	# 일시정지 아이콘 — 폰트 글리프 대신 흰 막대 2개(어떤 폰트/빌드에서도 안 깨짐).
-	var pico := CenterContainer.new()
-	pico.set_anchors_preset(Control.PRESET_FULL_RECT)
-	pico.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_pause_btn.add_child(pico)
-	var bars := HBoxContainer.new()
-	bars.add_theme_constant_override("separation", 5)
-	bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pico.add_child(bars)
-	for i in 2:
-		var bar := ColorRect.new()
-		bar.color = Color(0.85, 0.88, 0.95)
-		bar.custom_minimum_size = Vector2(5, 18)
-		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		bars.add_child(bar)
+	# VARCO 원형 버튼 텍스처(⏸ 아이콘 포함)가 있으면 플레이트 대신 사용 —
+	# 스타일박스는 비우고 텍스처를 얼굴로 깐다(눌림 팝은 UITheme 전역 스케일이 담당).
+	var round_tex := _UIStyle.hud_tex("hud_btn_round.png")
+	if round_tex:
+		for state in ["normal", "hover", "pressed", "disabled"]:
+			_pause_btn.add_theme_stylebox_override(state, StyleBoxEmpty.new())
+		var face := TextureRect.new()
+		face.texture = round_tex
+		face.set_anchors_preset(Control.PRESET_FULL_RECT)
+		face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		face.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_pause_btn.add_child(face)
+	else:
+		# 일시정지 아이콘 — 폰트 글리프 대신 흰 막대 2개(어떤 폰트/빌드에서도 안 깨짐).
+		var pico := CenterContainer.new()
+		pico.set_anchors_preset(Control.PRESET_FULL_RECT)
+		pico.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_pause_btn.add_child(pico)
+		var bars := HBoxContainer.new()
+		bars.add_theme_constant_override("separation", 5)
+		bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pico.add_child(bars)
+		for i in 2:
+			var bar := ColorRect.new()
+			bar.color = Color(0.85, 0.88, 0.95)
+			bar.custom_minimum_size = Vector2(5, 18)
+			bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			bars.add_child(bar)
 
 	_pause_dim = ColorRect.new()
 	_pause_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1185,8 +1278,10 @@ func _apply_safe_area() -> void:
 		return
 	var inset := inset_px * get_viewport().get_visible_rect().size.y / float(win.y)
 	top_bg.offset_bottom += inset   # 바 배경은 노치 뒤까지 채우고, 내용만 아래로 민다
+	# 뱃지 모드에선 라벨이 뱃지의 풀렉트 자식이라 뱃지 쪽을 옮긴다.
+	var lv_node: Control = _level_badge if _level_badge else _level_label
 	for c in [get_node("CoinIcon"), gold_label, hp_bar, wave_label, time_label,
-			_level_label, _xp_bg, _pause_btn, _auto_tag, boss_bar, weapon_label, buff_label] + _stat_icons:
+			lv_node, _xp_bg, _pause_btn, _auto_tag, boss_bar, weapon_label, buff_label] + _stat_icons:
 		if c is Control:
 			c.offset_top += inset
 			c.offset_bottom += inset
