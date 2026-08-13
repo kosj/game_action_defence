@@ -1066,51 +1066,62 @@ func _build_theme_panel() -> void:
 	_theme_dim.gui_input.connect(_on_theme_dim_input)
 	add_child(_theme_dim)
 
+	# 전체 화면 레이아웃 — 캐릭터 선택 패널과 같은 패턴. 좁은 중앙 프레임 대신 화면을
+	# 꽉 채워 썸네일이 크게 보이고, 테마가 늘어나도 스크롤로 수용한다.
 	_theme_panel = PanelContainer.new()
-	_theme_panel.anchor_left = 0.5
-	_theme_panel.anchor_right = 0.5
-	_theme_panel.anchor_top = 0.5
-	_theme_panel.anchor_bottom = 0.5
-	_theme_panel.offset_left = -250.0
-	_theme_panel.offset_right = 250.0
-	_theme_panel.offset_top = -280.0
-	_theme_panel.offset_bottom = 280.0
+	_theme_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_theme_panel.offset_left = 12.0
+	_theme_panel.offset_right = -12.0
+	_theme_panel.offset_top = 30.0
+	_theme_panel.offset_bottom = -30.0
 	_theme_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.12, 0.08, 0.98), Color(0.5, 0.85, 0.5)))
 	_theme_panel.visible = false
 	add_child(_theme_panel)
 
 	var margin := MarginContainer.new()
 	for m in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + m, 22)
+		margin.add_theme_constant_override("margin_" + m, 24)
 	_theme_panel.add_child(margin)
 
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 12)
+	vb.add_theme_constant_override("separation", 14)
 	margin.add_child(vb)
 
 	var title := Label.new()
 	title.text = "CHOOSE ARENA"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 26)
+	title.add_theme_font_size_override("font_size", 32)
 	title.add_theme_color_override("font_color", Color(0.7, 1.0, 0.7))
+	UITheme.heading(title)
 	vb.add_child(title)
 
 	_theme_gold_label = Label.new()
 	_theme_gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_theme_gold_label.add_theme_font_size_override("font_size", 18)
+	_theme_gold_label.add_theme_font_size_override("font_size", 20)
 	_theme_gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
 	vb.add_child(_theme_gold_label)
 
 	vb.add_child(HSeparator.new())
 
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.scroll_deadzone = 24   # 터치 드래그가 버튼 클릭에 먹히지 않고 스크롤로 이어지게
+	vb.add_child(scroll)
+	var rows_box := VBoxContainer.new()
+	rows_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows_box.add_theme_constant_override("separation", 16)
+	scroll.add_child(rows_box)
+
 	_theme_rows.clear()
 	for t in GameData.themes:
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(430, 104)
-		btn.add_theme_font_size_override("font_size", 18)
+		btn.custom_minimum_size = Vector2(0, 148)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.add_theme_font_size_override("font_size", 19)
 		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT   # 썸네일 오른쪽에서 좌측 정렬(겹침 방지)
 		btn.pressed.connect(_on_theme_pick.bind(String(t.id)))
-		vb.add_child(btn)
+		rows_box.add_child(btn)
 		# 테마 썸네일 — assets/ui/thumbs/theme_<id>.png 가 있으면 좌측에 표시(잠금 시 어둡게).
 		var thumb: TextureRect = null
 		var tex_path := "res://assets/ui/thumbs/theme_%s.png" % t.id
@@ -1121,13 +1132,12 @@ func _build_theme_panel() -> void:
 			thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 			thumb.anchor_top = 0.0
 			thumb.anchor_bottom = 1.0
-			thumb.offset_left = 10.0
-			thumb.offset_right = 118.0
-			thumb.offset_top = 8.0
-			thumb.offset_bottom = -8.0
+			thumb.offset_left = 14.0
+			thumb.offset_right = 158.0
+			thumb.offset_top = 10.0
+			thumb.offset_bottom = -10.0
 			thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			btn.add_child(thumb)
-			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		_theme_rows.append({"btn": btn, "t": t, "thumb": thumb})
 
 	var close := Button.new()
@@ -1162,7 +1172,7 @@ func _refresh_theme() -> void:
 				thumb.modulate = Color(0.35, 0.35, 0.4)
 		# apply_button_style 이 스타일박스를 새로 깔아 좌측 여백이 사라진다 — 썸네일이 있으면 재적용.
 		if thumb:
-			_UIStyle.set_button_content_margin_left(btn, 130)
+			_UIStyle.set_button_content_margin_left(btn, 172)
 
 
 func _theme_unlock_hint(t: ThemeData) -> String:
