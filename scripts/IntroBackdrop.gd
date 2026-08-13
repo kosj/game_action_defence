@@ -8,10 +8,15 @@ extends Control
 ## 셀셰이딩 톤에 맞춰 하늘은 부드러운 그라데이션 대신 납작한 색 띠(band)로 쌓고,
 ## 건물은 지붕 형태(계단/안테나/물탱크)를 섞어 실루엣이 밋밋해지지 않게 한다.
 ##
-## assets/ui/bg_intro.png 일러스트가 있으면 그것을 배경으로 쓰고 잔불만 위에 얹는다
-## (그 경우 송신탑은 일러스트에 포함된 것으로 본다 — INTRO_ART_PROMPT.md 참고).
+## assets/ui/bg_intro.png 일러스트가 있으면 그것을 배경으로 쓴다. 이때 송신탑 "구조물"은
+## 일러스트가 담당하고, 꼭대기의 맥동하는 신호 불빛과 잔불은 코드가 그 위에 계속 얹는다
+## — 인트로 서사의 핵심(아직 살아 있는 신호)이 정지 화면이 되지 않도록. INTRO_ART_PROMPT.md 참고.
 
 const BG_PATH := "res://assets/ui/bg_intro.png"
+
+## 일러스트 사용 시 송신탑 꼭대기(신호등)의 화면 내 비율 좌표. 일러스트를 바꿔 위치가
+## 어긋나면 이 값만 조정하면 된다(코드 드로잉 배경일 때는 쓰이지 않는다).
+const ART_BEACON := Vector2(0.70, 0.335)
 
 # 타이틀 아트에서 뽑은 팔레트(위→아래).
 const SKY_TOP   := Color(0.06, 0.03, 0.06)
@@ -76,7 +81,8 @@ func _draw() -> void:
 	if s.x <= 1.0 or s.y <= 1.0:
 		return
 	if _art:
-		_draw_art(s)      # 일러스트가 있으면 그것으로 대체(송신탑 포함으로 간주)
+		_draw_art(s)      # 일러스트가 구조물(도시·송신탑)을 담당
+		_draw_beacon_light(s, Vector2(s.x * ART_BEACON.x, s.y * ART_BEACON.y))
 		_draw_embers(s)
 		return
 	_draw_sky(s)
@@ -242,9 +248,13 @@ func _draw_beacon(s: Vector2) -> void:
 	# 꼭대기 장비 캐빈
 	draw_rect(Rect2(bx - ht * 1.9, top_y + s.y * 0.006, ht * 3.8, s.y * 0.016), CITY_NEAR)
 
-	# 맥동하는 비컨 불빛
+	_draw_beacon_light(s, Vector2(bx, top_y - s.y * 0.006))
+
+
+## 맥동하는 신호 불빛(빛기둥 + 글로우 + 코어) — 코드 배경/일러스트 배경 양쪽에서 공용.
+func _draw_beacon_light(s: Vector2, light: Vector2) -> void:
 	var pulse: float = 0.5 + 0.5 * sin(_t * 2.3)
-	var light := Vector2(bx, top_y - s.y * 0.006)
+	var bx := light.x
 
 	# 위로 뻗는 가느다란 빛기둥 — 여러 겹으로 나눠 위로 갈수록 옅어지게(딱딱한 삼각형 방지).
 	var beam_h := s.y * 0.22
