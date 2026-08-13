@@ -51,15 +51,37 @@ crack bursts, debris and dust falling, ending in a fading underground rumble
 > 연출: 하늘에서 화살 42발이 쉼 없이 쏟아져 땅에 콱콱 꽂힘(개별 낙하 주기 0.42~0.67초).
 > 방향성: **날카롭고 시원한 폭우.** 공기를 찢는 고음 휘파람 + 촘촘한 타격감.
 
+> ⚠️ 생성기가 "화살이 날아와 꽂힌다"는 서사를 주면 **화살 한 발**로 뽑기 쉽다.
+> 그래서 아래 프롬프트는 사건이 아니라 **연속 텍스처**로 기술한다 — 수량을 앞세우고,
+> 우박·장대비 같은 밀도 비유를 쓰고, 초당 타격 횟수를 명시하고, 단발을 명시적으로 금지.
+
 ```
-arrow storm ultimate attack: a sharp rising whoosh as hundreds of arrows are
-loosed skyward, then a dense rain of arrows whistling down through the air,
-rapid overlapping high-pitched arrow flight whistles and quick woody thunk
-impacts striking the ground in relentless succession, tapering off with the
-last few arrows landing
+dense medieval arrow volley barrage: hundreds of arrows falling continuously
+like a violent hailstorm, a thick layered wall of overlapping high-pitched
+arrow whistles and rapid wooden thunk impacts hitting the ground, eight to
+ten impacts every second with no gaps and no pauses, chaotic and relentless
+for the entire duration, never a single isolated arrow, massed archery
+battlefield texture
 ```
-- 포인트: 지속부 3초 동안 **개별 '슉-턱' 타격이 겹치며 촘촘하게** 들려야 화살 하나하나가 꽂히는 연출과 맞는다. 한 번의 큰 폭발음은 어울리지 않음.
-- 저음이 부족하게 뽑히면 발동 순간용으로 `deep bow release thump at the start`를 덧붙여 재생성.
+- 네거티브에 추가: `single arrow, one impact, sparse, slow`
+- 그래도 단발로 나오면 문장 첫머리를 `heavy rain of arrows, like hail hammering
+  a wooden roof,`로 바꿔 재시도 — "비/우박" 비유가 밀도를 가장 잘 끌어낸다.
+- 저음이 부족하면 `deep bow release thump at the start`를 덧붙여 재생성.
+
+### 플랜 B — 화살 1발을 뽑아 42발로 합성
+프롬프트를 어떻게 바꿔도 단일 사운드만 나오면, 반대로 **잘 뽑힌 한 발**을 재료로
+쓰는 게 가장 확실하다. 아래 프롬프트로 0.4초짜리 화살 1발을 뽑고:
+```
+single arrow flyby: one quick sharp whoosh cutting through air then a solid
+wooden thunk impact into the ground, short and dry, no reverb tail
+```
+동봉된 스크립트로 무작위 시차·피치·좌우 팬을 줘 42발을 겹치면 화살비가 된다
+(초반 도입 → 절정 → 감쇠 밀도 곡선 포함, 4초 스테레오):
+```bash
+python3 tools/make_arrow_rain.py one_arrow.wav rain.wav 42 4.0
+ffmpeg -i rain.wav -af loudnorm=I=-14:TP=-1 -c:a libvorbis -q:a 6 \
+    assets/audio/sfx_ult_arrow.ogg
+```
 
 ## 3) 엔지니어 — Orbital Barrage (`sfx_ult_orbital.ogg`)
 > 연출: 0.35초마다 자리를 옮기며 하늘에서 수직 광선 5기가 꽂힘(3초간 약 8세트).
@@ -81,7 +103,7 @@ a discharging electrical fizzle
 | id | 프롬프트 |
 |---|---|
 | ult_quake | `massive earthquake slam, deep sub-bass rumble, ground cracking apart, 4 seconds, game ultimate SFX` |
-| ult_arrow | `dense rain of arrows whistling down and thunking into the ground, rapid overlapping impacts, 4 seconds, game ultimate SFX` |
+| ult_arrow | `hundreds of arrows falling like a hailstorm, continuous overlapping whistles and rapid wooden thunk impacts, no gaps, never a single arrow, 4 seconds, game ultimate SFX` |
 | ult_orbital | `sci-fi orbital laser bombardment, charge-up then repeated energy beam strikes, 4 seconds, game ultimate SFX` |
 
 ## 후처리 체크리스트
