@@ -32,6 +32,14 @@ extends Resource
 @export var boss_speed_per_count: float = 9.0
 @export var boss_escort_base: int = 3          # 호위 좀비 수 = base + 회차
 @export var summon_alive_cap: int = 44         # 서머너 소환 시 전장 과밀 상한
+@export var boss_contact_bonus: int = 1        # 보스 접촉 피해 = 타입값 + 이 값
+@export var boss_bullet_damage: int = 2        # 거너 탄 1발 피해
+@export var boss_bomb_damage: int = 3          # 포격 탄착 폭발 피해
+@export var boss_slam_damage: int = 3          # 근접형 지면 강타 피해
+## 지구전 방지: 보스가 이 시간(초)을 넘겨 생존하면 공격 주기가 점점 빨라진다(상한 boss_rage_max).
+@export var boss_rage_seconds: float = 35.0
+@export var boss_rage_max: float = 1.9         # 격화 상한(공격 빈도 배수)
+@export var boss_summon_ring: float = 300.0    # 호위 소환 위치: 플레이어 주변 이 반경의 링
 
 @export_group("Chest")
 @export var chest_interval_min: float = 24.0   # 필드 보물상자 스폰 주기(초)
