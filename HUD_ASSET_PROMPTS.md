@@ -1,85 +1,109 @@
-# HUD Phase 2 에셋 생성 프롬프트 (6종)
+# HUD Phase 2 에셋 생성 프롬프트 (6종 · 단일 블록 완결형)
 
 > 기존 `assets/ui/frames/`(다크 건메탈 강철 + 얇은 오렌지골드 헤어라인 + 코너 리벳) 톤에 맞춘
-> 복붙용 프롬프트. **6장 모두 같은 모델·같은 설정·같은 세션**에서 한 번에 뽑아야 톤이 맞는다.
+> 프롬프트. 각 블록 하나에 스타일·구도·배경·금지 요소까지 **필요한 텍스트가 전부** 들어 있어
+> 네거티브 프롬프트 칸이 없는 툴에서도 그대로 한 번에 붙여넣으면 된다.
 >
-> 공통 규칙
-> - **배경: 투명 PNG** (안 되면 단색 흰/자홍 — 배치 시 제거)
-> - **글자·숫자·워터마크 금지**, 오브젝트 1개, 정면 뷰, 화면 중앙
-> - 나인패치용(1·2·4번)은 **가장자리가 곧고 균일**해야 함(중앙이 늘어나도 티 안 나게)
-> - 크기는 "권장"이며, 정사각형만 나오는 툴이면 1024×1024 로 뽑아도 됨(배치 시 크롭/리사이즈)
+> - **6장 모두 같은 모델·같은 설정·같은 세션**에서 한 번에 생성해야 톤이 맞는다.
+> - 크기는 "권장"이며, 정사각형만 지원하는 툴이면 1024×1024 로 뽑아도 됨(배치 시 크롭/리사이즈).
+> - 생성 후 파일명 그대로 `assets/ui/hud/` 에 저장하거나 이미지를 세션으로 전달.
 
-## 공통 네거티브 프롬프트 (전부 동일하게 사용)
+## 1. hud_top_bar.png — 상단바 (권장 1024×256)
 ```
-text, letters, numbers, watermark, logo, background scenery, photo, realistic
-photograph, blurry, low-res, perspective view, 3d tilted angle, drop shadow on
-ground, cropped, cut off, multiple objects, ornate filigree, fantasy engraving,
-sci-fi greebles, glowing neon
-```
-
----
-
-## 1. hud_top_bar.png — 상단바 (권장 1024×256, 나인패치)
-```
-mobile game HUD top bar plate, one wide horizontal rectangle, dark gunmetal
-brushed steel surface, subtle vertical gradient slightly darker at the top,
-thin orange-gold hairline trim running along the bottom edge, slightly rounded
-bottom corners, two small gold rivets near the bottom corners, flat front view,
-clean semi-flat vector shading, subtle inner shadow, straight uniform
-stretchable edges for nine-patch scaling, isolated on transparent background,
-no text, crisp edges, game UI asset
+A single wide horizontal rectangular top bar plate for a mobile game HUD, in a
+dark gunmetal brushed steel style with a subtle vertical gradient that is
+slightly darker at the top, a thin orange-gold hairline trim running along the
+bottom edge, slightly rounded bottom corners, and two small gold rivets near
+the bottom corners. Flat straight-on front view, clean semi-flat vector
+shading with a subtle inner shadow, crisp edges. The left, right and top edges
+must be perfectly straight and uniform so the image can be stretched as a
+nine-patch UI element. Wide 4:1 horizontal banner composition, the plate fills
+the frame, isolated on a fully transparent background. This is a game UI
+asset: absolutely no text, no letters, no numbers, no watermark, no logo, no
+background scenery, no photo realism, no perspective or tilted 3D angle, no
+drop shadow on a ground, only this one object, not cropped or cut off, no
+ornate filigree or fantasy engraving, no sci-fi greebles, no glowing neon.
 ```
 
-## 2. hud_gauge_frame.png — 게이지 프레임 (권장 512×96, 나인패치, HP/보스/XP 공용)
+## 2. hud_gauge_frame.png — 게이지 프레임 (HP/보스/XP 공용, 권장 512×96)
 ```
-slim horizontal gauge frame for a mobile game HUD, dark gunmetal steel outer
-rim with a thin orange-gold hairline inset, deep dark recessed empty inner
-channel, softly rounded corners, flat front view, clean semi-flat vector
-shading, subtle inner shadow inside the channel, straight uniform stretchable
-edges for nine-patch scaling, isolated on transparent background, no text,
-crisp edges, game UI asset
+A single slim horizontal gauge frame for a mobile game HUD, in a dark gunmetal
+steel style: a thin outer rim with a very thin orange-gold hairline inset, and
+a deep dark recessed empty inner channel where a health bar fill would sit,
+with softly rounded corners. Flat straight-on front view, clean semi-flat
+vector shading with a subtle inner shadow inside the channel, crisp edges. All
+four edges must be straight and uniform so the image can be stretched as a
+nine-patch UI element. Wide horizontal composition around 5:1, the frame fills
+the image, isolated on a fully transparent background. This is a game UI
+asset: absolutely no text, no letters, no numbers, no watermark, no logo, no
+background scenery, no photo realism, no perspective or tilted 3D angle, no
+drop shadow on a ground, only this one object, not cropped or cut off, no
+ornate filigree or fantasy engraving, no sci-fi greebles, no glowing neon.
 ```
 
 ## 3. hud_gauge_fill.png — 게이지 필 (권장 512×64, 무채색 필수)
 ```
-horizontal energy bar fill strip for a mobile game HUD, neutral grayscale
-white-to-light-gray glossy surface, soft bright highlight along the top edge,
-softly rounded ends, completely straight top and bottom edges, flat front
-view, clean semi-flat vector shading, no color tint, isolated on transparent
-background, no text, crisp edges, game UI asset
+A single horizontal energy bar fill strip for a mobile game HUD, rendered
+entirely in neutral grayscale with no color tint at all: a white-to-light-gray
+glossy surface with one soft bright highlight running along the top edge, and
+softly rounded left and right ends. The top and bottom edges are completely
+straight. Flat straight-on front view, clean semi-flat vector shading, crisp
+edges. Wide horizontal composition around 6:1, the strip fills the image,
+isolated on a fully transparent background. The game engine will tint this
+strip green, red or cyan at runtime, so it must stay pure grayscale. This is a
+game UI asset: absolutely no text, no letters, no numbers, no watermark, no
+logo, no background scenery, no photo realism, no perspective or tilted 3D
+angle, no drop shadow on a ground, only this one object, not cropped or cut
+off, no color, no pattern, no glowing neon.
 ```
-> ⚠️ 반드시 **무채색(그레이스케일)** — 게임이 HP초록/보스빨강/XP시안을 코드로 입힌다.
 
-## 4. hud_slot_small.png — 로드아웃 미니 슬롯 (권장 256×256, 나인패치)
+## 4. hud_slot_small.png — 로드아웃 미니 슬롯 (권장 256×256)
 ```
-small square inventory slot frame for a mobile game HUD, thin dark gunmetal
-steel rim with a very thin orange-gold hairline inset, dark recessed empty
-center, slightly rounded corners, minimal ornament, flat front view, clean
-semi-flat vector shading, subtle inner shadow in the recessed center, straight
-uniform stretchable edges for nine-patch scaling, isolated on transparent
-background, no text, crisp edges, game UI asset
+A single small square inventory slot frame for a mobile game HUD, in a dark
+gunmetal steel style: a thin steel rim with a very thin orange-gold hairline
+inset, a dark recessed completely empty center, slightly rounded corners, and
+minimal ornament because the slot will be displayed very small at 44 pixels.
+Flat straight-on front view, clean semi-flat vector shading with a subtle
+inner shadow in the recessed center, crisp edges. All four edges must be
+straight and uniform so the image can be stretched as a nine-patch UI element.
+Perfect square composition, the slot fills the frame, isolated on a fully
+transparent background. This is a game UI asset: absolutely no text, no
+letters, no numbers, no icon inside the slot, no watermark, no logo, no
+background scenery, no photo realism, no perspective or tilted 3D angle, no
+drop shadow on a ground, only this one object, not cropped or cut off, no
+ornate filigree or fantasy engraving, no sci-fi greebles, no glowing neon.
 ```
-> 기존 `item_slot.png`(황동)보다 **단순·얇은 림** — 44px 로 축소돼도 뭉개지지 않게.
 
-## 5. hud_btn_round.png — 원형 버튼 플레이트 (권장 256×256)
+## 5. hud_btn_round.png — 원형 버튼 플레이트 (일시정지용, 권장 256×256)
 ```
-round circular metal button plate for a mobile game HUD, dark gunmetal brushed
-steel face, thin orange-gold rim ring around the outer edge, subtle glossy
-highlight on the upper half, slight bevel depth, perfectly centered circle,
-flat front view, clean semi-flat vector shading, isolated on transparent
-background, no text, no icon, crisp edges, game UI asset
+A single round circular metal button plate for a mobile game HUD, in a dark
+gunmetal brushed steel style: a steel face with a thin orange-gold rim ring
+around the outer edge, a subtle glossy highlight on the upper half, and a
+slight bevel depth. The center of the button face is empty flat metal because
+a pause icon will be drawn on top by the game code. A perfectly centered
+circle in a square composition, flat straight-on front view, clean semi-flat
+vector shading, crisp edges, isolated on a fully transparent background. This
+is a game UI asset: absolutely no text, no letters, no numbers, no icon, no
+symbol on the face, no watermark, no logo, no background scenery, no photo
+realism, no perspective or tilted 3D angle, no drop shadow on a ground, only
+this one object, not cropped or cut off, no ornate filigree, no sci-fi
+greebles, no glowing neon.
 ```
-> 중앙은 **빈 면** — 일시정지 막대 아이콘은 코드가 그린다.
 
 ## 6. hud_badge_level.png — 레벨 뱃지 (권장 256×256)
 ```
-small circular metal badge plate for a mobile game HUD, dark steel face with a
-thin orange-gold trim ring, slightly raised rim, empty flat center, subtle
-soft highlight at the top, perfectly centered circle, flat front view, clean
-semi-flat vector shading, isolated on transparent background, no text, no
-number, crisp edges, game UI asset
+A single small circular metal badge plate for a mobile game HUD, in a dark
+steel style with a thin orange-gold trim ring and a slightly raised rim, an
+empty flat dark center face where a level number will be drawn later by the
+game code, and a subtle soft highlight at the top. A perfectly centered circle
+in a square composition, flat straight-on front view, clean semi-flat vector
+shading, crisp edges, isolated on a fully transparent background. This is a
+game UI asset: absolutely no text, no letters, no numbers, no symbol on the
+face, no watermark, no logo, no background scenery, no photo realism, no
+perspective or tilted 3D angle, no drop shadow on a ground, only this one
+object, not cropped or cut off, no ornate filigree, no sci-fi greebles, no
+glowing neon.
 ```
-> 중앙은 빈 면 — "Lv 46" 텍스트는 코드가 올린다.
 
 ---
 
