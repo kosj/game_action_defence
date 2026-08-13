@@ -672,7 +672,7 @@ func _build_achievement_panel() -> void:
 	_ach_dim.gui_input.connect(_on_ach_dim_input)
 	add_child(_ach_dim)
 
-		_ach_panel = PanelContainer.new()
+	_ach_panel = PanelContainer.new()
 	_ach_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_ach_panel.offset_left = 12.0
 	_ach_panel.offset_right = -12.0
@@ -773,7 +773,7 @@ func _build_quest_panel() -> void:
 			_on_quests_close())
 	add_child(_quest_dim)
 
-		_quest_panel = PanelContainer.new()
+	_quest_panel = PanelContainer.new()
 	_quest_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_quest_panel.offset_left = 12.0
 	_quest_panel.offset_right = -12.0
@@ -843,7 +843,7 @@ func _build_rewards_panel() -> void:
 			_on_rewards_close())
 	add_child(_rewards_dim)
 
-		_rewards_panel = PanelContainer.new()
+	_rewards_panel = PanelContainer.new()
 	_rewards_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_rewards_panel.offset_left = 12.0
 	_rewards_panel.offset_right = -12.0

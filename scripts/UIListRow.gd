@@ -99,7 +99,14 @@ static func make(cfg: Dictionary) -> Control:
 		bar.value = clampf(float(cfg.get("cur", 0)), 0.0, float(goal))
 		bar.show_percentage = false
 		if state == STATE_READY:
-			bar.add_theme_stylebox_override("fill", UITheme.progress_fill(Color(0.55, 1.0, 0.55)))
+			# 완료 항목은 채움을 초록으로. 스타일박스를 여기서 직접 만든다 —
+			# static 함수에서 오토로드(UITheme)를 참조하지 않기 위해서다.
+			var done_fill := StyleBoxFlat.new()
+			done_fill.bg_color = Color(0.55, 1.0, 0.55)
+			done_fill.set_corner_radius_all(6)
+			done_fill.corner_detail = 6
+			done_fill.anti_aliasing = true
+			bar.add_theme_stylebox_override("fill", done_fill)
 		col.add_child(bar)
 
 	# ── 우측 액션 버튼(보상함의 CLAIM 등) ──
@@ -112,7 +119,7 @@ static func make(cfg: Dictionary) -> Control:
 		btn.add_theme_font_size_override("font_size", 16)
 		_UIStyle.apply_button_style(btn, UITheme.BTN_BG, action.get("accent", Color(0.5, 0.95, 0.5)))
 		var cb = action.get("on_pressed")
-		if cb is Callable:
+		if typeof(cb) == TYPE_CALLABLE:
 			btn.pressed.connect(cb)
 		root.add_child(btn)
 
