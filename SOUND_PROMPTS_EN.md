@@ -1,0 +1,224 @@
+# Sound Generation Prompts (English)
+
+Copy-paste-ready prompts for AI sound generators (ElevenLabs SFX, Stable Audio, etc.).
+Every prompt below is **self-contained** — the shared style base is already merged into
+each one, so paste a single block as-is without assembling anything.
+
+Korean design notes and in-game context live in [`SOUND_PROMPTS.md`](SOUND_PROMPTS.md).
+
+## How to use
+
+1. Pick a sound below, paste its prompt, set the generator's duration to the listed length.
+2. Generate 3-5 takes and keep the one with the strongest attack (no silent lead-in).
+3. Convert and normalize (see [Post-processing](#post-processing)).
+4. Drop the file into `assets/audio/` under the exact filename listed.
+   The game loads it automatically — no code change needed. Missing files are skipped
+   silently, so you can add them one at a time.
+
+## Negative prompt (use wherever the tool supports it)
+
+```
+music, melody, singing, voice, speech, silence, fade-in intro, low volume, thin,
+weak, lo-fi, clipping, distortion, abrupt cut-off ending, reverb tail, room ambience
+```
+
+---
+
+# 1. Ultimate abilities
+
+Long one-shots fired once per activation. The ability lasts **3.0 seconds**, so energy
+should hold until 3s and then decay naturally. Target length **4 seconds**.
+These play over the BGM and need to cut through — generate them loud and bright.
+
+### `sfx_ult_quake.ogg` — Veteran, "Seismic Wrath" (4s)
+
+```
+Massive earthquake ultimate attack for a video game: a deep seismic slam impact
+with a heavy sub-bass drop at the very start, then the ground violently cracking
+and splitting open, boulders grinding against each other, a continuous low
+rumbling tremor lasting three full seconds with irregular rocky crack bursts
+throughout, debris and dust falling, ending in a fading underground rumble.
+Cinematic, huge and impactful, powerful punchy transient at the very start,
+wide stereo, clean professional game audio, no music, no voice, no silence at
+the beginning, not an explosion or fireball.
+```
+
+### `sfx_ult_arrow.ogg` — Hunter, "Arrow Tempest" (4s)
+
+```
+Dense medieval arrow volley barrage: hundreds of arrows falling continuously
+like a violent hailstorm, a thick layered wall of overlapping high-pitched
+arrow whistles and rapid wooden thunk impacts hitting the ground, eight to ten
+impacts every second with no gaps and no pauses, chaotic and relentless for the
+entire duration, never a single isolated arrow, massed archery battlefield
+texture, tapering off in the final half second. Cinematic, huge and impactful,
+wide stereo, clean professional game audio, no music, no voice, no silence at
+the beginning.
+```
+
+> Generators often collapse this into **one arrow** because it reads as a story
+> ("an arrow flies and lands"). The wording above is deliberately a *continuous
+> texture*: quantity first, a hail metaphor, an explicit impacts-per-second rate,
+> and a ban on single hits. Add `single arrow, one impact, sparse, slow` to the
+> negative prompt. If it still comes out as one arrow, open with
+> `Heavy rain of arrows, like hail hammering a wooden roof,` — the rain metaphor
+> pulls density better than any other phrasing.
+>
+> **Fallback:** generate one clean arrow instead and multiply it into a storm with
+> the bundled script (see [Plan B](#plan-b--build-the-arrow-storm-from-one-arrow)).
+
+### `sfx_ult_orbital.ogg` — Engineer, "Orbital Barrage" (4s)
+
+```
+Sci-fi orbital laser bombardment ultimate attack: a quick targeting charge-up
+hum, then powerful energy beams firing down from the sky in rapid rhythm,
+roughly three strikes per second layered and overlapping, each beam a searing
+electric zap followed by a plasma impact explosion on the ground, sustained for
+three full seconds, ending with a discharging electrical fizzle. Satellite-scale
+weapon, deeper and heavier than a handheld laser, cinematic, huge and impactful,
+wide stereo, clean professional game audio, no music, no voice, no silence at
+the beginning.
+```
+
+---
+
+# 2. Gameplay one-shots
+
+Short, dry, repeatable. Several of these fire many times per minute, so a long tail or
+a strong personality becomes irritating fast — keep them tight.
+
+### `sfx_bomber_blast.ogg` — bomber zombie explodes (0.8-1.2s)
+
+```
+Close-range suicide bomber zombie explosion: a sharp flesh-and-shrapnel burst
+with a short punchy low thump underneath, wet and gritty, dry and tight with no
+long reverb tail. Punchy transient, clean 2D game sound effect, mono compatible,
+no music, no voice, no silence at the beginning.
+```
+
+Must read as *a zombie bursting nearby*, clearly distinct from the game's existing
+shotgun/explosive `boom`. Lean on gore and shrapnel, and keep the tail short.
+
+### `sfx_bomber_fuse.ogg` — bomber ignites, 0.55s escape window (0.5s)
+
+```
+Short urgent warning beep sequence: three quick rising electronic ticks like a
+bomb fuse about to blow, small, dry and clean, tense. Punchy transient, 2D game
+sound effect, mono compatible, no music, no voice, no silence at the beginning.
+```
+
+### `sfx_evolve.ogg` — weapon evolution (1.5-2.5s)
+
+```
+Triumphant weapon evolution fanfare: a rising magical power surge that
+transforms into a bright metallic bloom, heroic and rewarding, a short
+orchestral hit with shimmer on top. Clean professional game audio, punchy,
+no voice, no silence at the beginning.
+```
+
+The biggest power-up in a run — this should feel clearly grander than the level-up jingle.
+
+### `sfx_wave_clear.ogg` — wave cleared banner (0.8-1.2s)
+
+```
+Short positive achievement stinger: two or three bright ascending notes with a
+satisfying finish, clean and crisp, light and quick, not a long fanfare. Clean
+2D game sound effect, no voice, no silence at the beginning.
+```
+
+Plays on every wave, so keep it noticeably lighter and shorter than the 30-minute
+clear jingle.
+
+### `sfx_horde.ogg` — zombie swarm spawns (1.5-2s)
+
+```
+A distant crowd of zombies growling and shrieking together: a low ominous mass
+of many layered undead voices swelling closer, menacing and threatening, dry.
+Clean 2D game sound effect, no music, no silence at the beginning.
+```
+
+This is an organic warning — it must not sound like the electronic boss alarm.
+
+### `sfx_revive.ogg` — free revive (1.5-2s)
+
+```
+Heroic revival sound: a soft holy choir-like chime swelling up with a warm
+energy surge and a heartbeat resuming underneath, uplifting and dramatic.
+Clean professional game audio, no voice, no silence at the beginning.
+```
+
+### `sfx_swing.ogg` — melee weapon swing (0.25s)
+
+```
+A quick heavy baseball bat swing whoosh cutting through air, short and dry, no
+impact and no hit at the end. Punchy transient, clean 2D game sound effect, mono
+compatible, no music, no voice, no silence at the beginning.
+```
+
+Fires roughly once per second all run long — keep it minimal and free of character.
+
+### `sfx_holy_splash.ogg` — holy water lands (0.6-0.9s)
+
+```
+A glass vial shattering on the ground and holy water splashing out: bright glass
+shards with a soft magical shimmer over the splash, wet and crisp, dry and
+tight. Clean 2D game sound effect, no music, no voice, no silence at the
+beginning.
+```
+
+### `sfx_spit.ogg` — spitter zombie fires (0.4s)
+
+```
+A wet guttural acid spit projectile launch from a monster: a short slimy hawking
+burst, disgusting and organic, dry and tight. Punchy transient, clean 2D game
+sound effect, mono compatible, no music, no voice, no silence at the beginning.
+```
+
+Warns the player that a projectile is incoming, so the attack transient matters more
+than the texture.
+
+---
+
+# Post-processing
+
+Mix balance is handled in code (`SoundManager._VOLUMES`), **not** in the files. Normalize
+everything to the same loudness and let the game apply per-sound levels — otherwise the
+mix becomes impossible to manage.
+
+```bash
+# Ultimates (louder — they must cut through the BGM)
+ffmpeg -i in.wav -af loudnorm=I=-14:TP=-1 -c:a libvorbis -q:a 6 assets/audio/sfx_ult_quake.ogg
+
+# Gameplay one-shots
+ffmpeg -i in.wav -af loudnorm=I=-16:TP=-1 -c:a libvorbis -q:a 6 assets/audio/sfx_swing.ogg
+```
+
+Checklist before committing a file:
+
+1. **No silent lead-in** — the attack must start at 0.000s, or it will drift out of sync
+   with the screen shake and burst FX.
+2. **Same loudness across the set** — normalize as above.
+3. **No hard cut at the end** — let the tail decay, adding a 60-100ms fade-out if needed.
+4. **In-game check** — audible over the BGM, not confusable with `boom` or `laser`, and
+   the repeating sounds (`swing`, `spit`, `holy_splash`, `bomber_fuse`, `horde`) still
+   feel fine after several minutes of play.
+
+## Plan B — build the arrow storm from one arrow
+
+If the generator refuses to produce a dense volley, generate a single clean arrow:
+
+```
+Single arrow flyby: one quick sharp whoosh cutting through air, then a solid
+wooden thunk impact into the ground, short and dry, no reverb tail. Punchy
+transient, clean 2D game sound effect, no music, no voice, no silence at the
+beginning.
+```
+
+Then multiply it into a 4-second storm — the script randomizes timing, pitch and stereo
+pan across 42 arrows and applies an intro/peak/decay density curve:
+
+```bash
+python3 tools/make_arrow_rain.py one_arrow.wav rain.wav 42 4.0
+ffmpeg -i rain.wav -af loudnorm=I=-14:TP=-1 -c:a libvorbis -q:a 6 \
+    assets/audio/sfx_ult_arrow.ogg
+```
