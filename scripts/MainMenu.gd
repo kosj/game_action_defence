@@ -58,6 +58,7 @@ var _quest_list: VBoxContainer
 
 # 보상 보관함(REWARDS) — 퀘스트/도전과제 보상을 유저가 직접 수령하는 패널.
 var _rewards_btn: Button
+var _rewards_badge: Label        # 미수령 개수 배지(0이면 숨김)
 var _rewards_dim: ColorRect
 var _rewards_panel: PanelContainer
 var _rewards_list: VBoxContainer
@@ -155,70 +156,54 @@ func _build_ui() -> void:
 	spacer.custom_minimum_size = Vector2(0, 18)
 	box.add_child(spacer)
 
+	# ── 1차 CTA — 로고의 핏빛을 그대로 받아 "여기를 눌러라"를 색으로도 말한다 ──
 	_new_game_btn = Button.new()
-	_new_game_btn.custom_minimum_size = Vector2(300, 70)
-	_new_game_btn.add_theme_font_size_override("font_size", 26)
-	_UIStyle.apply_button_style(_new_game_btn, Color(0.14, 0.40, 0.20), Color(0.4, 0.85, 0.45))
+	_new_game_btn.custom_minimum_size = Vector2(320, 78)
+	_new_game_btn.add_theme_font_size_override("font_size", 27)
+	_UIStyle.apply_button_style(_new_game_btn, UITheme.BTN_BG, UITheme.MENU_PRIMARY)
+	_new_game_btn.add_theme_color_override("font_color", UITheme.LOGO_CREAM)
+	_new_game_btn.add_theme_color_override("font_hover_color", Color.WHITE)
 	_new_game_btn.pressed.connect(_on_new_game_pressed)
 	box.add_child(_new_game_btn)
 
+	# ── 2차 — 밝은 건메탈. 크기·명도로만 1차와 구분한다 ──
 	_continue_btn = Button.new()
-	_continue_btn.custom_minimum_size = Vector2(300, 70)
-	_continue_btn.add_theme_font_size_override("font_size", 26)
-	_UIStyle.apply_button_style(_continue_btn, Color(0.16, 0.24, 0.42), Color(0.4, 0.6, 0.95))
+	_continue_btn.custom_minimum_size = Vector2(320, 66)
+	_continue_btn.add_theme_font_size_override("font_size", 24)
+	_UIStyle.apply_button_style(_continue_btn, UITheme.BTN_BG, UITheme.MENU_SECONDARY)
 	_continue_btn.disabled = not SaveManager.has_save()
 	_continue_btn.pressed.connect(_on_continue_pressed)
 	box.add_child(_continue_btn)
 
-	# ── 옵션 버튼 (언어 / 사운드 설정은 옵션 패널 하위로) ─────────────────────
+	# ── 3차 — 플레이트는 6개 모두 동일한 어두운 금속. 구분은 좌측 아이콘이 담당한다 ──
 	var opt_spacer := Control.new()
-	opt_spacer.custom_minimum_size = Vector2(0, 8)
+	opt_spacer.custom_minimum_size = Vector2(0, 10)
 	box.add_child(opt_spacer)
 
-	_ach_btn = Button.new()
-	_ach_btn.text = "Achievements"
-	_ach_btn.custom_minimum_size = Vector2(300, 56)
-	_ach_btn.add_theme_font_size_override("font_size", 20)
-	_UIStyle.apply_button_style(_ach_btn, Color(0.26, 0.22, 0.10), Color(0.95, 0.80, 0.35))
+	_ach_btn = _make_menu_btn("trophy", UITheme.MENU_ICON_REWARD)
 	_ach_btn.pressed.connect(_on_achievements_pressed)
 	box.add_child(_ach_btn)
 
-	_quest_btn = Button.new()
-	_quest_btn.text = "Quests"
-	_quest_btn.custom_minimum_size = Vector2(300, 56)
-	_quest_btn.add_theme_font_size_override("font_size", 20)
-	_UIStyle.apply_button_style(_quest_btn, Color(0.12, 0.22, 0.12), Color(0.55, 0.95, 0.55))
+	_quest_btn = _make_menu_btn("flag", UITheme.MENU_ICON_QUEST)
 	_quest_btn.pressed.connect(_on_quests_pressed)
 	box.add_child(_quest_btn)
 
-	_rewards_btn = Button.new()
-	_rewards_btn.custom_minimum_size = Vector2(300, 56)
-	_rewards_btn.add_theme_font_size_override("font_size", 20)
-	_UIStyle.apply_button_style(_rewards_btn, Color(0.26, 0.20, 0.06), Color(1.0, 0.85, 0.35))
+	_rewards_btn = _make_menu_btn("coin", UITheme.MENU_ICON_REWARD)
 	_rewards_btn.pressed.connect(_on_rewards_pressed)
 	box.add_child(_rewards_btn)
+	_build_rewards_badge()
 	RewardInbox.changed.connect(_refresh_rewards_badge)
 	_refresh_rewards_badge()
 
-	_rank_btn = Button.new()
-	_rank_btn.custom_minimum_size = Vector2(300, 56)
-	_rank_btn.add_theme_font_size_override("font_size", 22)
-	_UIStyle.apply_button_style(_rank_btn, Color(0.26, 0.20, 0.08), Color(1.0, 0.82, 0.35))
+	_rank_btn = _make_menu_btn("star", UITheme.MENU_ICON_REWARD)
 	_rank_btn.pressed.connect(_on_ranking_pressed)
 	box.add_child(_rank_btn)
 
-	_power_btn = Button.new()
-	_power_btn.text = "PowerUp"
-	_power_btn.custom_minimum_size = Vector2(300, 56)
-	_power_btn.add_theme_font_size_override("font_size", 22)
-	_UIStyle.apply_button_style(_power_btn, Color(0.24, 0.14, 0.30), Color(0.72, 0.5, 1.0))
+	_power_btn = _make_menu_btn("bolt", UITheme.MENU_ICON_POWER)
 	_power_btn.pressed.connect(_on_power_pressed)
 	box.add_child(_power_btn)
 
-	_options_btn = Button.new()
-	_options_btn.custom_minimum_size = Vector2(300, 56)
-	_options_btn.add_theme_font_size_override("font_size", 22)
-	_UIStyle.apply_button_style(_options_btn, Color(0.20, 0.20, 0.28), Color(0.55, 0.58, 0.70))
+	_options_btn = _make_menu_btn("gear", UITheme.MENU_ICON_PLAIN)
 	_options_btn.pressed.connect(_on_options_pressed)
 	box.add_child(_options_btn)
 
@@ -920,12 +905,62 @@ func _build_rewards_panel() -> void:
 	vb.add_child(close)
 
 
-## 대기 보상 개수를 버튼 라벨에 배지로 표시.
+## 3차(보조) 메뉴 버튼 — 6개가 모두 같은 어두운 금속 플레이트를 쓰고, 구분은 좌측
+## 아이콘의 모양·색만으로 한다. 1·2차보다 좁게(SHRINK_CENTER) 두어 폭으로도 위계를 만든다.
+func _make_menu_btn(icon_kind: String, icon_col: Color) -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(284, 52)
+	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	b.add_theme_font_size_override("font_size", 19)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT   # 아이콘 오른쪽에서 좌측 정렬
+	_UIStyle.apply_button_style(b, UITheme.BTN_BG, UITheme.MENU_TERTIARY)
+	_UIStyle.set_button_content_margin_left(b, 56)   # 아이콘 자리 확보
+	var ic := UIIcon.make(icon_kind, 24, icon_col)
+	ic.anchor_top = 0.5
+	ic.anchor_bottom = 0.5
+	ic.offset_left = 22.0
+	ic.offset_right = 46.0
+	ic.offset_top = -12.0
+	ic.offset_bottom = 12.0
+	b.add_child(ic)
+	return b
+
+
+## 미수령 보상 배지 — 버튼 우상단의 작은 붉은 원. 라벨에 "(3)" 을 붙이는 것보다
+## 눈에 띄고, 번역된 라벨 길이에 영향을 주지 않는다.
+func _build_rewards_badge() -> void:
+	_rewards_badge = Label.new()
+	_rewards_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_rewards_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_rewards_badge.add_theme_font_size_override("font_size", 14)
+	_rewards_badge.add_theme_color_override("font_color", UITheme.LOGO_CREAM)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.80, 0.14, 0.14)
+	sb.set_corner_radius_all(13)
+	sb.corner_detail = 6
+	sb.anti_aliasing = true
+	sb.set_border_width_all(2)
+	sb.border_color = Color(0.06, 0.04, 0.05, 0.9)
+	_rewards_badge.add_theme_stylebox_override("normal", sb)
+	_rewards_badge.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_rewards_badge.offset_left = -36.0
+	_rewards_badge.offset_right = -10.0
+	_rewards_badge.offset_top = 3.0
+	_rewards_badge.offset_bottom = 29.0
+	_rewards_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_rewards_badge.visible = false
+	_rewards_btn.add_child(_rewards_badge)
+
+
+## 대기 보상 개수 갱신 — 0이면 배지를 숨긴다.
 func _refresh_rewards_badge() -> void:
 	if _rewards_btn == null:
 		return
-	var n: int = RewardInbox.count()
-	_rewards_btn.text = "Rewards (%d)" % n if n > 0 else "Rewards"
+	_rewards_btn.text = Locale.t("menu_rewards")
+	if _rewards_badge:
+		var n: int = RewardInbox.count()
+		_rewards_badge.visible = n > 0
+		_rewards_badge.text = "%d" % mini(n, 99)
 
 
 func _refresh_rewards() -> void:
@@ -1419,6 +1454,10 @@ func _on_dim_input(event: InputEvent) -> void:
 func _apply_language() -> void:
 	_new_game_btn.text = Locale.t("menu_new_game")
 	_continue_btn.text = Locale.t("menu_continue")
+	_ach_btn.text = Locale.t("menu_achievements")
+	_quest_btn.text = Locale.t("menu_quests")
+	_power_btn.text = Locale.t("menu_powerup")
+	_refresh_rewards_badge()   # 보상 버튼 라벨도 로케일에서 가져온다
 	_lang_title.text = Locale.t("menu_language")
 	_sound_title.text = Locale.t("menu_sound")
 	_options_btn.text = Locale.t("menu_options")

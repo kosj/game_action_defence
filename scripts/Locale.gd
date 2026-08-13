@@ -61,6 +61,11 @@ const STRINGS: Dictionary = {
 	"menu_options":    {"en": "Options",     "ko": "옵션",      "ja": "オプション"},
 	"menu_close":      {"en": "Close",       "ko": "닫기",      "ja": "閉じる"},
 	"menu_ranking":    {"en": "Ranking",     "ko": "랭킹",      "ja": "ランキング"},
+	# 서브셋 폰트에 実/績/強 글리프가 없어 일본어는 가나 표기를 쓴다(報酬는 사용 가능).
+	"menu_achievements": {"en": "Achievements", "ko": "도전과제",  "ja": "アチーブメント"},
+	"menu_quests":       {"en": "Quests",       "ko": "퀘스트",    "ja": "クエスト"},
+	"menu_rewards":      {"en": "Rewards",      "ko": "보상함",    "ja": "報酬"},
+	"menu_powerup":      {"en": "Power Up",     "ko": "영구 강화", "ja": "パワーアップ"},
 
 	# ── 랭킹 오버레이 ─────────────────────────────────────────────────────
 	"rank_title":      {"en": "RANKING",     "ko": "랭킹",      "ja": "ランキング"},

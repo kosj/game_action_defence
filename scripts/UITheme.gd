@@ -27,6 +27,18 @@ const SEC_QUEST   := Color(0.45, 0.90, 0.50)   # 과제
 const SEC_ACHIEVE := Color(0.90, 0.75, 0.30)   # 도전과제
 const SEC_REWARD  := Color(1.00, 0.85, 0.35)   # 보상함
 
+# 메인 메뉴 버튼 3단 위계 — 플레이트는 모두 같은 금속으로 두고 위계는 크기·명도로 만든다.
+# (색을 8가지 쓰면 오히려 구분이 안 된다: 예전엔 도전과제/보상/랭킹이 틴트 후 거의 같은 금색이었다.)
+const MENU_PRIMARY   := Color(0.78, 0.16, 0.16)   # 1차 CTA — 로고의 핏빛 계열
+const MENU_SECONDARY := Color(0.52, 0.56, 0.66)   # 2차 — 밝은 건메탈
+const MENU_TERTIARY  := Color(0.32, 0.35, 0.43)   # 3차 — 어두운 건메탈(6개 전부 동일)
+
+# 3차 버튼의 구분은 플레이트 색이 아니라 "좌측 아이콘의 모양+색"이 담당한다.
+const MENU_ICON_REWARD := Color(1.00, 0.82, 0.30)   # 보상 계열(도전과제·보상함·랭킹)
+const MENU_ICON_QUEST  := Color(0.55, 0.95, 0.55)   # 과제
+const MENU_ICON_POWER  := Color(0.78, 0.58, 1.00)   # 영구 강화
+const MENU_ICON_PLAIN  := Color(0.70, 0.74, 0.84)   # 설정
+
 const SEC_POWER_TXT   := Color(0.85, 0.70, 1.00)
 const SEC_CHAR_TXT    := Color(0.60, 0.90, 1.00)
 const SEC_ARENA_TXT   := Color(0.70, 1.00, 0.70)
