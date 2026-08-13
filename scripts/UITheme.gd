@@ -112,6 +112,15 @@ func build() -> Theme:
 	t.set_stylebox("panel", "Panel", _panel())
 	t.set_stylebox("panel", "PanelContainer", _panel())
 
+	# ── ProgressBar ───────────────────────────────────────────
+	# 지금까지 진행바는 스타일이 없어 엔진 기본 회색 막대로 그려졌다(퀘스트 팝업이 미완성으로
+	# 보이던 주된 이유). HUD 게이지와 같은 "어두운 함몰 트랙 + 골드 헤어라인" 문법으로 통일한다.
+	# 텍스처 나인패치 대신 StyleBoxFlat 을 쓰는 이유: ProgressBar 는 채움을 x=0 부터 전체 높이로
+	# 그려서 프레임 림을 덮고, 바가 얇으면(12~20px) 나인패치 코너가 서로 겹쳐 뭉개진다.
+	t.set_stylebox("background", "ProgressBar", progress_track())
+	t.set_stylebox("fill", "ProgressBar", progress_fill(ACCENT))
+	t.set_color("font_color", "ProgressBar", TEXT)
+
 	# ── Label ─────────────────────────────────────────────────
 	t.set_color("font_color", "Label", TEXT)
 
@@ -147,6 +156,29 @@ func _panel() -> StyleBoxFlat:
 
 func _empty() -> StyleBoxEmpty:
 	return StyleBoxEmpty.new()
+
+
+## 진행바 트랙(배경) — 어두운 함몰부 + 옅은 골드 테두리. 0% 일 때도 이 트랙이 보이므로
+## 진행 0 인 항목이 "바가 없는 빈 행"으로 보이지 않는다.
+static func progress_track() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.05, 0.05, 0.07, 0.92)
+	sb.set_corner_radius_all(6)
+	sb.corner_detail = 6
+	sb.anti_aliasing = true
+	sb.set_border_width_all(1)
+	sb.border_color = Color(0.62, 0.50, 0.22, 0.55)
+	return sb
+
+
+## 진행바 채움 — 호출부가 색만 바꿔 쓸 수 있게 색을 인자로 받는다(퀘스트=금색, 완료=초록 등).
+static func progress_fill(col: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = col
+	sb.set_corner_radius_all(6)
+	sb.corner_detail = 6
+	sb.anti_aliasing = true
+	return sb
 
 
 ## 굵은(Bold) 폰트 — 제목/헤더용. 번들 Bold 서브셋이 있으면 사용, 없으면 기본 폰트.

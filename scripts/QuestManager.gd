@@ -83,6 +83,7 @@ func active_quests() -> Array:
 		var tier: int = int(_tier[id])
 		var goal := _goal(t, tier)
 		out.append({
+			"id": id,   # UI 가 종류별 아이콘을 고르는 데 쓴다(kills/bosses/waves)
 			"title": "%s %s" % [t["title"], _roman(tier + 1)],
 			"desc": "%s %d %s" % [t["verb"], goal, t["unit"]],
 			"current": mini(int(_count[id]), goal),
