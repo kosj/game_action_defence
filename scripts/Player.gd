@@ -333,8 +333,9 @@ func _fit_shadow() -> void:
 			var single = load(c.sprite_path)
 			if single is Texture2D:
 				tex.x = single.get_size().x
-	# 그림자를 캐릭터 폭에 맞게 크게(1.28x) + 약간 더 도톰한 타원으로 — 발밑 존재감을 준다.
-	var sx: float = (tex.x * _body_base_scale.x * 1.28) / 128.0
+	# 그림자를 캐릭터 폭보다 넉넉하게(1.8x) — 새 키포즈 아트의 벌어진 보폭까지 덮어
+	# 발밑 존재감을 준다(단일 스프라이트 폭 기준이라 프레임에 따라 변하지 않는다).
+	var sx: float = (tex.x * _body_base_scale.x * 1.8) / 128.0
 	shadow.scale = Vector2(sx, sx * 0.52)
 	shadow.position = Vector2(0.0, tex.y * _body_base_scale.y * 0.46)
 
