@@ -646,9 +646,24 @@ func _build_xp_bar() -> void:
 		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(badge)
 		_level_badge = badge
-		# 원형 면 위엔 숫자만(폭이 좁아 "Lv" 접두는 생략) — XP 바가 바로 위라 레벨로 읽힌다.
+		# 숫자만으로는 레벨인지 알기 어려워 뱃지 상단에 "Lv" 캡션을 함께 표시한다.
+		var cap := Label.new()
+		cap.text = "Lv"
+		cap.set_anchors_preset(Control.PRESET_TOP_WIDE)
+		cap.offset_top = 8.0
+		cap.offset_bottom = 20.0
+		cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		cap.add_theme_font_size_override("font_size", 10)
+		cap.add_theme_color_override("font_color", Color(1.0, 0.82, 0.35))
+		cap.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+		cap.add_theme_constant_override("outline_size", 2)
+		cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		badge.add_child(cap)
+		# 숫자는 캡션 아래로 살짝 내려 중앙 하단에 배치.
 		_level_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-		_level_label.add_theme_font_size_override("font_size", 17)
+		_level_label.offset_top = 13.0
+		_level_label.offset_bottom = -2.0
+		_level_label.add_theme_font_size_override("font_size", 16)
 		_level_label.add_theme_color_override("font_color", Color(0.95, 0.90, 0.75))
 		_level_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 		_level_label.add_theme_constant_override("outline_size", 3)
