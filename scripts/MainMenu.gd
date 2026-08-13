@@ -40,7 +40,6 @@ var _power_gold_label: Label
 var _power_rows: Array = []      # [{ "btn": Button, "id": String }]
 
 # ── 캐릭터 선택 오버레이 ──
-var _char_btn: Button
 var _char_dim: ColorRect
 var _char_panel: PanelContainer
 var _char_rows: Array = []       # [{ "btn": Button, "c": CharacterData }]
@@ -65,7 +64,6 @@ var _rewards_list: VBoxContainer
 var _rewards_total: Label
 
 # ── 테마(아레나) 선택 오버레이 ──
-var _theme_btn: Button
 var _theme_dim: ColorRect
 var _theme_panel: PanelContainer
 var _theme_rows: Array = []      # [{ "btn": Button, "t": ThemeData }]
@@ -177,20 +175,6 @@ func _build_ui() -> void:
 	opt_spacer.custom_minimum_size = Vector2(0, 8)
 	box.add_child(opt_spacer)
 
-	_char_btn = Button.new()
-	_char_btn.custom_minimum_size = Vector2(300, 56)
-	_char_btn.add_theme_font_size_override("font_size", 20)
-	_UIStyle.apply_button_style(_char_btn, Color(0.12, 0.24, 0.30), Color(0.45, 0.85, 0.95))
-	_char_btn.pressed.connect(_on_character_pressed)
-	box.add_child(_char_btn)
-
-	_theme_btn = Button.new()
-	_theme_btn.custom_minimum_size = Vector2(300, 56)
-	_theme_btn.add_theme_font_size_override("font_size", 20)
-	_UIStyle.apply_button_style(_theme_btn, Color(0.14, 0.20, 0.14), Color(0.55, 0.85, 0.55))
-	_theme_btn.pressed.connect(_on_theme_pressed)
-	box.add_child(_theme_btn)
-
 	_ach_btn = Button.new()
 	_ach_btn.text = "Achievements"
 	_ach_btn.custom_minimum_size = Vector2(300, 56)
@@ -250,12 +234,10 @@ func _build_ui() -> void:
 	_build_ranking_panel()
 	_build_power_panel()
 	_build_character_panel()
-	_refresh_char_button()
 	_build_achievement_panel()
 	_build_quest_panel()
 	_build_rewards_panel()
 	_build_theme_panel()
-	_refresh_theme_button()
 	call_deferred("_prewarm_panels")
 
 
@@ -602,12 +584,6 @@ func _build_character_panel() -> void:
 	vb.add_child(close)
 
 
-## 현재 선택 캐릭터를 메뉴 버튼에 표시.
-func _refresh_char_button() -> void:
-	var c := CharacterManager.selected()
-	_char_btn.text = "Survivor: %s" % (c.display if c != null else "-")
-
-
 ## 오버레이 카드 갱신 — 선택/잠금/구매 상태를 반영.
 func _refresh_character() -> void:
 	if _char_gold_label:
@@ -665,16 +641,23 @@ func _on_char_pick(id: String) -> void:
 	var c: CharacterData = GameData.character(id)
 	if c == null:
 		return
+	var picked := false
 	if CharacterManager.is_unlocked(c):
 		CharacterManager.select(id)
 		SoundManager.play_ui("gold", 0.03, 1.2)
+		picked = true
 	elif c.unlock_cost > 0 and CharacterManager.try_buy(id):
 		CharacterManager.select(id)   # 구매 성공 → 즉시 선택
 		SoundManager.play_ui("gold", 0.02, 1.0)
+		picked = true
 	else:
 		SoundManager.play_ui("player_hurt", 0.2, 1.0)   # 해금 불가(골드 부족/도전과제 미달)
 	_refresh_character()
-	_refresh_char_button()
+	if picked and _newgame_flow:
+		# 다음 단계: 아레나(테마) 선택
+		_char_dim.visible = false
+		_char_panel.visible = false
+		_on_theme_pressed()
 
 
 func _on_character_pressed() -> void:
@@ -684,6 +667,7 @@ func _on_character_pressed() -> void:
 
 
 func _on_character_close() -> void:
+	_newgame_flow = false   # 선택 중 닫으면 새 게임 흐름 취소
 	_char_dim.visible = false
 	_char_panel.visible = false
 
@@ -1155,11 +1139,6 @@ func _build_theme_panel() -> void:
 	vb.add_child(close)
 
 
-func _refresh_theme_button() -> void:
-	var t := ThemeManager.selected()
-	_theme_btn.text = "Arena: %s" % (t.display if t != null else "-")
-
-
 func _refresh_theme() -> void:
 	if _theme_gold_label:
 		_theme_gold_label.text = "Gold: %d" % MetaManager.meta_gold
@@ -1202,6 +1181,7 @@ func _on_theme_pressed() -> void:
 
 
 func _on_theme_close() -> void:
+	_newgame_flow = false   # 선택 중 닫으면 새 게임 흐름 취소
 	_theme_dim.visible = false
 	_theme_panel.visible = false
 
@@ -1219,16 +1199,24 @@ func _on_theme_pick(id: String) -> void:
 			break
 	if t == null:
 		return
+	var picked := false
 	if ThemeManager.is_unlocked(t):
 		ThemeManager.select(id)
 		SoundManager.play_ui("gold", 0.03, 1.2)
+		picked = true
 	elif t.unlock_cost > 0 and ThemeManager.try_buy(id):
 		ThemeManager.select(id)
 		SoundManager.play_ui("gold", 0.02, 1.0)
+		picked = true
 	else:
 		SoundManager.play_ui("player_hurt", 0.2, 1.0)
 	_refresh_theme()
-	_refresh_theme_button()
+	if picked and _newgame_flow:
+		_newgame_flow = false
+		_theme_dim.visible = false
+		_theme_panel.visible = false
+		# 마지막 단계: 서사 인트로를 보여준 뒤(완료/건너뛰기 시) 실제 시작
+		_IntroStory.play(self, _start_new_game)
 
 
 func _refresh_power() -> void:
@@ -1426,9 +1414,13 @@ func _refresh_language_buttons() -> void:
 			_UIStyle.apply_button_style(b, Color(0.14, 0.15, 0.20), Color(0.30, 0.32, 0.40))
 
 
+## 새 게임 흐름: 생존자 선택 -> 아레나 선택 -> 인트로 -> 시작.
+## 캐릭터/테마 선택은 이 흐름에서만 열린다(메인 메뉴 버튼 제거됨).
+var _newgame_flow := false
+
 func _on_new_game_pressed() -> void:
-	# 새 게임은 서사 인트로를 먼저 보여준 뒤(완료/건너뛰기 시) 실제로 시작한다.
-	_IntroStory.play(self, _start_new_game)
+	_newgame_flow = true
+	_on_character_pressed()   # 1단계: 생존자 선택
 
 
 func _start_new_game() -> void:
