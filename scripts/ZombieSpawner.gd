@@ -375,13 +375,22 @@ func _spawn_boss() -> void:
 
 
 ## 서머너 보스의 소환 요청 처리 — 스포너가 직접 스폰해 살아있는 좀비 카운터를 일관 유지.
+## 보스 호위 소환 — 화면 밖이 아니라 플레이어를 둘러싼 링에 즉시 나타난다.
+## (기존엔 화면 가장자리에서 걸어와 소환이 위협으로 느껴지지 않았다.)
 func _on_boss_summon(count: int) -> void:
-	if not _boss_alive or _game_over:
+	if not _boss_alive or _game_over or not is_instance_valid(player):
 		return
 	var room := maxi(0, _bal.summon_alive_cap - _effective_alive())
 	var n := mini(count, room)
+	var base_a := randf() * TAU
 	for i in range(n):
-		_spawn_one(ZOMBIE_TYPES[3] if i % 2 == 0 else ZOMBIE_TYPES[1])
+		var t: Dictionary = (ZOMBIE_TYPES[3] if i % 2 == 0 else ZOMBIE_TYPES[1]).duplicate()
+		t["max_health"] = maxi(1, int(round(float(t["max_health"]) * _hp_mult())))
+		t["speed"] = float(t["speed"]) * _speed_mult()
+		# 링 위 균등 배치 + 약간의 산개 — 한쪽으로 뚫고 나가되 공짜는 아니게.
+		var a: float = base_a + TAU * float(i) / float(maxi(1, n))
+		var r: float = _bal.boss_summon_ring + randf_range(-40.0, 40.0)
+		_spawn_at(t, player.global_position + Vector2.from_angle(a) * r)
 
 
 func _on_boss_died() -> void:
