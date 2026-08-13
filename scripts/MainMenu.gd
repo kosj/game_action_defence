@@ -1112,33 +1112,69 @@ func _build_theme_panel() -> void:
 	rows_box.add_theme_constant_override("separation", 16)
 	scroll.add_child(rows_box)
 
+	# 테마 카드 = [이름 / 설명] 위, [가로를 꽉 채우는 와이드 썸네일] 아래.
+	# 카드 높이(썸네일이 남는 세로를 모두 차지). 3개 기준으로 한 화면에 들어온다.
+	var card_h := 240.0
+
 	_theme_rows.clear()
 	for t in GameData.themes:
+		# 내용을 Button 의 text 가 아니라 "앵커로 얹은 자식"으로 구성하는 이유:
+		# autowrap 이 켜진 Button/Label 은 최소 크기를 "가장 좁은 폭으로 줄바꿈했을 때의
+		# 높이"로 보고한다. 그 값이 컨테이너에 전파되면 카드 하나가 스크롤 영역 전체를
+		# 차지할 만큼 부풀어 오른다(이전 레이아웃에서 실제로 발생). Button 은 컨테이너가
+		# 아니므로 앵커 자식의 최소 크기는 카드 높이에 영향을 주지 않는다.
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(0, 148)
+		btn.custom_minimum_size = Vector2(0, card_h)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.add_theme_font_size_override("font_size", 19)
-		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT   # 썸네일 오른쪽에서 좌측 정렬(겹침 방지)
+		btn.size_flags_vertical = Control.SIZE_SHRINK_BEGIN   # 남는 세로를 먹지 않게 고정
+		btn.clip_contents = true
 		btn.pressed.connect(_on_theme_pick.bind(String(t.id)))
 		rows_box.add_child(btn)
-		# 테마 썸네일 — assets/ui/thumbs/theme_<id>.png 가 있으면 좌측에 표시(잠금 시 어둡게).
+
+		var pad := MarginContainer.new()
+		pad.set_anchors_preset(Control.PRESET_FULL_RECT)
+		pad.add_theme_constant_override("margin_left", 16)
+		pad.add_theme_constant_override("margin_right", 16)
+		pad.add_theme_constant_override("margin_top", 12)
+		pad.add_theme_constant_override("margin_bottom", 14)
+		pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		btn.add_child(pad)
+
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 4)
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pad.add_child(col)
+
+		# 이름/설명은 autowrap 을 끄고 넘치면 잘라낸다(위 주석의 최소 크기 폭주 방지).
+		var name_lbl := Label.new()
+		name_lbl.add_theme_font_size_override("font_size", 22)
+		name_lbl.clip_text = true
+		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		UITheme.heading(name_lbl)
+		col.add_child(name_lbl)
+
+		var desc_lbl := Label.new()
+		desc_lbl.add_theme_font_size_override("font_size", 15)
+		desc_lbl.clip_text = true
+		desc_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_child(desc_lbl)
+
+		# 와이드 썸네일 — 카드 가로를 꽉 채우고 남는 세로를 모두 차지. 원본(4:3)은
+		# 가운데를 잘라 배너처럼 보여준다(COVERED).
 		var thumb: TextureRect = null
 		var tex_path := "res://assets/ui/thumbs/theme_%s.png" % t.id
 		if ResourceLoader.exists(tex_path):
 			thumb = TextureRect.new()
 			thumb.texture = load(tex_path)
 			thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			thumb.anchor_top = 0.0
-			thumb.anchor_bottom = 1.0
-			thumb.offset_left = 14.0
-			thumb.offset_right = 158.0
-			thumb.offset_top = 10.0
-			thumb.offset_bottom = -10.0
+			thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+			thumb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			thumb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			thumb.clip_contents = true
 			thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			btn.add_child(thumb)
-		_theme_rows.append({"btn": btn, "t": t, "thumb": thumb})
+			col.add_child(thumb)
+		_theme_rows.append({"btn": btn, "t": t, "thumb": thumb,
+			"name": name_lbl, "desc": desc_lbl})
 
 	var close := Button.new()
 	close.text = "Close"
@@ -1157,22 +1193,29 @@ func _refresh_theme() -> void:
 		var t: ThemeData = row["t"]
 		var btn: Button = row["btn"]
 		var thumb: TextureRect = row.get("thumb")
+		var name_lbl: Label = row["name"]
+		var desc_lbl: Label = row["desc"]
 		if ThemeManager.is_unlocked(t):
-			btn.text = "%s%s\n%s" % ["> " if t.id == sel else "", t.display, t.desc]
-			if t.id == sel:
+			var picked: bool = t.id == sel
+			name_lbl.text = ("> %s" % t.display) if picked else String(t.display)
+			name_lbl.add_theme_color_override("font_color",
+				UITheme.SEC_ARENA_TXT if picked else UITheme.TEXT)
+			desc_lbl.text = t.desc
+			desc_lbl.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+			if picked:
 				_UIStyle.apply_button_style(btn, Color(t.tile_b.r, t.tile_b.g, t.tile_b.b, 1.0), t.mark)
 			else:
 				_UIStyle.apply_button_style(btn, Color(0.14, 0.16, 0.20), Color(0.35, 0.40, 0.48))
 			if thumb:
 				thumb.modulate = Color.WHITE
 		else:
-			btn.text = "[-] %s\n%s" % [t.display, _theme_unlock_hint(t)]
+			name_lbl.text = "[-] %s" % t.display
+			name_lbl.add_theme_color_override("font_color", Color(0.62, 0.64, 0.70))
+			desc_lbl.text = _theme_unlock_hint(t)
+			desc_lbl.add_theme_color_override("font_color", Color(0.85, 0.74, 0.42))
 			_UIStyle.apply_button_style(btn, Color(0.10, 0.10, 0.12), Color(0.30, 0.30, 0.34))
 			if thumb:
 				thumb.modulate = Color(0.35, 0.35, 0.4)
-		# apply_button_style 이 스타일박스를 새로 깔아 좌측 여백이 사라진다 — 썸네일이 있으면 재적용.
-		if thumb:
-			_UIStyle.set_button_content_margin_left(btn, 172)
 
 
 func _theme_unlock_hint(t: ThemeData) -> String:
