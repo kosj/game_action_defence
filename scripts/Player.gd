@@ -109,6 +109,11 @@ func _ready() -> void:
 	contact_cooldown = GameData.balance.contact_cooldown   # 밸런스 테이블(res://data/balance.tres)
 	_recompute_combat_stats()
 	health = max_health
+	# 시작 인벤토리 반영 — Events.reset() 은 메뉴에서 Player 가 생기기 전에 실행되므로
+	# 그때 emit 된 inventory_changed 를 받을 수 없다. 여기서 직접 한 번 적용해야
+	# 캐릭터 시작 무기(모듈)·시그니처 패시브·시작 스탯 보정이 런 시작부터 동작한다.
+	apply_upgrades()
+	health = max_health   # 보너스 최대 체력까지 가득 채운 상태로 시작
 	_hurt_timer = GameData.balance.start_invuln   # 시작 무적 (프리워밍·첫 좀비 도착 전 보호)
 	Events.update_player_health(health, max_health)
 	Events.shop_closed.connect(apply_upgrades)
