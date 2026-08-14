@@ -60,10 +60,21 @@ func _ready() -> void:
 
 
 ## 씬 전환 후에도 새로 생성되는 버튼마다 눌림 애니메이션을 연결한다(개별 위젯 수정 불필요).
+##
+## node_added 는 트리에 추가되는 모든 노드에 발화하므로 오브젝트 풀이 재사용하는 총알·FX 도
+## 여기를 지나간다. 그래도 전역 훅을 유지하는 이유는 커버리지다 — 씬에 직접 배치된 버튼은
+## UIStyle.apply_button_style() 을 거치지 않아, 그쪽으로 옮기면 눌림 피드백이 조용히 사라진다.
+## 대신 비용은 아래 `n is Button` 한 번의 타입 검사로 끝난다(풀 스폰은 전부 Node2D 라 즉시 탈락).
 func _hook_button(n: Node) -> void:
-	if n is Button:
-		n.button_down.connect(_btn_press.bind(n))
-		n.button_up.connect(_btn_release.bind(n))
+	if not (n is Button):
+		return
+	# 버튼이 트리에서 빠졌다 다시 추가되면 node_added 가 재발화한다 — 중복 연결 시 Godot 이
+	# 에러를 내고 눌림 스케일도 두 번 적용되므로 메타로 1회만 연결한다.
+	if n.has_meta("_btn_pop"):
+		return
+	n.set_meta("_btn_pop", true)
+	n.button_down.connect(_btn_press.bind(n))
+	n.button_up.connect(_btn_release.bind(n))
 
 
 func _btn_press(b: Button) -> void:

@@ -38,7 +38,6 @@ const BASE_BULLET_SPEED := 700.0
 @onready var body: Node2D = $Body
 @onready var muzzle: Marker2D = $Body/Muzzle
 @onready var shadow: Sprite2D = $Shadow
-@onready var hurtbox: Area2D = $Hurtbox
 @onready var camera: Camera2D = $Camera2D
 
 # 화면 흔들림(타격감): Events.screen_shake_requested 로 세기를 누적하고 매 프레임 감쇠하며
@@ -70,7 +69,10 @@ const TARGET_RESCAN := 0.1
 # 주기적 자동저장: 웨이브 클리어/상점 체크포인트 사이에 종료해도 점수·골드·진행이
 # 유실되지 않도록 일정 간격으로 현재 상태를 저장한다(_notification 으로 백그라운드/종료 시에도).
 var _autosave_accum: float = 0.0
-const AUTOSAVE_INTERVAL := 4.0
+# 웹에서 user:// 저장은 IndexedDB 동기화라 JSON 직렬화보다 훨씬 비싸고 간헐적 히칭을 만든다.
+# 웨이브 클리어·상점 종료·앱 백그라운드 전환에서 이미 체크포인트 저장을 하므로, 주기 저장은
+# 안전망 역할만 하면 된다 — 4초는 웹 기준으로 과했다(유실 위험은 거의 그대로, 히칭만 1/5).
+const AUTOSAVE_INTERVAL := 20.0
 var _base_move_speed: float
 var _base_attack_cooldown: float
 var _base_max_health: int

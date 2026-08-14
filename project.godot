@@ -70,6 +70,15 @@ renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 
+[physics]
+
+; 프레임이 늦어졌을 때 물리를 몰아서 여러 번 돌리면(기본 8회) 저사양 웹에서 "따라잡기 →
+; 더 느려짐"의 악순환(death spiral)에 빠진다. 4회로 제한해 그 경우 물리를 늦추는 쪽을 택한다.
+; 주의: physics_ticks_per_second 는 60 을 유지한다 — 좀비·총알·플레이어가 모두
+; _physics_process 에서 이동하고 이 엔진 설정에는 2D 물리 보간이 없어, 30 으로 낮추면
+; 연산은 절반이 되지만 화면 움직임도 30fps 로 보인다(실측 후 판단할 항목).
+common/max_physics_steps_per_frame=4
+
 [layer_names]
 
 2d_physics/layer_1="player"

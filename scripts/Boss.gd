@@ -40,6 +40,8 @@ var gold_drop: int = 12
 var _alive: bool = false
 var _archetype: String = "melee"
 var _base_color: Color = Color(0.55, 0.12, 0.14)
+const _HIT_FLASH := 0.12     # 피격 잔광 지속 시간
+var _flash: float = 0.0      # 피격 잔광 잔여 시간 — 피격마다 Tween 을 만들지 않기 위해 직접 감쇠
 var _proj_color: Color = Color(0.55, 0.8, 1.0)
 var _pulse: float = 0.0
 var _enraged: bool = false      # 격노(페이즈≥1) 여부 — 기존 행동 분기 호환용
@@ -151,6 +153,7 @@ func setup(stats: Dictionary) -> void:
 	_alive_time = 0.0
 	_bstate = "stalk"
 	_bt = 0.0
+	_flash = 0.0
 	body.modulate = _base_color
 	# HUD 가 체력바 위에 표시할 보스 이름(타입). 시그널 시그니처 변경 없이 Events 에 실어 보낸다.
 	Events.boss_display_name = stats.get("name", "BOSS")
@@ -457,6 +460,10 @@ func _dash_end() -> void:
 func _process(delta: float) -> void:
 	if not _alive:
 		return
+	# 피격 잔광 감쇠 — 흰색에서 기본 색으로 돌아온다(Tween 없이).
+	if _flash > 0.0:
+		_flash = maxf(0.0, _flash - delta)
+		body.modulate = _base_color.lerp(Color(1, 1, 1), _flash / _HIT_FLASH)
 	_pulse += delta
 	queue_redraw()
 
@@ -526,9 +533,11 @@ func take_damage(amount: int, is_crit: bool = false) -> void:
 	_DamageNumber.spawn(get_tree().current_scene, global_position + Vector2(0, -40), amount, true, num_col, true)
 	Events.boss_health_changed.emit(health, max_health)
 	SoundManager.play("zombie_hit")
+	# 피격 잔광은 Tween 대신 잔여 시간을 _process 에서 감쇠한다(Zombie 와 동일한 방식).
+	# 보스는 체인소·오브·드론·관통탄·스플래시에 초당 수십 번 맞으므로, 피격마다 Tween 을 만들면
+	# 같은 body.modulate 를 놓고 다투는 트윈이 계속 쌓인다.
+	_flash = _HIT_FLASH
 	body.modulate = Color(1, 1, 1)
-	var tw := create_tween()
-	tw.tween_property(body, "modulate", _base_color, 0.12)
 	# 다단계 전환: 체력 비율이 66%/33% 아래로 처음 내려갈 때마다 한 단계씩 격화한다.
 	if health > 0:
 		var ratio := float(health) / float(max_health)

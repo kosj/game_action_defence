@@ -36,14 +36,37 @@ jobs:
           mv /root/.local/share/godot/export_templates/4.3.stable/* \
              ~/.local/share/godot/export_templates/4.3.stable/
 
+      # 에셋 임포트는 텍스처 138장 + 오디오 31개 + 폰트를 처리하므로 120초로는 모자랄 수 있다.
+      # 예전에는 `| tail -30 || true` 라 타임아웃으로 잘려도 그대로 다음 스텝(export)으로 넘어가,
+      # 임포트가 덜 된 산출물이 조용히 배포될 수 있었다 — 타임아웃만은 명시적으로 실패시킨다.
+      # (컨테이너 셸이 dash 라 pipefail 을 못 쓰므로, 파이프 대신 로그 파일로 받아 종료코드를 본다)
       - name: Import assets
         run: |
-          timeout 120 godot --headless --editor --quit 2>&1 | tail -30 || true
+          status=0
+          timeout 600 godot --headless --editor --quit > import.log 2>&1 || status=$?
+          tail -40 import.log
+          if [ "$status" -eq 124 ]; then
+            echo "에셋 임포트가 600초 타임아웃으로 중단되었습니다 — 빌드를 중단합니다."
+            exit 1
+          fi
 
       - name: Export to Web
         run: |
           mkdir -p build/web
           godot --headless --export-release "Web" build/web/index.html
+
+      # 용량 회귀 방지: 웹 pck 는 전량 다운로드해야 첫 프레임이 뜨므로 초기 로딩에 직결된다.
+      # 현재는 약 16MB 수준이며, 에셋을 잘못 추가해 크게 뛰면 여기서 걸린다.
+      # (텍스처 압축 적용 후에는 이 상한을 더 낮게 조여도 된다)
+      - name: Check build size
+        run: |
+          PCK_KB=$(du -k build/web/index.pck | cut -f1)
+          LIMIT_KB=24576
+          echo "index.pck = ${PCK_KB} KB (상한 ${LIMIT_KB} KB)"
+          if [ "$PCK_KB" -gt "$LIMIT_KB" ]; then
+            echo "pck 크기가 상한을 초과했습니다 — 에셋 추가를 확인하세요."
+            exit 1
+          fi
 
       - name: Upload WebGL build (artifact for deploy + manual download)
         uses: actions/upload-artifact@v4

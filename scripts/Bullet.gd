@@ -1,6 +1,10 @@
-extends Area2D
+extends Node2D
 ## 총알: 직선 이동 + 좀비 명중 시 데미지(스플래시 무기는 범위 피해). 수명/명중 시 풀로 반납(재사용).
 ## 외형(색/크기)과 스플래시 반경은 장착 무기에 따라 Player._shoot_at() 에서 매 발 주입된다.
+##
+## 물리 노드가 아니다: 명중은 아래 _check_swept_hit() 의 스윕 판정 + 공간 해시로만 처리한다.
+## Area2D 였을 때는 동시 수십~수백 발이 매 프레임 물리 broadphase 를 갱신하는 비용을 냈지만,
+## 실제 판정에 쓰이지 않는 죽은 비용이었다(좀비 씬에는 충돌 도형이 아예 없다).
 
 @export var speed: float = 700.0
 @export var damage: int = 1
@@ -25,10 +29,6 @@ var _alive: bool = false
 const _ZOMBIE_RADIUS := 14.0   # Zombie.tscn 충돌 반경
 const _BOSS_RADIUS := 38.0     # Boss.tscn 충돌 반경
 const _KNOCKBACK := 135.0      # 직격 시 좀비를 진행 방향으로 살짝 밀어내는 세기(타격감)
-
-
-func _ready() -> void:
-	body_entered.connect(_on_body_entered)   # 시그널은 1회만 연결(보조 경로)
 
 
 func on_spawn() -> void:
@@ -95,7 +95,10 @@ func _check_swept_hit(from: Vector2, to: Vector2) -> void:
 		var target_r: float = (_BOSS_RADIUS if z.is_in_group("boss") else _ZOMBIE_RADIUS) + bullet_r
 		if closest.distance_squared_to(zp) <= target_r * target_r:
 			_resolve_hit(z, closest)
-			return
+			# 관통탄은 한 프레임에 여러 적을 지나갈 수 있다 — 소멸했을 때만 순회를 멈춘다.
+			# (예전에는 명중 즉시 return 이라 pierce 가 남아도 프레임당 1마리만 맞았다)
+			if not _alive:
+				return
 
 
 func _resolve_hit(c: Node, pos: Vector2) -> void:
@@ -137,20 +140,14 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO,  3.0, Color(1.0, 0.95, 0.85, 0.95))
 
 
-func _on_body_entered(body: Node) -> void:
-	if not _alive:
-		return
-	if body.is_in_group("zombies"):
-		_resolve_hit(body, global_position)   # 관통/넉백 처리 일원화
-
-
 ## 폭발형 무기: 명중 지점 주변의 모든 좀비에게 피해 + 확산 이펙트.
 func _splash_hit() -> void:
-	var r_sq := splash_radius * splash_radius
-	for z in Events.live_zombies():
-		if not is_instance_valid(z):
+	# 반경 질의(공간 해시)로 후보를 좁힌다 — 전체 좀비 스캔은 폭발마다 O(좀비 수)였다.
+	# 바깥 명중 순회(zombies_near)와는 다른 버퍼를 쓰므로 중첩 호출이어도 안전하다.
+	for z in Events.zombies_in_radius(global_position, splash_radius):
+		if not is_instance_valid(z) or not z.is_in_group("zombies"):
 			continue
-		if global_position.distance_squared_to(z.global_position) <= r_sq and z.has_method("take_damage"):
+		if z.has_method("take_damage"):
 			z.take_damage(damage, is_crit)
 	# 폭발 텍스처(반경에 맞춰 크게) + 잔광 링. 지름 = splash_radius*2 근사.
 	_SpriteFX.spawn(get_tree().current_scene, global_position, _FX_EXPLOSION, splash_radius * 2.0, \

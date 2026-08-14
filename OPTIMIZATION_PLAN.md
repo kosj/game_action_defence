@@ -3,6 +3,18 @@
 > 2026-08 전수 리뷰. 게임플레이 핫패스 / UI·FX / 에셋·익스포트 3개 축으로
 > 전체 스크립트(~15k줄)·씬·에셋·CI를 조사한 결과와 단계별 실행 계획.
 
+## 진행 상태 (1차 적용 완료분)
+
+아래 항목은 이미 반영되었다. 나머지는 각 Phase 표의 설명을 따른다.
+
+- **완료:** A1(BGM 재인코딩) · A2(가짜 폰트 삭제) · B2 · B3 · B4 · B6 · B10 · B11 · B13 ·
+  B9(머티리얼 공유분) · Phase D(CI) · 익스포트 프리셋 모바일 정정 · 관통탄 버그
+- **보류(사유 있음):** B12 물리 틱 30Hz, A3 텍스처 압축, A4 폰트 서브셋, A5 PWA — 각 항목 참조
+- **미착수:** B1(Ground) · B5 잔여 이관 · B7(y_sort) · B8(전역 훅 제거) · Phase C 대부분
+
+> ⚠️ **검증 한계:** 이 작업 환경에는 Godot이 없어 실행/파싱 검증을 하지 못했다.
+> 머지 전 에디터에서 1회 실행(특히 총알 명중·보스 피격 연출·데미지 숫자 표시)을 확인할 것.
+
 ---
 
 ## 0. 총평
@@ -29,39 +41,64 @@
 
 목표: 초기 로딩 **~30MB → ~8MB**
 
-| # | 작업 | 절감 | 난이도 |
+| # | 작업 | 절감 | 상태 |
 |---|---|---|---|
-| A1 | BGM 3곡을 60~90초 심리스 루프로 재인코딩 (`bgm_game_2` 19분/8.7MB, `bgm_game_1` 9.4분/4.3MB, `bgm_title` 8.4분/3.8MB) | **-15MB** | 하 |
-| A2 | `assets/fonts/NotoSansKR-Regular.ttf` / `NotoSansKR.bin` **삭제** — 둘 다 폰트가 아니라 다운로드 실패로 커밋된 **동일한 HTML 문서**(598KB). 코드 참조 0건, `export_filter="all_resources"` 탓에 웹 빌드에 포함되는 중 | -598KB | 최하 |
-| A3 | 텍스처 손실 WebP 전환: `.gitignore`에서 `*.import` 제외 해제 후 커밋, 큰 파일부터(`bg_title.png` 623KB, `logo_title.png` 410KB, `thumbs/*` 3장 766KB, `prop_*` 384px 계열) | 약 -4.5MB | 중 |
-| A4 | CJK 서브셋 폰트를 KR 전용으로 재생성 (현재 JP 포함 1.2MB×2 → 각 300~400KB) | -1.6MB | 중 |
-| A5 | A1 완료 후 PWA 활성화 (`progressive_web_app/enabled=true`) — GitHub Pages는 캐시 헤더 제어 불가라 재방문 로딩 개선 수단이 이것뿐 | 재방문 로딩 | 하 |
+| A1 | BGM 3곡 재인코딩 (190~210kb/s 스테레오 → **96kb/s 모노**, 길이·곡 내용 그대로) | **-9.2MB** | ✅ 완료 |
+| A2 | `assets/fonts/NotoSansKR-Regular.ttf` / `NotoSansKR.bin` **삭제** — 둘 다 폰트가 아니라 다운로드 실패로 커밋된 **동일한 HTML 문서**(598KB). 코드 참조 0건, `export_filter="all_resources"` 탓에 웹 빌드에 포함되던 중 | -598KB | ✅ 완료 |
+| A3 | 텍스처 손실 압축: `.gitignore`에서 `*.import` 제외 해제 후 커밋, 큰 파일부터(`bg_title.png` 623KB, `logo_title.png` 410KB, `thumbs/*` 3장 766KB, `prop_*` 384px 계열) | 약 -4.5MB | ⏸ Godot 에디터 필요 |
+| A4 | CJK 서브셋 폰트를 KR 전용으로 재생성 (현재 JP 포함 1.2MB×2 → 각 300~400KB) | -1.6MB | ⏸ 폰트 툴체인 필요 |
+| A5 | PWA 활성화 (`progressive_web_app/enabled=true`) — GitHub Pages는 캐시 헤더 제어 불가라 재방문 로딩 개선 수단이 이것뿐 | 재방문 로딩 | ⏸ 아이콘 미설정 |
 
-**주의(A3와 한 몸):** `export_presets.cfg`가 타깃과 반대다 —
-`vram_texture_compression/for_desktop=true, for_mobile=false`. 모바일 웹이 주 타깃이므로
-`for_mobile=true, for_desktop=false`로 뒤집는다. VRAM 압축을 켜는 순간 이걸 안 고치면
-모바일 브라우저에서 텍스처가 깨진다. (현재 PNG 138장이 무압축 RGBA8로 VRAM 26.7MB —
-저사양 WebGL에서 위험 구간)
+**A1 정정 — 최초 조사 보고가 틀렸다.** 조사에서는 "`bgm_game_2`가 19.1분/64kbps 모노"라고 했으나
+실제 파일은 **5분 48초 / 210kb/s 스테레오**였다(나머지 두 곡도 3분대). 즉 문제는 "곡이 비정상적으로
+길다"가 아니라 **모바일 웹 BGM치고 비트레이트가 과했다**는 것이다. 그래서 곡을 자르는 대신
+음악 내용을 100% 보존한 채 96kb/s 모노로만 재인코딩했다(BGM은 `AudioStreamPlayer` 비위치 재생이라
+스테레오 이미징이 쓰이지 않는다). 길이는 밀리초 단위까지 동일하고, 루프는 코드에서
+`stream.loop = true`로 켜므로 영향 없다. 더 줄이려면 루프 구간 단축이 남아 있으나 그건
+음악 내용을 버리는 결정이라 별도 판단이 필요하다.
+
+**A3 보류 사유:** 텍스처 압축은 `.import` 파일이 있어야 하는데 그 생성에 Godot 에디터가 필요하다.
+무손실 PNG 재압축(픽셀 동일)은 실측 결과 **121KB(1.7%)밖에 안 줄어** git 히스토리에 7MB 블롭을
+남길 가치가 없어 폐기했다. 실질 절감은 에디터에서 손실 압축/VRAM 압축을 켜는 경로뿐이다.
+
+**A5 보류 사유:** `progressive_web_app/icon_*` 3종이 전부 비어 있고 `config/icon`도 미설정이라,
+아이콘을 먼저 준비해야 한다. 익스포트 검증 없이 켜면 CI 배포가 깨질 위험이 있다.
+
+**✅ 익스포트 프리셋 정정(완료):** `export_presets.cfg`가 타깃과 정확히 반대였다 —
+`for_desktop=true, for_mobile=false`. 모바일 웹이 주 타깃이므로 뒤집었다. 현재 텍스처가
+전부 무손실이라 당장 효과는 없지만, A3에서 VRAM 압축을 켜는 순간 이걸 안 고쳤으면
+모바일 브라우저에서 텍스처가 깨졌을 상태였다. (PNG 138장 무압축 RGBA8 = VRAM 26.7MB —
+저사양 WebGL에서 위험 구간이므로 A3는 여전히 가치가 크다)
 
 ## 2. Phase B — 런타임 핫패스 (인게임 프레임)
 
 목표: 대난전(좀비 300+) 프레임 안정화. 효과 순.
 
-| # | 작업 | 파일 | 난이도 |
+| # | 작업 | 파일 | 상태 |
 |---|---|---|---|
-| B1 | **Ground 재드로우를 타일 경계 기준으로**: 현재 임계값 0.7px라 이동 중 매 프레임 화면 전체(드로우 커맨드 120~400개) 재발행. 타일 격자 스냅 + 1타일 마진, 셀이 바뀔 때만 `queue_redraw()`. 절차적 테마의 `match theme:` 문자열 비교는 int enum으로 | `Ground.gd:87-96` | 중 |
-| B2 | **DamageNumber 동시 활성 상한**: `MAX_PER_FRAME 14`만 있고 `MAX_ACTIVE`가 없어 이론상 ~500개 동시 텍스트 렌더. `MAX_ACTIVE := 32` 추가(FXBurst 패턴), `MAX_PER_FRAME` 14→8, 문자열 폭 spawn 시 1회 캐시, 팝 종료 후 fsize 고정 | `DamageNumber.gd` | 하 |
-| B3 | **Bullet을 Node2D로**: 명중은 스윕+공간 해시로 하는데 씬 루트가 `Area2D`+CollisionShape라 총알 수십~수백 발이 물리 broadphase에 상시 등록됨. Zombie.tscn엔 CollisionShape가 없어 시그널 경로는 보스에만 걸림(이중 피해 위험까지). `EnemyBullet.tscn`(이미 Node2D)과 동일하게 정리. Player.tscn의 죽은 `Hurtbox`도 제거 | `Bullet.tscn`, `Bullet.gd:30-31,140-144` | 하 |
-| B4 | **공간 해시 할당 제거**: `zombies_near()`가 호출마다 새 Array 생성(프레임당 ~70회, 초당 4천+ 할당), 그리드 rebuild가 셀 배열을 매번 새로 만듦(프레임당 200~450회). 셀 배열 재사용(`clear()` 유지) + 조회는 멤버 버퍼 재사용 | `Events.gd:283-313`, `ZombieSpawner.gd:460-467` | 중 |
-| B5 | **`zombies_in_radius(pos, r)` 헬퍼 추가 후 전수 스캔 이관**: Flamethrower/Chainsaw/TurretUnit은 조준용으로 **매 프레임** 전체 좀비 O(N) 순회(3개 동시면 ~2,000회/프레임). ProjectileWeapon·Tesla·GarlicAura·HolyWater·MeleeArc·Lightning·Ultimate·Drone·스플래시도 동일 패턴 | `WeaponModule.gd:26-36` 외 10곳 | 중 |
-| B6 | **Boss 피격 연출을 Zombie 방식으로 통일**: 피격마다 Tween 생성(초당 수십 개) → `_flash` 감쇠 변수로. `bypass_cap=true` 데미지 숫자도 보스 전용 낮은 상한으로 | `Boss.gd:518-540,526` | 하 |
-| B7 | **y_sort 대상 축소**: 좀비·총알·FX·숫자 전부 Main 루트(y_sort=on) 직속이라 자식 500~800개를 매 프레임 정렬. `Units`(y_sort on)/`Effects`(off) 컨테이너 분리 | `Main.tscn`, 스폰 호출부 | 중 |
-| B8 | **UITheme 전역 `node_added` 훅 제거**: 모든 노드 추가(풀 재사용 포함 — 스폰마다!)에 GDScript 콜백 + `is Button` 체크. 버튼 눌림 연출은 `UIStyle.apply_button_style()`에서 연결. 중복 connect 버그도 함께 해소 | `UITheme.gd:55-67` | 하 |
-| B9 | **FXLightning 풀링 + 머티리얼 공유**: 유일하게 비풀링(`new()`/`queue_free()`), 인스턴스마다 `CanvasItemMaterial.new()`로 배칭 파괴, 상한 없음. FXBurst 패턴 적용 + `Main._clean_slate()` 리셋 목록에 추가 | `FXLightning.gd`, `Lightning.gd:54-57` | 중 |
-| B10 | **HUD 오버레이 alpha=0 시 `visible=false`**: FlashOverlay/LowHpOverlay/Vignette 3장이 투명한 채 상시 풀스크린 블렌딩(프레임당 ~276만 px fill-rate 낭비). Vignette는 사용 여부 확인 후 삭제 검토 | `HUD.tscn`, `HUD.gd:473-500` | 최하 |
-| B11 | **HP바 트윈 kill 누락**: `_update_hp_bar`가 이전 트윈을 kill하지 않아 연속 피격 시 트윈이 누적되고 바가 튐(성능+시각 버그). 골드 카운터는 프레임당 1회 코얼레싱 | `HUD.gd:349-358,176-190` | 최하 |
-| B12 | 엔진 설정: `physics/common/physics_ticks_per_second=30`(현재 기본 60 — 물리 비용 절반), `max_physics_steps_per_frame` 하향(death spiral 방지) | `project.godot` | 최하 |
-| B13 | `AUTOSAVE_INTERVAL` 4→20초: 웹에선 저장이 IndexedDB 동기화라 히칭 유발. 체크포인트 저장(웨이브/상점/백그라운드 전환)이 이미 있어 손실 위험 없음 | `Player.gd:73` | 최하 |
+| B1 | **Ground 재드로우를 타일 경계 기준으로**: 현재 임계값 0.7px라 이동 중 매 프레임 화면 전체(드로우 커맨드 120~400개) 재발행. 타일 격자 스냅 + 1타일 마진, 셀이 바뀔 때만 `queue_redraw()`. 절차적 테마의 `match theme:` 문자열 비교는 int enum으로 | `Ground.gd:87-96` | ⬜ 미착수(남은 최대 건) |
+| B2 | **DamageNumber 동시 활성 상한**: `MAX_PER_FRAME 14`만 있어 이론상 ~500개 동시 텍스트 렌더. `MAX_ACTIVE=36` 추가, `MAX_PER_FRAME` 14→8, 보스용 `bypass_cap`에 별도 상한 2/프레임, 문자열 폭 spawn 시 1회 캐시, 팝 크기 2px 양자화 | `DamageNumber.gd` | ✅ 완료 |
+| B3 | **Bullet을 Node2D로**: 명중은 스윕+공간 해시로 하는데 씬 루트가 `Area2D`+CollisionShape라 총알 수십~수백 발이 물리 broadphase에 상시 등록됨. Zombie.tscn엔 CollisionShape가 없어 죽은 비용이었다. Player.tscn의 미사용 `Hurtbox`도 제거 | `Bullet.tscn`, `Bullet.gd`, `Player.tscn` | ✅ 완료 |
+| B4 | **공간 해시 할당 제거**: `zombies_near()`가 호출마다 새 Array 생성(프레임당 ~70회), 그리드 rebuild가 셀 배열을 매번 새로 만듦(프레임당 200~450회). 셀 배열 재사용 + 조회 버퍼 재사용 + 빈 셀 주기적 GC | `Events.gd` | ✅ 완료 |
+| B5 | **`zombies_in_radius(pos, r)` 헬퍼 + 전수 스캔 이관**: 헬퍼 추가 후 **조준 경로**(WeaponModule·TurretUnit — 매 프레임 O(N))와 **스플래시**를 이관. ProjectileWeapon·Tesla·GarlicAura·HolyWater·MeleeArc·Lightning·Ultimate·Drone은 아직 전수 스캔 | `Events.gd`, `WeaponModule.gd`, `TurretUnit.gd`, `Bullet.gd` | 🟡 부분 완료 |
+| B6 | **Boss 피격 연출을 Zombie 방식으로 통일**: 피격마다 Tween 생성(초당 수십 개) → `_flash` 감쇠 변수로 | `Boss.gd` | ✅ 완료 |
+| B7 | **y_sort 대상 축소**: 좀비·총알·FX·숫자 전부 Main 루트(y_sort=on) 직속이라 자식 500~800개를 매 프레임 정렬. `Units`(y_sort on)/`Effects`(off) 컨테이너 분리 | `Main.tscn`, 스폰 호출부 | ⬜ 미착수 |
+| B8 | **UITheme 전역 `node_added` 훅**: 모든 노드 추가(풀 재사용 포함)에 콜백이 걸린다. **제거 대신 유지**하기로 했다 — 씬에 직접 배치된 버튼은 `apply_button_style()`을 거치지 않아 옮기면 눌림 피드백이 조용히 사라진다. 대신 비용은 `is Button` 타입 검사 1회로 끝나고(풀 스폰은 Node2D라 즉시 탈락), **중복 connect 버그는 메타 가드로 해소**했다 | `UITheme.gd` | 🟡 버그만 수정 |
+| B9 | **FXLightning 머티리얼 공유 + 풀링**: 인스턴스마다 `CanvasItemMaterial.new()`라 배칭이 깨졌다 → `static` 공유로 전환(완료). 풀링·동시 상한과 `Main._clean_slate()` 등록은 미착수 | `FXLightning.gd`, `Lightning.gd` | 🟡 부분 완료 |
+| B10 | **HUD 오버레이 alpha=0 시 `visible=false`**: FlashOverlay/LowHpOverlay가 투명한 채 상시 풀스크린 블렌딩(프레임당 ~184만 px fill-rate 낭비). 씬 기본값도 `visible=false`로. Vignette는 실제 텍스처가 있는 의도된 연출이라 유지 | `HUD.tscn`, `HUD.gd` | ✅ 완료 |
+| B11 | **HP바 트윈 kill 누락**: `_update_hp_bar`가 이전 트윈을 kill하지 않아 연속 피격 시 트윈이 누적되고 바가 튐(성능+시각 버그) | `HUD.gd` | ✅ 완료 |
+| B12 | 엔진 설정: `max_physics_steps_per_frame=4`(death spiral 방지) 적용. **`physics_ticks_per_second=30`은 적용하지 않았다** | `project.godot` | 🟡 일부만 적용 |
+| B13 | `AUTOSAVE_INTERVAL` 4→20초: 웹에선 저장이 IndexedDB 동기화라 히칭 유발. 체크포인트 저장(웨이브/상점/백그라운드 전환)이 이미 있어 손실 위험 없음 | `Player.gd` | ✅ 완료 |
+
+**B12에서 물리 틱 30Hz를 적용하지 않은 이유:** 좀비·총알·플레이어가 전부 `_physics_process`에서
+이동하는데 이 프로젝트는 `config/features="4.1"`이라 **2D 물리 보간이 없다**. 틱을 30으로 낮추면
+물리 연산은 절반이 되지만 화면상 움직임도 30fps로 끊겨 보인다 — 성능과 체감을 맞바꾸는 결정이라
+실기기 측정 후에 판단할 항목이다. death spiral 방지용 `max_physics_steps_per_frame`만 적용했다.
+
+**B5 이관 범위를 조준·스플래시로 한정한 이유:** 피해 루프는 순회 중 `take_damage()`를 호출하는데,
+그 콜백이 다시 광역 질의를 하면 공유 버퍼가 덮여 순회가 깨진다. 현재 코드에는 그런 경로가 없지만
+(`Zombie`/`Boss`는 광역 질의를 하지 않는다) 방어적으로, 콜백이 없는 **읽기 전용 조준 질의**부터
+이관했다. 스플래시는 바깥 명중 순회와 다른 버퍼(`_radius_buf`)를 쓰도록 분리해 안전을 확보했다.
 
 ## 3. Phase C — 마무리 (낮은 심각도, 여유 있을 때)
 
@@ -77,23 +114,28 @@
 - 좀비 사망 플레이어 조회: 게임오버 시 좀비 320마리가 각자 매 프레임 그룹 조회 → `player_died` 구독 (`Zombie.gd:127-129`)
 - 폰트 크기 19종 → 인접 값 통합(글리프 아틀라스/래스터화 히칭 감소)
 
-## 4. Phase D — CI/인프라
+## 4. Phase D — CI/인프라 ✅ 완료
 
-- `export-web.yml`의 임포트 스텝 `|| true` 제거 + 타임아웃 120→300s: 현재 임포트가 실패해도 조용히 export가 진행돼 산출물이 깨질 수 있음
-- 빌드 산출물 크기 검증 스텝 추가(예: pck 10MB 초과 시 실패) — 용량 회귀 방지
-- (배포 계획 확정 시) Android 익스포트 프리셋 추가 — 현재 Web 프리셋뿐
+- ✅ 임포트 스텝의 `|| true` 제거 + 타임아웃 120→600s. 예전에는 타임아웃으로 잘려도 그대로
+  export로 넘어가 **임포트가 덜 된 산출물이 조용히 배포**될 수 있었다. 컨테이너 셸이 dash라
+  `pipefail`을 못 쓰므로 파이프 대신 로그 파일로 받아 종료 코드(124)를 직접 검사한다.
+- ✅ pck 크기 검증 스텝 추가(상한 24MB) — 용량 회귀 방지. A3 이후 더 조일 것.
+- ⬜ (배포 계획 확정 시) Android 익스포트 프리셋 추가 — 현재 Web 프리셋뿐
 
-## 5. 별건 — 리뷰 중 발견한 동작 버그
+## 5. 별건 — 리뷰 중 발견한 동작 버그 ✅ 수정
 
-- **관통탄이 프레임당 1마리만 타격**: `Bullet.gd` 스윕 판정이 명중 즉시 `return`이라 `pierce`가 남아도 같은 프레임의 추가 관통이 무시됨. 밀집 대열에서 석궁 계열 실 DPS가 설계보다 낮음. `return`→`continue`로 수정 (B3와 같이 처리 권장)
+- **관통탄이 프레임당 1마리만 타격**: `Bullet.gd` 스윕 판정이 명중 즉시 `return`이라 `pierce`가
+  남아도 같은 프레임의 추가 관통이 무시됐다. 밀집 대열에서 석궁 계열 실 DPS가 설계보다 낮았다.
+  소멸했을 때만(`not _alive`) 순회를 멈추도록 수정. **밸런스에 영향이 있으므로 관통 무기 체감을
+  한 번 확인할 것** — 의도된 설계대로면 관통 무기가 이전보다 강해진다.
 
 ---
 
-## 6. 진행 순서 요약
+## 6. 남은 작업 우선순위
 
-1. **A1+A2** (BGM 루프화 + 가짜 폰트 삭제): 하루 안에 로딩 절반 이하
-2. **B10+B11+B2** (오버레이/트윈/데미지숫자): 30분 투자로 체감 큰 3건
-3. **B1+B3** (Ground 재드로우 + Bullet 물리 제거): 인게임 베이스 프레임 확보
-4. **B4+B5** (공간 해시 정비): Events.gd 국소 수정으로 무기 전체가 혜택
-5. **A3+프리셋 뒤집기** → **A4** → **A5(PWA)**
-6. 나머지 B → D → C 순
+1. **B1 (Ground 재드로우)** — 남은 항목 중 단연 최대. 좀비 수와 무관하게 항상 부과되는 고정 비용
+2. **A3 (텍스처 압축)** — Godot 에디터에서 `.import` 생성/커밋. 용량 -4.5MB + VRAM -60%
+3. **B5 잔여 이관** (무기 8종) · **B7 (y_sort 분리)** · **B9 (FXLightning 풀링)**
+4. **A4 (KR 전용 폰트)** → **A5 (PWA, 아이콘 준비 후)**
+5. **B12 물리 틱** — 실기기 측정 후 판단
+6. Phase C 마무리 항목들

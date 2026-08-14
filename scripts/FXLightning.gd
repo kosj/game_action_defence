@@ -11,12 +11,21 @@ const _DROP_HEIGHT := 900.0
 const _SEGMENTS := 7
 const _JITTER := 38.0
 
+## 가산 혼합 머티리얼은 인스턴스별 파라미터가 없다 — 하나를 공유한다.
+## 인스턴스마다 새로 만들면 머티리얼이 전부 다른 객체라 드로우 배칭이 깨진다
+## (다중 낙뢰에서 번개 개수만큼 별도 드로우 배치가 생긴다).
+static var _shared_mat: CanvasItemMaterial = null
+
+static func _get_material() -> CanvasItemMaterial:
+	if _shared_mat == null:
+		_shared_mat = CanvasItemMaterial.new()
+		_shared_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	return _shared_mat
+
 
 func _ready() -> void:
 	# 가산 혼합(ADD) — 겹치는 획이 서로 더해져 진짜 발광(이미시브)처럼 보인다.
-	var mat := CanvasItemMaterial.new()
-	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	material = mat
+	material = _get_material()
 	_bolt = _make_jagged(Vector2(0.0, -_DROP_HEIGHT), Vector2.ZERO, _SEGMENTS, _JITTER)
 	_joints = _bolt.slice(1, _bolt.size() - 1)
 	_branches = _make_branches()

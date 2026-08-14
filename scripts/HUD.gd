@@ -43,6 +43,8 @@ var _hp_fill_max := HP_BAR_W           # 채움부 최대 폭(텍스처 프레�
 var _boss_fill_max := BOSS_BAR_W
 var _hp_ghost: Panel = null            # 피해 잔상 바 — 줄어든 체력만큼 밝은 잔량이 늦게 따라온다
 var _hp_ghost_tween: Tween = null
+var _hp_fill_tween: Tween = null       # 채움부 폭 트윈 — 연속 피격 시 중첩되지 않게 매번 kill 후 재생성
+var _flash_tween: Tween = null         # 피격 붉은 섬광 — 종료 시 오버레이를 숨겨 fill-rate 낭비를 없앤다
 var _gold_shown: float = 0.0           # 골드 롤링 카운터의 현재 표시값
 var _gold_roll_tween: Tween = null
 var _boss_max: int = 1
@@ -352,8 +354,12 @@ func _update_hp_bar(health: int, max_health: int) -> void:
 	var ratio := float(cur) / float(mx)
 	var target := _hp_fill_max * ratio
 	hp_label.text = "HP %d / %d" % [cur, mx]
-	var tw := create_tween()
-	tw.tween_property(hp_fill, "size:x", target, 0.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	# 연속 피격(접촉 데미지)에서 트윈을 새로 만들기만 하면 여러 트윈이 같은 size:x 를 놓고 다퉈
+	# 바가 튀고 트윈 객체도 누적된다 — 잔상 바(_hp_ghost_tween)처럼 직전 트윈을 반드시 정리한다.
+	if _hp_fill_tween and _hp_fill_tween.is_valid():
+		_hp_fill_tween.kill()
+	_hp_fill_tween = create_tween()
+	_hp_fill_tween.tween_property(hp_fill, "size:x", target, 0.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	if _hp_fill_sb is StyleBoxFlat:
 		_hp_fill_sb.bg_color = _hp_color(ratio)
 	elif _hp_fill_sb is StyleBoxTexture:
@@ -470,10 +476,16 @@ func _hp_color(ratio: float) -> Color:
 	return Color(0.9, 0.25, 0.2).lerp(Color(0.85, 0.75, 0.2), ratio * 2.0)
 
 
+## 피격 섬광. 전체 화면 ColorRect 는 alpha 0 이어도 visible 이면 매 프레임 풀스크린 블렌딩을
+## 하므로(720x1280 ≈ 92만 픽셀), 연출이 끝나면 visible=false 로 렌더에서 완전히 빼낸다.
 func _flash_hurt() -> void:
+	if _flash_tween and _flash_tween.is_valid():
+		_flash_tween.kill()
 	flash_overlay.color = Color(1, 0, 0, 0.35)
-	var tw := create_tween()
-	tw.tween_property(flash_overlay, "color", Color(1, 0, 0, 0.0), 0.4)
+	flash_overlay.visible = true
+	_flash_tween = create_tween()
+	_flash_tween.tween_property(flash_overlay, "color", Color(1, 0, 0, 0.0), 0.4)
+	_flash_tween.tween_callback(func() -> void: flash_overlay.visible = false)
 
 
 ## 체력이 1일 때 화면 가장자리를 붉게 경고. 껌뻑이는 점멸(1초 주기·0→0.30)은 눈이 피로해서,
@@ -487,6 +499,7 @@ func _update_low_hp_warning(health: int) -> void:
 	var should_pulse := health > 0 and float(health) / float(maxi(_max_health, 1)) <= 0.2
 	if should_pulse and _low_hp_tween == null:
 		low_hp_overlay.color.a = _LOW_HP_MIN_A
+		low_hp_overlay.visible = true
 		_low_hp_tween = create_tween()
 		_low_hp_tween.set_loops()
 		_low_hp_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -496,6 +509,7 @@ func _update_low_hp_warning(health: int) -> void:
 		_low_hp_tween.kill()
 		_low_hp_tween = null
 		low_hp_overlay.color.a = 0.0
+		low_hp_overlay.visible = false   # 투명한 풀스크린 레이어를 렌더에 남겨두지 않는다
 
 
 ## 무기 픽업 획득 시 이름/등급을 잠시 표시 후 자동 페이드 아웃.

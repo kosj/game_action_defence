@@ -122,10 +122,11 @@ func _fire(target: Node2D) -> void:
 	SoundManager.play("shoot", 0.08, 1.15)
 
 
+## 터렛은 매 물리 프레임 조준하고 동시에 여러 대가 설치될 수 있다 — 전수 스캔 대신 반경 질의.
 func _nearest_zombie() -> Node2D:
 	var nearest: Node2D = null
 	var min_d := range * range
-	for z in Events.live_zombies():
+	for z in Events.zombies_in_radius(global_position, range):
 		if not is_instance_valid(z) or not z.is_in_group("zombies"):
 			continue
 		var d := global_position.distance_squared_to(z.global_position)
