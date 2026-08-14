@@ -12,6 +12,7 @@ const RAY_SPIN := 0.25     # 햇살 회전 속도(rad/s) — 아주 천천히 �
 
 var _t: float = 0.0
 var _pulse: float = 0.0
+var _ray_buf := PackedVector2Array()   # 햇살 살 삼각형 — 드로우마다 재사용
 
 
 func _ready() -> void:
@@ -25,6 +26,11 @@ func _radius() -> float:
 	return (BASE_RADIUS + RADIUS_PER_LV * float(maxi(1, Events.upgrade_garlic) - 1)) * Events.area_mult()
 
 
+## 재드로우 주기(물리 프레임 수). 연출 변화가 느린 숨쉬기(_pulse*3)와 회전(0.25 rad/s)뿐이라
+## 60Hz 로 다시 그릴 이유가 없다 — 20Hz 로 낮추면 절차 드로우 비용이 1/3 이 된다.
+const REDRAW_EVERY := 3
+
+
 func _physics_process(delta: float) -> void:
 	_pulse += delta
 	_t += delta
@@ -32,13 +38,17 @@ func _physics_process(delta: float) -> void:
 		_t = 0.0
 		var lv := maxi(1, Events.upgrade_garlic)
 		var dmg := 1 + int(lv / 2)
-		var r := _radius()
-		var r_sq := r * r
-		for z in Events.live_zombies():
-			if is_instance_valid(z) and z.is_in_group("zombies") \
-					and global_position.distance_squared_to(z.global_position) < r_sq:
+		# 반경 질의로 후보를 좁힌다(전수 스캔 제거). take_damage 를 부르는 동안 공유 버퍼가
+		# 덮이지 않도록 즉시 지역 배열로 복사한다(0.5초에 한 번이라 비용은 무시할 수준).
+		var targets: Array = []
+		for z in Events.zombies_in_radius(global_position, _radius()):
+			if z.is_in_group("zombies"):
+				targets.append(z)
+		for z in targets:
+			if is_instance_valid(z):
 				z.take_damage(dmg)
-	queue_redraw()
+	if Engine.get_physics_frames() % REDRAW_EVERY == 0:
+		queue_redraw()
 
 
 func _draw() -> void:
@@ -51,12 +61,17 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, rr * 0.45, Color(1.0, 0.95, 0.70, 0.08))
 	# 천천히 도는 햇살 살(god-ray) — 중심에서 가장자리로 퍼지는 쐐기들.
 	var base_a := _pulse * RAY_SPIN
+	# 살(ray) 삼각형 버퍼는 재사용한다 — 매 드로우마다 PackedVector2Array 를 RAYS 개(9개)
+	# 새로 만들면 그리기 빈도만큼 할당이 쌓인다.
+	if _ray_buf.size() != 3:
+		_ray_buf.resize(3)
+		_ray_buf[0] = Vector2.ZERO
 	for i in RAYS:
 		var ang := base_a + TAU * float(i) / float(RAYS)
 		var half := 0.10 + 0.03 * sin(_pulse * 2.0 + float(i) * 1.7)   # 살마다 폭이 살짝 숨쉰다
-		var p0 := Vector2.from_angle(ang - half) * rr
-		var p1 := Vector2.from_angle(ang + half) * rr
-		draw_colored_polygon(PackedVector2Array([Vector2.ZERO, p0, p1]), Color(1.0, 0.92, 0.60, 0.06))
+		_ray_buf[1] = Vector2.from_angle(ang - half) * rr
+		_ray_buf[2] = Vector2.from_angle(ang + half) * rr
+		draw_colored_polygon(_ray_buf, Color(1.0, 0.92, 0.60, 0.06))
 	# 가장자리 림 — 은은한 노을빛 경계 + 반짝이는 하이라이트 호.
 	draw_arc(Vector2.ZERO, rr, 0.0, TAU, 56, Color(1.0, 0.82, 0.40, 0.30), 2.5, true)
 	var hl := fmod(_pulse * 0.7, TAU)

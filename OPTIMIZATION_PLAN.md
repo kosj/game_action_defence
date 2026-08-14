@@ -41,7 +41,26 @@
 Ground는 예전 임계값(0.7px)이면 이동 중 사실상 매 프레임 전체 재드로우였으므로,
 같은 구간에서 수천 회 → 98회, **약 1/100** 로 줄었다. 이것이 이번 작업의 최대 성과다.
 
-> 검증에 쓴 임시 테스트 스크립트(`tools/_*_test.gd`)는 커밋 대상이 아니라 삭제했다.
+### 실측 벤치마크 — 그리고 그 한계
+
+좀비 300마리를 고정하고 최적화 전 커밋(`2d414f8`)과 같은 조건으로 비교했다
+(FPS를 60으로 고정, 물리 600틱, 각 3회).
+
+| | 최적화 전 | 현재 |
+|---|---|---|
+| `_process` 스크립트 시간 | 0.499 ~ 0.675 ms | 0.372 ~ 0.469 ms |
+| 스크립트 합계(중앙값) | 5.06 ms | 4.19 ms |
+
+**이 수치를 과신하면 안 된다.** 편차가 커서(최적화 전 4.09~6.21ms) 합계 차이는 단정하기
+어렵다. 더 중요한 건 **헤드리스는 더미 렌더러라 이번 작업의 최대 성과인 렌더 경로 비용을
+거의 재지 못한다**는 점이다 — 바닥 전체 재드로우, 데미지 숫자 텍스트 렌더, 투명 오버레이
+fill-rate, 총알의 물리 broadphase 는 실제 GPU/렌더 서버가 붙어야 드러난다.
+그나마 일관되게 낮아진 `_process` 시간이 바닥 재드로우 감소와 방향이 맞고, 직접 센
+**Ground 재드로우 98회/10,110프레임**이 가장 신뢰할 만한 근거다.
+
+정확한 성능 개선폭은 **실기기(모바일 브라우저)에서 재는 수밖에 없다.**
+
+> 검증에 쓴 임시 테스트/벤치 스크립트는 커밋 대상이 아니라 삭제했다.
 > 다만 실측은 모두 헤드리스(더미 렌더러)라 **화면에 그려지는 결과 자체는 확인하지 못했다** —
 > 바닥 스냅으로 화면 가장자리가 비지 않는지, 데미지 숫자 상한이 시각적으로 과하지 않은지는
 > 실기기/에디터에서 한 번 눈으로 볼 것.
@@ -140,7 +159,7 @@ UI에서 손실 WebP보다 아티팩트가 크므로 **실기기에서 눈으로
 | B2 | **DamageNumber 동시 활성 상한**: `MAX_PER_FRAME 14`만 있어 이론상 ~500개 동시 텍스트 렌더. `MAX_ACTIVE=36` 추가, `MAX_PER_FRAME` 14→8, 보스용 `bypass_cap`에 별도 상한 2/프레임, 문자열 폭 spawn 시 1회 캐시, 팝 크기 2px 양자화 | `DamageNumber.gd` | ✅ 완료 |
 | B3 | **Bullet을 Node2D로**: 명중은 스윕+공간 해시로 하는데 씬 루트가 `Area2D`+CollisionShape라 총알 수십~수백 발이 물리 broadphase에 상시 등록됨. Zombie.tscn엔 CollisionShape가 없어 죽은 비용이었다. Player.tscn의 미사용 `Hurtbox`도 제거 | `Bullet.tscn`, `Bullet.gd`, `Player.tscn` | ✅ 완료 |
 | B4 | **공간 해시 할당 제거**: `zombies_near()`가 호출마다 새 Array 생성(프레임당 ~70회), 그리드 rebuild가 셀 배열을 매번 새로 만듦(프레임당 200~450회). 셀 배열 재사용 + 조회 버퍼 재사용 + 빈 셀 주기적 GC | `Events.gd` | ✅ 완료 |
-| B5 | **`zombies_in_radius(pos, r)` 헬퍼 + 전수 스캔 이관**: 헬퍼 추가 후 **조준 경로**(WeaponModule·TurretUnit — 매 프레임 O(N))·**스플래시**·**번개 후보 탐색**을 이관. ProjectileWeapon·Tesla·GarlicAura·HolyWater·MeleeArc·Ultimate·Drone은 아직 전수 스캔(모두 저빈도) | `Events.gd`, `WeaponModule.gd`, `TurretUnit.gd`, `Bullet.gd`, `Lightning.gd` | 🟡 부분 완료 |
+| B5 | **`zombies_in_radius(pos, r)` 헬퍼 + 전수 스캔 이관**: 헬퍼 추가 후 **조준 경로**(WeaponModule·TurretUnit — 매 프레임 O(N))·**스플래시**·**번개 후보 탐색**·**마늘 오라 피해 틱**을 이관. ProjectileWeapon·Tesla·HolyWater·MeleeArc·Ultimate·Drone은 아직 전수 스캔(모두 발사·착탄 시점이라 저빈도) | `Events.gd`, `WeaponModule.gd`, `TurretUnit.gd`, `Bullet.gd`, `Lightning.gd`, `GarlicAura.gd` | 🟡 부분 완료 |
 | B6 | **Boss 피격 연출을 Zombie 방식으로 통일**: 피격마다 Tween 생성(초당 수십 개) → `_flash` 감쇠 변수로 | `Boss.gd` | ✅ 완료 |
 | B7 | **y_sort 대상 축소**: 좀비·총알·FX·숫자 전부 Main 루트(y_sort=on) 직속이라 자식 500~800개를 매 프레임 정렬. `Units`(y_sort on)/`Effects`(off) 컨테이너 분리 | `Main.tscn`, 스폰 호출부 | ⬜ 미착수 |
 | B8 | **UITheme 전역 `node_added` 훅**: 모든 노드 추가(풀 재사용 포함)에 콜백이 걸린다. **제거 대신 유지**하기로 했다 — 씬에 직접 배치된 버튼은 `apply_button_style()`을 거치지 않아 옮기면 눌림 피드백이 조용히 사라진다. 대신 비용은 `is Button` 타입 검사 1회로 끝나고(풀 스폰은 Node2D라 즉시 탈락), **중복 connect 버그는 메타 가드로 해소**했다 | `UITheme.gd` | 🟡 버그만 수정 |
@@ -172,9 +191,15 @@ UI에서 손실 WebP보다 아티팩트가 크므로 **실기기에서 눈으로
   개체별 위상으로 분산해 30프레임에 1회(광고 부활이 있어 완전히 끊지는 않는다)
 
 **남은 것:**
-- GarlicAura: 매 프레임 절차 드로우(폴리곤 9개 매번 재생성) → 20Hz 스로틀 + 살(rays)은 `rotation`으로
-- 스폰 dict `duplicate()` → 티어별 스탯 초당 1회 캐시 (`ZombieSpawner.gd`)
-- 부메랑 투사체 풀링 (`BoomerangProj.gd`)
+- ✅ GarlicAura: 매 물리 프레임 절차 드로우(살 폴리곤 9개를 매번 새로 할당) → 재드로우를 20Hz로
+  낮추고 삼각형 버퍼를 재사용. 피해 틱도 전수 스캔에서 반경 질의로 이관
+
+**남은 것:**
+- 스폰 dict `duplicate()` → 티어별 스탯 캐시 (`ZombieSpawner.gd`). 다만 스폰은 이미 프레임당
+  12개로 분산돼 있어 실익이 작다
+- 부메랑 투사체 풀링 (`BoomerangProj.gd`) — 2초에 1~2개라 영향 미미
+- B5 잔여 무기(ProjectileWeapon·Tesla·HolyWater·MeleeArc·Ultimate·Drone)의 전수 스캔.
+  전부 저빈도(발사·착탄 시점)라 300마리 기준으로도 비용이 작다
 - StyleBox 정적 캐시: `UIStyle`의 disabled/focus 싱글턴화, `UIListRow` 상태별 3종 캐시, 메뉴 리스트 행 재사용(참조 구현: `ShopPanel._refresh_buttons()`)
 - HUD 로드아웃 슬롯 전체 재생성 → 변경분만 갱신 (`HUD.gd:748-763`)
 - 좀비 사망 플레이어 조회: 게임오버 시 좀비 320마리가 각자 매 프레임 그룹 조회 → `player_died` 구독 (`Zombie.gd:127-129`)
