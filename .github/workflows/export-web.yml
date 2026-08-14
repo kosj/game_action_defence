@@ -50,18 +50,24 @@ jobs:
             exit 1
           fi
 
+      # assets/fonts 의 CJK 폰트는 "쓰는 글자만" 남긴 서브셋(2.4MB → 0.32MB)이다. 새 문자가 들어간
+      # 문자열을 추가하면 화면에 두부(□)가 뜨는데 눈으로 보기 전엔 모른다 — 여기서 빌드를 막는다.
+      # (Godot 만으로 동작하므로 CI 에 추가 의존성이 없다)
+      - name: Check font coverage
+        run: godot --headless --script res://tools/check_font_coverage.gd
+
       - name: Export to Web
         run: |
           mkdir -p build/web
           godot --headless --export-release "Web" build/web/index.html
 
       # 용량 회귀 방지: 웹 pck 는 전량 다운로드해야 첫 프레임이 뜨므로 초기 로딩에 직결된다.
-      # 현재는 약 16MB 수준이며, 에셋을 잘못 추가해 크게 뛰면 여기서 걸린다.
-      # (텍스처 압축 적용 후에는 이 상한을 더 낮게 조여도 된다)
+      # 임포트 산출물 기준 현재 약 12MB(오디오 9.0 + 텍스처 2.2 + 폰트 0.3 + 코드/데이터 0.7).
+      # 상한 15MB — 에셋을 잘못 추가하거나 텍스처 압축 설정이 풀리면 여기서 걸린다.
       - name: Check build size
         run: |
           PCK_KB=$(du -k build/web/index.pck | cut -f1)
-          LIMIT_KB=24576
+          LIMIT_KB=15360
           echo "index.pck = ${PCK_KB} KB (상한 ${LIMIT_KB} KB)"
           if [ "$PCK_KB" -gt "$LIMIT_KB" ]; then
             echo "pck 크기가 상한을 초과했습니다 — 에셋 추가를 확인하세요."

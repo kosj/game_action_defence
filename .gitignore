@@ -1,6 +1,11 @@
 # Godot 4+ 에디터 캐시 / 임포트 산출물
 .godot/
 *.import
+# 예외: 나인패치(StyleBoxTexture)로 늘려 쓰는 UI 프레임/HUD 텍스처는 무손실로 고정한다.
+# 전역 기본값([importer_defaults])은 손실 압축이라, 이 파일들만 설정을 저장소에 박아 둔다 —
+# 늘어나는 테두리에서는 손실 아티팩트가 띠로 보이기 쉽다.
+!assets/ui/frames/*.import
+!assets/ui/hud/*.import
 /android/
 
 # 익스포트 산출물
