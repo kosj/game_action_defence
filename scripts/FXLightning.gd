@@ -16,6 +16,27 @@ const _JITTER := 38.0
 ## (다중 낙뢰에서 번개 개수만큼 별도 드로우 배치가 생긴다).
 static var _shared_mat: CanvasItemMaterial = null
 
+## 동시 표시 상한. 인스턴스 하나가 _draw 당 draw 커맨드 30개 이상을 내는데, 다중 낙뢰
+## (upgrade_lightning_count)는 한 프레임에 가닥 수만큼 전부 생성되므로 상한이 필요하다.
+const MAX_ACTIVE := 6
+static var _active_count: int = 0
+
+## 씬 전환 시 카운터 초기화 — 인스턴스가 씬과 함께 해제되면 감소 처리를 못 지나가므로,
+## 리셋하지 않으면 상한에 걸린 채 번개가 영구히 안 보이게 된다(Main._clean_slate 가 호출).
+static func reset_pool() -> void:
+	_active_count = 0
+
+
+## 상한을 지키며 생성. 초과분은 조용히 생략한다(피해는 Lightning 이 이미 적용했으므로 무관).
+static func spawn(parent: Node, pos: Vector2) -> void:
+	if _active_count >= MAX_ACTIVE:
+		return
+	_active_count += 1
+	var fx: Node2D = (load("res://scripts/FXLightning.gd") as GDScript).new()
+	parent.add_child(fx)
+	fx.global_position = pos
+
+
 static func _get_material() -> CanvasItemMaterial:
 	if _shared_mat == null:
 		_shared_mat = CanvasItemMaterial.new()
@@ -59,6 +80,7 @@ func _make_branches() -> Array:
 func _process(delta: float) -> void:
 	_time += delta
 	if _time >= duration:
+		_active_count = maxi(0, _active_count - 1)
 		queue_free()
 		return
 	queue_redraw()

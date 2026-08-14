@@ -84,15 +84,25 @@ func _resolve_theme() -> Dictionary:
 	return THEMES[randi() % THEMES.size()]
 
 
+## 재드로우 격자. _draw() 의 모든 좌표는 global_position 을 빼서 월드에 고정되므로, 노드가
+## 플레이어를 픽셀 단위로 따라다닐 필요가 없다 — 격자에 스냅해도 화면에 보이는 그림은 동일하다.
+const SNAP := 128.0
+
+
 func _process(_delta: float) -> void:
 	if not is_instance_valid(_player):
 		_player = get_tree().get_first_node_in_group("player")
 		return
 	var p := _player.global_position
-	if p.distance_squared_to(_last_pos) > 0.5:
-		global_position = p
-		_last_pos = p
-		queue_redraw()
+	# 예전에는 임계값이 distance_squared > 0.5(≈0.7px)라 이동 중 사실상 매 프레임 _draw() 가 돌았다.
+	# _draw() 는 화면 전체의 타일·얼룩·데칼을 매번 재발행하므로(드로우 커맨드 수백 개) 좀비 수와
+	# 무관하게 항상 부과되는 고정 비용이었다. 스냅 칸이 바뀔 때만 다시 그린다(재드로우 ~1/25).
+	var snapped := Vector2(floor(p.x / SNAP) * SNAP, floor(p.y / SNAP) * SNAP)
+	if snapped == _last_pos:
+		return
+	_last_pos = snapped
+	global_position = snapped
+	queue_redraw()
 
 
 func _draw() -> void:
@@ -103,8 +113,10 @@ func _draw() -> void:
 	var cam := get_viewport().get_camera_2d()
 	if cam != null and cam.zoom.x > 0.0 and cam.zoom.y > 0.0:
 		vp = Vector2(vp.x / cam.zoom.x, vp.y / cam.zoom.y)
-	var half_w := vp.x * 0.5
-	var half_h := vp.y * 0.5
+	# 노드가 SNAP 격자에 스냅돼 있어 플레이어가 최대 SNAP 만큼 어긋난 위치에 있을 수 있다 —
+	# 그만큼 그리는 범위를 넓혀야 화면 가장자리에 빈 칸이 생기지 않는다.
+	var half_w := vp.x * 0.5 + SNAP
+	var half_h := vp.y * 0.5 + SNAP
 	var wx     := global_position.x
 	var wy     := global_position.y
 

@@ -125,7 +125,11 @@ func _physics_process(delta: float) -> void:
 	if not _alive:
 		return
 	if not is_instance_valid(player):
-		player = get_tree().get_first_node_in_group("player")
+		# 게임 오버·부활 대기 중에는 플레이어가 없다. 좀비 수백 마리가 각자 매 프레임 그룹을
+		# 조회하면 낭비지만(광고 부활이 있어 아예 끊을 수는 없다) 즉시성이 필요하지도 않다 —
+		# 개체별 위상으로 분산해 30 프레임에 한 번만 재탐색한다.
+		if (Engine.get_physics_frames() + _lod_phase) % 30 == 0:
+			player = get_tree().get_first_node_in_group("player")
 		return
 	# 화면 밖 좀비는 보이지 않으므로 연출(잔광·걷기 애니메이션)을 건너뛴다 — 이동/추적은 그대로라
 	# 게임플레이는 동일하고, 대량 좀비에서 스프라이트 갱신 비용만 사라진다.

@@ -20,10 +20,11 @@ func _physics_process(delta: float) -> void:
 
 
 func _strike() -> void:
+	# 반경 질의로 후보를 좁힌다(전수 스캔 제거). 공유 버퍼를 반환하므로, 아래에서 shuffle 하고
+	# take_damage 를 호출하는 동안 유지해야 하니 즉시 지역 배열로 복사해 둔다.
 	var candidates: Array = []
-	for z in Events.live_zombies():
-		if is_instance_valid(z) and z.is_in_group("zombies") \
-				and global_position.distance_squared_to(z.global_position) < STRIKE_RADIUS * STRIKE_RADIUS:
+	for z in Events.zombies_in_radius(global_position, STRIKE_RADIUS):
+		if z.is_in_group("zombies"):
 			candidates.append(z)
 	if candidates.is_empty():
 		return
@@ -52,6 +53,5 @@ func _strike() -> void:
 
 
 func _spawn_fx(world_pos: Vector2) -> void:
-	var fx := _FXLightning.new()
-	get_tree().current_scene.add_child(fx)
-	fx.global_position = world_pos
+	# 생성/동시 표시 상한은 FXLightning 이 관리한다(다중 낙뢰가 한 프레임에 몰려도 방어됨).
+	_FXLightning.spawn(get_tree().current_scene, world_pos)

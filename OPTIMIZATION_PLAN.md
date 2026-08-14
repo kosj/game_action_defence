@@ -3,17 +3,30 @@
 > 2026-08 전수 리뷰. 게임플레이 핫패스 / UI·FX / 에셋·익스포트 3개 축으로
 > 전체 스크립트(~15k줄)·씬·에셋·CI를 조사한 결과와 단계별 실행 계획.
 
-## 진행 상태 (1차 적용 완료분)
+## 진행 상태
 
-아래 항목은 이미 반영되었다. 나머지는 각 Phase 표의 설명을 따른다.
-
-- **완료:** A1(BGM 재인코딩) · A2(가짜 폰트 삭제) · B2 · B3 · B4 · B6 · B10 · B11 · B13 ·
-  B9(머티리얼 공유분) · Phase D(CI) · 익스포트 프리셋 모바일 정정 · 관통탄 버그
+- **완료:** A1(BGM) · A2(가짜 폰트) · B1(Ground/PropField 재드로우) · B2 · B3 · B4 · B5(조준·스플래시·번개) ·
+  B6 · B9 · B10 · B11 · B13 · Phase D(CI) · 익스포트 프리셋 정정 · 관통탄 버그 · Phase C 일부
 - **보류(사유 있음):** B12 물리 틱 30Hz, A3 텍스처 압축, A4 폰트 서브셋, A5 PWA — 각 항목 참조
-- **미착수:** B1(Ground) · B5 잔여 이관 · B7(y_sort) · B8(전역 훅 제거) · Phase C 대부분
+- **미착수:** B7(y_sort 분리) · B8(전역 훅 제거) · B5 잔여 무기 5종 · Phase C 잔여
 
-> ⚠️ **검증 한계:** 이 작업 환경에는 Godot이 없어 실행/파싱 검증을 하지 못했다.
-> 머지 전 에디터에서 1회 실행(특히 총알 명중·보스 피격 연출·데미지 숫자 표시)을 확인할 것.
+## 검증 결과 (Godot 4.3 헤드리스 실측)
+
+| 검증 | 결과 |
+|---|---|
+| 전체 프로젝트 임포트 + 스크립트 파싱 | 오류 0건 |
+| 공간 해시 정확성 테스트 9건(격자 경로·대반경 폴백·중첩 순회·데미지숫자 상한) | 9/9 통과 |
+| 자동플레이 실제 전투 70초(10,110프레임 / 좀비 최대 53 / 이동 9,566px) | 스크립트 오류 0건 |
+| **Ground 재드로우 빈도** | **10,110프레임 중 98회** (이동 ~98px당 1회) |
+| 보스 피격 잔광(연속 30회 피격 → 감쇠 → 사망) | 오류 0건, 기본 색 복귀 확인 |
+
+Ground는 예전 임계값(0.7px)이면 이동 중 사실상 매 프레임 전체 재드로우였으므로,
+같은 구간에서 수천 회 → 98회, **약 1/100** 로 줄었다. 이것이 이번 작업의 최대 성과다.
+
+> 검증에 쓴 임시 테스트 스크립트(`tools/_*_test.gd`)는 커밋 대상이 아니라 삭제했다.
+> 다만 실측은 모두 헤드리스(더미 렌더러)라 **화면에 그려지는 결과 자체는 확인하지 못했다** —
+> 바닥 스냅으로 화면 가장자리가 비지 않는지, 데미지 숫자 상한이 시각적으로 과하지 않은지는
+> 실기기/에디터에서 한 번 눈으로 볼 것.
 
 ---
 
@@ -32,8 +45,11 @@
 
 **그러나 두 가지 큰 구멍이 있다:**
 
-1. **초기 로딩 30MB 중 17MB가 BGM.** 웹 pck는 전량 받아야 첫 화면이 뜨는데, 19분짜리 MP3가 통째로 들어가 있다. 코드 최적화 전부를 합친 것보다 이거 하나가 크다.
-2. **런타임 병목은 적 수가 아니라 "그리기"에 있다.** 바닥 전체 재드로우(매 프레임), 데미지 숫자 동시 상한 부재(~500개 동시 텍스트 렌더 가능), 총알의 불필요한 물리 등록 등.
+1. **초기 로딩 28MB 중 17.9MB가 BGM.** 웹 pck는 전량 받아야 첫 화면이 뜨는데, 모바일 웹
+   BGM치고 비트레이트(190~210kb/s 스테레오)가 과했다. 코드 최적화 전부를 합친 것보다 이거 하나가 크다.
+2. **런타임 병목은 적 수가 아니라 "그리기"에 있다.** 바닥 전체 재드로우(이동 중 매 프레임),
+   데미지 숫자 동시 상한 부재(~500개 동시 텍스트 렌더 가능), 총알의 불필요한 물리 등록 등.
+   좀비 쪽(풀링·LOD·스폰 예산·공간 해시)은 이미 잘 만들어져 있었고, 실제로 손댈 곳은 렌더 경로였다.
 
 ---
 
@@ -76,15 +92,15 @@
 
 | # | 작업 | 파일 | 상태 |
 |---|---|---|---|
-| B1 | **Ground 재드로우를 타일 경계 기준으로**: 현재 임계값 0.7px라 이동 중 매 프레임 화면 전체(드로우 커맨드 120~400개) 재발행. 타일 격자 스냅 + 1타일 마진, 셀이 바뀔 때만 `queue_redraw()`. 절차적 테마의 `match theme:` 문자열 비교는 int enum으로 | `Ground.gd:87-96` | ⬜ 미착수(남은 최대 건) |
+| B1 | **Ground/PropField 재드로우를 격자 기준으로**: 임계값이 0.7px(Ground)·4px(PropField)라 이동 중 사실상 매 프레임 화면 전체를 재발행했다. 두 노드 모두 드로잉이 월드 좌표로 보정돼 있어 위치를 128px 격자에 스냅해도 화면은 동일하다 — 스냅 칸이 바뀔 때만 재드로우하고, 스냅 오차만큼 그리는 범위에 여유를 뒀다. **실측 1/100 감소** | `Ground.gd`, `PropField.gd` | ✅ 완료 |
 | B2 | **DamageNumber 동시 활성 상한**: `MAX_PER_FRAME 14`만 있어 이론상 ~500개 동시 텍스트 렌더. `MAX_ACTIVE=36` 추가, `MAX_PER_FRAME` 14→8, 보스용 `bypass_cap`에 별도 상한 2/프레임, 문자열 폭 spawn 시 1회 캐시, 팝 크기 2px 양자화 | `DamageNumber.gd` | ✅ 완료 |
 | B3 | **Bullet을 Node2D로**: 명중은 스윕+공간 해시로 하는데 씬 루트가 `Area2D`+CollisionShape라 총알 수십~수백 발이 물리 broadphase에 상시 등록됨. Zombie.tscn엔 CollisionShape가 없어 죽은 비용이었다. Player.tscn의 미사용 `Hurtbox`도 제거 | `Bullet.tscn`, `Bullet.gd`, `Player.tscn` | ✅ 완료 |
 | B4 | **공간 해시 할당 제거**: `zombies_near()`가 호출마다 새 Array 생성(프레임당 ~70회), 그리드 rebuild가 셀 배열을 매번 새로 만듦(프레임당 200~450회). 셀 배열 재사용 + 조회 버퍼 재사용 + 빈 셀 주기적 GC | `Events.gd` | ✅ 완료 |
-| B5 | **`zombies_in_radius(pos, r)` 헬퍼 + 전수 스캔 이관**: 헬퍼 추가 후 **조준 경로**(WeaponModule·TurretUnit — 매 프레임 O(N))와 **스플래시**를 이관. ProjectileWeapon·Tesla·GarlicAura·HolyWater·MeleeArc·Lightning·Ultimate·Drone은 아직 전수 스캔 | `Events.gd`, `WeaponModule.gd`, `TurretUnit.gd`, `Bullet.gd` | 🟡 부분 완료 |
+| B5 | **`zombies_in_radius(pos, r)` 헬퍼 + 전수 스캔 이관**: 헬퍼 추가 후 **조준 경로**(WeaponModule·TurretUnit — 매 프레임 O(N))·**스플래시**·**번개 후보 탐색**을 이관. ProjectileWeapon·Tesla·GarlicAura·HolyWater·MeleeArc·Ultimate·Drone은 아직 전수 스캔(모두 저빈도) | `Events.gd`, `WeaponModule.gd`, `TurretUnit.gd`, `Bullet.gd`, `Lightning.gd` | 🟡 부분 완료 |
 | B6 | **Boss 피격 연출을 Zombie 방식으로 통일**: 피격마다 Tween 생성(초당 수십 개) → `_flash` 감쇠 변수로 | `Boss.gd` | ✅ 완료 |
 | B7 | **y_sort 대상 축소**: 좀비·총알·FX·숫자 전부 Main 루트(y_sort=on) 직속이라 자식 500~800개를 매 프레임 정렬. `Units`(y_sort on)/`Effects`(off) 컨테이너 분리 | `Main.tscn`, 스폰 호출부 | ⬜ 미착수 |
 | B8 | **UITheme 전역 `node_added` 훅**: 모든 노드 추가(풀 재사용 포함)에 콜백이 걸린다. **제거 대신 유지**하기로 했다 — 씬에 직접 배치된 버튼은 `apply_button_style()`을 거치지 않아 옮기면 눌림 피드백이 조용히 사라진다. 대신 비용은 `is Button` 타입 검사 1회로 끝나고(풀 스폰은 Node2D라 즉시 탈락), **중복 connect 버그는 메타 가드로 해소**했다 | `UITheme.gd` | 🟡 버그만 수정 |
-| B9 | **FXLightning 머티리얼 공유 + 풀링**: 인스턴스마다 `CanvasItemMaterial.new()`라 배칭이 깨졌다 → `static` 공유로 전환(완료). 풀링·동시 상한과 `Main._clean_slate()` 등록은 미착수 | `FXLightning.gd`, `Lightning.gd` | 🟡 부분 완료 |
+| B9 | **FXLightning 머티리얼 공유 + 동시 상한**: 인스턴스마다 `CanvasItemMaterial.new()`라 배칭이 깨졌다 → `static` 공유로 전환. 다중 낙뢰가 한 프레임에 전부 생성되던 문제는 `MAX_ACTIVE=6` 상한 + `spawn()` 팩토리로 방어하고, `Main._clean_slate()`에 리셋을 등록했다(상한이 영구히 막히는 것 방지). 노드 재사용 풀링은 4초 간격 효과라 실익이 작아 생략 | `FXLightning.gd`, `Lightning.gd`, `Main.gd` | ✅ 완료 |
 | B10 | **HUD 오버레이 alpha=0 시 `visible=false`**: FlashOverlay/LowHpOverlay가 투명한 채 상시 풀스크린 블렌딩(프레임당 ~184만 px fill-rate 낭비). 씬 기본값도 `visible=false`로. Vignette는 실제 텍스처가 있는 의도된 연출이라 유지 | `HUD.tscn`, `HUD.gd` | ✅ 완료 |
 | B11 | **HP바 트윈 kill 누락**: `_update_hp_bar`가 이전 트윈을 kill하지 않아 연속 피격 시 트윈이 누적되고 바가 튐(성능+시각 버그) | `HUD.gd` | ✅ 완료 |
 | B12 | 엔진 설정: `max_physics_steps_per_frame=4`(death spiral 방지) 적용. **`physics_ticks_per_second=30`은 적용하지 않았다** | `project.godot` | 🟡 일부만 적용 |
@@ -100,15 +116,21 @@
 (`Zombie`/`Boss`는 광역 질의를 하지 않는다) 방어적으로, 콜백이 없는 **읽기 전용 조준 질의**부터
 이관했다. 스플래시는 바깥 명중 순회와 다른 버퍼(`_radius_buf`)를 쓰도록 분리해 안전을 확보했다.
 
-## 3. Phase C — 마무리 (낮은 심각도, 여유 있을 때)
+## 3. Phase C — 마무리 (낮은 심각도)
 
-- HolyWater: `filter()`+람다로 프레임당 배열 3개+Callable 3개 할당 → 역방향 `remove_at()` (`HolyWater.gd:42-61`)
-- GarlicAura: 매 프레임 절차 드로우(폴리곤 9개 매번 재생성) → 20Hz 스로틀 + 살(rays)은 `rotation`으로 (`GarlicAura.gd:28-63`)
-- PropField: `_cell_prop()`이 호출마다 Dictionary 생성 → 3×3 캐시, 셀 경계에서만 갱신 (`PropField.gd:89-135`)
-- SpriteFX `_recycle()`: 트리 분리 누락(비활성 노드의 `_process`가 계속 돎) + `_active` 음수 가드 (`SpriteFX.gd:76-80`)
-- 스폰 dict `duplicate()` → 티어별 스탯 초당 1회 캐시 (`ZombieSpawner.gd:265,387`)
+**완료분:**
+- ✅ HolyWater: `filter()`+람다로 프레임당 배열 3개 + Callable 3개 할당 → 역방향 `remove_at()` 제자리 제거
+- ✅ PropField: `_cell_prop()`이 호출마다 7키 Dictionary 생성 → 주변 3×3 장애물 캐시, 셀 경계에서만 갱신
+- ✅ SpriteFX `_recycle()`: 트리 분리 누락(비활성 노드의 `_process`가 계속 돎) + `_active` 음수 가드
+- ✅ 죽은 코드 삭제: `Player.gd`의 미사용 O(N) 타겟팅(`_get_nearest_zombie`/`_is_live_target`)과
+  그 캐시 변수·이제 아무도 안 쓰는 `attack_range` export까지 함께 제거
+- ✅ 게임오버 시 좀비 전원이 매 프레임 `get_first_node_in_group("player")` 호출 →
+  개체별 위상으로 분산해 30프레임에 1회(광고 부활이 있어 완전히 끊지는 않는다)
+
+**남은 것:**
+- GarlicAura: 매 프레임 절차 드로우(폴리곤 9개 매번 재생성) → 20Hz 스로틀 + 살(rays)은 `rotation`으로
+- 스폰 dict `duplicate()` → 티어별 스탯 초당 1회 캐시 (`ZombieSpawner.gd`)
 - 부메랑 투사체 풀링 (`BoomerangProj.gd`)
-- 죽은 코드 삭제: `Player.gd:437-453`의 미사용 O(N) 타겟팅(`_get_nearest_zombie` 등)
 - StyleBox 정적 캐시: `UIStyle`의 disabled/focus 싱글턴화, `UIListRow` 상태별 3종 캐시, 메뉴 리스트 행 재사용(참조 구현: `ShopPanel._refresh_buttons()`)
 - HUD 로드아웃 슬롯 전체 재생성 → 변경분만 갱신 (`HUD.gd:748-763`)
 - 좀비 사망 플레이어 조회: 게임오버 시 좀비 320마리가 각자 매 프레임 그룹 조회 → `player_died` 구독 (`Zombie.gd:127-129`)
@@ -133,9 +155,16 @@
 
 ## 6. 남은 작업 우선순위
 
-1. **B1 (Ground 재드로우)** — 남은 항목 중 단연 최대. 좀비 수와 무관하게 항상 부과되는 고정 비용
-2. **A3 (텍스처 압축)** — Godot 에디터에서 `.import` 생성/커밋. 용량 -4.5MB + VRAM -60%
-3. **B5 잔여 이관** (무기 8종) · **B7 (y_sort 분리)** · **B9 (FXLightning 풀링)**
-4. **A4 (KR 전용 폰트)** → **A5 (PWA, 아이콘 준비 후)**
+1. **A3 (텍스처 압축)** — 이제 남은 것 중 최대. Godot 에디터에서 `.import` 생성/커밋.
+   용량 -4.5MB + VRAM -60%. 프리셋(`for_mobile`)은 이미 정정해 뒀으므로 바로 진행 가능
+2. **A4 (KR 전용 폰트)** -1.6MB → **A5 (PWA, 아이콘 준비 후)**
+3. **B7 (y_sort 분리)** — 자식 500~800개 정렬 축소. 다만 컨테이너를 나누면 그리기 순서가
+   달라질 수 있어 **눈으로 확인하며** 진행해야 한다(헤드리스로는 검증 불가)
+4. **B5 잔여 무기 5종** · **Phase C 잔여 3건** — 전부 저빈도라 효과는 작다
 5. **B12 물리 틱** — 실기기 측정 후 판단
-6. Phase C 마무리 항목들
+
+### 실기기에서 확인할 것 (헤드리스로 검증 못한 항목)
+- 바닥/프롭 스냅(128px)으로 화면 가장자리에 빈 칸이 보이지 않는지
+- 데미지 숫자 상한(동시 36·프레임당 8)이 난전에서 너무 빈약해 보이지 않는지
+- 관통 무기(석궁 등) 체감 — 버그 수정으로 설계대로 강해졌으므로 밸런스 재확인
+- 보스 피격 잔광이 이전과 같아 보이는지

@@ -596,6 +596,10 @@ func _extra_count() -> int:
 
 func _die() -> void:
 	_alive = false
+	# _process 가 멈추므로 피격 잔광이 남아 죽는 순간이 하얗게 굳는다 — 기본 색으로 되돌린다.
+	# (Tween 방식일 때는 트윈이 알아서 끝까지 복원했다)
+	_flash = 0.0
+	body.modulate = _base_color
 	remove_from_group("zombies")
 	remove_from_group("boss")
 	SoundManager.play("zombie_die")

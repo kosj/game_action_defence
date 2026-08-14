@@ -39,24 +39,27 @@ func _physics_process(delta: float) -> void:
 		_t = 0.0
 		_cast()
 	# 비행 중인 병 진행 — 도착하면 파쇄(피해·웅덩이·파편 생성)
+	# 만료 항목은 역방향 인덱스 + remove_at 으로 제자리에서 걷어낸다. filter() + 인라인 람다는
+	# 호출마다 새 Array 와 새 Callable 을 만들어, 효과가 살아있는 동안 매 물리 프레임 할당이
+	# 발생했다(파편은 착탄 1회에 9개씩 쌓여 배열이 길다).
 	if not _bottles.is_empty():
 		var landed: Array = []
-		for b in _bottles:
+		for i in range(_bottles.size() - 1, -1, -1):
+			var b: Dictionary = _bottles[i]
 			b["age"] += delta
 			if b["age"] >= THROW_TIME:
 				landed.append(b)
-		if not landed.is_empty():
-			_bottles = _bottles.filter(func(b): return b["age"] < THROW_TIME)
-			for b in landed:
-				_shatter(b)
-	for zn in _zones:
-		zn["age"] += delta
-	for sh in _shards:
-		sh["age"] += delta
-	if not _zones.is_empty():
-		_zones = _zones.filter(func(zn): return zn["age"] < ZONE_LIFE)
-	if not _shards.is_empty():
-		_shards = _shards.filter(func(sh): return sh["age"] < SHARD_LIFE)
+				_bottles.remove_at(i)
+		for b in landed:
+			_shatter(b)   # 웅덩이·파편을 새로 추가한다 — 아래 나이 누적에 함께 포함된다(기존과 동일)
+	for i in range(_zones.size() - 1, -1, -1):
+		_zones[i]["age"] += delta
+		if _zones[i]["age"] >= ZONE_LIFE:
+			_zones.remove_at(i)
+	for i in range(_shards.size() - 1, -1, -1):
+		_shards[i]["age"] += delta
+		if _shards[i]["age"] >= SHARD_LIFE:
+			_shards.remove_at(i)
 	if not (_bottles.is_empty() and _zones.is_empty() and _shards.is_empty()):
 		queue_redraw()
 
