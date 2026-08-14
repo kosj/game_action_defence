@@ -25,6 +25,14 @@ static func reset_pool() -> void:
 	_bypass_this_frame = 0
 	_active_count = 0
 
+
+## 현재 동시 활성 수 / 상한 — 성능 디버그 오버레이(PerfOverlay)가 읽는다.
+static func debug_active() -> int:
+	return _active_count
+
+static func debug_cap() -> int:
+	return MAX_ACTIVE
+
 const MAX_ACTIVE := 36           # 동시 활성 상한 — 텍스트 드로우 총량을 이 수로 묶는다
 const MAX_PER_FRAME := 8         # 일반 숫자 프레임당 상한(초과분은 생략 — 피해엔 영향 없음)
 const MAX_BYPASS_PER_FRAME := 2  # 우선 표시(보스 등)도 프레임당 상한을 둔다 — 보스는 초당 수십 회 피격된다

@@ -19,6 +19,14 @@ static func reset_pool() -> void:
 	_spawned = 0
 
 
+## 현재 동시 활성 수 / 상한 — 성능 디버그 오버레이(PerfOverlay)가 읽는다.
+static func debug_active() -> int:
+	return _active
+
+static func debug_cap() -> int:
+	return MAX_ACTIVE
+
+
 var _t: float = 0.0
 var _dur: float = 0.3
 var _bscale: float = 1.0     # 표시 크기 기준 스케일(size_px / 텍스처폭)

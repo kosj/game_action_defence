@@ -8,6 +8,10 @@ signal time_skip(seconds: float)   # 경과 시간 점프 — ZombieSpawner 가 
 signal spawn_fill                  # 좀비를 현재 동시 출현 상한까지 즉시 채운다 — ZombieSpawner 가 처리
 
 var autoplay: bool = false
+## 성능 디버그 오버레이(HUD 좌상단) 표시 여부. HUD 의 PerfOverlay 노드가 이 값을 따른다.
+## 실기기에서 프레임 시간·드로우 콜·FX 상한을 눈으로 확인하기 위한 것 — 헤드리스 측정으로는
+## 렌더 경로 비용이 드러나지 않아 실측 수단이 필요하다.
+var perf_overlay: bool = false
 
 const _AVOID_R := 200.0    # 이 안의 좀비로부터 도망(너무 크면 겁쟁이가 되어 교전을 못 한다)
 const _BOSS_R := 360.0     # 보스는 더 멀리서부터 피한다
@@ -19,6 +23,11 @@ const _Gem := preload("res://scripts/Gold.gd")
 
 func toggle_autoplay() -> void:
 	autoplay = not autoplay
+	changed.emit()
+
+
+func toggle_perf_overlay() -> void:
+	perf_overlay = not perf_overlay
 	changed.emit()
 
 

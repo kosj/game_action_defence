@@ -27,6 +27,14 @@ static func reset_pool() -> void:
 	_active_count = 0
 
 
+## 현재 동시 활성 수 / 상한 — 성능 디버그 오버레이(PerfOverlay)가 읽는다.
+static func debug_active() -> int:
+	return _active_count
+
+static func debug_cap() -> int:
+	return MAX_ACTIVE
+
+
 ## 상한을 지키며 생성. 초과분은 조용히 생략한다(피해는 Lightning 이 이미 적용했으므로 무관).
 static func spawn(parent: Node, pos: Vector2) -> void:
 	if _active_count >= MAX_ACTIVE:

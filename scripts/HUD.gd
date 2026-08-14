@@ -3,6 +3,7 @@ extends CanvasLayer
 
 const FOG_TEX := preload("res://assets/ui/fog_vision.png")   # 주변 시야 제한 오버레이(방사형 암전)
 const _UIStyle := preload("res://scripts/UIStyle.gd")
+const _PerfOverlay := preload("res://scripts/PerfOverlay.gd")
 
 @onready var top_bg: Panel = $TopBg
 @onready var gold_label: Label = $GoldLabel
@@ -91,6 +92,8 @@ var _pause_time: Label = null             # 일시정지 화면의 생존 시간
 var _stat_icons: Array = []               # 상단 우측 스탯 아이콘들 — 세이프에어리어 이동 대상
 var _cheat_box: VBoxContainer = null      # 일시정지 메뉴의 치트 하위 메뉴(접이식)
 var _cheat_auto_btn: Button = null        # 자동플레이 토글 버튼(라벨 ON/OFF 갱신)
+var _cheat_perf_btn: Button = null        # 성능 오버레이 토글 버튼(라벨 ON/OFF 갱신)
+var _perf_overlay: Control = null         # 성능 디버그 오버레이(좌상단)
 var _auto_tag: Label = null               # 자동플레이 중임을 알리는 화면 표시
 
 
@@ -119,6 +122,7 @@ func _ready() -> void:
 	_build_hud_icons()
 	_build_xp_bar()
 	_build_swarm_banner()
+	_build_perf_overlay()
 	_build_loadout()
 	_build_goal_hint()
 	_build_gameover_stats()
@@ -1239,7 +1243,9 @@ func _build_pause_menu() -> void:
 	_make_cheat_button("SPAWN TO CAP", func(): Cheats.spawn_fill.emit())
 	_make_cheat_button("GOLD +500", func(): Events.add_gold(500))
 	_make_cheat_button("LEVEL UP +1", func(): Events.bonus_level())
+	_cheat_perf_btn = _make_cheat_button("PERF HUD: OFF", func(): Cheats.toggle_perf_overlay())
 	Cheats.changed.connect(_refresh_cheat_ui)
+	_refresh_cheat_ui()   # 씬 재진입 시 이미 켜져 있던 토글이 라벨에 반영되도록 초기 1회 갱신
 
 	# 자동플레이 동작 중 표시 — 일시정지 버튼 아래 작은 태그.
 	_auto_tag = Label.new()
@@ -1254,6 +1260,14 @@ func _build_pause_menu() -> void:
 	_auto_tag.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6))
 	_auto_tag.visible = false
 	add_child(_auto_tag)
+
+
+## 성능 디버그 오버레이(좌상단). 기본은 숨김이며 CHEATS > PERF HUD 로 켠다.
+## 씬을 다시 들어와도 Cheats 의 토글 상태를 그대로 따른다.
+func _build_perf_overlay() -> void:
+	_perf_overlay = _PerfOverlay.new()
+	add_child(_perf_overlay)
+	_perf_overlay.visible = Cheats.perf_overlay
 
 
 func _make_cheat_button(text: String, on_pressed: Callable) -> Button:
@@ -1276,6 +1290,10 @@ func _refresh_cheat_ui() -> void:
 		_cheat_auto_btn.text = "AUTO-PLAY: ON" if Cheats.autoplay else "AUTO-PLAY: OFF"
 	if _auto_tag:
 		_auto_tag.visible = Cheats.autoplay
+	if _cheat_perf_btn:
+		_cheat_perf_btn.text = "PERF HUD: ON" if Cheats.perf_overlay else "PERF HUD: OFF"
+	if _perf_overlay:
+		_perf_overlay.visible = Cheats.perf_overlay
 
 
 func _on_pause_pressed() -> void:
