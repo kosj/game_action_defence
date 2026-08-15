@@ -13,6 +13,7 @@ AI 생성음은 질감이 좋지만 "이 소리는 저역이 몇 %여야 한다"
 
 사용: python3 tools/gen_sfx.py [이름 ...]   (인자 없으면 전체)
 """
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -118,9 +119,80 @@ def synth_tesla_arc(rng: np.random.Generator) -> np.ndarray:
     return arc
 
 
+def decode(path: Path) -> np.ndarray:
+    out = subprocess.run(
+        [FFMPEG, "-v", "error", "-i", str(path), "-f", "f32le", "-ac", "1", "-ar", str(SR), "-"],
+        capture_output=True, check=True).stdout
+    return np.frombuffer(out, dtype=np.float32).astype(np.float64)
+
+
+def band_filter(x: np.ndarray, lo: float, hi: float) -> np.ndarray:
+    """FFT 대역 통과 — 경계를 부드럽게 기울여 링잉을 줄인다."""
+    N = len(x)
+    X = np.fft.rfft(x)
+    f = np.fft.rfftfreq(N, 1.0 / SR)
+    g = np.clip((f - lo) / max(lo, 1.0), 0.0, 1.0) * np.clip((hi * 2.0 - f) / hi, 0.0, 1.0)
+    return np.fft.irfft(X * g, N)
+
+
+def synth_ult_quake(rng: np.random.Generator) -> np.ndarray:
+    """베테랑 궁극기(지진) — 원본 저역에 '들리는' 성분을 얹는다.
+
+    원본은 에너지의 99.4% 가 200Hz 이하라 폰 스피커로는 거의 재생되지 않는다. 실제로
+    체감 음량이 다른 궁극기보다 17~20dB 낮아 "소리가 안 난다"는 말이 나왔다. 저역을
+    키우는 건 답이 아니다 — 작은 스피커는 그 대역 자체를 못 낸다.
+
+    두 가지를 더한다.
+      1. 배음 생성(익사이터) — 저역을 비선형에 통과시켜 2·3배음을 만들고 150~900Hz 로
+         걸러 섞는다. 귀는 배음만 듣고도 원래의 낮은 음을 인지하므로(결여 기본음),
+         작은 스피커에서도 '우르릉'이 살아난다. 원음에서 파생된 배음이라 이질감이 없다.
+      2. 암석 파열 — 화면에는 방사형 균열 8줄과 연쇄 충격 링이 그려지고 0.3초마다 피해
+         틱이 돈다. 그 리듬에 맞춰 갈라지는 파열음을 얹어 눈에 보이는 것을 귀로도 들려준다.
+    """
+    src_dir = Path(os.environ.get("SFX_SRC_DIR", "/root/.claude/uploads"))
+    found = next(iter(src_dir.rglob("970f68f7-quake_slam.mp4")), None)
+    base = decode(found) if found else decode(OUT_DIR / "sfx_ult_quake.ogg")
+
+    n = min(len(base), int(4.5 * SR))    # 궁극기 지속 3.0초 + 감쇠 테일
+    base = base[:n]
+    t = np.arange(n) / SR
+    # 저역은 대부분의 기기가 재생하지 못한다 — 원본 그대로 두면 RMS 예산만 먹고
+    # 정작 들리는 대역이 조용해진다. 무게감이 남을 만큼만 남기고 낮춘다.
+    out = base * 0.42
+
+    # 1) 배음 생성 — 저역만 뽑아 포화시킨 뒤 중역만 걸러 섞는다.
+    low = band_filter(base, 25.0, 220.0)
+    low /= max(float(np.abs(low).max()), 1e-9)
+    out += band_filter(np.tanh(low * 7.0), 150.0, 900.0) * 1.45
+
+    # 2) 암석 파열 — 발동 순간 큰 것 하나, 이후 피해 틱(0.3초) 리듬으로 이어진다.
+    ct = 0.01
+    while ct < 3.1:
+        big = ct < 0.05
+        m = int(ct * SR)
+        ln = min(int(0.30 * SR), n - m)
+        if ln <= 0:
+            break
+        tc = np.arange(ln) / SR
+        crack = rng.standard_normal(ln) * np.exp(-tc / 0.0022)              # 갈라지는 순간
+        crack += band_filter(rng.standard_normal(ln), 300.0, 1800.0) * np.exp(-tc / 0.055)
+        crack += band_filter(rng.standard_normal(ln), 120.0, 500.0) * np.exp(-tc / 0.13) * 0.8
+        crack = band_filter(crack, 150.0, 3000.0)                            # 유리처럼 밝아지지 않게
+        peak = float(np.abs(crack).max())
+        if peak > 0:
+            crack /= peak
+        fade = 1.0 - ct / 3.4      # 뒤로 갈수록 잦아든다
+        out[m:m + ln] += crack * (1.6 if big else rng.uniform(0.5, 0.95)) * fade
+        ct += rng.uniform(0.24, 0.40)
+
+    out[-int(0.35 * SR):] *= np.linspace(1.0, 0.0, int(0.35 * SR))
+    return out
+
+
 GENERATORS = {
     "zombie_hit": synth_zombie_hit,
     "tesla_arc": synth_tesla_arc,
+    "ult_quake": synth_ult_quake,
 }
 
 
