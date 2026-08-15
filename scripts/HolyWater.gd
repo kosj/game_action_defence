@@ -86,7 +86,9 @@ func _shatter(b: Dictionary) -> void:
 	var pos: Vector2 = b["to"]
 	var r: float = b["r"]
 	if b["lead"]:
-		SoundManager.play("holy_splash", 0.1, 1.0)   # 유리 깨지는 소리는 착탄 순간에
+		# 유리 깨지는 소리는 착탄 순간에. 원음은 5kHz 이상이 두꺼워 쨍하게 박혔다 —
+		# 파일에서 고역을 깎았고(import_sfx 의 shelf), 재생 피치도 조금 낮춰 마무리한다.
+		SoundManager.play("holy_splash", 0.1, 0.9)
 	_zones.append({"pos": pos, "age": 0.0, "r": r, "seed": b["seed"]})
 	for i in range(SHARDS):
 		_shards.append({"pos": pos, "age": 0.0, "seed": b["seed"] + float(i) * 1.37})
