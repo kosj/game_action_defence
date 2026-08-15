@@ -45,7 +45,10 @@ PLAN = {
     "swing":        {"src": "7eb5bfaf-bat_whoosh.mp4",       "cut": (0.085, 0.44), "fade": 0.03},
     # 0.5s 이후는 늘어지는 잔향 — 프롬프트의 dry/tight 의도대로 잘라낸다.
     "spit":         {"src": "08119b58-acid_spit.mp4",        "cut": (0.0, 0.55),  "fade": 0.08},
-    "holy_splash":  {"src": "f683826c-vial_shatter.mp4",     "cut": (0.0, 0.90),  "fade": 0.10},
+    # 5kHz 이상에 에너지의 58% 가 몰려 쨍하게 들렸다 — 고역을 깎아 유리의 정체성은
+    # 남기되(0.8~3kHz 몸통) 귀를 찌르는 성분만 덜어낸다.
+    "holy_splash":  {"src": "f683826c-vial_shatter.mp4",     "cut": (0.0, 0.90),  "fade": 0.10,
+                     "shelf": (2200.0, -13.0)},
     # 1.0~2.2s 가 정점, 이후 완만한 감쇠 — 감쇠 구간에서 페이드해 자연스럽게 마무리.
     "revive":       {"src": "6eef21e5-heroic_chime.mp4",     "cut": (0.0, 2.45),  "fade": 0.30},
     # 첫 소스는 화음 스웰(플랫니스 0.003)로 뽑혀 레벨업 징글과 혼동됐다 — 재생성본으로 교체.
@@ -94,6 +97,20 @@ def trim_head(x: np.ndarray) -> np.ndarray:
     if len(loud) == 0:
         return x
     return x[max(0, loud[0] - int(PREROLL * SR)):]
+
+
+def high_shelf(x: np.ndarray, fc: float, db: float) -> np.ndarray:
+    """fc 위쪽을 db 만큼 완만히 깎는다(FFT 셸프).
+
+    생성기가 뽑아준 유리·금속 소리는 5kHz 이상에 에너지가 몰려 귀에 쨍하게 박히는 경우가
+    많다. 귀는 2~5kHz 에 가장 예민해서, 같은 음량이라도 이 대역이 두꺼우면 금세 피로해진다.
+    fc~fc*2.5 구간에서 서서히 기울여 자르므로 음색이 갑자기 먹먹해지지 않는다.
+    """
+    N = len(x)
+    X = np.fft.rfft(x)
+    f = np.fft.rfftfreq(N, 1.0 / SR)
+    ramp = np.clip((f - fc) / (fc * 1.5), 0.0, 1.0)   # fc 에서 0, fc*2.5 이상에서 1
+    return np.fft.irfft(X * 10.0 ** (db * ramp / 20.0), N)
 
 
 def fade_out(x: np.ndarray, seconds: float) -> np.ndarray:
@@ -173,6 +190,8 @@ def main() -> None:
                 s, e = spec["cut"]
                 x = x[int(s * SR):int(e * SR)]
             x = trim_head(x)
+        if spec.get("shelf"):
+            x = high_shelf(x, *spec["shelf"])
         x = fade_out(x, spec["fade"])
         x = normalize(x)
         out = OUT_DIR / f"sfx_{name}.ogg"
