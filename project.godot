@@ -10,6 +10,12 @@ config/name="Zombie Buster"
 run/main_scene="res://scenes/TitleScreen.tscn"
 config/features=PackedStringArray("4.1", "GL Compatibility")
 
+; 프레임 상한 60. 물리가 60Hz 이고 이 엔진 설정에는 2D 물리 보간이 없어, 좀비·총알·플레이어의
+; 위치는 초당 60번만 갱신된다 — 그보다 빨리 렌더해도 같은 그림을 다시 그릴 뿐이라 얻는 게 없다.
+; 120Hz 단말에서 발열·배터리만 쓰고 프레임 페이싱도 불규칙해지므로 상한을 명시한다.
+; (0 = 무제한. vsync 는 기본값 유지 — 표시 주사율이 60 미만이면 그쪽이 먼저 걸린다)
+run/max_fps=60
+
 ; 최초 구동 시 고도 엔진 로고(부팅 스플래시) 이미지를 숨긴다 — 배경색만 잠깐 보이고 바로 게임으로.
 boot_splash/show_image=false
 boot_splash/bg_color=Color(0, 0, 0, 1)
