@@ -170,7 +170,9 @@ func _physics_process(delta: float) -> void:
 func _collect() -> void:
 	_alive = false
 	Events.add_xp(value)   # 좀비 드랍은 경험치 젬 — 수집이 곧 인게임 성장(레벨업). 골드는 보물상자에서.
-	SoundManager.play("gold", 0.05)
+	# 젬은 런 내내 가장 자주 울리는 소리다. 원음(기본 주파수 3.7kHz)은 귀가 가장 예민한
+	# 대역이라 반복되면 금세 피로해진다 — 젬 수집만 낮춰서 쓴다(다른 gold 재생부는 그대로).
+	SoundManager.play("gold", 0.05, 0.8)
 	# 잠깐 커졌다가 풀로 반납(스파클 효과) — _physics_process 에서 타이머로 진행
 	_collecting = true
 	_collect_t = COLLECT_POP
