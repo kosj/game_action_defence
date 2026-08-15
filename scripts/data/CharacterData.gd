@@ -23,6 +23,16 @@ extends Resource
 ## 오히려 어색했다. 시트로 되돌리려면 이 값만 프레임 수로 바꾸면 된다.
 @export var run_frames: int = 8
 
+## 총구 위치 — Body 로컬(텍스처 픽셀, 중심이 원점) 기준. 캐릭터마다 무기를 뻗은 위치가
+## 달라 씬의 고정값으로는 총알이 몸통에서 나온다. 그림의 무기 끝 픽셀을 재서 넣는다.
+## Body 의 자식이므로 sprite_scale 과 좌우 반전이 자동으로 따라붙는다.
+@export var muzzle_offset: Vector2 = Vector2(18, 3)
+
+## 기본 자동총 탄의 생김새 — 그림 속 무기와 맞춘다.
+##   "bullet" 소총 예광탄 / "bolt" 석궁 볼트 / "nail" 네일건 못
+## 색은 장착 무기(current_weapon.color)를 그대로 쓰므로 무기 구분은 유지된다.
+@export var projectile_style: String = "bullet"
+
 ## 시작 스탯 보정 — recompute 말미에 upgrade_* 에 더해진다(패시브/무기 위에 얹힘).
 @export var bonus_max_health: int = 0
 @export var bonus_bullet_damage: int = 0
