@@ -339,8 +339,9 @@ func _fit_shadow() -> void:
 
 ## 걷기 연출. 러닝 시트가 있으면 이동 거리에 비례해 프레임을 넘기고(멈추면 1프레임 대기 포즈),
 ## 없으면 절차적 걷기(발딛기 스쿼시 + 수직 바운스 + 좌우 뒤뚱). 좌우 방향은 _facing 으로 플립.
-const _RUN_FRAME_PER_PX := 0.1    # 이동 픽셀당 프레임 진행량(속도에 맞춰 다리가 빨라진다)
-const _RUN_STEP_FRAMES := 4.0     # 한 걸음 = 시트 4프레임(접지-스탠스-차기-공중)
+## 한 사이클(양발 한 번씩)이 이 거리만큼 이동할 때 완주한다 — 프레임 수가 4든 8이든
+## 다리가 도는 속도가 같게 유지된다(시트 교체 시 보폭이 어긋나지 않는다).
+const _RUN_CYCLE_PX := 80.0
 const _RUN_BOB := 1.6             # 걸음당 수직 바운스(px) — 프레임 아트를 보조하는 수준만(과하면 들썩임)
 const _RUN_LEAN := 0.05           # 달리는 동안 전방 기울임(rad)
 
@@ -362,11 +363,11 @@ func _animate_walk(moved: float) -> void:
 			body.texture = _sheet_tex   # 대기 -> 이동: 러닝 시트 복귀
 			body.hframes = _run_frames
 			_idle_shown = false
-		_walk_phase += moved * _RUN_FRAME_PER_PX
+		_walk_phase += moved * float(_run_frames) / _RUN_CYCLE_PX
 		body.frame = int(_walk_phase) % _run_frames
-		# 걸음 주기(4프레임)에 맞춘 바운스 + 착지 스쿼시 — 아트의 미묘한 다리 차이를
-		# 절차 연출로 증폭해 작은 화면에서도 뛰는 느낌이 읽히게 한다.
-		var bob := absf(sin(_walk_phase * PI / _RUN_STEP_FRAMES))
+		# 걸음 주기(사이클의 절반 = 한 걸음)에 맞춘 바운스 + 착지 스쿼시 — 아트의 미묘한
+		# 다리 차이를 절차 연출로 보조해 작은 화면에서도 걷는 리듬이 읽히게 한다.
+		var bob := absf(sin(_walk_phase * TAU / float(_run_frames)))
 		body.position.y = -bob * _RUN_BOB
 		body.scale = Vector2(fx * (1.0 + 0.015 * (1.0 - bob)), _body_base_scale.y * (1.0 - 0.02 * (1.0 - bob)))
 		body.rotation = _RUN_LEAN * _facing
