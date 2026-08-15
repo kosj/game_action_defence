@@ -25,6 +25,7 @@ const _SOUNDS: Dictionary = {
 	"ult_orbital": "res://assets/audio/sfx_ult_orbital.ogg",# 궁극기: 궤도 폭격(엔지니어)
 	"fly_swarm":   "res://assets/audio/sfx_fly_swarm.ogg",  # 흡혈 파리떼 출현 윙윙
 	"lightning":   "res://assets/audio/sfx_lightning.ogg",  # 번개 낙뢰 타격
+	"tesla_arc":   "res://assets/audio/sfx_tesla_arc.ogg",  # 테슬라 방전(연쇄 번개·코일)
 	"bomber_fuse": "res://assets/audio/sfx_bomber_fuse.ogg", # 자폭 좀비 점화(0.55초 도망 경고)
 	"bomber_blast":"res://assets/audio/sfx_bomber_blast.ogg",# 자폭 좀비 폭발
 	"evolve":      "res://assets/audio/sfx_evolve.ogg",      # 무기 진화 팡파르
@@ -40,7 +41,9 @@ const _VOLUMES: Dictionary = {
 	"shoot":       -10.0,
 	"laser":       -9.0,
 	"boom":        -4.0,
-	"zombie_hit":  -6.0,
+	# 새 피격음은 중역 위주라 A-가중 체감이 4.8dB 커졌다(초당 최대 18회 울리는 소리).
+	# 4dB 만 되돌려 기존과 비슷한 크기로 두되, 존재감은 약간 남긴다.
+	"zombie_hit": -10.0,
 	"zombie_die":  -3.0,
 	"gold":        -8.0,
 	"player_hurt":  0.0,
@@ -56,6 +59,7 @@ const _VOLUMES: Dictionary = {
 	"ult_orbital": -3.0,
 	"fly_swarm":   -7.0,
 	"lightning":   -7.0,
+	"tesla_arc":   -9.5,   # 기존 연쇄 번개(laser -9.0)와 같은 체감이 되도록 맞춤
 	"bomber_fuse":  -8.3,   # 경고 신호 — 전투음에 묻히면 안 되므로 파일의 1.7dB 부족분을 보정
 	"bomber_blast": -4.0,   # boom 과 동급 임팩트
 	"evolve":       -5.0,   # 런 최대 파워업 — level_up(-8)보다 확실히 크게
@@ -94,6 +98,7 @@ const _MIN_INTERVAL := {
 	"laser": 45,
 	"player_hurt": 90,
 	"lightning": 120,
+	"tesla_arc": 90,
 	"swing": 100,          # 근접 스윙 — 무기 여러 개가 겹쳐도 한 번만
 	"spit": 130,           # 스피터 다수가 동시 발사해도 산발적으로만
 	"bomber_fuse": 200,    # 여러 마리가 동시 점화해도 경고음은 하나로

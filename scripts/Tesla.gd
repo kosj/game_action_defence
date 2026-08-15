@@ -71,7 +71,7 @@ func _zap() -> void:
 	_arc_t = ARC_FADE
 	_flick_t = 0.0   # 다음 물리 틱에 즉시 지그재그 생성
 	_rebuild_bolts()
-	SoundManager.play("laser", 0.1, 1.0)
+	SoundManager.play("tesla_arc", 0.1, 1.15)   # 연쇄 번개 — 코일보다 가볍고 빠르게
 	queue_redraw()
 
 

@@ -55,7 +55,7 @@ func _discharge() -> void:
 		_arcs.append(_player.global_position - global_position)
 	_FXBurst.spawn(get_tree().current_scene, global_position, Color(0.6, 0.8, 1.0), ARC_R * 0.5, 0.25)
 	Events.shake(4.0)
-	SoundManager.play("shoot", 0.05, 1.6)
+	SoundManager.play("tesla_arc", 0.06, 0.85)   # 고정 설치 코일 — 무기보다 낮고 묵직하게
 
 
 func _draw() -> void:
