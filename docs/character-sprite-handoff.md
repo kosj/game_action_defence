@@ -47,6 +47,9 @@
 3. 키잉 → 정렬 → 4프레임 시트 조립 → `run_frames = 4` → 인게임 검증 → 커밋/PR/스쿼시 머지
 
 > **핵심 교훈**: 한 이미지 안에 여러 포즈를 요구하면 생성기가 첫 포즈를 복제한다(이 세션에서 6회 연속 재현). **한 이미지 = 한 포즈**로 따로 생성해야 한다. 무기를 두 손으로 들면 팔이 고정되므로 다리만 다르면 되고, 그만큼 성공률이 올라간다.
+>
+> **추가 교훈(측정 완료)**: 기준 이미지를 레퍼런스로 물리면 포즈가 바뀌지 않는다. 자세한 수치와
+> 2단계 레시피는 아래 [4-5절](#4-5-생성-방식--측정으로-확인된-것-중요) 참고.
 
 ---
 
@@ -111,9 +114,9 @@ Flat solid magenta #FF00FF background. No ground line, no shadow, no text.
 기준 이미지 프롬프트에서 **마지막 `POSE:` 문단만** 아래로 교체해 4번 따로 생성한다.
 나머지 문단(배경/스타일/캐릭터/무기)은 글자까지 동일하게 유지할 것 — 그래야 4장의 캐릭터가 일치한다.
 
-**포즈 1 (접지 A)**
+**포즈 1 (접지 A)** — 검증 조건 3개 포함 (초안은 실패, 이 판이 2/2 성공)
 ```
-POSE: a wide striding step. His legs form a big open scissor shape with the feet far apart. His LEFT leg reaches far forward with the heel planted and the toe tipped up; his RIGHT leg stretches far behind him with only the toe of that boot touching the ground. Upper body and weapon stay exactly as they are, still aimed forward.
+POSE: a wide striding step - his legs are spread far apart in a big letter A shape. His LEFT boot is planted far AHEAD of his hips, clearly out in front of his body and not underneath it, with the heel down and the toe tipped up. His RIGHT boot is stretched far BEHIND his hips and touches the ground with ONLY the very tip of its toe - the heel of that rear boot is lifted clear of the ground and there must be a clearly visible gap of empty magenta background under that raised heel. The horizontal distance between his two boots must be at least as wide as his shoulders are broad. Both legs are nearly straight, not bent. Upper body and weapon stay exactly as they are, still aimed forward.
 ```
 
 **포즈 2 (무릎 들기 A)**
@@ -123,7 +126,7 @@ POSE: caught mid-step with one foot in the air. ONLY his LEFT boot touches the g
 
 **포즈 3 (접지 B)**
 ```
-POSE: a wide striding step, the mirror of the other stride. His legs form a big open scissor shape with the feet far apart. His RIGHT leg reaches far forward with the heel planted and the toe tipped up; his LEFT leg stretches far behind him with only the toe of that boot touching the ground. Upper body and weapon stay exactly as they are, still aimed forward.
+POSE: a wide striding step, the mirror of the other stride - his legs are spread far apart in a big letter A shape. His RIGHT boot is planted far AHEAD of his hips, clearly out in front of his body and not underneath it, with the heel down and the toe tipped up. His LEFT boot is stretched far BEHIND his hips and touches the ground with ONLY the very tip of its toe - the heel of that rear boot is lifted clear of the ground and there must be a clearly visible gap of empty magenta background under that raised heel. The horizontal distance between his two boots must be at least as wide as his shoulders are broad. Both legs are nearly straight, not bent. Upper body and weapon stay exactly as they are, still aimed forward.
 ```
 
 **포즈 4 (무릎 들기 B)**
@@ -135,10 +138,57 @@ POSE: caught mid-step with one foot in the air. ONLY his RIGHT boot touches the 
 
 ---
 
+## 4-5. 생성 방식 — 측정으로 확인된 것 (중요)
+
+포즈 다양성과 캐릭터 일관성은 **트레이드오프**다. 아래는 베테랑으로 실측한 결과다.
+
+| 방식 | 포즈 다양성 (인접 실루엣차) | 캐릭터 일관성 | 판정 |
+|---|---|---|---|
+| EditImage(기준 이미지 → 포즈 지시) | **8.2%** | 완벽 | 실패 — 포즈가 안 바뀜 |
+| GenerateImage + `reference` 포트 | **11.8%** | 완벽 | 실패 — 포즈가 안 바뀜 |
+| GenerateImage 순수 텍스트 (레퍼런스 없음) | **52.3%** | 드리프트 (팔레트 거리 42.8) | 포즈는 OK |
+
+> **핵심**: 기준 이미지를 `reference` 든 `sourceImage` 든 물리는 순간 생성기가 원본 포즈에
+> 고정된다. 포즈를 바꾸려면 **레퍼런스를 떼고 순수 텍스트로** 생성해야 한다.
+
+### 2단계 레시피
+1. **포즈 확보** — 4-1~4-3 기준 프롬프트의 `POSE:` 문단만 4-4로 교체, `reference` 연결 없이 GenerateImage
+2. **캐릭터 복원** — EditImage 에 `sourceImage`=1단계 결과, `reference`=승인된 기준 이미지,
+   `referenceText`="포즈·실루엣은 그대로 두고 색·장비만 레퍼런스에 맞춰라"
+
+2단계 효과 실측: 포즈 유지(1단계 대비 실루엣차 8.0%)하면서 팔레트 거리 42.8 → 19.1 로 개선.
+프레임당 40크레딧(20+20).
+
+### 프롬프트에는 검증 가능한 조건을 넣어라
+초안의 "wide striding step" 문단은 0/2 실패했다(큰 가위 대신 거의 서 있는 자세). 반면 "무릎 들기"는
+2/2 성공했는데, 차이는 **눈으로 확인 가능한 조건**("부츠와 바닥 사이에 마젠타 틈이 보일 것")의 유무였다.
+스트라이드 문단에 같은 성격의 조건 세 개
+— ① 두 부츠 사이 거리 ≥ 어깨너비 ② 뒷발 뒤꿈치 아래에 마젠타가 보일 것 ③ 앞발은 엉덩이보다 앞 —
+를 넣어 다시 쓰니 **2/2 성공**했다. 아래 4-4 는 그 수정본이다.
+
+### 아직 남은 약점
+- 2단계를 거쳐도 팔레트가 완전히 고정되지는 않는다. 프레임간 팔레트 거리는 정규화한 것끼리 7~19,
+  정규화 안 한 프레임이 섞이면 24~33 으로 벌어진다.
+- **전역 색 보정으로는 못 고친다.** Lab 공간 Reinhard 색 전이를 붙여 봤지만 프레임간 팔레트 편차가
+  평균 21.2 → 22.6 으로 **오히려 나빠졌다**(드리프트가 바지 같은 국소 영역 색상차라서, 전역 보정은
+  이미 맞은 프레임까지 흔든다). 이 방향은 시도하지 말 것.
+- EditImage 노드가 진행률 70%대에서 행에 걸리는 경우가 있다. 재실행하면 진행률이 리셋되며 다시 돈다.
+
+---
+
 ## 5. 이미지 → 스프라이트 시트 처리 파이프라인
 
-업로드된 PNG를 게임 에셋으로 만드는 절차. 스크래치패드 스크립트는 세션과 함께 사라지므로,
-새 세션에서 아래 파라미터로 재작성하면 된다 (Python + Pillow).
+**스크립트는 이제 [`tools/make_character_sheet.py`](../tools/make_character_sheet.py) 에 커밋돼 있다.**
+세션마다 재작성할 필요 없다. 아래는 그 스크립트가 구현한 파라미터다 (Python + Pillow + scipy).
+
+```bash
+# 걷기 시트
+python tools/make_character_sheet.py -o assets/sprites/run_veteran.png raw/p*.png
+# 대기 이미지
+python tools/make_character_sheet.py -o assets/sprites/idle_veteran.png --single raw/idle.png
+```
+
+시트 모드는 인접 실루엣 차이가 25% 미만이면 종료코드 2 로 실패를 알린다.
 
 1. **키잉** — 테두리 픽셀의 중앙값을 키 컬러로 잡고 가장자리에서 플러드 필.
    - 색거리 허용치 `tol = 70` (흰 배경이면 60)
