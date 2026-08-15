@@ -1,19 +1,22 @@
 # 플레이어 캐릭터 스프라이트 작업 인수인계
 
 새 세션에서 이 문서만 읽고 이어서 작업할 수 있도록 정리한 문서입니다.
-마지막 갱신: 베테랑 걷기 4프레임 적용(PR #249) 시점.
+마지막 갱신: 세 캐릭터 걷기 4프레임 시트 완성 시점.
 
 ---
 
 ## 1. 지금 게임에 적용된 상태
 
-| 캐릭터 | 걷기 시트 | 프레임 수 | 대기 이미지 | 비고 |
-|---|---|---|---|---|
-| veteran | `assets/sprites/run_veteran.png` (460×154) | **4** | `idle_veteran.png` | 최신 걷기 아트. 다만 4프레임의 포즈 차이가 작아 "잔걸음"으로 읽힘 |
-| hunter | `assets/sprites/run_hunter.png` (1752×157) | 8 | `idle_hunter.png` | 구 키포즈(달리기) 아트 |
-| engineer | `assets/sprites/run_engineer.png` (1232×162) | 8 | `idle_engineer.png` | 구 키포즈(달리기) 아트 |
+세 캐릭터 모두 아래 4-5절의 2단계 레시피로 새로 만든 4프레임 시트가 적용돼 있다.
 
-- 프레임 수는 `data/character_db.tres` 의 `run_frames` 가 결정한다. veteran 만 `run_frames = 4`.
+| 캐릭터 | 걷기 시트 | 프레임 수 | 대기 이미지 | 인접 실루엣차 | 프레임간 팔레트 편차 |
+|---|---|---|---|---|---|
+| veteran | `run_veteran.png` (536×161) | 4 | `idle_veteran.png` (123×150) | 44.8% | 17.7 |
+| hunter | `run_hunter.png` (564×164) | 4 | `idle_hunter.png` (116×150) | 53.1% | 16.5 |
+| engineer | `run_engineer.png` (576×168) | 4 | `idle_engineer.png` (103×150) | 33.8% | 22.2 |
+
+- 프레임 수는 `data/character_db.tres` 의 `run_frames` 가 결정한다. **세 캐릭터 모두 4**
+  (`run_frames` 기본값은 8이므로 hunter·engineer 에도 명시적으로 적어야 한다).
 - 걷기 속도는 프레임 수와 무관하다 — `Player.gd` 의 `_RUN_CYCLE_PX = 80.0`, 한 사이클 = 80px 이동.
 - 정지 시 `idle_<id>.png` 로 교체, 이동 시 시트로 복귀 (`Player.gd` `_animate_walk`).
 - 파일만 교체하면 코드 수정 없이 반영된다. 프레임 수가 바뀌면 `run_frames` 만 고치면 된다.
@@ -42,9 +45,13 @@
 
 ## 3. 남은 작업
 
-1. 세 캐릭터의 **기준 이미지(대기, 무기 들고 전방 조준)** 생성 → 스타일 컨펌
-2. 기준 이미지를 소스로 **걷기 4포즈** 생성 (상체·무기 고정, 다리만 변경)
-3. 키잉 → 정렬 → 4프레임 시트 조립 → `run_frames = 4` → 인게임 검증 → 커밋/PR/스쿼시 머지
+세 캐릭터 걷기 시트는 **완료**됐다. 남은 것은 다듬기 수준이다.
+
+1. 엔지니어의 인접 실루엣차가 33.8% 로 셋 중 가장 낮다(기준 25%는 넘음). 더 벌리고 싶으면
+   무릎 들기 두 컷만 재생성하면 된다.
+2. 생성기가 "no shadow" 지시를 어기고 그린 바닥 그림자 중, **부츠에 붙은** 얇은 잔상은
+   남아 있다(떨어진 조각은 파이프라인이 제거한다). 게임 크기에서는 사실상 안 보인다.
+3. 피격·사망 등 다른 상태 스프라이트는 미착수.
 
 > **핵심 교훈**: 한 이미지 안에 여러 포즈를 요구하면 생성기가 첫 포즈를 복제한다(이 세션에서 6회 연속 재현). **한 이미지 = 한 포즈**로 따로 생성해야 한다. 무기를 두 손으로 들면 팔이 고정되므로 다리만 다르면 되고, 그만큼 성공률이 올라간다.
 >
@@ -172,7 +179,18 @@ POSE: caught mid-step with one foot in the air. ONLY his RIGHT boot touches the 
 - **전역 색 보정으로는 못 고친다.** Lab 공간 Reinhard 색 전이를 붙여 봤지만 프레임간 팔레트 편차가
   평균 21.2 → 22.6 으로 **오히려 나빠졌다**(드리프트가 바지 같은 국소 영역 색상차라서, 전역 보정은
   이미 맞은 프레임까지 흔든다). 이 방향은 시도하지 말 것.
-- EditImage 노드가 진행률 70%대에서 행에 걸리는 경우가 있다. 재실행하면 진행률이 리셋되며 다시 돈다.
+- 생성기가 프레임에 따라 **스티커풍 흰 테두리**를 그리는 경우가 있다(12장 중 1장). 아트 디렉션상
+  실루엣 바깥선은 검정이므로 파이프라인이 경계의 밝은 무채색 픽셀을 벗겨 자동 제거한다.
+  정상 프레임은 경계 흰 비율 0%, 문제 프레임만 2~3% 로 뚜렷이 갈린다.
+
+### VARCO 실행 시 주의
+- EditImage 노드가 **진행률 70%대에서 멈춘 것처럼 보이는 일이 잦다.** 진행률 필드가 갱신되지
+  않을 뿐 실제로는 완료되는 경우가 많으니, 재실행하기 전에 `get_workflow_graph` 로 `status` 를
+  확인할 것 — 소수점까지 같은 진행률이 5분 이상 이어져도 `status: success` 로 바뀌어 있을 수 있다.
+  성급히 재실행하면 크레딧만 두 배로 나간다.
+- 실행 중인 노드는 잠겨 `connect_edge` 가 거부된다. 이때는 `set_node_input` 으로 포트를
+  intrinsic 값(예: `{"sourceImage": [{"type":"image","url":"/api/objects/....png"}]}`)으로
+  직접 넣으면 엣지 없이도 연결된 것과 같이 동작한다.
 
 ---
 
@@ -209,10 +227,20 @@ python tools/make_character_sheet.py -o assets/sprites/idle_veteran.png --single
 7. **데이터** — `data/character_db.tres` 의 해당 캐릭터 `run_frames` 를 프레임 수로 설정
 
 ### 검증 (필수)
-- Godot 헤드리스 바이너리로 `--import` → 파싱 에러 0
-- `scenes/Main.tscn` 실행해 `body.hframes`, `pl._run_frames`, 이동 시 프레임 0..N-1 전부 순환 확인
-- 시트 폭이 프레임 수로 **정확히 나누어떨어지는지** (`width % run_frames == 0`)
-- 렌더링 확인이 필요하면 `xvfb-run -a -s "-screen 0 800x1300x24" <godot> --path . --rendering-driver opengl3 <scene>` 로 캡처
+
+```bash
+godot --headless --path . --import
+godot --headless --path . --script res://tools/verify_character_sheets.gd
+```
+
+- `--import` 는 파싱 에러 0 이어야 한다. (`NotoSansCJK-Subset.otf` 로더 경고는 기존 항목으로 무관)
+- [`tools/verify_character_sheets.gd`](../tools/verify_character_sheets.gd) 가 `character_db.tres` 의
+  `run_frames` 와 실제 시트 폭을 대조한다 — **시트만 갈고 `run_frames` 를 안 고친 경우를 잡는
+  유일한 검사다**(파이썬 도구는 tres 를 안 읽는다). 실패 시 종료코드 1.
+- 윈도 로컬 Godot 경로: `D:\Program\Godot\Godot_v4.6.3-stable_win64_console.exe`
+  (`_console` 붙은 쪽이라야 stdout 이 잡힌다)
+- Godot 4.6 으로 `--import` 를 돌리면 `assets/ui/**/*.import` 에 신규 옵션 기본값이 추가된다.
+  스프라이트 작업과 무관하므로 커밋 전에 `git checkout -- assets/ui` 로 되돌릴 것.
 
 ---
 
@@ -235,14 +263,23 @@ Claude Code 원격 실행 환경에서는 `3d.varco.ai` 가 이그레스 정책�
 
 ---
 
-## 7. 새 세션 시작 시 가이드
+## 7. 새 캐릭터를 추가할 때
 
-1. 이 문서(`docs/character-sprite-handoff.md`)를 읽게 한다
-2. 위 **4-1~4-3 기준 이미지 3장**을 VARCO(또는 다른 생성기)로 뽑는다
-3. 결과를 채팅에 업로드 → 스타일·실루엣이 몬스터 아트와 맞는지 판정받는다
-4. OK면 캐릭터당 **4-4의 걷기 4포즈를 한 장씩 따로** 생성한다 (캐릭터당 4장, 총 12장)
-5. 업로드 → 5장의 파이프라인으로 시트 조립 → 검증 → 커밋 → PR → 스쿼시 머지
-6. 작업 브랜치는 `claude/kenney-assets-sprites-782pbc`, 머지 후 `git checkout -B <브랜치> origin/main` 으로 재정렬
+세 캐릭터는 이미 끝났다. 아래는 **네 번째 캐릭터**를 만들 때의 절차다.
+
+1. 4-1~4-3 을 본떠 기준 이미지 프롬프트를 쓴다 — `ART STYLE` 문단과 배경 문단은
+   **글자까지 그대로 복사**할 것(세 캐릭터가 통일된 이유가 이것이다)
+2. 기준 이미지 1장 생성 → 스타일·실루엣 컨펌 (20크레딧)
+3. 4-4 의 4포즈로 **레퍼런스 없이** 생성 (4장, 80크레딧)
+4. 각 결과를 소스로, 기준 이미지를 reference 로 물려 정규화 (4장, 80크레딧)
+5. `make_character_sheet.py` 로 조립 → `run_frames = 4` 명시 → `verify_character_sheets.gd` 통과
+6. 캐릭터당 총 180크레딧, 소요 시간은 생성 대기가 대부분이다
+
+### 실패 시 판단 기준
+- 인접 프레임 실루엣 차이 < 25% → 포즈가 복제된 것. 해당 컷만 재생성
+- 공중 포즈에서 부츠와 바닥 사이 빈 공간이 안 보임 → 재생성
+- 무기가 2개거나 프레임마다 사라짐 → 재생성
+- 등신수·선 두께가 다른 캐릭터와 다름 → 스타일 문단 확인 후 재생성
 
 ### 실패 시 판단 기준
 - 인접 프레임 실루엣 차이 < 25% → 포즈가 복제된 것. 해당 컷만 재생성
