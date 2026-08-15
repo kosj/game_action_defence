@@ -230,10 +230,10 @@ python3 tools/make_arrow_rain.py --src one_arrow.wav  # or layer a real recorded
 
 |  | generated volley | layered (shipping) | real glass | wooden bat |
 |---|---|---|---|---|
-| centroid | 2031Hz | **450Hz** | 5538Hz | 374Hz |
-| 200-800Hz (wood) | 35.6% | **67.2%** | 1.6% | 60.1% |
-| 3-8kHz (glass) | 22.6% | **1.5%** | 57.8% | 0.4% |
-| impacts/sec | 4.4 | **9.0** | — | — |
+| centroid | 2031Hz | **480Hz** | 5538Hz | 374Hz |
+| 200-800Hz (wood) | 35.6% | **60.0%** | 1.6% | 60.1% |
+| 3-8kHz (glass) | 22.6% | **3.9%** | 57.8% | 0.4% |
+| impacts/sec | 4.4 | **12.0** | — | — |
 
 To supply a real arrow instead of the synthesized one, generate a single clean arrow —
 generators handle *one* arrow reliably — and pass it with `--src`:

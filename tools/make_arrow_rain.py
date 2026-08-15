@@ -58,17 +58,27 @@ def synth_arrow(rng: np.random.Generator) -> np.ndarray:
     만들고, 어택 클릭은 로우패스로 눌러 3kHz 이상이 남지 않게 한다. 고역이 남으면 여러 발이
     겹쳤을 때 '챙그랑'거려 유리처럼 들린다.
     """
-    # ── 휙(비행음): 노이즈를 2.6kHz→900Hz 로 훑어 내리며 점점 커진다.
-    n_w = int(0.26 * SR)
+    # ── 휙(비행음): 착탄 직전의 짧은 공기 소리.
+    #
+    # 길면 안 된다. 비행음 0.26초짜리를 70발 겹치면 언제나 4~5개가 동시에 울려 끊기지 않는
+    # 노이즈 층이 생기고, 화살비가 아니라 벌떼가 몰려오는 소리가 된다(실제로 그렇게 들렸다).
+    # 좁은 밴드패스를 훑어 내리는 건 곤충 날갯소리를 만드는 방식 그 자체이기도 하다.
+    # 그래서 0.07초로 줄이고(동시 겹침 1.2개), 필터를 넓혀 '삐-' 가 아니라 '휙' 이 되게 한다.
+    # 화살비의 정체성은 비행음이 아니라 땅에 꽂히는 타격에 있다.
+    n_w = int(0.07 * SR)
     t = np.arange(n_w) / SR
-    sweep = 2600.0 * (900.0 / 2600.0) ** (t / t[-1])
-    whoosh = svf_bandpass(rng.standard_normal(n_w), sweep, q=1.1)
-    whoosh *= (t / t[-1]) ** 2.5          # 다가올수록 급격히 커지는 접근 포락선
+    sweep = 3200.0 * (1400.0 / 3200.0) ** (t / t[-1])
+    whoosh = svf_bandpass(rng.standard_normal(n_w), sweep, q=0.5)
+    whoosh *= (t / t[-1]) ** 2.0          # 다가올수록 급격히 커지는 접근 포락선
     whoosh /= max(float(np.abs(whoosh).max()), 1e-9)
-    whoosh *= 0.42
+    whoosh *= 0.25
 
     # ── 타격: 클릭 + 나무 공명 + 흙먼지
-    n_i = int(0.16 * SR)
+    #
+    # 짧고 건조해야 한다. 공명이 길게 울리면(0.05초만 돼도) 수십 발의 여운이 서로 겹쳐
+    # 저역이 끊김 없이 깔리고, 개별 화살이 뭉개져 웅웅거리는 덩어리가 된다. 화살이 나무
+    # 기둥이 아니라 흙에 꽂히는 소리라는 점에서도 여운은 짧은 게 맞다 — '통' 이 아니라 '톡'.
+    n_i = int(0.10 * SR)
     ti = np.arange(n_i) / SR
     impact = np.zeros(n_i)
 
@@ -76,13 +86,13 @@ def synth_arrow(rng: np.random.Generator) -> np.ndarray:
     a = np.exp(-2.0 * np.pi * 3200.0 / SR)                    # 원폴 로우패스 — 유리빛 고역 제거
     for i in range(1, n_i):
         click[i] = (1 - a) * click[i] + a * click[i - 1]
-    impact += click * 0.9
+    impact += click * 1.5                                     # 어택이 개별 타격을 또렷하게 만든다
 
-    # 나무의 비조화 공명 3개 — 낮을수록 오래 남는다(둔탁한 '턱').
-    for freq, decay, gain in ((205.0, 0.055, 1.0), (415.0, 0.032, 0.5), (760.0, 0.015, 0.22)):
+    # 나무의 비조화 공명 3개 — 짧게 끊어 '톡' 하고 죽게 한다.
+    for freq, decay, gain in ((205.0, 0.016, 1.0), (415.0, 0.011, 0.5), (760.0, 0.007, 0.22)):
         impact += gain * np.sin(2 * np.pi * freq * ti + rng.uniform(0, 2 * np.pi)) * np.exp(-ti / decay)
 
-    soil = rng.standard_normal(n_i) * np.exp(-ti / 0.040)     # 흙이 튀는 소리
+    soil = rng.standard_normal(n_i) * np.exp(-ti / 0.018)     # 흙이 튀는 소리
     b = np.exp(-2.0 * np.pi * 900.0 / SR)
     for i in range(1, n_i):
         soil[i] = (1 - b) * soil[i] + b * soil[i - 1]
@@ -131,7 +141,8 @@ def layer(arrow_of, count: int, length_s: float, rng: np.random.Generator) -> np
             slot = k - intro
             span = 0.94 / body
             start = int((slot * span + rng.uniform(0.0, span * 0.95)) * total)
-        gain = rng.uniform(0.30, 0.85)
+        # 세기 편차를 넓게 — 가까운 화살과 먼 화살이 섞여야 개별 타격이 도드라진다.
+        gain = rng.uniform(0.16, 1.0) ** 1.4
         pan = rng.uniform(-0.85, 0.85)          # 좌우로 흩뿌려 폭우의 폭을 만든다
         head = max(0, -start)                   # 음수 시작이면 앞부분(비행음)을 잘라낸다
         start = max(0, start)
@@ -177,9 +188,10 @@ def encode(x: np.ndarray, path: Path) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description="화살비 사운드 합성")
     ap.add_argument("--src", type=Path, help="화살 1발 WAV(없으면 절차적 합성)")
-    # 58/70/82 발을 비교했을 때 70 발이 가장 고르다 — 타격 9.0회/초(프롬프트 목표 8~10),
-    # 100ms 구간별 편차 1.9dB 로 빈 구간 없이 이어진다.
-    ap.add_argument("--count", type=int, default=70, help="화살 발수")
+    # 70 발은 너무 촘촘해 타격의 여운이 서로 메워지면서 벌떼처럼 웅웅거렸다. 44~70 을
+    # 비교해 48 발로 낮췄다 — 타격 12회/초로 여전히 빽빽하면서, 피크-바닥이 29.9dB 로
+    # 개별 화살이 또렷하다(파리떼 17.0dB, 유리 깨짐 29.3dB 와 비교한 값).
+    ap.add_argument("--count", type=int, default=48, help="화살 발수")
     ap.add_argument("--length", type=float, default=4.0, help="전체 길이(초)")
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     args = ap.parse_args()
