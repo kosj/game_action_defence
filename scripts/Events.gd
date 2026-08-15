@@ -10,6 +10,11 @@ const _BUILD_INFO_PATH := "res://build_info.json"
 var _build_stamp_cache := ""
 
 
+## 일시정지 워치독이 정지 중에도 돌아야 하므로 이벤트 버스는 항상 처리한다.
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
+
 ## 예: "v1.0.0 · a1b2c3d · 2026-07-03 10:00 UTC" (배포 빌드) / "v1.0.0 · dev build" (로컬)
 func build_label() -> String:
 	if _build_stamp_cache == "":
@@ -479,3 +484,119 @@ func reset() -> void:
 	score_changed.emit(score)
 	xp_changed.emit(xp, xp_to_next, level)
 	inventory_changed.emit()
+
+
+# ── 일시정지 소유권 레지스트리 + 워치독 ─────────────────────────────────────────
+## 여러 모달(레벨업/보물상자/상점/게임오버/일시정지 메뉴)이 각자 get_tree().paused 를 켜고 끄면,
+## 어느 하나가 해제를 빠뜨렸을 때 "화면엔 아무것도 없는데 게임만 멈춘" 상태로 영구히 갇힌다
+## (장시간 웹 플레이 중 보고된 프리즈 증상). 그래서 정지는 여기서만 소유권 기반으로 관리한다.
+##  · pause_push(owner) / pause_pop(owner) — 살아있는 소유자가 하나라도 있으면 정지, 비면 자동 해제.
+##  · 워치독 — 매 프레임 소유자를 검증(해제됨/트리 밖/오래 숨겨짐)해 유령 소유자를 걷어내고,
+##    소유자 없는 정지가 유예 시간을 넘기면 강제로 해제한다. 원인을 몰라도 하드 프리즈는 막는다.
+##  · 히트스톱 감시 — Engine.time_scale 이 낮은 채로 남아 "멈춘 듯" 보이는 것도 함께 복구한다.
+
+signal pause_watchdog_fired(reason: String, detail: String)
+
+const PAUSE_ORPHAN_GRACE_MS := 1000    # 소유자 없는 정지를 이만큼 견디면 강제 해제
+const PAUSE_HIDDEN_GRACE_MS := 3000    # 등록 후 이 시간이 지나도 안 보이는 소유자는 유령으로 간주
+const TIMESCALE_GRACE_MS := 1000       # 히트스톱 배속이 이만큼 남아있으면 강제 복구
+
+var _pause_owners: Dictionary = {}     # instance_id(int) -> {"node": Node, "tag": String, "since": int}
+var _pause_orphan_since: int = -1
+var _timescale_low_since: int = -1
+
+
+## 정지 소유권 획득 — 모달이 열릴 때 호출한다(같은 소유자의 중복 호출은 무해).
+func pause_push(owner: Node, tag: String = "") -> void:
+	if owner == null or not is_instance_valid(owner):
+		return
+	var id := owner.get_instance_id()
+	if not _pause_owners.has(id):
+		_pause_owners[id] = {"node": owner, "tag": (tag if tag != "" else owner.name),
+			"since": Time.get_ticks_msec()}
+	_apply_pause()
+
+
+## 정지 소유권 반납 — 모달이 닫힐 때/트리에서 빠질 때 호출한다(미등록 소유자여도 무해).
+func pause_pop(owner: Node) -> void:
+	if owner == null:
+		return
+	if _pause_owners.erase(owner.get_instance_id()):
+		_apply_pause()
+
+
+## 모든 소유권 해제 — 씬 전환·재시작처럼 판 자체가 끝나는 지점에서 호출한다.
+func pause_release_all() -> void:
+	_pause_owners.clear()
+	_apply_pause()
+
+
+func pause_owner_tags() -> PackedStringArray:
+	var out := PackedStringArray()
+	for id in _pause_owners:
+		out.append(String(_pause_owners[id]["tag"]))
+	return out
+
+
+func _apply_pause() -> void:
+	var tree := get_tree()
+	if tree == null:
+		return
+	var want := not _pause_owners.is_empty()
+	if tree.paused != want:
+		tree.paused = want
+	if want:
+		_pause_orphan_since = -1
+
+
+## 유령 소유자 제거 — 해제됐거나, 트리 밖이거나, 등록 후 유예 시간이 지나도 보이지 않는 소유자.
+func _prune_pause_owners(now: int) -> int:
+	var dropped := 0
+	for id in _pause_owners.keys():
+		var e: Dictionary = _pause_owners[id]
+		var n = e["node"]
+		var dead: bool = not is_instance_valid(n) or not n.is_inside_tree()
+		if not dead and (n is CanvasItem or n is CanvasLayer) and not n.visible \
+				and now - int(e["since"]) >= PAUSE_HIDDEN_GRACE_MS:
+			dead = true
+		if dead:
+			_pause_owners.erase(id)
+			dropped += 1
+	return dropped
+
+
+func _process(_delta: float) -> void:
+	var tree := get_tree()
+	if tree == null:
+		return
+	var now := Time.get_ticks_msec()
+
+	if not _pause_owners.is_empty() and _prune_pause_owners(now) > 0:
+		_apply_pause()
+
+	# 소유자 없는 정지 = 아무도 해제해 줄 수 없는 상태. 유예 후 강제 해제한다.
+	if tree.paused and _pause_owners.is_empty():
+		if _pause_orphan_since < 0:
+			_pause_orphan_since = now
+		elif now - _pause_orphan_since >= PAUSE_ORPHAN_GRACE_MS:
+			_pause_orphan_since = -1
+			tree.paused = false
+			var detail := "level=%d elapsed=%.1f" % [level, elapsed_time]
+			push_warning("[PauseWatchdog] 소유자 없는 일시정지를 강제 해제했다 — " + detail)
+			pause_watchdog_fired.emit("orphan_pause", detail)
+	else:
+		_pause_orphan_since = -1
+
+	# 히트스톱이 복구되지 않은 채 남으면 게임이 멈춘 것처럼 보인다 — 실시간 기준으로 감시한다.
+	if Engine.time_scale < 0.999:
+		if _timescale_low_since < 0:
+			_timescale_low_since = now
+		elif now - _timescale_low_since >= TIMESCALE_GRACE_MS:
+			_timescale_low_since = -1
+			var ts := Engine.time_scale
+			Engine.time_scale = 1.0
+			_hitstop_active = false
+			push_warning("[PauseWatchdog] 히트스톱 배속(%.3f)이 남아있어 복구했다" % ts)
+			pause_watchdog_fired.emit("stuck_time_scale", "%.3f" % ts)
+	else:
+		_timescale_low_since = -1
