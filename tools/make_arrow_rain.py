@@ -1,95 +1,206 @@
 #!/usr/bin/env python3
-"""화살 1발 사운드(WAV)를 수십 발로 겹쳐 '화살비' 사운드를 합성한다.
+"""화살비(헌터 궁극기) 사운드를 만든다 — 화살 한 발을 수십 발로 겹쳐 폭우를 합성.
 
-AI 사운드 생성기가 화살비를 자꾸 화살 한 발로만 뽑아줄 때의 플랜 B:
-잘 뽑힌 화살 1발(슉-턱, 0.3~0.6초)을 입력으로 넣으면, 무작위 시차·피치·볼륨·
-팬으로 N발을 겹쳐 지정 길이의 폭우 텍스처를 만든다. 초반은 성기게, 중반은
-빽빽하게, 끝은 잦아들게 밀도 곡선을 준다(궁극기 지속 3초 + 테일 구조).
+AI 생성기는 "화살이 쏟아진다"를 자꾸 단발 사건으로 해석하고, 밀도가 부족하면 결과가
+'유리 깨지는 소리'처럼 들린다(성긴 데다 밝은 타격만 남기 때문). 화살 한 발을 재료로
+수십 발을 겹치면 밀도·음색을 직접 통제할 수 있다.
 
-사용:  python3 tools/make_arrow_rain.py one_arrow.wav out_rain.wav [발수=42] [길이초=4.0]
-이후:  ffmpeg -i out_rain.wav -af loudnorm=I=-14:TP=-1 -c:a libvorbis -q:a 6 \
-           assets/audio/sfx_ult_arrow.ogg
+두 가지 모드:
+  합성(기본)  화살 한 발을 절차적으로 합성해 사용한다. 나무 타격 대역(200~800Hz)이
+              지배적이라 '나무 화살이 땅에 꽂히는' 소리로 뽑힌다.
+  녹음 사용    잘 뽑힌 화살 1발 WAV 가 있으면 그것을 재료로 쓴다(--src one_arrow.wav).
+
+사용:
+  python3 tools/make_arrow_rain.py                       # 합성 → assets/audio/sfx_ult_arrow.ogg
+  python3 tools/make_arrow_rain.py --src one_arrow.wav   # 실제 녹음 1발로 합성
+  python3 tools/make_arrow_rain.py --count 60 --length 4.0 --out /tmp/rain.ogg
 """
-import random
-import struct
+import argparse
+import subprocess
 import sys
 import wave
+from pathlib import Path
+
+import numpy as np
+
+try:
+    import imageio_ffmpeg
+    FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
+except ImportError:
+    FFMPEG = "ffmpeg"
+
+SR = 48000
+TARGET_RMS_DB = -16.0    # 다른 효과음과 동일한 라우드니스 기준
+PEAK_CAP_DB = -1.5
+SEED = 7                 # 결과 재현 가능
+
+ROOT = Path(__file__).resolve().parent.parent
+DEFAULT_OUT = ROOT / "assets" / "audio" / "sfx_ult_arrow.ogg"
 
 
-def read_wav_mono(path: str) -> tuple[list[float], int]:
-    with wave.open(path, "rb") as w:
-        ch, sw, sr, n = w.getnchannels(), w.getsampwidth(), w.getframerate(), w.getnframes()
-        raw = w.readframes(n)
-    if sw != 2:
-        sys.exit(f"16-bit PCM WAV만 지원합니다 (입력: {sw * 8}-bit)")
-    samples = struct.unpack(f"<{n * ch}h", raw)
-    mono = [sum(samples[i : i + ch]) / ch / 32768.0 for i in range(0, len(samples), ch)]
-    return mono, sr
-
-
-def resample(src: list[float], ratio: float) -> list[float]:
-    """선형 보간 리샘플 — ratio>1 이면 높은 피치(짧아짐)."""
-    out_len = max(1, int(len(src) / ratio))
-    out = []
-    for i in range(out_len):
-        pos = i * ratio
-        j = int(pos)
-        frac = pos - j
-        a = src[j]
-        b = src[j + 1] if j + 1 < len(src) else a
-        out.append(a + (b - a) * frac)
+def svf_bandpass(x: np.ndarray, fc: np.ndarray, q: float = 1.2) -> np.ndarray:
+    """중심 주파수가 시간에 따라 변하는 상태변수 밴드패스 — 화살이 다가오며 음색이 낮아진다."""
+    f = 2.0 * np.sin(np.pi * np.clip(fc, 20.0, SR * 0.45) / SR)
+    damp = 1.0 / q
+    low = band = 0.0
+    out = np.empty_like(x)
+    for i in range(len(x)):
+        low += f[i] * band
+        band += f[i] * (x[i] - low - damp * band)
+        out[i] = band
     return out
 
 
-def main() -> None:
-    if len(sys.argv) < 3:
-        sys.exit(__doc__)
-    src_path, out_path = sys.argv[1], sys.argv[2]
-    count = int(sys.argv[3]) if len(sys.argv) > 3 else 42
-    length_s = float(sys.argv[4]) if len(sys.argv) > 4 else 4.0
+def synth_arrow(rng: np.random.Generator) -> np.ndarray:
+    """화살 한 발: 공기를 가르는 휙(하강 스윕) → 땅에 꽂히는 나무 타격(감쇠 공명).
 
-    src, sr = read_wav_mono(src_path)
-    total = int(length_s * sr)
-    left = [0.0] * total
-    right = [0.0] * total
+    대역 구성을 의도적으로 나무 쪽에 몰아준다 — 타격의 몸통을 200~800Hz 의 감쇠 정현파로
+    만들고, 어택 클릭은 로우패스로 눌러 3kHz 이상이 남지 않게 한다. 고역이 남으면 여러 발이
+    겹쳤을 때 '챙그랑'거려 유리처럼 들린다.
+    """
+    # ── 휙(비행음): 노이즈를 2.6kHz→900Hz 로 훑어 내리며 점점 커진다.
+    n_w = int(0.26 * SR)
+    t = np.arange(n_w) / SR
+    sweep = 2600.0 * (900.0 / 2600.0) ** (t / t[-1])
+    whoosh = svf_bandpass(rng.standard_normal(n_w), sweep, q=1.1)
+    whoosh *= (t / t[-1]) ** 2.5          # 다가올수록 급격히 커지는 접근 포락선
+    whoosh /= max(float(np.abs(whoosh).max()), 1e-9)
+    whoosh *= 0.42
 
-    random.seed(7)  # 결과 재현 가능
+    # ── 타격: 클릭 + 나무 공명 + 흙먼지
+    n_i = int(0.16 * SR)
+    ti = np.arange(n_i) / SR
+    impact = np.zeros(n_i)
+
+    click = rng.standard_normal(n_i) * np.exp(-ti / 0.0018)   # 짧은 어택 클릭
+    a = np.exp(-2.0 * np.pi * 3200.0 / SR)                    # 원폴 로우패스 — 유리빛 고역 제거
+    for i in range(1, n_i):
+        click[i] = (1 - a) * click[i] + a * click[i - 1]
+    impact += click * 0.9
+
+    # 나무의 비조화 공명 3개 — 낮을수록 오래 남는다(둔탁한 '턱').
+    for freq, decay, gain in ((205.0, 0.055, 1.0), (415.0, 0.032, 0.5), (760.0, 0.015, 0.22)):
+        impact += gain * np.sin(2 * np.pi * freq * ti + rng.uniform(0, 2 * np.pi)) * np.exp(-ti / decay)
+
+    soil = rng.standard_normal(n_i) * np.exp(-ti / 0.040)     # 흙이 튀는 소리
+    b = np.exp(-2.0 * np.pi * 900.0 / SR)
+    for i in range(1, n_i):
+        soil[i] = (1 - b) * soil[i] + b * soil[i - 1]
+    impact += soil * 0.55
+
+    arrow = np.concatenate([whoosh, np.zeros(n_i)])
+    arrow[n_w:] += impact
+    return arrow / max(float(np.abs(arrow).max()), 1e-9)
+
+
+def read_wav_mono(path: Path) -> np.ndarray:
+    with wave.open(str(path), "rb") as w:
+        if w.getsampwidth() != 2:
+            sys.exit(f"16-bit PCM WAV만 지원합니다 (입력: {w.getsampwidth() * 8}-bit)")
+        ch, n = w.getnchannels(), w.getnframes()
+        raw = np.frombuffer(w.readframes(n), dtype="<i2").astype(np.float64) / 32768.0
+    return raw.reshape(-1, ch).mean(axis=1) if ch > 1 else raw
+
+
+def resample(x: np.ndarray, ratio: float) -> np.ndarray:
+    """선형 보간 리샘플 — ratio>1 이면 높은 음(짧아짐)."""
+    n = max(1, int(len(x) / ratio))
+    return np.interp(np.arange(n) * ratio, np.arange(len(x)), x)
+
+
+def layer(arrow_of, count: int, length_s: float, rng: np.random.Generator) -> np.ndarray:
+    """화살들을 무작위 시차·피치·좌우 위치로 겹쳐 폭우를 만든다.
+
+    arrow_of(rng) 는 화살 한 발을 돌려주는 함수 — 합성 모드에서는 발마다 미세하게 다른
+    화살이 나와 '같은 소리의 반복'으로 들리지 않는다.
+    밀도 곡선: 앞 12% 도입(성김) → 중반 절정(빽빽) → 뒤 감쇠(잦아듦).
+    """
+    total = int(length_s * SR)
+    out = np.zeros((2, total))
+    intro = max(3, count // 12)
+    body = count - intro
     for k in range(count):
-        # 밀도 곡선: 앞 15%는 도입(성김), 15~75%는 절정, 이후는 감쇠 구간에 배치.
-        u = random.random()
-        if u < 0.15:
-            t = random.uniform(0.0, 0.12)
-        elif u < 0.85:
-            t = random.uniform(0.10, 0.72)
+        a = resample(arrow_of(rng), rng.uniform(0.85, 1.28))
+        if k < intro:
+            # 도입부 화살은 발동 시점에 이미 낙하 중 — 시작을 음수로 둬 비행음이 잘리고
+            # 타격이 0초 부근에 꽂힌다. 궁극기 발동의 화면 셰이크·버스트와 소리가 붙는다.
+            start = int(rng.uniform(-0.85, 0.02) * len(a))
         else:
-            t = random.uniform(0.70, 0.92)
-        start = int(t * total)
-        arrow = resample(src, random.uniform(0.85, 1.25))  # 피치 ±수% 변주
-        gain = random.uniform(0.35, 0.8)
-        pan = random.uniform(-0.8, 0.8)  # 좌우로 흩뿌려 폭우의 폭을 만든다
-        gl, gr = gain * (1.0 - pan) * 0.5 + gain * 0.5, gain * (1.0 + pan) * 0.5 + gain * 0.5
-        for i, s in enumerate(arrow):
-            p = start + i
-            if p >= total:
-                break
-            left[p] += s * gl * 0.5
-            right[p] += s * gr * 0.5
+            # 층화 배치 — 구간을 발수만큼 나눠 한 칸에 하나씩 놓고 칸 안에서만 흔든다.
+            # 순수 무작위로 뿌리면 뭉치고 비는 구간이 생겨 '쉼 없이 쏟아진다'가 깨진다.
+            slot = k - intro
+            span = 0.94 / body
+            start = int((slot * span + rng.uniform(0.0, span * 0.95)) * total)
+        gain = rng.uniform(0.30, 0.85)
+        pan = rng.uniform(-0.85, 0.85)          # 좌우로 흩뿌려 폭우의 폭을 만든다
+        head = max(0, -start)                   # 음수 시작이면 앞부분(비행음)을 잘라낸다
+        start = max(0, start)
+        seg = a[head:]
+        n = min(len(seg), total - start)
+        if n <= 0:
+            continue
+        out[0, start:start + n] += seg[:n] * gain * (1.0 - pan * 0.5)
+        out[1, start:start + n] += seg[:n] * gain * (1.0 + pan * 0.5)
+    return out
 
-    # 소프트 클립 + 마지막 0.3초 페이드아웃.
-    fade = int(0.3 * sr)
-    frames = bytearray()
-    for i in range(total):
-        f = min(1.0, (total - i) / fade)
-        for v in (left[i] * f, right[i] * f):
-            v = max(-1.0, min(1.0, v))
-            frames += struct.pack("<h", int(v * 32767))
 
-    with wave.open(out_path, "wb") as w:
-        w.setnchannels(2)
-        w.setsampwidth(2)
-        w.setframerate(sr)
-        w.writeframes(bytes(frames))
-    print(f"{out_path}: 화살 {count}발, {length_s:.1f}초, {sr}Hz 스테레오")
+def normalize(x: np.ndarray) -> np.ndarray:
+    """RMS 를 기준에 맞추되, 겹침이 우연히 몰린 소수의 피크는 소프트 클립으로 깎는다.
+
+    화살 수십 발이 겹치는 소리는 파고율(피크/RMS)이 높아, 피크만 보고 눌러 맞추면 전체가
+    3~4dB 조용해진다. tanh 니(knee)로 상위 피크만 완만히 눌러 기준 RMS 를 채운다 —
+    노이즈성 밀집 텍스처라 이 정도 포화는 들리지 않고, 하드 클리핑과 달리 각지지 않는다.
+    """
+    cap = 10.0 ** (PEAK_CAP_DB / 20.0)
+    target = 10.0 ** (TARGET_RMS_DB / 20.0)
+    for _ in range(6):   # 클립이 RMS 를 다시 낮추므로 몇 번 되풀이해 수렴시킨다
+        rms = float(np.sqrt(np.mean(x ** 2)))
+        if rms <= 0:
+            return x
+        x = x * (target / rms)
+        if float(np.abs(x).max()) > cap:
+            x = cap * np.tanh(x / cap)
+        if abs(20 * np.log10(float(np.sqrt(np.mean(x ** 2))) / target)) < 0.1:
+            break
+    return x
+
+
+def encode(x: np.ndarray, path: Path) -> None:
+    """(2, N) 스테레오를 인터리브해 OGG Vorbis 로 인코딩."""
+    pcm = (np.clip(x.T.reshape(-1), -1.0, 1.0) * 32767.0).astype("<i2").tobytes()
+    subprocess.run(
+        [FFMPEG, "-v", "error", "-y", "-f", "s16le", "-ar", str(SR), "-ac", "2", "-i", "-",
+         "-c:a", "libvorbis", "-q:a", "6", str(path)],
+        input=pcm, check=True)
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="화살비 사운드 합성")
+    ap.add_argument("--src", type=Path, help="화살 1발 WAV(없으면 절차적 합성)")
+    # 58/70/82 발을 비교했을 때 70 발이 가장 고르다 — 타격 9.0회/초(프롬프트 목표 8~10),
+    # 100ms 구간별 편차 1.9dB 로 빈 구간 없이 이어진다.
+    ap.add_argument("--count", type=int, default=70, help="화살 발수")
+    ap.add_argument("--length", type=float, default=4.0, help="전체 길이(초)")
+    ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    args = ap.parse_args()
+
+    rng = np.random.default_rng(SEED)
+    if args.src:
+        sample = read_wav_mono(args.src)
+        arrow_of = lambda _r: sample
+        mode = f"녹음({args.src.name})"
+    else:
+        arrow_of = synth_arrow
+        mode = "절차적 합성"
+
+    x = layer(arrow_of, args.count, args.length, rng)
+    fade = int(0.30 * SR)
+    x[:, -fade:] *= np.linspace(1.0, 0.0, fade)
+    x = normalize(x)
+    encode(x, args.out)
+    rms = 20 * np.log10(float(np.sqrt(np.mean(x ** 2))))
+    print(f"{args.out.name}: {mode}, 화살 {args.count}발, {args.length:.1f}초, "
+          f"스테레오 RMS={rms:.1f}dB")
 
 
 if __name__ == "__main__":

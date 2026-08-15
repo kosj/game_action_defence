@@ -216,22 +216,31 @@ Checklist before committing a file:
    the repeating sounds (`swing`, `spit`, `holy_splash`, `bomber_fuse`, `horde`) still
    feel fine after several minutes of play.
 
-## Plan B — build the arrow storm from one arrow
+## Plan B — build the arrow storm from single arrows
 
-If the generator refuses to produce a dense volley, generate a single clean arrow:
+**This is what currently ships.** A generated volley that isn't dense enough reads as
+*breaking glass* rather than falling arrows — sparse hits with bright 0.8-8kHz content
+are exactly what shattering sounds like. Building the storm from single arrows lets you
+control band balance and density directly:
+
+```bash
+python3 tools/make_arrow_rain.py                      # synthesizes the arrow, writes the asset
+python3 tools/make_arrow_rain.py --src one_arrow.wav  # or layer a real recorded arrow
+```
+
+|  | generated volley | layered (shipping) | real glass | wooden bat |
+|---|---|---|---|---|
+| centroid | 2031Hz | **450Hz** | 5538Hz | 374Hz |
+| 200-800Hz (wood) | 35.6% | **67.2%** | 1.6% | 60.1% |
+| 3-8kHz (glass) | 22.6% | **1.5%** | 57.8% | 0.4% |
+| impacts/sec | 4.4 | **9.0** | — | — |
+
+To supply a real arrow instead of the synthesized one, generate a single clean arrow —
+generators handle *one* arrow reliably — and pass it with `--src`:
 
 ```
 Single arrow flyby: one quick sharp whoosh cutting through air, then a solid
 wooden thunk impact into the ground, short and dry, no reverb tail. Punchy
 transient, clean 2D game sound effect, no music, no voice, no silence at the
 beginning.
-```
-
-Then multiply it into a 4-second storm — the script randomizes timing, pitch and stereo
-pan across 42 arrows and applies an intro/peak/decay density curve:
-
-```bash
-python3 tools/make_arrow_rain.py one_arrow.wav rain.wav 42 4.0
-ffmpeg -i rain.wav -af loudnorm=I=-14:TP=-1 -c:a libvorbis -q:a 6 \
-    assets/audio/sfx_ult_arrow.ogg
 ```

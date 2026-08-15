@@ -210,8 +210,11 @@ func play(sound: String, pitch_vary: float = 0.1, base_pitch: float = 1.0, ui: b
 			return   # 간격 내 재호출은 건너뛰어 겹침·호출 폭주를 막는다(성능·청감)
 		# 콤보 상승음은 동전 수집에만 — 피격/사망/발사음이 음이 올라가면 어색하다.
 		if sound == "gold":
+			# 상승 폭을 +40%(10단계×4%)에서 +15%(6단계×2.5%)로 줄였다 — 젬을 쓸어 담는 구간에서
+			# 음이 계속 치솟아 귀가 아팠다. 콤보의 상승감은 남기되, 젬 기준 피치(0.8)로 최고조에
+			# 올라도 원음(1.0)을 넘지 않는 선(0.8×1.15=0.92)에서 멈춘다.
 			_combo[sound] = (_combo.get(sound, 0) + 1) if (now - last < _COMBO_WINDOW) else 0
-			base_pitch *= 1.0 + mini(_combo[sound], 10) * 0.04
+			base_pitch *= 1.0 + mini(_combo[sound], 6) * 0.025
 		_last_play[sound] = now
 
 	p.pitch_scale = max(0.05, base_pitch * (1.0 + randf_range(-pitch_vary, pitch_vary)))

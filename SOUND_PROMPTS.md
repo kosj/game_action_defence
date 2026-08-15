@@ -72,19 +72,35 @@ battlefield texture
   a wooden roof,`로 바꿔 재시도 — "비/우박" 비유가 밀도를 가장 잘 끌어낸다.
 - 저음이 부족하면 `deep bow release thump at the start`를 덧붙여 재생성.
 
-### 플랜 B — 화살 1발을 뽑아 42발로 합성
-프롬프트를 어떻게 바꿔도 단일 사운드만 나오면, 반대로 **잘 뽑힌 한 발**을 재료로
-쓰는 게 가장 확실하다. 아래 프롬프트로 0.4초짜리 화살 1발을 뽑고:
+### 현재 적용본 — 절차적 합성(`tools/make_arrow_rain.py`)
+AI 생성본은 밀도가 부족하면(초당 4.4회) **유리 깨지는 소리로 들린다** — 성긴 데다
+0.8~8kHz 의 밝은 타격만 남기 때문이다. 그래서 화살 한 발을 절차적으로 합성해
+70발을 겹치는 방식으로 교체했다. 대역·밀도를 직접 통제할 수 있는 게 핵심이다.
+
+```bash
+python3 tools/make_arrow_rain.py                       # → assets/audio/sfx_ult_arrow.ogg
+python3 tools/make_arrow_rain.py --src one_arrow.wav   # 잘 뽑힌 녹음 1발이 있으면 그걸로
+```
+
+| | 기존(AI 생성) | 현재(합성) | 실제 유리 | 나무 배트 |
+|---|---|---|---|---|
+| 중심 주파수 | 2031Hz | **450Hz** | 5538Hz | 374Hz |
+| 200~800Hz(나무) | 35.6% | **67.2%** | 1.6% | 60.1% |
+| 3~8kHz(유리) | 22.6% | **1.5%** | 57.8% | 0.4% |
+| 타격 밀도 | 4.4회/초 | **9.0회/초** | — | — |
+
+합성 화살 1발 = 하강 스윕 비행음(2.6k→900Hz) + 나무 공명 3개(205/415/760Hz) +
+흙먼지. 어택 클릭은 3.2kHz 로우패스로 눌러 겹쳤을 때 챙그랑거리지 않게 했다.
+배치는 층화(구간을 발수만큼 나눠 한 칸에 하나) — 무작위로 뿌리면 뭉치고 비는
+구간이 생겨 "쉼 없이 쏟아진다"가 깨진다. 도입부 몇 발은 시작을 음수로 둬 발동
+즉시(온셋 0ms) 타격이 꽂힌다.
+
+### 플랜 C — 녹음 1발로 만들기
+AI 로 화살 **한 발**을 뽑는 건 잘 된다. 아래로 0.4초짜리를 뽑아 `--src` 로 넘기면
+같은 레이어링을 실제 녹음 재료로 쓸 수 있다:
 ```
 single arrow flyby: one quick sharp whoosh cutting through air then a solid
 wooden thunk impact into the ground, short and dry, no reverb tail
-```
-동봉된 스크립트로 무작위 시차·피치·좌우 팬을 줘 42발을 겹치면 화살비가 된다
-(초반 도입 → 절정 → 감쇠 밀도 곡선 포함, 4초 스테레오):
-```bash
-python3 tools/make_arrow_rain.py one_arrow.wav rain.wav 42 4.0
-ffmpeg -i rain.wav -af loudnorm=I=-14:TP=-1 -c:a libvorbis -q:a 6 \
-    assets/audio/sfx_ult_arrow.ogg
 ```
 
 ## 3) 엔지니어 — Orbital Barrage (`sfx_ult_orbital.ogg`)
