@@ -47,6 +47,15 @@ MIN_ADJ_DIFF = 0.25       # 인접 프레임 실루엣 차이가 이 미만이�
 
 ALPHA_SOLID = 8           # 성분 라벨링에서 불투명으로 칠 알파 하한
 
+# 흰 헤일로 제거: 아트 디렉션상 실루엣 바깥선은 "굵은 검정"이므로 경계의 밝은 무채색
+# 픽셀은 생성기가 스티커풍 흰 테두리를 그린 아티팩트다. 정상 프레임은 경계 흰 비율이 0%,
+# 문제 프레임만 2~3% 나온다. 안쪽 흰 아트(베테랑 수염 등)는 검정 외곽선에 둘러싸여 있어
+# 경계 밴드에 걸리지 않는다. 최대 HALO_PASSES 픽셀만 벗겨 과잉 침식을 막는다.
+HALO_LUM = 200            # 이 휘도 이상이면 밝음
+HALO_SAT = 40             # 이 채도 미만이면 무채색 (0-255)
+HALO_PASSES = 3           # 벗겨낼 최대 두께 — 정규화(TARGET_H) 기준 px.
+                          # 원본은 보통 8배 크므로 실제 반복 수는 해상도에 비례해 늘린다.
+
 
 def _key_color(rgb: np.ndarray) -> np.ndarray:
     """테두리 1px 링의 중앙값을 배경 키 컬러로 잡는다."""
@@ -119,6 +128,31 @@ def key_out(img: Image.Image) -> tuple[Image.Image, np.ndarray]:
 
     rgba = np.dstack([out_rgb.astype(np.uint8), (af * 255).astype(np.uint8)])
     return Image.fromarray(rgba, mode="RGBA"), key
+
+
+def strip_white_halo(rgba: Image.Image) -> tuple[Image.Image, int]:
+    """실루엣 바깥 경계에 붙은 밝은 무채색 테두리를 벗겨낸다. (제거한 픽셀 수도 돌려줌)"""
+    a = np.asarray(rgba).copy()
+    rgb = a[..., :3].astype(np.float32)
+    lum = rgb.mean(axis=2)
+    mx = rgb.max(axis=2)
+    mn = rgb.min(axis=2)
+    sat = np.where(mx > 0, (mx - mn) / np.maximum(mx, 1e-6) * 255.0, 0.0)
+    whiteish = (lum > HALO_LUM) & (sat < HALO_SAT)
+
+    cross = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]], dtype=bool)
+    # 원본 해상도 기준으로 환산 — 정규화 후 HALO_PASSES px 만큼 벗겨진 효과가 나도록.
+    passes = max(HALO_PASSES, round(HALO_PASSES * a.shape[0] / TARGET_H))
+    removed = 0
+    for _ in range(passes):
+        solid = a[..., 3] > ALPHA_SOLID
+        band = solid & ~ndimage.binary_erosion(solid, cross)
+        hit = band & whiteish
+        if not hit.any():
+            break
+        a[..., 3] = np.where(hit, 0, a[..., 3])
+        removed += int(np.count_nonzero(hit))
+    return Image.fromarray(a, mode="RGBA"), removed
 
 
 def extract_figures(rgba: Image.Image) -> list[Image.Image]:
@@ -273,6 +307,7 @@ def main() -> int:
     scales: list[float] = []
     for p in paths:
         rgba, key = key_out(Image.open(p))
+        rgba, halo = strip_white_halo(rgba)
         found = extract_figures(rgba)
         if not found:
             print(f"  !! figure 를 찾지 못함: {p}", file=sys.stderr)
@@ -287,7 +322,8 @@ def main() -> int:
             figs.append(nf)
             scales.append(sc)
         print(f"  {Path(p).name}: key=({int(key[0])},{int(key[1])},{int(key[2])}) "
-              f"figures={len(found)}")
+              f"figures={len(found)}"
+              + (f" halo={halo}px 제거" if halo else ""))
 
     if not figs:
         print("추출된 figure 가 없습니다.", file=sys.stderr)
