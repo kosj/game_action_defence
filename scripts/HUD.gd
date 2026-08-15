@@ -89,6 +89,8 @@ var _pause_btn: Button = null
 var _pause_dim: ColorRect = null
 var _pause_panel: PanelContainer = null
 var _pause_time: Label = null             # 일시정지 화면의 생존 시간(HUD 에서 옮겨 온 경과 시간)
+var _pause_scroll: ScrollContainer = null # 내용이 화면을 넘으면 여기서 스크롤된다
+var _pause_vb: VBoxContainer = null       # 스크롤 내용(높이 계산용)
 var _stat_icons: Array = []               # 상단 우측 스탯 아이콘들 — 세이프에어리어 이동 대상
 var _cheat_box: VBoxContainer = null      # 일시정지 메뉴의 치트 하위 메뉴(접이식)
 var _cheat_auto_btn: Button = null        # 자동플레이 토글 버튼(라벨 ON/OFF 갱신)
@@ -1179,6 +1181,9 @@ func _build_pause_menu() -> void:
 
 	_pause_panel = PanelContainer.new()
 	_pause_panel.set_anchors_preset(Control.PRESET_CENTER)
+	# 내용이 늘어도 중앙을 기준으로 위아래 양쪽으로 자라게 한다(한쪽으로만 자라면 화면 밖으로 밀린다).
+	_pause_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_pause_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_pause_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.09, 0.13, 0.97), Color(0.5, 0.6, 0.8), 22, 3))
 	_pause_panel.visible = false
 	add_child(_pause_panel)
@@ -1188,10 +1193,20 @@ func _build_pause_menu() -> void:
 		margin.add_theme_constant_override("margin_" + m, 26)
 	_pause_panel.add_child(margin)
 
+	# CHEATS 를 펼치면 버튼이 6개 더 붙어 패널이 화면 높이에 육박한다. 스크롤이 없으면
+	# 그 순간 아래쪽이 잘려 손댈 수가 없으므로, 내용을 스크롤 영역에 담는다.
+	# (높이는 _fit_pause_scroll() 이 "내용 높이 vs 화면 여유" 중 작은 쪽으로 맞춘다)
+	_pause_scroll = ScrollContainer.new()
+	_pause_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_pause_scroll.scroll_deadzone = 24   # 터치 드래그가 버튼 클릭에 먹히지 않게
+	margin.add_child(_pause_scroll)
+
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 14)
 	vb.custom_minimum_size = Vector2(300, 0)
-	margin.add_child(vb)
+	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_pause_scroll.add_child(vb)
+	_pause_vb = vb
 
 	var title := Label.new()
 	title.text = Locale.t("pause_title")
@@ -1236,7 +1251,9 @@ func _build_pause_menu() -> void:
 	_cheat_box.add_theme_constant_override("separation", 8)
 	_cheat_box.visible = false
 	vb.add_child(_cheat_box)
-	cheats.pressed.connect(func(): _cheat_box.visible = not _cheat_box.visible)
+	cheats.pressed.connect(func():
+		_cheat_box.visible = not _cheat_box.visible
+		call_deferred("_fit_pause_scroll"))   # 펼침/접힘 후 바뀐 높이로 다시 맞춘다
 
 	_cheat_auto_btn = _make_cheat_button("AUTO-PLAY: OFF", _on_cheat_autoplay)
 	_make_cheat_button("TIME +5 MIN", func(): Cheats.time_skip.emit(300.0))
@@ -1260,6 +1277,20 @@ func _build_pause_menu() -> void:
 	_auto_tag.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6))
 	_auto_tag.visible = false
 	add_child(_auto_tag)
+
+	call_deferred("_fit_pause_scroll")   # 레이아웃이 확정된 다음 프레임에 1회
+
+
+## 일시정지 패널 높이 맞추기 — 내용이 다 들어가면 그 높이로 딱 맞추고(스크롤 불필요),
+## 화면 여유를 넘으면 거기서 잘라 스크롤로 넘긴다. 세로가 짧은 화면이나 CHEATS 를 펼친
+## 상태에서 아래쪽 버튼이 화면 밖으로 나가 손댈 수 없던 문제를 막는다.
+func _fit_pause_scroll() -> void:
+	if _pause_scroll == null or _pause_vb == null:
+		return
+	var want := _pause_vb.get_combined_minimum_size().y
+	# 패널 여백(마진 26x2 + 프레임 콘텐츠 18x2)과 화면 위아래 숨통을 뺀 값이 실제 여유.
+	var room := get_viewport().get_visible_rect().size.y - 88.0 - 80.0
+	_pause_scroll.custom_minimum_size.y = minf(want, maxf(room, 200.0))
 
 
 ## 성능 디버그 오버레이(좌상단). 기본은 숨김이며 CHEATS > PERF HUD 로 켠다.
@@ -1306,6 +1337,7 @@ func _on_pause_pressed() -> void:
 	get_tree().paused = true
 	_pause_dim.visible = true
 	_pause_panel.visible = true
+	call_deferred("_fit_pause_scroll")   # 열 때마다 현재 화면 크기에 맞춰 재계산
 	if _pause_btn:
 		_pause_btn.visible = false
 
