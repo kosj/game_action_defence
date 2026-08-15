@@ -13,6 +13,7 @@ start_weapon = "spikedbat"
 signature_passive = "armor"
 sprite_path = "res://assets/sprites/player_veteran.png"
 sprite_scale = 0.66
+run_frames = 4
 bonus_max_health = 3
 bonus_bullet_damage = 0
 bonus_move_speed = 1
