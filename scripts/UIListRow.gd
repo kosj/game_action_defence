@@ -26,7 +26,7 @@ const _UIStyle := preload("res://scripts/UIStyle.gd")
 enum { STATE_ACTIVE, STATE_READY, STATE_DONE }
 
 const SLOT_PX := 44
-const GAUGE_H := 20
+const GAUGE_H := 22
 
 
 ## cfg 키(전부 선택):
@@ -92,22 +92,7 @@ static func make(cfg: Dictionary) -> Control:
 	# ── 진행 게이지 — 0% 에서도 트랙이 보이므로 "빈 행"으로 보이지 않는다 ──
 	var goal := int(cfg.get("goal", 0))
 	if goal > 0:
-		var bar := ProgressBar.new()
-		bar.custom_minimum_size = Vector2(0, GAUGE_H)
-		bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		bar.max_value = float(goal)
-		bar.value = clampf(float(cfg.get("cur", 0)), 0.0, float(goal))
-		bar.show_percentage = false
-		if state == STATE_READY:
-			# 완료 항목은 채움을 초록으로. 스타일박스를 여기서 직접 만든다 —
-			# static 함수에서 오토로드(UITheme)를 참조하지 않기 위해서다.
-			var done_fill := StyleBoxFlat.new()
-			done_fill.bg_color = Color(0.55, 1.0, 0.55)
-			done_fill.set_corner_radius_all(6)
-			done_fill.corner_detail = 6
-			done_fill.anti_aliasing = true
-			bar.add_theme_stylebox_override("fill", done_fill)
-		col.add_child(bar)
+		col.add_child(_gauge(float(cfg.get("cur", 0)), float(goal), state))
 
 	# ── 우측 액션 버튼(보상함의 CLAIM 등) ──
 	var action: Dictionary = cfg.get("action", {})
@@ -124,6 +109,66 @@ static func make(cfg: Dictionary) -> Control:
 		root.add_child(btn)
 
 	return card
+
+
+## 진행 게이지 — 인게임 HUD 의 체력/보스 바와 같은 텍스처(hud_gauge_frame/fill)를 써서
+## 팝업과 전장의 게이지 문법을 맞춘다.
+##
+## ProgressBar 를 쓰지 않는 이유가 둘 있다:
+##   1) 채움을 x=0 부터 전체 높이로 그려서 프레임의 림을 덮어버린다.
+##   2) 스타일을 전역 테마(UITheme)에 의존하는데, 런타임 테마는 웹 빌드에서 적용이
+##      누락되는 사례가 있다(UITheme.build() 의 폰트 관련 주석 참고). 그러면 엔진
+##      기본값인 "회색 막대"로 보인다 — 실제로 그렇게 보고됐다.
+## 여기서는 프레임/채움을 각각 Panel 로 두고 인스턴스에 직접 스타일을 지정해,
+## 테마가 어떻든 항상 같은 모습이 나오게 한다.
+static func _gauge(cur: float, goal: float, state: int) -> Control:
+	var ratio := clampf(cur / maxf(goal, 1.0), 0.0, 1.0)
+	var tint := Color(0.55, 1.0, 0.55) if state == STATE_READY else Color(1.0, 0.80, 0.28)
+
+	var track := Panel.new()
+	track.custom_minimum_size = Vector2(0, GAUGE_H)
+	track.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	track.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var frame_tex := _UIStyle.hud_tex("hud_gauge_frame.png")
+	if frame_tex:
+		track.add_theme_stylebox_override("panel", _UIStyle.tex_box(frame_tex, 7))
+	else:
+		var tb := StyleBoxFlat.new()
+		tb.bg_color = Color(0.05, 0.05, 0.07, 0.92)
+		tb.set_corner_radius_all(6)
+		tb.corner_detail = 6
+		tb.anti_aliasing = true
+		tb.set_border_width_all(1)
+		tb.border_color = Color(0.62, 0.50, 0.22, 0.55)
+		track.add_theme_stylebox_override("panel", tb)
+
+	if ratio > 0.0:
+		# 채움 폭은 앵커로 정한다(부모 폭을 몰라도 비율이 그대로 반영된다).
+		# 사방 3px 인셋으로 프레임 림 안쪽 채널에 앉히고, 진행이 아주 적어도
+		# 보이도록 최소 폭을 준다.
+		var fill := Panel.new()
+		fill.anchor_left = 0.0
+		fill.anchor_top = 0.0
+		fill.anchor_right = ratio
+		fill.anchor_bottom = 1.0
+		fill.offset_left = 3.0
+		fill.offset_top = 3.0
+		fill.offset_right = -3.0
+		fill.offset_bottom = -3.0
+		fill.custom_minimum_size = Vector2(10, 0)
+		fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var fill_tex := _UIStyle.hud_tex("hud_gauge_fill.png")
+		if fill_tex:
+			fill.add_theme_stylebox_override("panel", _UIStyle.tex_box(fill_tex, 4, tint))
+		else:
+			var fb := StyleBoxFlat.new()
+			fb.bg_color = tint
+			fb.set_corner_radius_all(5)
+			fb.corner_detail = 6
+			fb.anti_aliasing = true
+			fill.add_theme_stylebox_override("panel", fb)
+		track.add_child(fill)
+	return track
 
 
 ## 카드 배경 — 상태별 테두리. 수령 대기(READY)만 금색으로 튀게 해 시선을 끈다.

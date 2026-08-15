@@ -57,7 +57,7 @@ func _ready() -> void:
 
 func _on_wave_complete(wave: int) -> void:
 	# 클리어 즉시 게임 정지 — 남은 호위 좀비 등이 상점 중에 계속 움직이지 않도록.
-	get_tree().paused = true
+	Events.pause_push(self, "shop")
 	_wave_label.text = Locale.t("wave_clear_fmt") % wave
 	_ad_gold_claimed = false   # 새 상점 등장 — 보상형 골드 다시 1회 허용
 	_refresh_buttons()
@@ -383,5 +383,10 @@ func _on_upgrade_pressed(id: String) -> void:
 
 func _on_continue() -> void:
 	visible = false
-	get_tree().paused = false   # 다음 웨이브 진행을 위해 정지 해제
+	Events.pause_pop(self)   # 다음 웨이브 진행을 위해 정지 해제
 	Events.shop_closed.emit()
+
+
+## 씬 전환 등으로 상점이 열린 채 사라질 때 — 정지가 영구히 남지 않게 소유권을 반납한다.
+func _exit_tree() -> void:
+	Events.pause_pop(self)

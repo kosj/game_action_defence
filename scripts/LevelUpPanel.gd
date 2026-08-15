@@ -11,15 +11,28 @@ var _title: Label
 var _card_box: VBoxContainer
 var _pending: int = 0      # 대기 중인 레벨업 수(연속 레벨업 처리)
 var _showing: bool = false
-var _did_pause: bool = false   # 이 패널이 직접 일시정지를 걸었는가(상점 등 다른 정지와 충돌 방지)
 var _evo_mode: bool = false     # 진화 선택 모드(진화 상자 개봉 시) — 일반 레벨업과 분리
 var _evo_rules: Array = []      # 진화 모드에서 제시할 진화 규칙들
+var _evo_queued: int = 0        # 패널이 떠 있는 동안 들어온 진화 제안(버리지 않고 이어서 띄운다)
 var _auto_t: float = 0.0        # 자동플레이 치트 — 카드가 뜬 뒤 이 시간이 지나면 무작위 선택
+var _stuck_t: float = 0.0       # 카드 없는 패널이 떠 있는 시간(안전망 — 강제 진행/닫기)
 var _fw_holder: Control = null  # 축하 폭죽 홀더(패널 뒤)
 
 
 ## 자동플레이 치트: 패널이 떠 있으면 잠시 보여준 뒤 카드를 무작위로 골라준다(진화 선택 포함).
 func _process(delta: float) -> void:
+	# 안전망 — 카드가 하나도 없는 패널이 떠 있으면 아무도 진행시킬 수 없어 게임이 영구히 멈춘다.
+	# (정지 소유권은 Events 워치독이 별도로 지키지만, 여기서 먼저 정상 경로로 빠져나간다.)
+	if _showing and _card_box != null and _card_box.get_child_count() == 0:
+		_stuck_t += delta
+		if _stuck_t >= 1.5:
+			_stuck_t = 0.0
+			push_warning("[LevelUpPanel] 선택지 없는 패널이 떠 있어 강제로 진행한다")
+			_pending = 0
+			_evo_queued = 0
+			_advance_or_close()
+		return
+	_stuck_t = 0.0
 	if not (_showing and Cheats.autoplay):
 		_auto_t = 0.0
 		return
@@ -92,9 +105,11 @@ func _on_level_up(_level: int) -> void:
 		_present()
 
 
-## 진화 보물상자 개봉 — 진화 선택지를 띄운다. 이미 다른 패널이 떠 있으면(전투 정지 중) 무시.
+## 진화 보물상자 개봉 — 진화 선택지를 띄운다. 이미 패널이 떠 있으면 버리지 않고 대기시켰다가
+## 현재 선택이 끝난 뒤 이어서 띄운다(예전에는 조용히 사라져 상자 보상이 증발했다).
 func _on_evolution_offer() -> void:
 	if _showing:
+		_evo_queued += 1
 		return
 	var rules := Events.available_evolutions()
 	if rules.is_empty():
@@ -106,9 +121,8 @@ func _on_evolution_offer() -> void:
 
 func _present() -> void:
 	_showing = true
-	_did_pause = not get_tree().paused   # 이미 정지 중(상점 등)이면 우리가 해제하지 않는다
-	get_tree().paused = true
 	visible = true
+	Events.pause_push(self, "levelup")   # 정지 소유권은 Events 가 참조 카운트로 관리한다
 	if SoundManager.has_stream("level_up"):
 		SoundManager.play_ui("level_up", 0.03, 1.0)   # 레벨업 징글(파일 있을 때만)
 	# 레벨업 축하 폭죽 — 패널 주변 화면 전역에 금빛/청색 폭죽을 쏟아붓는다.
@@ -136,11 +150,17 @@ func _refresh() -> void:
 			_card_box.add_child(_make_evolve_card(rule))
 		_stagger_cards()
 		return
-	_title.text = "LEVEL %d  ·  CHOOSE AN UPGRADE" % Events.level
-	var choices := _draw_choices(3)
+	# 올릴 아이템이 없으면(전부 만렙·슬롯 꽉참) 그 레벨업은 넘긴다. 재귀 대신 루프로 소진해
+	# 대기 레벨업이 많이 쌓여도 스택이 깊어지지 않게 한다.
+	var choices: Array = []
+	while _pending > 0:
+		_title.text = "LEVEL %d  ·  CHOOSE AN UPGRADE" % Events.level
+		choices = _draw_choices(3)
+		if not choices.is_empty():
+			break
+		_pending -= 1
 	if choices.is_empty():
-		# 올릴 아이템이 없다(전부 만렙·슬롯 꽉참) — 그냥 넘어간다.
-		_consume_and_advance()
+		_advance_or_close()
 		return
 	for ch in choices:
 		_card_box.add_child(_make_card(ch))
@@ -285,19 +305,16 @@ func _on_evolve(base_id: String, into_id: String) -> void:
 	if is_instance_valid(player) and player.has_method("apply_upgrades"):
 		player.apply_upgrades()
 	if _evo_mode:
-		_close_evo()   # 진화 선택은 레벨업 대기열과 무관 — 바로 닫는다
+		_close_evo()   # 진화 선택은 레벨업 대기열과 무관 — 대기분이 있으면 이어서 처리된다
 	else:
 		_consume_and_advance()   # (레거시 경로 — 현재는 진화가 카드로 안 뜨므로 사실상 미사용)
 
 
-## 진화 선택 패널 닫기(게임 재개).
+## 진화 선택 종료 — 대기 중인 레벨업/진화 제안이 남아 있으면 이어서 띄운다.
 func _close_evo() -> void:
 	_evo_mode = false
 	_evo_rules = []
-	_showing = false
-	visible = false
-	if _did_pause:
-		get_tree().paused = false
+	_advance_or_close()
 
 
 func _apply_and_advance() -> void:
@@ -307,13 +324,36 @@ func _apply_and_advance() -> void:
 	_consume_and_advance()
 
 
-## 이번 레벨업을 소비하고, 남은 레벨업이 있으면 새 카드로 이어서, 없으면 닫고 게임 재개.
+## 이번 레벨업을 소비하고 다음 단계로.
 func _consume_and_advance() -> void:
-	_pending -= 1
+	_pending = maxi(0, _pending - 1)
+	_advance_or_close()
+
+
+## 남은 레벨업 → 대기 중인 진화 제안 → 그래도 없으면 닫고 정지 소유권 반납.
+## 모든 종료 경로가 여기 하나로 모이므로, 대기분이 증발하거나 정지가 남는 일이 없다.
+func _advance_or_close() -> void:
 	if _pending > 0:
+		_evo_mode = false
+		_evo_rules = []
 		_refresh()
-	else:
-		_showing = false
-		visible = false
-		if _did_pause:
-			get_tree().paused = false
+		return
+	if _evo_queued > 0:
+		_evo_queued -= 1
+		var rules := Events.available_evolutions()
+		if not rules.is_empty():
+			_evo_mode = true
+			_evo_rules = rules
+			_refresh()
+			return
+	_evo_queued = 0
+	_evo_mode = false
+	_evo_rules = []
+	_showing = false
+	visible = false
+	Events.pause_pop(self)
+
+
+## 씬 전환 등으로 패널이 뜬 채 사라질 때 — 정지가 영구히 남지 않게 소유권을 반납한다.
+func _exit_tree() -> void:
+	Events.pause_pop(self)
