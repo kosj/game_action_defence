@@ -136,37 +136,37 @@ func _draw() -> void:
 		return
 	# 골드(노란 동전)와 헷갈리지 않도록 무기 색조를 유지하되, 모양은 쏜 캐릭터의 무기를 따른다.
 	# 로컬 +Y가 진행 방향의 반대쪽(꼬리) — Player._shoot_dir() 의 회전식 참고.
+	# 화면에서 탄은 20~35px 남짓이라 깃·못머리 같은 2~3px 디테일은 사라진다. 셋은 굵은
+	# 실루엣(길이·두께·머리 모양)으로 갈라야 구분된다. 반투명 원을 몸통에 겹치면 그 실루엣이
+	# 뭉개지므로 예광탄에만 남기고 볼트·못에서는 뺐다.
 	var c := trail_color
-	var mid := c.lightened(0.25)
-	var glow := Color(c.r, c.g, c.b, 0.20)
-	var trail := Color(c.r, c.g, c.b, 0.50)
-	var hot := Color(1.0, 0.95, 0.85, 0.95)
+	var mid := c.lightened(0.30)
+	var body := Color(mid.r, mid.g, mid.b, 0.96)
+	var hot := Color(1.0, 0.96, 0.88, 0.96)
 	match style:
 		"bolt":
-			# 석궁 볼트 — 긴 촉 + 뒤쪽 깃. 관통 무기라 길쭉한 실루엣이 어울린다.
-			draw_line(Vector2(0, -2), Vector2(0, 14), trail, 3.0, true)
-			draw_circle(Vector2.ZERO, 7.0, glow)
-			draw_line(Vector2(0, -7), Vector2(0, 11), Color(mid.r, mid.g, mid.b, 0.95), 3.0, true)
+			# 석궁 볼트 — 셋 중 가장 길고 가늘다. 뒤쪽 큰 V 깃으로 화살임을 못박는다.
+			draw_line(Vector2(0, -10), Vector2(0, 18), Color(c.r, c.g, c.b, 0.43), 2.0, true)
+			draw_line(Vector2(0, -14), Vector2(0, 13), body, 3.0, true)
 			draw_colored_polygon(PackedVector2Array([
-				Vector2(0, -14), Vector2(-4.5, -5), Vector2(4.5, -5)]), hot)
+				Vector2(0, -22), Vector2(-3.5, -12), Vector2(3.5, -12)]), hot)
+			var fletch := Color(mid.r, mid.g, mid.b, 0.90)
 			draw_colored_polygon(PackedVector2Array([
-				Vector2(0, 6), Vector2(-5, 14), Vector2(0, 11)]), Color(mid.r, mid.g, mid.b, 0.85))
+				Vector2(0, 4), Vector2(-7, 16), Vector2(0, 11)]), fletch)
 			draw_colored_polygon(PackedVector2Array([
-				Vector2(0, 6), Vector2(5, 14), Vector2(0, 11)]), Color(mid.r, mid.g, mid.b, 0.85))
+				Vector2(0, 4), Vector2(7, 16), Vector2(0, 11)]), fletch)
 		"nail":
-			# 네일건 못 — 짧고 굵은 몸통 + 뒤쪽 납작한 머리. 촘촘히 박히는 느낌.
-			draw_line(Vector2(0, -1), Vector2(0, 10), trail, 3.0, true)
-			draw_circle(Vector2.ZERO, 6.5, glow)
-			draw_line(Vector2(0, -6), Vector2(0, 7), Color(mid.r, mid.g, mid.b, 0.95), 4.0, true)
+			# 네일건 못 — 짧고 굵은 몸통 + 뒤쪽 넓은 납작 머리. 화살과 달리 T 자로 읽힌다.
+			draw_line(Vector2(0, -7), Vector2(0, 9), body, 6.0, true)
 			draw_colored_polygon(PackedVector2Array([
-				Vector2(0, -11), Vector2(-2.8, -5), Vector2(2.8, -5)]), hot)
-			draw_line(Vector2(-5, 8), Vector2(5, 8), Color(mid.r, mid.g, mid.b, 0.95), 3.5, true)
+				Vector2(0, -12), Vector2(-3, -6), Vector2(3, -6)]), hot)
+			draw_line(Vector2(-9, 10), Vector2(9, 10), body, 5.0, true)
+			draw_line(Vector2(-9, 10), Vector2(9, 10), Color(hot.r, hot.g, hot.b, 0.47), 2.0, true)
 		_:
-			# 소총 예광탄 — 밝은 탄심 + 길게 늘어지는 꼬리(기존 모양).
-			draw_line(Vector2.ZERO, Vector2(0, 16), trail, 5.0, true)
-			draw_circle(Vector2.ZERO, 10.0, glow)
-			draw_circle(Vector2.ZERO,  6.0, Color(mid.r, mid.g, mid.b, 0.55))
-			draw_circle(Vector2.ZERO,  3.0, hot)
+			# 소총 예광탄 — 작고 뜨거운 탄심 + 길게 늘어지는 줄기. 화살·못과 달리 촉이 없다.
+			draw_line(Vector2(0, 1), Vector2(0, 24), Color(c.r, c.g, c.b, 0.47), 3.0, true)
+			draw_circle(Vector2.ZERO, 5.0, Color(c.r, c.g, c.b, 0.24))
+			draw_circle(Vector2.ZERO, 3.4, hot)
 
 
 ## 폭발형 무기: 명중 지점 주변의 모든 좀비에게 피해 + 확산 이펙트.
