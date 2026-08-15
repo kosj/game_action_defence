@@ -16,11 +16,16 @@ func _init() -> void:
 		var w := int(tex.get_width())
 		var h := int(tex.get_height())
 		var n: int = c.run_frames
-		var ok: bool = (n > 0 and w % n == 0)
+		if n < 2:
+			# 시트 파일은 있지만 데이터가 안 쓰겠다고 한 상태 — 그림 한 장 + 절차 걷기.
+			print("  %-9s run_frames=%d  시트 미사용 (한 장 + 절차 걷기), 시트는 %dx%d 로 보관" % [
+				c.id, n, w, h])
+			continue
+		var ok: bool = (w % n == 0)
 		if not ok:
 			fail += 1
 		print("  %-9s run_frames=%d  sheet=%dx%d  cell=%dx%d  %s" % [
-			c.id, n, w, h, (w / n if n > 0 else 0), h, ("OK" if ok else "FAIL")])
+			c.id, n, w, h, w / n, h, ("OK" if ok else "FAIL")])
 
 		var idle := "res://assets/sprites/idle_%s.png" % c.id
 		if ResourceLoader.exists(idle):
