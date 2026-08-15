@@ -826,11 +826,13 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 	if icon != null and icon is Texture2D:
 		var tex := TextureRect.new()
 		tex.texture = icon
+		# 슬롯 함몰부를 꽉 채우는 여백 — 프레임 림(슬롯의 12.3%)이 끝나는 지점에 맞춘다.
+		# 아이콘 원본에는 투명 여백이 없으므로 이 값이 곧 보이는 크기가 된다.
 		tex.set_anchors_preset(Control.PRESET_FULL_RECT)
-		tex.offset_left = 5.0
-		tex.offset_top = 5.0
-		tex.offset_right = -5.0
-		tex.offset_bottom = -5.0
+		tex.offset_left = 3.0
+		tex.offset_top = 3.0
+		tex.offset_right = -3.0
+		tex.offset_bottom = -3.0
 		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tex.mouse_filter = Control.MOUSE_FILTER_IGNORE

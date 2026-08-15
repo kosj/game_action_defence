@@ -162,15 +162,24 @@ def gen_gauge_fill():
 
 
 # ── 4. 미니 슬롯 88×88 — 얇은 강철 림 + 골드 헤어라인 + 함몰 면 ────────────
+# 아이콘은 함몰부 안에 앉으므로 림이 두꺼울수록 아이템이 작아 보인다. 44px 로 축소해 쓰는
+# HUD 로드아웃에서 아이템이 최대한 크게 보이도록 림을 얇게 잡는다(함몰부 비율 = 아래 주석).
+RIM_STEEL = 4.0     # 바깥 강철 림 두께(88px 기준)
+RIM_GOLD = 1.4      # 골드 헤어라인 두께
+# 함몰부 시작 = RIM_STEEL + RIM_GOLD = 5.4  →  안쪽 77.2/88 = 87.7%
+
+
 def gen_slot_small():
     W, H = 88, 88
     img = canvas(W, H)
     vgrad_fill(img, shape_mask(W, H, (0, 0, W, H), 11), OUTLINE, OUTLINE)
-    rim = shape_mask(W, H, (1.5, 1.5, W - 1.5, H - 1.5), 10)
+    rim = shape_mask(W, H, (1.2, 1.2, W - 1.2, H - 1.2), 10)
     vgrad_fill(img, rim, (132, 138, 148), (52, 56, 63))
     brushed(img, rim, alpha=20, seed=23)
-    vgrad_fill(img, shape_mask(W, H, (7, 7, W - 7, H - 7), 7), GOLD_DK, GOLD)
-    ch_box = (8.5, 8.5, W - 8.5, H - 8.5)
+    g = RIM_STEEL
+    vgrad_fill(img, shape_mask(W, H, (g, g, W - g, H - g), 7), GOLD_DK, GOLD)
+    c = RIM_STEEL + RIM_GOLD
+    ch_box = (c, c, W - c, H - c)
     ch = shape_mask(W, H, ch_box, 6)
     vgrad_fill(img, ch, (21, 22, 27), RECESS_BOT)
     inner_shadow_top(img, ch, ch_box, 6, depth=10, alpha=95, blur=1.5)
