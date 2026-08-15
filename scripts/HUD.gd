@@ -975,7 +975,7 @@ func _on_rewarded_granted(placement: String) -> void:
 	# 부활 시 사라진 게임오버 패널을 닫고 정지를 해제해 그대로 진행 재개.
 	game_over_panel.visible = false
 	_set_blur(false)
-	get_tree().paused = false
+	Events.pause_pop(game_over_panel)
 	if _pause_btn:
 		_pause_btn.visible = true   # 부활 → 일시정지 버튼 복귀
 	if _loadout_box:
@@ -1118,11 +1118,11 @@ func _show_end_panel(victory: bool) -> void:
 	tw.tween_property(game_over_panel, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 	# 게임 전체 정지 — 좀비·총알·플레이어 이동까지 모두 멈춘다(HUD/광고는 PROCESS_MODE_ALWAYS 라 계속 동작).
-	get_tree().paused = true
+	Events.pause_push(game_over_panel, "gameover")
 
 
 func _on_restart_pressed() -> void:
-	get_tree().paused = false   # 새 판 시작 전 정지 해제
+	Events.pause_release_all()   # 새 판 시작 전 정지 소유권 전부 해제
 	MetaManager.bank(Events.total_gold)   # 이번 판 골드를 영구 은행에 적립
 	Events.reset()
 	Pool.clear()
@@ -1334,9 +1334,9 @@ func _on_pause_pressed() -> void:
 		var m := int(Events.elapsed_time) / 60
 		var s := int(Events.elapsed_time) % 60
 		_pause_time.text = Locale.t("pause_time_fmt") % ("%02d:%02d" % [m, s])
-	get_tree().paused = true
 	_pause_dim.visible = true
 	_pause_panel.visible = true
+	Events.pause_push(_pause_panel, "pausemenu")
 	call_deferred("_fit_pause_scroll")   # 열 때마다 현재 화면 크기에 맞춰 재계산
 	if _pause_btn:
 		_pause_btn.visible = false
@@ -1347,7 +1347,7 @@ func _on_resume_pressed() -> void:
 	_pause_panel.visible = false
 	if _pause_btn:
 		_pause_btn.visible = true
-	get_tree().paused = false
+	Events.pause_pop(_pause_panel)
 
 
 ## 노치/펀치홀 세이프에어리어 — 상단 인셋만큼 상단 고정 위젯들을 아래로 내린다.
@@ -1371,7 +1371,7 @@ func _apply_safe_area() -> void:
 
 
 func _on_main_menu_pressed() -> void:
-	get_tree().paused = false   # 씬 전환 전 정지 해제
+	Events.pause_release_all()   # 씬 전환 전 정지 소유권 전부 해제
 	MetaManager.bank(Events.total_gold)   # 이번 판 골드를 영구 은행에 적립
 	Events.reset()
 	Pool.clear()

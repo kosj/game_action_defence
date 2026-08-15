@@ -47,7 +47,6 @@ const _KIND_COL := {
 
 static var _open_now: bool = false   # 동시 개봉 가드 — 이미 열려 있으면 연출 없이 즉시 지급
 
-var _did_pause: bool = false
 var _closed: bool = false
 var _applies: Array = []        # 닫힐 때 실행할 보상 적용(등급이 높을수록 여러 개)
 var _panel: PanelContainer
@@ -219,8 +218,7 @@ func _ready() -> void:
 	_open_now = true
 	layer = 60   # LevelUpPanel(기본)보다 위
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	_did_pause = not get_tree().paused
-	get_tree().paused = true
+	Events.pause_push(self, "chest")   # 정지 소유권은 Events 가 참조 카운트로 관리한다
 	_rar = _RARITY[int(get_meta("rarity"))]
 	_col = _rar["col"]
 
@@ -693,8 +691,7 @@ func _process(delta: float) -> void:
 ## 씬 전환 등으로 패널이 닫히지 못한 채 제거될 때 — 일시정지·정적 가드가 영구히 남지 않게 복구.
 func _exit_tree() -> void:
 	_open_now = false
-	if not _closed and _did_pause and get_tree() != null:
-		get_tree().paused = false
+	Events.pause_pop(self)
 
 
 ## 닫기: 게임 재개 → 보상 적용(레벨업 패널 등이 이어서 뜰 수 있게 재개 후 적용) → 해제.
@@ -703,8 +700,7 @@ func _close() -> void:
 		return
 	_closed = true
 	_open_now = false
-	if _did_pause:
-		get_tree().paused = false
+	Events.pause_pop(self)
 	for a in _applies:
 		if a is Callable and a.is_valid():
 			a.call()
