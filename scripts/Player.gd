@@ -127,30 +127,37 @@ func _ready() -> void:
 
 ## 선택 캐릭터 전용 스프라이트를 Body 에 적용. 데이터가 없거나 경로가 비면 씬 기본 player.png 유지.
 ## sprite_scale(>0)로 스프라이트별 크기 편차를 정규화한다. _body_base_scale 캡처 전에 호출한다.
-## 러닝 시트(assets/sprites/run_<id>.png, 가로 균등 분할 스트립)가 있으면 프레임 애니메이션을
-## 우선 사용하고, 없으면 단일 스프라이트 + 절차 걷기(스쿼시/바운스)로 폴백한다.
-## 프레임 수는 캐릭터 데이터(run_frames)가 정한다 — 시트의 고유 포즈 수와 일치해야 한다.
-## 전용 대기 포즈(assets/sprites/idle_<id>.png, 단일 그림)가 있으면 멈출 때 그 이미지로
-## 교체하고, 없으면 시트 0번 칸(다리 모은 중립 포즈)으로 폴백한다.
-var _run_frames: int = 0         # 0 = 시트 없음(절차 걷기)
+## 어떤 그림을 쓸지는 캐릭터 데이터의 run_frames 가 정한다.
+##   run_frames >= 2 : 러닝 시트(run_<id>.png, 가로 균등 분할)로 프레임 애니메이션.
+##                     멈추면 idle_<id>.png 로 교체(없으면 시트 0번 칸).
+##   그 외(0/1)      : 그림 한 장(idle_<id>.png 우선, 없으면 sprite_path) + 절차 걷기.
+##                     생성 아트는 프레임마다 팔레트·장비가 미묘하게 흔들려 시트를 돌리면
+##                     오히려 어색해서, 지금은 이쪽을 쓴다. 시트로 되돌리려면 데이터의
+##                     run_frames 만 프레임 수로 바꾸면 된다(코드 수정 불필요).
+var _run_frames: int = 0         # 0 = 시트 안 씀(절차 걷기)
 var _sheet_tex: Texture2D = null
 var _idle_tex: Texture2D = null
 var _idle_shown: bool = false
+var _proj_style: String = "bullet"   # 기본총 탄 모양 — 그림 속 무기와 맞춘다(캐릭터 데이터)
 
 func _apply_character_sprite() -> void:
 	var c: CharacterData = CharacterManager.selected()
-	if c == null:
+	if c == null or not (body is Sprite2D):
 		return
+	# 총구는 그림마다 무기를 뻗은 위치가 달라 캐릭터 데이터에서 가져온다(씬 기본값은 옛 아트 기준).
+	if muzzle != null and c.muzzle_offset != Vector2.ZERO:
+		muzzle.position = c.muzzle_offset
+	_proj_style = c.projectile_style
 	var run_path := "res://assets/sprites/run_%s.png" % c.id
-	if ResourceLoader.exists(run_path) and body is Sprite2D:
+	var idle_path := "res://assets/sprites/idle_%s.png" % c.id
+	if c.run_frames >= 2 and ResourceLoader.exists(run_path):
 		var sheet = load(run_path)
 		if sheet is Texture2D:
 			body.texture = sheet
-			body.hframes = maxi(1, c.run_frames)
+			body.hframes = c.run_frames
 			body.frame = 0
-			_run_frames = body.hframes
+			_run_frames = c.run_frames
 			_sheet_tex = sheet
-			var idle_path := "res://assets/sprites/idle_%s.png" % c.id
 			if ResourceLoader.exists(idle_path):
 				var itex = load(idle_path)
 				if itex is Texture2D:
@@ -158,11 +165,16 @@ func _apply_character_sprite() -> void:
 			if c.sprite_scale > 0.0:
 				body.scale = Vector2(c.sprite_scale, c.sprite_scale)
 			return
-	if c.sprite_path == "" or not ResourceLoader.exists(c.sprite_path):
+	# 그림 한 장 — 대기 포즈가 있으면 그걸, 없으면 기존 단일 스프라이트.
+	var single_path := idle_path if ResourceLoader.exists(idle_path) else c.sprite_path
+	if single_path == "" or not ResourceLoader.exists(single_path):
 		return
-	var tex = load(c.sprite_path)
-	if tex is Texture2D and body is Sprite2D:
+	var tex = load(single_path)
+	if tex is Texture2D:
 		body.texture = tex
+		body.hframes = 1
+		body.frame = 0
+		_run_frames = 0
 		if c.sprite_scale > 0.0:
 			body.scale = Vector2(c.sprite_scale, c.sprite_scale)
 
@@ -322,14 +334,14 @@ func _fit_shadow() -> void:
 		return
 	var tex: Vector2 = body.texture.get_size()
 	tex.x /= float(maxi(1, body.hframes))   # 러닝 시트면 프레임 1칸 폭 기준
-	# 시트 칸 폭은 보폭·무기까지 포함해 실제 몸통보다 훨씬 넓다(그림자가 ~2배로 커지는
-	# 원인). 단일 스프라이트가 있으면 그 폭으로 그림자를 잡아 시트 도입 전 크기를 유지한다.
-	if _run_frames > 0:
-		var c: CharacterData = CharacterManager.selected()
-		if c != null and c.sprite_path != "" and ResourceLoader.exists(c.sprite_path):
-			var single = load(c.sprite_path)
-			if single is Texture2D:
-				tex.x = single.get_size().x
+	# 그림 폭에는 앞으로 뻗은 무기와 벌어진 보폭이 들어 있어 실제 몸통보다 훨씬 넓다
+	# (그림자가 ~2배로 커지는 원인). 기준 단일 스프라이트가 있으면 그 폭으로 잡는다 —
+	# 시트든 한 장이든 발밑 그림자 크기가 같게 유지된다.
+	var c: CharacterData = CharacterManager.selected()
+	if c != null and c.sprite_path != "" and ResourceLoader.exists(c.sprite_path):
+		var single = load(c.sprite_path)
+		if single is Texture2D:
+			tex.x = single.get_size().x
 	# 그림자를 캐릭터 폭보다 넉넉하게(1.8x) — 새 키포즈 아트의 벌어진 보폭까지 덮어
 	# 발밑 존재감을 준다(단일 스프라이트 폭 기준이라 프레임에 따라 변하지 않는다).
 	var sx: float = (tex.x * _body_base_scale.x * 1.8) / 128.0
@@ -339,8 +351,9 @@ func _fit_shadow() -> void:
 
 ## 걷기 연출. 러닝 시트가 있으면 이동 거리에 비례해 프레임을 넘기고(멈추면 1프레임 대기 포즈),
 ## 없으면 절차적 걷기(발딛기 스쿼시 + 수직 바운스 + 좌우 뒤뚱). 좌우 방향은 _facing 으로 플립.
-const _RUN_FRAME_PER_PX := 0.1    # 이동 픽셀당 프레임 진행량(속도에 맞춰 다리가 빨라진다)
-const _RUN_STEP_FRAMES := 4.0     # 한 걸음 = 시트 4프레임(접지-스탠스-차기-공중)
+## 한 사이클(양발 한 번씩)이 이 거리만큼 이동할 때 완주한다 — 프레임 수가 4든 8이든
+## 다리가 도는 속도가 같게 유지된다(시트 교체 시 보폭이 어긋나지 않는다).
+const _RUN_CYCLE_PX := 80.0
 const _RUN_BOB := 1.6             # 걸음당 수직 바운스(px) — 프레임 아트를 보조하는 수준만(과하면 들썩임)
 const _RUN_LEAN := 0.05           # 달리는 동안 전방 기울임(rad)
 
@@ -362,11 +375,11 @@ func _animate_walk(moved: float) -> void:
 			body.texture = _sheet_tex   # 대기 -> 이동: 러닝 시트 복귀
 			body.hframes = _run_frames
 			_idle_shown = false
-		_walk_phase += moved * _RUN_FRAME_PER_PX
+		_walk_phase += moved * float(_run_frames) / _RUN_CYCLE_PX
 		body.frame = int(_walk_phase) % _run_frames
-		# 걸음 주기(4프레임)에 맞춘 바운스 + 착지 스쿼시 — 아트의 미묘한 다리 차이를
-		# 절차 연출로 증폭해 작은 화면에서도 뛰는 느낌이 읽히게 한다.
-		var bob := absf(sin(_walk_phase * PI / _RUN_STEP_FRAMES))
+		# 걸음 주기(사이클의 절반 = 한 걸음)에 맞춘 바운스 + 착지 스쿼시 — 아트의 미묘한
+		# 다리 차이를 절차 연출로 보조해 작은 화면에서도 걷는 리듬이 읽히게 한다.
+		var bob := absf(sin(_walk_phase * TAU / float(_run_frames)))
 		body.position.y = -bob * _RUN_BOB
 		body.scale = Vector2(fx * (1.0 + 0.015 * (1.0 - bob)), _body_base_scale.y * (1.0 - 0.02 * (1.0 - bob)))
 		body.rotation = _RUN_LEAN * _facing
@@ -415,6 +428,7 @@ func _shoot_dir(base_dir: Vector2) -> void:
 		b.is_crit = is_crit_hit
 		b.scale = Vector2.ONE * current_weapon["bullet_scale"]
 		b.trail_color = current_weapon["color"]
+		b.style = _proj_style
 		b.splash_radius = current_weapon["splash_radius"]
 		b.queue_redraw()   # 트레일은 발사 시 1회만 그린다(Bullet 은 매 프레임 redraw 하지 않음)
 	# muzzle flash — 조준 방향으로 향한 텍스처 플래시(무기 등급이 높을수록 더 크게).

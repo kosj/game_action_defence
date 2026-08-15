@@ -18,7 +18,20 @@ extends Resource
 @export var sprite_scale: float = 1.0   # body 스케일(스프라이트 크기 정규화용)
 ## 러닝 시트(run_<id>.png)의 가로 프레임 수. 원본 아트의 고유 포즈 수에 맞춰 시트를
 ## 만들고 여기 기록한다 — 7포즈를 8칸에 욱여넣으면 중복 프레임에서 스터터가 생긴다.
+## 0 또는 1 이면 시트를 쓰지 않고 그림 한 장(idle_<id>.png)에 절차 걷기를 입힌다.
+## 지금 세 캐릭터는 모두 0 — 생성 아트가 프레임마다 팔레트·장비가 흔들려 시트를 돌리면
+## 오히려 어색했다. 시트로 되돌리려면 이 값만 프레임 수로 바꾸면 된다.
 @export var run_frames: int = 8
+
+## 총구 위치 — Body 로컬(텍스처 픽셀, 중심이 원점) 기준. 캐릭터마다 무기를 뻗은 위치가
+## 달라 씬의 고정값으로는 총알이 몸통에서 나온다. 그림의 무기 끝 픽셀을 재서 넣는다.
+## Body 의 자식이므로 sprite_scale 과 좌우 반전이 자동으로 따라붙는다.
+@export var muzzle_offset: Vector2 = Vector2(18, 3)
+
+## 기본 자동총 탄의 생김새 — 그림 속 무기와 맞춘다.
+##   "bullet" 소총 예광탄 / "bolt" 석궁 볼트 / "nail" 네일건 못
+## 색은 장착 무기(current_weapon.color)를 그대로 쓰므로 무기 구분은 유지된다.
+@export var projectile_style: String = "bullet"
 
 ## 시작 스탯 보정 — recompute 말미에 upgrade_* 에 더해진다(패시브/무기 위에 얹힘).
 @export var bonus_max_health: int = 0

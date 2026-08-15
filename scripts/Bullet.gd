@@ -17,6 +17,9 @@ const _FX_EXPLOSION := preload("res://assets/sprites/fx/fx_explosion.png")
 
 var direction: Vector2 = Vector2.RIGHT
 var trail_color: Color = Color(1.0, 0.30, 0.10)
+## 탄 모양 — 쏘는 캐릭터의 그림 속 무기에 맞춘다("bullet"/"bolt"/"nail"). 색은 무기 색을
+## 그대로 쓰므로 무기 구분(색)과 캐릭터 개성(모양)이 함께 읽힌다.
+var style: String = "bullet"
 var splash_radius: float = 0.0
 var is_crit: bool = false          # 이 탄이 크리티컬인지(Player._shoot_at 에서 주입) — 명중 시 강조 피드백
 var pierce: int = 0                # 관통 가능 적 수(0=첫 명중에 소멸). 석궁 등 관통 무기가 주입.
@@ -36,6 +39,7 @@ func on_spawn() -> void:
 	_alive = true
 	scale = Vector2.ONE
 	trail_color = Color(1.0, 0.30, 0.10)
+	style = "bullet"
 	splash_radius = 0.0
 	is_crit = false
 	# 풀 재사용 대비: 관통/넉백은 발사 측이 매 발 주입하므로 여기서 기본값으로 되돌린다.
@@ -130,14 +134,39 @@ func _resolve_hit(c: Node, pos: Vector2) -> void:
 func _draw() -> void:
 	if not _alive:
 		return
-	# 골드(노란 동전)와 헷갈리지 않도록 총알은 무기 색조의 트레일로 표현.
-	# 로컬 +Y가 진행 방향의 반대쪽(꼬리) — Player._shoot_at() 의 회전식 참고.
-	var mid := trail_color.lightened(0.25)
-	var tail := Vector2(0.0, 16.0)
-	draw_line(Vector2.ZERO, tail, Color(trail_color.r, trail_color.g, trail_color.b, 0.50), 5.0, true)
-	draw_circle(Vector2.ZERO, 10.0, Color(trail_color.r, trail_color.g, trail_color.b, 0.20))
-	draw_circle(Vector2.ZERO,  6.0, Color(mid.r, mid.g, mid.b, 0.55))
-	draw_circle(Vector2.ZERO,  3.0, Color(1.0, 0.95, 0.85, 0.95))
+	# 골드(노란 동전)와 헷갈리지 않도록 무기 색조를 유지하되, 모양은 쏜 캐릭터의 무기를 따른다.
+	# 로컬 +Y가 진행 방향의 반대쪽(꼬리) — Player._shoot_dir() 의 회전식 참고.
+	var c := trail_color
+	var mid := c.lightened(0.25)
+	var glow := Color(c.r, c.g, c.b, 0.20)
+	var trail := Color(c.r, c.g, c.b, 0.50)
+	var hot := Color(1.0, 0.95, 0.85, 0.95)
+	match style:
+		"bolt":
+			# 석궁 볼트 — 긴 촉 + 뒤쪽 깃. 관통 무기라 길쭉한 실루엣이 어울린다.
+			draw_line(Vector2(0, -2), Vector2(0, 14), trail, 3.0, true)
+			draw_circle(Vector2.ZERO, 7.0, glow)
+			draw_line(Vector2(0, -7), Vector2(0, 11), Color(mid.r, mid.g, mid.b, 0.95), 3.0, true)
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(0, -14), Vector2(-4.5, -5), Vector2(4.5, -5)]), hot)
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(0, 6), Vector2(-5, 14), Vector2(0, 11)]), Color(mid.r, mid.g, mid.b, 0.85))
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(0, 6), Vector2(5, 14), Vector2(0, 11)]), Color(mid.r, mid.g, mid.b, 0.85))
+		"nail":
+			# 네일건 못 — 짧고 굵은 몸통 + 뒤쪽 납작한 머리. 촘촘히 박히는 느낌.
+			draw_line(Vector2(0, -1), Vector2(0, 10), trail, 3.0, true)
+			draw_circle(Vector2.ZERO, 6.5, glow)
+			draw_line(Vector2(0, -6), Vector2(0, 7), Color(mid.r, mid.g, mid.b, 0.95), 4.0, true)
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(0, -11), Vector2(-2.8, -5), Vector2(2.8, -5)]), hot)
+			draw_line(Vector2(-5, 8), Vector2(5, 8), Color(mid.r, mid.g, mid.b, 0.95), 3.5, true)
+		_:
+			# 소총 예광탄 — 밝은 탄심 + 길게 늘어지는 꼬리(기존 모양).
+			draw_line(Vector2.ZERO, Vector2(0, 16), trail, 5.0, true)
+			draw_circle(Vector2.ZERO, 10.0, glow)
+			draw_circle(Vector2.ZERO,  6.0, Color(mid.r, mid.g, mid.b, 0.55))
+			draw_circle(Vector2.ZERO,  3.0, hot)
 
 
 ## 폭발형 무기: 명중 지점 주변의 모든 좀비에게 피해 + 확산 이펙트.
