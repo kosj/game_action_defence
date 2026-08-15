@@ -1,5 +1,9 @@
 extends SceneTree
 ## 일회성: 캐릭터 카탈로그 .tres 생성.  godot --headless --path . --script res://tools/gen_character_data.gd
+##
+## ⚠ data/character_db.tres 는 생성 이후 손으로 조정돼 이 스크립트와 이미 어긋나 있다
+## (밸런스 보정치, sprite_scale, run_frames, muzzle_offset, projectile_style 등).
+## 지금은 .tres 쪽이 정답이다 — 다시 돌리면 그 조정이 전부 날아간다.
 
 func _c(id: String, disp: String, desc: String, color: Color, start_weapon: String, sig: String, trait_key: String, bonuses: Dictionary) -> CharacterData:
 	var c := CharacterData.new()

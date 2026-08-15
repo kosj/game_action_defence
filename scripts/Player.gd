@@ -138,11 +138,16 @@ var _run_frames: int = 0         # 0 = 시트 안 씀(절차 걷기)
 var _sheet_tex: Texture2D = null
 var _idle_tex: Texture2D = null
 var _idle_shown: bool = false
+var _proj_style: String = "bullet"   # 기본총 탄 모양 — 그림 속 무기와 맞춘다(캐릭터 데이터)
 
 func _apply_character_sprite() -> void:
 	var c: CharacterData = CharacterManager.selected()
 	if c == null or not (body is Sprite2D):
 		return
+	# 총구는 그림마다 무기를 뻗은 위치가 달라 캐릭터 데이터에서 가져온다(씬 기본값은 옛 아트 기준).
+	if muzzle != null and c.muzzle_offset != Vector2.ZERO:
+		muzzle.position = c.muzzle_offset
+	_proj_style = c.projectile_style
 	var run_path := "res://assets/sprites/run_%s.png" % c.id
 	var idle_path := "res://assets/sprites/idle_%s.png" % c.id
 	if c.run_frames >= 2 and ResourceLoader.exists(run_path):
@@ -423,6 +428,7 @@ func _shoot_dir(base_dir: Vector2) -> void:
 		b.is_crit = is_crit_hit
 		b.scale = Vector2.ONE * current_weapon["bullet_scale"]
 		b.trail_color = current_weapon["color"]
+		b.style = _proj_style
 		b.splash_radius = current_weapon["splash_radius"]
 		b.queue_redraw()   # 트레일은 발사 시 1회만 그린다(Bullet 은 매 프레임 redraw 하지 않음)
 	# muzzle flash — 조준 방향으로 향한 텍스처 플래시(무기 등급이 높을수록 더 크게).
