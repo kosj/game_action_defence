@@ -11,12 +11,50 @@ const _DROP_HEIGHT := 900.0
 const _SEGMENTS := 7
 const _JITTER := 38.0
 
+## 가산 혼합 머티리얼은 인스턴스별 파라미터가 없다 — 하나를 공유한다.
+## 인스턴스마다 새로 만들면 머티리얼이 전부 다른 객체라 드로우 배칭이 깨진다
+## (다중 낙뢰에서 번개 개수만큼 별도 드로우 배치가 생긴다).
+static var _shared_mat: CanvasItemMaterial = null
+
+## 동시 표시 상한. 인스턴스 하나가 _draw 당 draw 커맨드 30개 이상을 내는데, 다중 낙뢰
+## (upgrade_lightning_count)는 한 프레임에 가닥 수만큼 전부 생성되므로 상한이 필요하다.
+const MAX_ACTIVE := 6
+static var _active_count: int = 0
+
+## 씬 전환 시 카운터 초기화 — 인스턴스가 씬과 함께 해제되면 감소 처리를 못 지나가므로,
+## 리셋하지 않으면 상한에 걸린 채 번개가 영구히 안 보이게 된다(Main._clean_slate 가 호출).
+static func reset_pool() -> void:
+	_active_count = 0
+
+
+## 현재 동시 활성 수 / 상한 — 성능 디버그 오버레이(PerfOverlay)가 읽는다.
+static func debug_active() -> int:
+	return _active_count
+
+static func debug_cap() -> int:
+	return MAX_ACTIVE
+
+
+## 상한을 지키며 생성. 초과분은 조용히 생략한다(피해는 Lightning 이 이미 적용했으므로 무관).
+static func spawn(parent: Node, pos: Vector2) -> void:
+	if _active_count >= MAX_ACTIVE:
+		return
+	_active_count += 1
+	var fx: Node2D = (load("res://scripts/FXLightning.gd") as GDScript).new()
+	parent.add_child(fx)
+	fx.global_position = pos
+
+
+static func _get_material() -> CanvasItemMaterial:
+	if _shared_mat == null:
+		_shared_mat = CanvasItemMaterial.new()
+		_shared_mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	return _shared_mat
+
 
 func _ready() -> void:
 	# 가산 혼합(ADD) — 겹치는 획이 서로 더해져 진짜 발광(이미시브)처럼 보인다.
-	var mat := CanvasItemMaterial.new()
-	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	material = mat
+	material = _get_material()
 	_bolt = _make_jagged(Vector2(0.0, -_DROP_HEIGHT), Vector2.ZERO, _SEGMENTS, _JITTER)
 	_joints = _bolt.slice(1, _bolt.size() - 1)
 	_branches = _make_branches()
@@ -50,6 +88,7 @@ func _make_branches() -> Array:
 func _process(delta: float) -> void:
 	_time += delta
 	if _time >= duration:
+		_active_count = maxi(0, _active_count - 1)
 		queue_free()
 		return
 	queue_redraw()

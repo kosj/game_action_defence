@@ -21,6 +21,7 @@ const SHADOW_W := 0.80     # 프롭 폭 대비 그림자 폭
 const SHADOW_H := 0.26     # 그림자 폭 대비 높이(납작한 타원)
 const SHADOW_COL := Color(0.0, 0.0, 0.0, 0.38)
 const PLAYER_R := 16.0                     # 플레이어 충돌 반경(스프라이트 대략)
+const SNAP := 128.0                        # 재드로우 격자(_draw 의 margin=CELL 안에 들어와야 한다)
 const PROP_DIR := "res://assets/sprites/props/"
 
 ## 프롭 카탈로그: 키 → { path, w=표시 최대변(px), solid=장애물여부, rfrac=충돌반경/최소변 비율 }.
@@ -50,6 +51,9 @@ var _player: Node2D = null
 var _last := Vector2(INF, INF)
 var _props: Array = []       # 이 테마에서 쓸 프롭 [{tex, w, solid, rfrac}]
 var _has_solid: bool = false
+## 플레이어 주변 3×3 셀의 장애물 프롭 캐시 — 셀을 넘을 때만 갱신한다.
+var _sep_cell := Vector2i(0x7fffffff, 0x7fffffff)
+var _sep_solid: Array = []
 
 
 func _ready() -> void:
@@ -80,9 +84,15 @@ func _process(_delta: float) -> void:
 		_player = get_tree().get_first_node_in_group("player")
 		return
 	var p := _player.global_position
-	if p.distance_squared_to(_last) > 16.0:
-		_last = p
-		queue_redraw()
+	# 프롭 배치는 월드 해시로 고정돼 있어 _last 는 "그릴 범위의 중심" 역할만 한다 —
+	# 픽셀 단위로 따라갈 필요가 없다. 예전 임계값(4px)이면 이동 중 거의 매 프레임 전체
+	# 프롭을 재발행했다. 스냅 칸이 바뀔 때만 다시 그린다(_draw 의 margin=CELL 260 > SNAP 이라
+	# 스냅으로 생기는 어긋남은 이미 여유 범위 안에 들어온다).
+	var snapped := Vector2(floor(p.x / SNAP) * SNAP, floor(p.y / SNAP) * SNAP)
+	if snapped == _last:
+		return
+	_last = snapped
+	queue_redraw()
 
 
 ## 장애물 프롭이 있으면, 플레이어 주변 셀만 훑어 겹친 프롭 밖으로 밀어낸다(값싼 원형 디펜트레이션).
@@ -91,16 +101,23 @@ func _physics_process(_delta: float) -> void:
 		return
 	var pp: Vector2 = _player.global_position
 	var pc := _cell_of(pp)
-	for cx in range(pc.x - 1, pc.x + 2):
-		for cy in range(pc.y - 1, pc.y + 2):
-			var pr := _cell_prop(cx, cy)
-			if pr.is_empty() or not pr["solid"]:
-				continue
-			var d: Vector2 = pp - pr["pos"]
-			var mind: float = pr["radius"] + PLAYER_R
-			var dl := d.length()
-			if dl < mind and dl > 0.001:
-				pp += (d / dl) * (mind - dl)   # 표면 밖으로 밀어냄
+	# _cell_prop() 은 호출마다 7키 Dictionary 를 새로 만든다 — 주변 3×3 을 매 물리 프레임
+	# 훑으면 프레임당 9개가 버려진다. 배치는 셀 해시로 고정이므로 플레이어가 셀을 넘을 때만
+	# 갱신하고, 그 사이에는 장애물 목록을 재사용한다(판정 대상은 이전과 동일).
+	if pc != _sep_cell:
+		_sep_cell = pc
+		_sep_solid.clear()
+		for cx in range(pc.x - 1, pc.x + 2):
+			for cy in range(pc.y - 1, pc.y + 2):
+				var cand := _cell_prop(cx, cy)
+				if not cand.is_empty() and bool(cand["solid"]):
+					_sep_solid.append(cand)
+	for pr in _sep_solid:
+		var d: Vector2 = pp - pr["pos"]
+		var mind: float = pr["radius"] + PLAYER_R
+		var dl := d.length()
+		if dl < mind and dl > 0.001:
+			pp += (d / dl) * (mind - dl)   # 표면 밖으로 밀어냄
 	_player.global_position = pp
 
 

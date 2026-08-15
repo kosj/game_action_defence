@@ -38,6 +38,7 @@ func _clean_slate() -> void:
 	preload("res://scripts/FXBurst.gd").reset_pool()
 	preload("res://scripts/DamageNumber.gd").reset_pool()
 	preload("res://scripts/BossShell.gd").reset_pool()
+	preload("res://scripts/FXLightning.gd").reset_pool()
 
 
 func _spawn_ambient() -> void:

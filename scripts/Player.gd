@@ -2,7 +2,6 @@ extends CharacterBody2D
 ## 플레이어: 가상 조이스틱으로 이동 + 가장 가까운 좀비에게 자동 발사
 
 @export var move_speed: float = 220.0
-@export var attack_range: float = 360.0     # 이 범위 안의 적만 조준
 @export var attack_cooldown: float = 0.35   # 발사 간격(초)
 @export var max_health: int = 5
 @export var contact_damage: int = 1
@@ -38,7 +37,6 @@ const BASE_BULLET_SPEED := 700.0
 @onready var body: Node2D = $Body
 @onready var muzzle: Marker2D = $Body/Muzzle
 @onready var shadow: Sprite2D = $Shadow
-@onready var hurtbox: Area2D = $Hurtbox
 @onready var camera: Camera2D = $Camera2D
 
 # 화면 흔들림(타격감): Events.screen_shake_requested 로 세기를 누적하고 매 프레임 감쇠하며
@@ -61,16 +59,13 @@ var _trait_key: String = ""
 var _still_time: float = 0.0    # 정지 지속 시간(사냥꾼 치명타 램프)
 var _kill_heal_accum: int = 0   # 처치 누적(베테랑 전투 회복)
 
-# 최근접 적 캐시: _get_nearest_zombie() 는 좀비 그룹 전체를 순회하므로(O(n)) 매 프레임
-# 돌리면 대량 좀비 환경에서 비싸다. 짧은 주기로만 갱신하고 그 사이에는 캐시를 재사용한다.
-var _target: Node2D = null
-var _target_accum: float = 999.0
-const TARGET_RESCAN := 0.1
-
 # 주기적 자동저장: 웨이브 클리어/상점 체크포인트 사이에 종료해도 점수·골드·진행이
 # 유실되지 않도록 일정 간격으로 현재 상태를 저장한다(_notification 으로 백그라운드/종료 시에도).
 var _autosave_accum: float = 0.0
-const AUTOSAVE_INTERVAL := 4.0
+# 웹에서 user:// 저장은 IndexedDB 동기화라 JSON 직렬화보다 훨씬 비싸고 간헐적 히칭을 만든다.
+# 웨이브 클리어·상점 종료·앱 백그라운드 전환에서 이미 체크포인트 저장을 하므로, 주기 저장은
+# 안전망 역할만 하면 된다 — 4초는 웹 기준으로 과했다(유실 위험은 거의 그대로, 히칭만 1/5).
+const AUTOSAVE_INTERVAL := 20.0
 var _base_move_speed: float
 var _base_attack_cooldown: float
 var _base_max_health: int
@@ -109,6 +104,11 @@ func _ready() -> void:
 	contact_cooldown = GameData.balance.contact_cooldown   # 밸런스 테이블(res://data/balance.tres)
 	_recompute_combat_stats()
 	health = max_health
+	# 시작 인벤토리 반영 — Events.reset() 은 메뉴에서 Player 가 생기기 전에 실행되므로
+	# 그때 emit 된 inventory_changed 를 받을 수 없다. 여기서 직접 한 번 적용해야
+	# 캐릭터 시작 무기(모듈)·시그니처 패시브·시작 스탯 보정이 런 시작부터 동작한다.
+	apply_upgrades()
+	health = max_health   # 보너스 최대 체력까지 가득 채운 상태로 시작
 	_hurt_timer = GameData.balance.start_invuln   # 시작 무적 (프리워밍·첫 좀비 도착 전 보호)
 	Events.update_player_health(health, max_health)
 	Events.shop_closed.connect(apply_upgrades)
@@ -205,9 +205,6 @@ func _physics_process(delta: float) -> void:
 	_check_contact_damage()
 	_handle_move()
 	_update_trait_mods(delta)   # 캐릭터 조건부 트레잇(velocity 확정 후)
-	# 최근접 적은 짧은 주기로만 재탐색하고(대상 소멸 시 즉시 재탐색) 그 외엔 캐시 재사용.
-	# 죽은 좀비는 풀로 반납돼도 is_instance_valid 는 참이므로(트리에서 분리될 뿐) "zombies"
-	# 그룹 소속까지 확인한다 — 좀비는 사망 즉시 그룹에서 빠진다.
 	_update_facing()                 # 이동(좌우)으로 조준 방향 결정
 	_handle_attack(delta)            # 바라보는 방향으로 자동 발사
 	_animate_walk(velocity.length() * delta)   # 이동량 기반 걷기 연출(스프라이트만)
@@ -427,25 +424,6 @@ func _shoot_dir(base_dir: Vector2) -> void:
 	var flash_px: float = 30.0 * (1.0 + (current_weapon["tier_mult"] - 1.0) * 0.35)
 	_SpriteFX.spawn(get_tree().current_scene, muzzle.global_position, _FX_MUZZLE, \
 		flash_px, 0.11, flash_col, base_dir.angle())
-
-
-## 캐시된 조준 대상이 아직 살아있는 좀비인지(풀 반납·사망 제외).
-func _is_live_target(t: Node2D) -> bool:
-	return is_instance_valid(t) and t.is_in_group("zombies")
-
-
-## 최근접 적 탐색 — Events.live_zombies() 프레임 공유 스냅샷 사용. distance_squared 로 sqrt 제거.
-func _get_nearest_zombie() -> Node2D:
-	var nearest: Node2D = null
-	var min_d := attack_range * attack_range
-	for z in Events.live_zombies():
-		if not is_instance_valid(z) or not z.is_in_group("zombies"):
-			continue
-		var d := global_position.distance_squared_to(z.global_position)
-		if d < min_d:
-			min_d = d
-			nearest = z
-	return nearest
 
 
 ## 적 투사체/폭발 등 비접촉 피해 진입점(스피터·자폭 좀비가 호출). 무적 시간 중이면 무시.

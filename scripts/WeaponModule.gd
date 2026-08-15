@@ -22,11 +22,13 @@ func _level() -> int:
 	return clampi(int(Events.weapons.get(weapon_id, 0)), 1, m)
 
 
-## 사거리 내 최근접 좀비(프레임 공유 스냅샷 + distance_squared).
+## 사거리 내 최근접 좀비. 조준은 매 물리 프레임 갱신되므로 전체 좀비 스캔이면 무기 1종당
+## 프레임당 O(좀비 수)를 낸다(화염방사기·체인소·터렛이 동시에 있으면 수천 회) — 공간 해시의
+## 반경 질의로 후보를 사거리 안으로 좁힌다. 결과 의미는 이전과 같다(사거리 밖이면 null).
 func _nearest_zombie(rng: float) -> Node2D:
 	var nearest: Node2D = null
 	var min_d := rng * rng
-	for z in Events.live_zombies():
+	for z in Events.zombies_in_radius(global_position, rng):
 		if not is_instance_valid(z) or not z.is_in_group("zombies"):
 			continue
 		var d := global_position.distance_squared_to(z.global_position)

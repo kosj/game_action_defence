@@ -49,7 +49,7 @@ var _char_gold_label: Label
 var _ach_btn: Button
 var _ach_dim: ColorRect
 var _ach_panel: PanelContainer
-var _ach_rows: Array = []        # [{ "label": Label, "a": AchievementData }]
+var _ach_list: VBoxContainer     # 도전과제 행을 담는 컨테이너(갱신 시 다시 채운다)
 
 var _quest_btn: Button
 var _quest_dim: ColorRect
@@ -58,6 +58,7 @@ var _quest_list: VBoxContainer
 
 # 보상 보관함(REWARDS) — 퀘스트/도전과제 보상을 유저가 직접 수령하는 패널.
 var _rewards_btn: Button
+var _rewards_badge: Label        # 미수령 개수 배지(0이면 숨김)
 var _rewards_dim: ColorRect
 var _rewards_panel: PanelContainer
 var _rewards_list: VBoxContainer
@@ -155,70 +156,54 @@ func _build_ui() -> void:
 	spacer.custom_minimum_size = Vector2(0, 18)
 	box.add_child(spacer)
 
+	# ── 1차 CTA — 로고의 핏빛을 그대로 받아 "여기를 눌러라"를 색으로도 말한다 ──
 	_new_game_btn = Button.new()
-	_new_game_btn.custom_minimum_size = Vector2(300, 70)
-	_new_game_btn.add_theme_font_size_override("font_size", 26)
-	_UIStyle.apply_button_style(_new_game_btn, Color(0.14, 0.40, 0.20), Color(0.4, 0.85, 0.45))
+	_new_game_btn.custom_minimum_size = Vector2(320, 78)
+	_new_game_btn.add_theme_font_size_override("font_size", 27)
+	_UIStyle.apply_button_style(_new_game_btn, UITheme.BTN_BG, UITheme.MENU_PRIMARY)
+	_new_game_btn.add_theme_color_override("font_color", UITheme.LOGO_CREAM)
+	_new_game_btn.add_theme_color_override("font_hover_color", Color.WHITE)
 	_new_game_btn.pressed.connect(_on_new_game_pressed)
 	box.add_child(_new_game_btn)
 
+	# ── 2차 — 밝은 건메탈. 크기·명도로만 1차와 구분한다 ──
 	_continue_btn = Button.new()
-	_continue_btn.custom_minimum_size = Vector2(300, 70)
-	_continue_btn.add_theme_font_size_override("font_size", 26)
-	_UIStyle.apply_button_style(_continue_btn, Color(0.16, 0.24, 0.42), Color(0.4, 0.6, 0.95))
+	_continue_btn.custom_minimum_size = Vector2(320, 66)
+	_continue_btn.add_theme_font_size_override("font_size", 24)
+	_UIStyle.apply_button_style(_continue_btn, UITheme.BTN_BG, UITheme.MENU_SECONDARY)
 	_continue_btn.disabled = not SaveManager.has_save()
 	_continue_btn.pressed.connect(_on_continue_pressed)
 	box.add_child(_continue_btn)
 
-	# ── 옵션 버튼 (언어 / 사운드 설정은 옵션 패널 하위로) ─────────────────────
+	# ── 3차 — 플레이트는 6개 모두 동일한 어두운 금속. 구분은 좌측 아이콘이 담당한다 ──
 	var opt_spacer := Control.new()
-	opt_spacer.custom_minimum_size = Vector2(0, 8)
+	opt_spacer.custom_minimum_size = Vector2(0, 10)
 	box.add_child(opt_spacer)
 
-	_ach_btn = Button.new()
-	_ach_btn.text = "Achievements"
-	_ach_btn.custom_minimum_size = Vector2(300, 56)
-	_ach_btn.add_theme_font_size_override("font_size", 20)
-	_UIStyle.apply_button_style(_ach_btn, Color(0.26, 0.22, 0.10), Color(0.95, 0.80, 0.35))
+	_ach_btn = _make_menu_btn("trophy", UITheme.MENU_ICON_REWARD)
 	_ach_btn.pressed.connect(_on_achievements_pressed)
 	box.add_child(_ach_btn)
 
-	_quest_btn = Button.new()
-	_quest_btn.text = "Quests"
-	_quest_btn.custom_minimum_size = Vector2(300, 56)
-	_quest_btn.add_theme_font_size_override("font_size", 20)
-	_UIStyle.apply_button_style(_quest_btn, Color(0.12, 0.22, 0.12), Color(0.55, 0.95, 0.55))
+	_quest_btn = _make_menu_btn("flag", UITheme.MENU_ICON_QUEST)
 	_quest_btn.pressed.connect(_on_quests_pressed)
 	box.add_child(_quest_btn)
 
-	_rewards_btn = Button.new()
-	_rewards_btn.custom_minimum_size = Vector2(300, 56)
-	_rewards_btn.add_theme_font_size_override("font_size", 20)
-	_UIStyle.apply_button_style(_rewards_btn, Color(0.26, 0.20, 0.06), Color(1.0, 0.85, 0.35))
+	_rewards_btn = _make_menu_btn("coin", UITheme.MENU_ICON_REWARD)
 	_rewards_btn.pressed.connect(_on_rewards_pressed)
 	box.add_child(_rewards_btn)
+	_build_rewards_badge()
 	RewardInbox.changed.connect(_refresh_rewards_badge)
 	_refresh_rewards_badge()
 
-	_rank_btn = Button.new()
-	_rank_btn.custom_minimum_size = Vector2(300, 56)
-	_rank_btn.add_theme_font_size_override("font_size", 22)
-	_UIStyle.apply_button_style(_rank_btn, Color(0.26, 0.20, 0.08), Color(1.0, 0.82, 0.35))
+	_rank_btn = _make_menu_btn("star", UITheme.MENU_ICON_REWARD)
 	_rank_btn.pressed.connect(_on_ranking_pressed)
 	box.add_child(_rank_btn)
 
-	_power_btn = Button.new()
-	_power_btn.text = "PowerUp"
-	_power_btn.custom_minimum_size = Vector2(300, 56)
-	_power_btn.add_theme_font_size_override("font_size", 22)
-	_UIStyle.apply_button_style(_power_btn, Color(0.24, 0.14, 0.30), Color(0.72, 0.5, 1.0))
+	_power_btn = _make_menu_btn("bolt", UITheme.MENU_ICON_POWER)
 	_power_btn.pressed.connect(_on_power_pressed)
 	box.add_child(_power_btn)
 
-	_options_btn = Button.new()
-	_options_btn.custom_minimum_size = Vector2(300, 56)
-	_options_btn.add_theme_font_size_override("font_size", 22)
-	_UIStyle.apply_button_style(_options_btn, Color(0.20, 0.20, 0.28), Color(0.55, 0.58, 0.70))
+	_options_btn = _make_menu_btn("gear", UITheme.MENU_ICON_PLAIN)
 	_options_btn.pressed.connect(_on_options_pressed)
 	box.add_child(_options_btn)
 
@@ -276,7 +261,7 @@ func _build_options_panel() -> void:
 	_options_panel.offset_right = 210.0
 	_options_panel.offset_top = -240.0
 	_options_panel.offset_bottom = 240.0
-	_options_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 0.98), Color(0.35, 0.38, 0.5)))
+	_options_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_NEUTRAL))
 	_options_panel.visible = false
 	add_child(_options_panel)
 
@@ -294,7 +279,7 @@ func _build_options_panel() -> void:
 	_options_title = Label.new()
 	_options_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_options_title.add_theme_font_size_override("font_size", 30)
-	_options_title.add_theme_color_override("font_color", Color(0.95, 0.92, 0.98))
+	_options_title.add_theme_color_override("font_color", UITheme.TEXT)
 	UITheme.heading(_options_title)
 	vb.add_child(_options_title)
 
@@ -304,7 +289,7 @@ func _build_options_panel() -> void:
 	_lang_title = Label.new()
 	_lang_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_lang_title.add_theme_font_size_override("font_size", 18)
-	_lang_title.add_theme_color_override("font_color", Color(0.72, 0.76, 0.85))
+	_lang_title.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 	vb.add_child(_lang_title)
 
 	var lang_row := HBoxContainer.new()
@@ -325,7 +310,7 @@ func _build_options_panel() -> void:
 	_sound_title = Label.new()
 	_sound_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_sound_title.add_theme_font_size_override("font_size", 18)
-	_sound_title.add_theme_color_override("font_color", Color(0.72, 0.76, 0.85))
+	_sound_title.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 	vb.add_child(_sound_title)
 
 	var snd_row := HBoxContainer.new()
@@ -389,7 +374,7 @@ func _build_power_panel() -> void:
 	_power_panel.offset_right = -12.0
 	_power_panel.offset_top = 30.0
 	_power_panel.offset_bottom = -30.0
-	_power_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.12, 0.08, 0.16, 0.98), Color(0.6, 0.45, 0.9)))
+	_power_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_POWER))
 	_power_panel.visible = false
 	add_child(_power_panel)
 
@@ -403,10 +388,10 @@ func _build_power_panel() -> void:
 	margin.add_child(vb)
 
 	var title := Label.new()
-	title.text = "PERMANENT UPGRADES"
+	title.text = Locale.t("popup_power")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 30)
-	title.add_theme_color_override("font_color", Color(0.85, 0.7, 1.0))
+	title.add_theme_color_override("font_color", UITheme.SEC_POWER_TXT)
 	UITheme.heading(title)
 	vb.add_child(title)
 
@@ -458,7 +443,7 @@ func _build_power_panel() -> void:
 		_power_rows.append({"btn": btn, "u": u})
 
 	var close := Button.new()
-	close.text = "Close"
+	close.text = Locale.t("menu_close")
 	close.custom_minimum_size = Vector2(0, 52)
 	close.add_theme_font_size_override("font_size", 22)
 	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
@@ -505,7 +490,7 @@ func _build_character_panel() -> void:
 	_char_panel.offset_right = -12.0
 	_char_panel.offset_top = 30.0
 	_char_panel.offset_bottom = -30.0
-	_char_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.07, 0.13, 0.16, 0.98), Color(0.4, 0.8, 0.95)))
+	_char_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_CHAR))
 	_char_panel.visible = false
 	add_child(_char_panel)
 
@@ -519,10 +504,10 @@ func _build_character_panel() -> void:
 	margin.add_child(vb)
 
 	var title := Label.new()
-	title.text = "CHOOSE YOUR SURVIVOR"
+	title.text = Locale.t("popup_character")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 32)
-	title.add_theme_color_override("font_color", Color(0.6, 0.9, 1.0))
+	title.add_theme_color_override("font_color", UITheme.SEC_CHAR_TXT)
 	UITheme.heading(title)
 	vb.add_child(title)
 
@@ -576,7 +561,7 @@ func _build_character_panel() -> void:
 		_char_rows.append({"btn": btn, "c": c, "thumb": thumb})
 
 	var close := Button.new()
-	close.text = "Close"
+	close.text = Locale.t("menu_close")
 	close.custom_minimum_size = Vector2(0, 56)
 	close.add_theme_font_size_override("font_size", 22)
 	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
@@ -688,15 +673,12 @@ func _build_achievement_panel() -> void:
 	add_child(_ach_dim)
 
 	_ach_panel = PanelContainer.new()
-	_ach_panel.anchor_left = 0.5
-	_ach_panel.anchor_right = 0.5
-	_ach_panel.anchor_top = 0.5
-	_ach_panel.anchor_bottom = 0.5
-	_ach_panel.offset_left = -245.0
-	_ach_panel.offset_right = 245.0
-	_ach_panel.offset_top = -300.0
-	_ach_panel.offset_bottom = 300.0
-	_ach_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.14, 0.11, 0.05, 0.98), Color(0.9, 0.75, 0.3)))
+	_ach_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ach_panel.offset_left = 12.0
+	_ach_panel.offset_right = -12.0
+	_ach_panel.offset_top = 30.0
+	_ach_panel.offset_bottom = -30.0
+	_ach_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_ACHIEVE))
 	_ach_panel.visible = false
 	add_child(_ach_panel)
 
@@ -710,10 +692,10 @@ func _build_achievement_panel() -> void:
 	margin.add_child(vb)
 
 	var title := Label.new()
-	title.text = "ACHIEVEMENTS"
+	title.text = Locale.t("popup_achievements")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
+	title.add_theme_color_override("font_color", UITheme.SEC_ACHIEVE_TXT)
 	vb.add_child(title)
 
 	vb.add_child(HSeparator.new())
@@ -727,17 +709,10 @@ func _build_achievement_panel() -> void:
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
 
-	_ach_rows.clear()
-	for a in GameData.achievements:
-		var row := Label.new()
-		row.custom_minimum_size = Vector2(420, 0)
-		row.add_theme_font_size_override("font_size", 16)
-		row.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		list.add_child(row)
-		_ach_rows.append({"label": row, "a": a})
+	_ach_list = list   # 행은 _refresh_achievements() 가 카드로 다시 만든다
 
 	var close := Button.new()
-	close.text = "Close"
+	close.text = Locale.t("menu_close")
 	close.custom_minimum_size = Vector2(0, 52)
 	close.add_theme_font_size_override("font_size", 22)
 	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
@@ -746,17 +721,33 @@ func _build_achievement_panel() -> void:
 
 
 func _refresh_achievements() -> void:
-	for row in _ach_rows:
-		var a: AchievementData = row["a"]
-		var lbl: Label = row["label"]
+	if _ach_list == null:
+		return
+	for c in _ach_list.get_children():
+		_ach_list.remove_child(c)
+		c.queue_free()
+	for a in GameData.achievements:
 		var done := AchievementManager.is_unlocked(a.id)
 		var prog := mini(AchievementManager.progress(a.metric), a.threshold)
-		if done:
-			lbl.text = "[*]  %s — %s" % [a.display, a.desc]
-			lbl.add_theme_color_override("font_color", Color(0.55, 0.95, 0.55))
-		else:
-			lbl.text = "[ ]  %s — %s  (%d/%d)" % [a.display, a.desc, prog, a.threshold]
-			lbl.add_theme_color_override("font_color", Color(0.72, 0.72, 0.78))
+		_ach_list.add_child(UIListRow.make({
+			"icon": _ach_icon(a.metric),
+			"icon_color": Color(1.0, 0.82, 0.35),
+			"title": a.display,
+			"reward": int(a.reward_gold),
+			"desc": "%s   (%d / %d)" % [a.desc, prog, a.threshold],
+			"cur": prog,
+			"goal": a.threshold,
+			"state": UIListRow.STATE_DONE if done else UIListRow.STATE_ACTIVE,
+		}))
+
+
+## 도전과제 지표별 아이콘 — 누적 처치/보스/생존 시간/최고 레벨.
+func _ach_icon(metric: String) -> String:
+	match metric:
+		"boss_kills": return "sword"
+		"best_time":  return "clock"
+		"best_level": return "star"
+		_:            return "skull"
 
 
 func _on_achievements_pressed() -> void:
@@ -783,15 +774,12 @@ func _build_quest_panel() -> void:
 	add_child(_quest_dim)
 
 	_quest_panel = PanelContainer.new()
-	_quest_panel.anchor_left = 0.5
-	_quest_panel.anchor_right = 0.5
-	_quest_panel.anchor_top = 0.5
-	_quest_panel.anchor_bottom = 0.5
-	_quest_panel.offset_left = -245.0
-	_quest_panel.offset_right = 245.0
-	_quest_panel.offset_top = -260.0
-	_quest_panel.offset_bottom = 260.0
-	_quest_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.06, 0.14, 0.07, 0.98), Color(0.45, 0.9, 0.5)))
+	_quest_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_quest_panel.offset_left = 12.0
+	_quest_panel.offset_right = -12.0
+	_quest_panel.offset_top = 30.0
+	_quest_panel.offset_bottom = -30.0
+	_quest_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_QUEST))
 	_quest_panel.visible = false
 	add_child(_quest_panel)
 
@@ -805,14 +793,14 @@ func _build_quest_panel() -> void:
 	margin.add_child(vb)
 
 	var title := Label.new()
-	title.text = "QUESTS"
+	title.text = Locale.t("popup_quests")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", Color(0.6, 1.0, 0.6))
+	title.add_theme_color_override("font_color", UITheme.SEC_QUEST_TXT)
 	vb.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "완료 보상은 REWARDS 보관함에 쌓입니다 → 다음 과제 자동 생성(목표·보상 상승)"
+	hint.text = Locale.t("quest_hint")
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size = Vector2(440, 0)
@@ -822,12 +810,20 @@ func _build_quest_panel() -> void:
 
 	vb.add_child(HSeparator.new())
 
+	# 카드형 행은 텍스트 행보다 높아 항목이 늘면 넘친다 — 스크롤로 수용한다.
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.scroll_deadzone = 24
+	vb.add_child(scroll)
+
 	_quest_list = VBoxContainer.new()
+	_quest_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_quest_list.add_theme_constant_override("separation", 14)
-	vb.add_child(_quest_list)
+	scroll.add_child(_quest_list)
 
 	var close := Button.new()
-	close.text = "Close"
+	close.text = Locale.t("menu_close")
 	close.custom_minimum_size = Vector2(0, 52)
 	close.add_theme_font_size_override("font_size", 22)
 	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
@@ -848,15 +844,12 @@ func _build_rewards_panel() -> void:
 	add_child(_rewards_dim)
 
 	_rewards_panel = PanelContainer.new()
-	_rewards_panel.anchor_left = 0.5
-	_rewards_panel.anchor_right = 0.5
-	_rewards_panel.anchor_top = 0.5
-	_rewards_panel.anchor_bottom = 0.5
-	_rewards_panel.offset_left = -245.0
-	_rewards_panel.offset_right = 245.0
-	_rewards_panel.offset_top = -280.0
-	_rewards_panel.offset_bottom = 280.0
-	_rewards_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.15, 0.11, 0.04, 0.98), Color(1.0, 0.85, 0.35)))
+	_rewards_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_rewards_panel.offset_left = 12.0
+	_rewards_panel.offset_right = -12.0
+	_rewards_panel.offset_top = 30.0
+	_rewards_panel.offset_bottom = -30.0
+	_rewards_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_REWARD))
 	_rewards_panel.visible = false
 	add_child(_rewards_panel)
 
@@ -870,14 +863,14 @@ func _build_rewards_panel() -> void:
 	margin.add_child(vb)
 
 	var title := Label.new()
-	title.text = "REWARDS"
+	title.text = Locale.t("popup_rewards")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
+	title.add_theme_color_override("font_color", UITheme.SEC_REWARD_TXT)
 	vb.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "퀘스트·도전과제 보상은 여기에 쌓입니다. CLAIM 을 눌러 메타 골드로 받으세요."
+	hint.text = Locale.t("rewards_hint")
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	hint.custom_minimum_size = Vector2(440, 0)
@@ -904,7 +897,7 @@ func _build_rewards_panel() -> void:
 	vb.add_child(_rewards_total)
 
 	var claim_all := Button.new()
-	claim_all.text = "CLAIM ALL"
+	claim_all.text = Locale.t("rewards_claim_all")
 	claim_all.custom_minimum_size = Vector2(0, 54)
 	claim_all.add_theme_font_size_override("font_size", 22)
 	_UIStyle.apply_button_style(claim_all, Color(0.45, 0.32, 0.06), Color(1.0, 0.88, 0.4))
@@ -912,7 +905,7 @@ func _build_rewards_panel() -> void:
 	vb.add_child(claim_all)
 
 	var close := Button.new()
-	close.text = "Close"
+	close.text = Locale.t("menu_close")
 	close.custom_minimum_size = Vector2(0, 48)
 	close.add_theme_font_size_override("font_size", 20)
 	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
@@ -920,12 +913,62 @@ func _build_rewards_panel() -> void:
 	vb.add_child(close)
 
 
-## 대기 보상 개수를 버튼 라벨에 배지로 표시.
+## 3차(보조) 메뉴 버튼 — 6개가 모두 같은 어두운 금속 플레이트를 쓰고, 구분은 좌측
+## 아이콘의 모양·색만으로 한다. 1·2차보다 좁게(SHRINK_CENTER) 두어 폭으로도 위계를 만든다.
+func _make_menu_btn(icon_kind: String, icon_col: Color) -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(284, 52)
+	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	b.add_theme_font_size_override("font_size", 19)
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT   # 아이콘 오른쪽에서 좌측 정렬
+	_UIStyle.apply_button_style(b, UITheme.BTN_BG, UITheme.MENU_TERTIARY)
+	_UIStyle.set_button_content_margin_left(b, 56)   # 아이콘 자리 확보
+	var ic := UIIcon.make(icon_kind, 24, icon_col)
+	ic.anchor_top = 0.5
+	ic.anchor_bottom = 0.5
+	ic.offset_left = 22.0
+	ic.offset_right = 46.0
+	ic.offset_top = -12.0
+	ic.offset_bottom = 12.0
+	b.add_child(ic)
+	return b
+
+
+## 미수령 보상 배지 — 버튼 우상단의 작은 붉은 원. 라벨에 "(3)" 을 붙이는 것보다
+## 눈에 띄고, 번역된 라벨 길이에 영향을 주지 않는다.
+func _build_rewards_badge() -> void:
+	_rewards_badge = Label.new()
+	_rewards_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_rewards_badge.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_rewards_badge.add_theme_font_size_override("font_size", 14)
+	_rewards_badge.add_theme_color_override("font_color", UITheme.LOGO_CREAM)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.80, 0.14, 0.14)
+	sb.set_corner_radius_all(13)
+	sb.corner_detail = 6
+	sb.anti_aliasing = true
+	sb.set_border_width_all(2)
+	sb.border_color = Color(0.06, 0.04, 0.05, 0.9)
+	_rewards_badge.add_theme_stylebox_override("normal", sb)
+	_rewards_badge.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_rewards_badge.offset_left = -36.0
+	_rewards_badge.offset_right = -10.0
+	_rewards_badge.offset_top = 3.0
+	_rewards_badge.offset_bottom = 29.0
+	_rewards_badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_rewards_badge.visible = false
+	_rewards_btn.add_child(_rewards_badge)
+
+
+## 대기 보상 개수 갱신 — 0이면 배지를 숨긴다.
 func _refresh_rewards_badge() -> void:
 	if _rewards_btn == null:
 		return
-	var n: int = RewardInbox.count()
-	_rewards_btn.text = "Rewards (%d)" % n if n > 0 else "Rewards"
+	_rewards_btn.text = Locale.t("menu_rewards")
+	if _rewards_badge:
+		var n: int = RewardInbox.count()
+		_rewards_badge.visible = n > 0
+		_rewards_badge.text = "%d" % mini(n, 99)
 
 
 func _refresh_rewards() -> void:
@@ -934,7 +977,7 @@ func _refresh_rewards() -> void:
 	var entries: Array = RewardInbox.entries
 	if entries.is_empty():
 		var empty := Label.new()
-		empty.text = "받을 보상이 없습니다"
+		empty.text = Locale.t("rewards_empty")
 		empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty.add_theme_font_size_override("font_size", 16)
 		empty.add_theme_color_override("font_color", Color(0.6, 0.58, 0.5))
@@ -945,34 +988,18 @@ func _refresh_rewards() -> void:
 	for i in entries.size():
 		var e: Dictionary = entries[i]
 		total += int(e["gold"])
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
-
-		var name_box := VBoxContainer.new()
-		name_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_box.add_theme_constant_override("separation", 1)
-		var head := Label.new()
-		head.text = String(e["title"])
-		head.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		head.add_theme_font_size_override("font_size", 16)
-		head.add_theme_color_override("font_color", Color(0.95, 0.93, 0.85))
-		name_box.add_child(head)
-		var sub := Label.new()
-		sub.text = "%s   +%d gold" % ["Quest" if e["src"] == "quest" else "Achievement", int(e["gold"])]
-		sub.add_theme_font_size_override("font_size", 13)
-		sub.add_theme_color_override("font_color", Color(1.0, 0.85, 0.4))
-		name_box.add_child(sub)
-		row.add_child(name_box)
-
-		var btn := Button.new()
-		btn.text = "CLAIM"
-		btn.custom_minimum_size = Vector2(96, 44)
-		btn.add_theme_font_size_override("font_size", 16)
-		_UIStyle.apply_button_style(btn, Color(0.14, 0.36, 0.16), Color(0.5, 0.95, 0.5))
-		btn.pressed.connect(_on_claim_pressed.bind(i))
-		row.add_child(btn)
-		_rewards_list.add_child(row)
-	_rewards_total.text = "Total waiting:  +%d gold" % total
+		var from_quest: bool = e["src"] == "quest"
+		_rewards_list.add_child(UIListRow.make({
+			"icon": "flag" if from_quest else "trophy",
+			"icon_color": Color(0.60, 1.0, 0.60) if from_quest else Color(1.0, 0.82, 0.35),
+			"title": String(e["title"]),
+			"reward": int(e["gold"]),
+			"desc": Locale.t("rewards_src_quest" if from_quest else "rewards_src_ach"),
+			"state": UIListRow.STATE_READY,
+			"action": {"text": Locale.t("rewards_claim"), "on_pressed": _on_claim_pressed.bind(i),
+				"accent": Color(0.5, 0.95, 0.5)},
+		}))
+	_rewards_total.text = Locale.t("rewards_total_fmt") % total
 
 
 func _on_claim_pressed(index: int) -> void:
@@ -1015,29 +1042,26 @@ func _refresh_quests() -> void:
 	for c in _quest_list.get_children():
 		c.queue_free()
 	for q in QuestManager.active_quests():
-		var row := VBoxContainer.new()
-		row.add_theme_constant_override("separation", 3)
+		var cur := int(q["current"])
+		var goal := int(q["goal"])
+		_quest_list.add_child(UIListRow.make({
+			"icon": _quest_icon(String(q.get("id", ""))),
+			"icon_color": Color(0.95, 0.72, 0.45),
+			"title": String(q["title"]),
+			"reward": int(q["reward"]),
+			"desc": "%s   (%d / %d)" % [q["desc"], cur, goal],
+			"cur": cur,
+			"goal": goal,
+			"state": UIListRow.STATE_READY if cur >= goal else UIListRow.STATE_ACTIVE,
+		}))
 
-		var head := Label.new()
-		head.text = "%s   +%d gold" % [q["title"], int(q["reward"])]
-		head.add_theme_font_size_override("font_size", 18)
-		head.add_theme_color_override("font_color", Color(1.0, 0.88, 0.4))
-		row.add_child(head)
 
-		var desc := Label.new()
-		desc.text = "%s   (%d / %d)" % [q["desc"], int(q["current"]), int(q["goal"])]
-		desc.add_theme_font_size_override("font_size", 14)
-		desc.add_theme_color_override("font_color", Color(0.78, 0.82, 0.78))
-		row.add_child(desc)
-
-		var bar := ProgressBar.new()
-		bar.custom_minimum_size = Vector2(440, 12)
-		bar.max_value = maxf(1.0, float(q["goal"]))
-		bar.value = float(q["current"])
-		bar.show_percentage = false
-		row.add_child(bar)
-
-		_quest_list.add_child(row)
+## 과제 종류별 아이콘 — 좀비 처치/보스 격파/웨이브 클리어.
+func _quest_icon(id: String) -> String:
+	match id:
+		"bosses": return "sword"
+		"waves":  return "flag"
+		_:        return "skull"
 
 
 func _on_quests_pressed() -> void:
@@ -1066,72 +1090,118 @@ func _build_theme_panel() -> void:
 	_theme_dim.gui_input.connect(_on_theme_dim_input)
 	add_child(_theme_dim)
 
+	# 전체 화면 레이아웃 — 캐릭터 선택 패널과 같은 패턴. 좁은 중앙 프레임 대신 화면을
+	# 꽉 채워 썸네일이 크게 보이고, 테마가 늘어나도 스크롤로 수용한다.
 	_theme_panel = PanelContainer.new()
-	_theme_panel.anchor_left = 0.5
-	_theme_panel.anchor_right = 0.5
-	_theme_panel.anchor_top = 0.5
-	_theme_panel.anchor_bottom = 0.5
-	_theme_panel.offset_left = -250.0
-	_theme_panel.offset_right = 250.0
-	_theme_panel.offset_top = -280.0
-	_theme_panel.offset_bottom = 280.0
-	_theme_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.12, 0.08, 0.98), Color(0.5, 0.85, 0.5)))
+	_theme_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_theme_panel.offset_left = 12.0
+	_theme_panel.offset_right = -12.0
+	_theme_panel.offset_top = 30.0
+	_theme_panel.offset_bottom = -30.0
+	_theme_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_ARENA))
 	_theme_panel.visible = false
 	add_child(_theme_panel)
 
 	var margin := MarginContainer.new()
 	for m in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + m, 22)
+		margin.add_theme_constant_override("margin_" + m, 24)
 	_theme_panel.add_child(margin)
 
 	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 12)
+	vb.add_theme_constant_override("separation", 14)
 	margin.add_child(vb)
 
 	var title := Label.new()
-	title.text = "CHOOSE ARENA"
+	title.text = Locale.t("popup_arena")
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", Color(0.7, 1.0, 0.7))
+	title.add_theme_font_size_override("font_size", 32)
+	title.add_theme_color_override("font_color", UITheme.SEC_ARENA_TXT)
+	UITheme.heading(title)
 	vb.add_child(title)
 
 	_theme_gold_label = Label.new()
 	_theme_gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_theme_gold_label.add_theme_font_size_override("font_size", 18)
+	_theme_gold_label.add_theme_font_size_override("font_size", 20)
 	_theme_gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
 	vb.add_child(_theme_gold_label)
 
 	vb.add_child(HSeparator.new())
 
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.scroll_deadzone = 24   # 터치 드래그가 버튼 클릭에 먹히지 않고 스크롤로 이어지게
+	vb.add_child(scroll)
+	var rows_box := VBoxContainer.new()
+	rows_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows_box.add_theme_constant_override("separation", 16)
+	scroll.add_child(rows_box)
+
+	# 테마 카드 = [이름 / 설명] 위, [가로를 꽉 채우는 와이드 썸네일] 아래.
+	# 카드 높이(썸네일이 남는 세로를 모두 차지). 3개 기준으로 한 화면에 들어온다.
+	var card_h := 240.0
+
 	_theme_rows.clear()
 	for t in GameData.themes:
+		# 내용을 Button 의 text 가 아니라 "앵커로 얹은 자식"으로 구성하는 이유:
+		# autowrap 이 켜진 Button/Label 은 최소 크기를 "가장 좁은 폭으로 줄바꿈했을 때의
+		# 높이"로 보고한다. 그 값이 컨테이너에 전파되면 카드 하나가 스크롤 영역 전체를
+		# 차지할 만큼 부풀어 오른다(이전 레이아웃에서 실제로 발생). Button 은 컨테이너가
+		# 아니므로 앵커 자식의 최소 크기는 카드 높이에 영향을 주지 않는다.
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(430, 104)
-		btn.add_theme_font_size_override("font_size", 18)
-		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		btn.custom_minimum_size = Vector2(0, card_h)
+		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn.size_flags_vertical = Control.SIZE_SHRINK_BEGIN   # 남는 세로를 먹지 않게 고정
+		btn.clip_contents = true
 		btn.pressed.connect(_on_theme_pick.bind(String(t.id)))
-		vb.add_child(btn)
-		# 테마 썸네일 — assets/ui/thumbs/theme_<id>.png 가 있으면 좌측에 표시(잠금 시 어둡게).
+		rows_box.add_child(btn)
+
+		var pad := MarginContainer.new()
+		pad.set_anchors_preset(Control.PRESET_FULL_RECT)
+		pad.add_theme_constant_override("margin_left", 16)
+		pad.add_theme_constant_override("margin_right", 16)
+		pad.add_theme_constant_override("margin_top", 12)
+		pad.add_theme_constant_override("margin_bottom", 14)
+		pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		btn.add_child(pad)
+
+		var col := VBoxContainer.new()
+		col.add_theme_constant_override("separation", 4)
+		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pad.add_child(col)
+
+		# 이름/설명은 autowrap 을 끄고 넘치면 잘라낸다(위 주석의 최소 크기 폭주 방지).
+		var name_lbl := Label.new()
+		name_lbl.add_theme_font_size_override("font_size", 22)
+		name_lbl.clip_text = true
+		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		UITheme.heading(name_lbl)
+		col.add_child(name_lbl)
+
+		var desc_lbl := Label.new()
+		desc_lbl.add_theme_font_size_override("font_size", 15)
+		desc_lbl.clip_text = true
+		desc_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_child(desc_lbl)
+
+		# 와이드 썸네일 — 카드 가로를 꽉 채우고 남는 세로를 모두 차지. 원본(4:3)은
+		# 가운데를 잘라 배너처럼 보여준다(COVERED).
 		var thumb: TextureRect = null
 		var tex_path := "res://assets/ui/thumbs/theme_%s.png" % t.id
 		if ResourceLoader.exists(tex_path):
 			thumb = TextureRect.new()
 			thumb.texture = load(tex_path)
 			thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-			thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-			thumb.anchor_top = 0.0
-			thumb.anchor_bottom = 1.0
-			thumb.offset_left = 10.0
-			thumb.offset_right = 118.0
-			thumb.offset_top = 8.0
-			thumb.offset_bottom = -8.0
+			thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+			thumb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			thumb.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			thumb.clip_contents = true
 			thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			btn.add_child(thumb)
-			btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		_theme_rows.append({"btn": btn, "t": t, "thumb": thumb})
+			col.add_child(thumb)
+		_theme_rows.append({"btn": btn, "t": t, "thumb": thumb,
+			"name": name_lbl, "desc": desc_lbl})
 
 	var close := Button.new()
-	close.text = "Close"
+	close.text = Locale.t("menu_close")
 	close.custom_minimum_size = Vector2(0, 52)
 	close.add_theme_font_size_override("font_size", 22)
 	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
@@ -1147,22 +1217,29 @@ func _refresh_theme() -> void:
 		var t: ThemeData = row["t"]
 		var btn: Button = row["btn"]
 		var thumb: TextureRect = row.get("thumb")
+		var name_lbl: Label = row["name"]
+		var desc_lbl: Label = row["desc"]
 		if ThemeManager.is_unlocked(t):
-			btn.text = "%s%s\n%s" % ["> " if t.id == sel else "", t.display, t.desc]
-			if t.id == sel:
+			var picked: bool = t.id == sel
+			name_lbl.text = ("> %s" % t.display) if picked else String(t.display)
+			name_lbl.add_theme_color_override("font_color",
+				UITheme.SEC_ARENA_TXT if picked else UITheme.TEXT)
+			desc_lbl.text = t.desc
+			desc_lbl.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+			if picked:
 				_UIStyle.apply_button_style(btn, Color(t.tile_b.r, t.tile_b.g, t.tile_b.b, 1.0), t.mark)
 			else:
 				_UIStyle.apply_button_style(btn, Color(0.14, 0.16, 0.20), Color(0.35, 0.40, 0.48))
 			if thumb:
 				thumb.modulate = Color.WHITE
 		else:
-			btn.text = "[-] %s\n%s" % [t.display, _theme_unlock_hint(t)]
+			name_lbl.text = "[-] %s" % t.display
+			name_lbl.add_theme_color_override("font_color", Color(0.62, 0.64, 0.70))
+			desc_lbl.text = _theme_unlock_hint(t)
+			desc_lbl.add_theme_color_override("font_color", Color(0.85, 0.74, 0.42))
 			_UIStyle.apply_button_style(btn, Color(0.10, 0.10, 0.12), Color(0.30, 0.30, 0.34))
 			if thumb:
 				thumb.modulate = Color(0.35, 0.35, 0.4)
-		# apply_button_style 이 스타일박스를 새로 깔아 좌측 여백이 사라진다 — 썸네일이 있으면 재적용.
-		if thumb:
-			_UIStyle.set_button_content_margin_left(btn, 130)
 
 
 func _theme_unlock_hint(t: ThemeData) -> String:
@@ -1256,7 +1333,7 @@ func _build_ranking_panel() -> void:
 	_rank_panel.offset_right = 210.0
 	_rank_panel.offset_top = -230.0
 	_rank_panel.offset_bottom = 230.0
-	_rank_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 0.98), Color(0.45, 0.40, 0.20)))
+	_rank_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_NEUTRAL))
 	_rank_panel.visible = false
 	add_child(_rank_panel)
 
@@ -1274,7 +1351,7 @@ func _build_ranking_panel() -> void:
 	_rank_title = Label.new()
 	_rank_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_rank_title.add_theme_font_size_override("font_size", 30)
-	_rank_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	_rank_title.add_theme_color_override("font_color", UITheme.SEC_REWARD)
 	UITheme.heading(_rank_title)
 	vb.add_child(_rank_title)
 
@@ -1366,6 +1443,10 @@ func _on_dim_input(event: InputEvent) -> void:
 func _apply_language() -> void:
 	_new_game_btn.text = Locale.t("menu_new_game")
 	_continue_btn.text = Locale.t("menu_continue")
+	_ach_btn.text = Locale.t("menu_achievements")
+	_quest_btn.text = Locale.t("menu_quests")
+	_power_btn.text = Locale.t("menu_powerup")
+	_refresh_rewards_badge()   # 보상 버튼 라벨도 로케일에서 가져온다
 	_lang_title.text = Locale.t("menu_language")
 	_sound_title.text = Locale.t("menu_sound")
 	_options_btn.text = Locale.t("menu_options")

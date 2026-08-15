@@ -6,12 +6,16 @@ extends RefCounted
 const _PANEL_FRAME_TEX := preload("res://assets/ui/frames/panel_frame.png")
 const _PANEL_FRAME_MARGIN := 40      # 나인패치 코너/에지 분할(화면상 테두리 두께)
 
-# 버튼 플레이트 — 브러시드 메탈/베벨/광택만 남긴 무채색 재질.
-# 색은 modulate_color 가 입히므로, 호출부가 넘긴 강조색(accent)이 그대로 버튼 색이 된다.
-const _BTN_PLATE_TEX := preload("res://assets/ui/frames/button_plate.png")
-const _BTN_PLATE_MARGIN := 9
-# 강조색을 그대로 쓰면 너무 밝아 흰 라벨이 묻히므로 한 단계 낮춰 중간 톤 금속으로 만든다.
-const _BTN_DARKEN := 0.42
+# 버튼 플레이트 — 다크 건메탈 + 베벨 + 리벳 + 긁힘 그런지(tools/gen_menu_plates.py).
+# 색은 modulate_color 가 입히므로(최종색 = 플레이트 × accent) 호출부의 강조색이 버튼 색이 된다.
+#
+# 이전 button_plate.png 는 평균 밝기 227 의 "거의 흰 광택면"이라 채도 높은 색을 곱하면
+# 사탕/플라스틱 색이 됐다. 새 판은 평균 136 의 중간 톤 금속이라 같은 accent 로도 금속처럼 보인다.
+const _BTN_PLATE_TEX := preload("res://assets/ui/frames/btn_plate_metal.png")
+const _BTN_PLATE_MARGIN := 14
+# 바탕이 이미 어두우므로 예전(0.42)만큼 낮출 필요가 없다. hover/pressed 가 범위를 벗어나지
+# 않도록 여유를 두고 잡는다(hover = 0.02, pressed = 0.32).
+const _BTN_DARKEN := 0.16
 
 # 아이템 슬롯 프레임(황동 림 + 어두운 함몰부). 안쪽 빈 영역은 프레임의 약 71%.
 const _SLOT_TEX := preload("res://assets/ui/frames/item_slot.png")

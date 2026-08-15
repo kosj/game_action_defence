@@ -12,6 +12,40 @@ const ACCENT    := Color(1.00, 0.82, 0.25)   # 금색 강조
 const TEXT      := Color(0.90, 0.92, 0.96)
 const TEXT_DIM  := Color(0.66, 0.70, 0.78)
 
+# 로고("ZOMBIE BUSTER")에서 뽑은 색 — 타이틀/인트로 텍스트를 로고와 같은 문법으로 맞춘다.
+const LOGO_CREAM := Color(0.93, 0.90, 0.82)   # 글자 본체(크림)
+const LOGO_BLOOD := Color(0.70, 0.12, 0.13)   # 외곽선/흘러내림(핏빛)
+
+# 섹션 강조색 — 패널마다 흩어져 있던 색 리터럴을 한곳에 모은다. 화면이 늘어도 톤이 흔들리지
+# 않도록 새 패널은 반드시 아래 상수 중 하나를 쓸 것. (프레임 색은 텍스처 아트가 담당하므로
+# 실제로 눈에 보이는 건 제목 라벨 색이다 — SEC_*_TXT 는 어두운 패널 위에서 읽히게 밝힌 값.)
+const SEC_NEUTRAL := Color(0.35, 0.38, 0.50)   # 옵션·랭킹
+const SEC_POWER   := Color(0.60, 0.45, 0.90)   # 강화
+const SEC_CHAR    := Color(0.40, 0.80, 0.95)   # 캐릭터
+const SEC_ARENA   := Color(0.50, 0.85, 0.50)   # 아레나(테마)
+const SEC_QUEST   := Color(0.45, 0.90, 0.50)   # 과제
+const SEC_ACHIEVE := Color(0.90, 0.75, 0.30)   # 도전과제
+const SEC_REWARD  := Color(1.00, 0.85, 0.35)   # 보상함
+
+# 메인 메뉴 버튼 3단 위계 — 플레이트는 모두 같은 금속으로 두고 위계는 크기·명도로 만든다.
+# (색을 8가지 쓰면 오히려 구분이 안 된다: 예전엔 도전과제/보상/랭킹이 틴트 후 거의 같은 금색이었다.)
+const MENU_PRIMARY   := Color(0.78, 0.16, 0.16)   # 1차 CTA — 로고의 핏빛 계열
+const MENU_SECONDARY := Color(0.52, 0.56, 0.66)   # 2차 — 밝은 건메탈
+const MENU_TERTIARY  := Color(0.32, 0.35, 0.43)   # 3차 — 어두운 건메탈(6개 전부 동일)
+
+# 3차 버튼의 구분은 플레이트 색이 아니라 "좌측 아이콘의 모양+색"이 담당한다.
+const MENU_ICON_REWARD := Color(1.00, 0.82, 0.30)   # 보상 계열(도전과제·보상함·랭킹)
+const MENU_ICON_QUEST  := Color(0.55, 0.95, 0.55)   # 과제
+const MENU_ICON_POWER  := Color(0.78, 0.58, 1.00)   # 영구 강화
+const MENU_ICON_PLAIN  := Color(0.70, 0.74, 0.84)   # 설정
+
+const SEC_POWER_TXT   := Color(0.85, 0.70, 1.00)
+const SEC_CHAR_TXT    := Color(0.60, 0.90, 1.00)
+const SEC_ARENA_TXT   := Color(0.70, 1.00, 0.70)
+const SEC_QUEST_TXT   := Color(0.60, 1.00, 0.60)
+const SEC_ACHIEVE_TXT := Color(1.00, 0.85, 0.40)
+const SEC_REWARD_TXT  := Color(1.00, 0.88, 0.45)
+
 const FONT_PATH := "res://assets/fonts/NotoSansCJK-Subset.otf"
 const BOLD_PATH := "res://assets/fonts/NotoSansCJK-Subset-Bold.otf"
 
@@ -26,10 +60,21 @@ func _ready() -> void:
 
 
 ## 씬 전환 후에도 새로 생성되는 버튼마다 눌림 애니메이션을 연결한다(개별 위젯 수정 불필요).
+##
+## node_added 는 트리에 추가되는 모든 노드에 발화하므로 오브젝트 풀이 재사용하는 총알·FX 도
+## 여기를 지나간다. 그래도 전역 훅을 유지하는 이유는 커버리지다 — 씬에 직접 배치된 버튼은
+## UIStyle.apply_button_style() 을 거치지 않아, 그쪽으로 옮기면 눌림 피드백이 조용히 사라진다.
+## 대신 비용은 아래 `n is Button` 한 번의 타입 검사로 끝난다(풀 스폰은 전부 Node2D 라 즉시 탈락).
 func _hook_button(n: Node) -> void:
-	if n is Button:
-		n.button_down.connect(_btn_press.bind(n))
-		n.button_up.connect(_btn_release.bind(n))
+	if not (n is Button):
+		return
+	# 버튼이 트리에서 빠졌다 다시 추가되면 node_added 가 재발화한다 — 중복 연결 시 Godot 이
+	# 에러를 내고 눌림 스케일도 두 번 적용되므로 메타로 1회만 연결한다.
+	if n.has_meta("_btn_pop"):
+		return
+	n.set_meta("_btn_pop", true)
+	n.button_down.connect(_btn_press.bind(n))
+	n.button_up.connect(_btn_release.bind(n))
 
 
 func _btn_press(b: Button) -> void:
@@ -78,6 +123,15 @@ func build() -> Theme:
 	t.set_stylebox("panel", "Panel", _panel())
 	t.set_stylebox("panel", "PanelContainer", _panel())
 
+	# ── ProgressBar ───────────────────────────────────────────
+	# 지금까지 진행바는 스타일이 없어 엔진 기본 회색 막대로 그려졌다(퀘스트 팝업이 미완성으로
+	# 보이던 주된 이유). HUD 게이지와 같은 "어두운 함몰 트랙 + 골드 헤어라인" 문법으로 통일한다.
+	# 텍스처 나인패치 대신 StyleBoxFlat 을 쓰는 이유: ProgressBar 는 채움을 x=0 부터 전체 높이로
+	# 그려서 프레임 림을 덮고, 바가 얇으면(12~20px) 나인패치 코너가 서로 겹쳐 뭉개진다.
+	t.set_stylebox("background", "ProgressBar", progress_track())
+	t.set_stylebox("fill", "ProgressBar", progress_fill(ACCENT))
+	t.set_color("font_color", "ProgressBar", TEXT)
+
 	# ── Label ─────────────────────────────────────────────────
 	t.set_color("font_color", "Label", TEXT)
 
@@ -113,6 +167,29 @@ func _panel() -> StyleBoxFlat:
 
 func _empty() -> StyleBoxEmpty:
 	return StyleBoxEmpty.new()
+
+
+## 진행바 트랙(배경) — 어두운 함몰부 + 옅은 골드 테두리. 0% 일 때도 이 트랙이 보이므로
+## 진행 0 인 항목이 "바가 없는 빈 행"으로 보이지 않는다.
+static func progress_track() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.05, 0.05, 0.07, 0.92)
+	sb.set_corner_radius_all(6)
+	sb.corner_detail = 6
+	sb.anti_aliasing = true
+	sb.set_border_width_all(1)
+	sb.border_color = Color(0.62, 0.50, 0.22, 0.55)
+	return sb
+
+
+## 진행바 채움 — 호출부가 색만 바꿔 쓸 수 있게 색을 인자로 받는다(퀘스트=금색, 완료=초록 등).
+static func progress_fill(col: Color) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = col
+	sb.set_corner_radius_all(6)
+	sb.corner_detail = 6
+	sb.anti_aliasing = true
+	return sb
 
 
 ## 굵은(Bold) 폰트 — 제목/헤더용. 번들 Bold 서브셋이 있으면 사용, 없으면 기본 폰트.

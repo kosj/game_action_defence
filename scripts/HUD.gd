@@ -3,6 +3,7 @@ extends CanvasLayer
 
 const FOG_TEX := preload("res://assets/ui/fog_vision.png")   # 주변 시야 제한 오버레이(방사형 암전)
 const _UIStyle := preload("res://scripts/UIStyle.gd")
+const _PerfOverlay := preload("res://scripts/PerfOverlay.gd")
 
 @onready var top_bg: Panel = $TopBg
 @onready var gold_label: Label = $GoldLabel
@@ -43,6 +44,8 @@ var _hp_fill_max := HP_BAR_W           # 채움부 최대 폭(텍스처 프레�
 var _boss_fill_max := BOSS_BAR_W
 var _hp_ghost: Panel = null            # 피해 잔상 바 — 줄어든 체력만큼 밝은 잔량이 늦게 따라온다
 var _hp_ghost_tween: Tween = null
+var _hp_fill_tween: Tween = null       # 채움부 폭 트윈 — 연속 피격 시 중첩되지 않게 매번 kill 후 재생성
+var _flash_tween: Tween = null         # 피격 붉은 섬광 — 종료 시 오버레이를 숨겨 fill-rate 낭비를 없앤다
 var _gold_shown: float = 0.0           # 골드 롤링 카운터의 현재 표시값
 var _gold_roll_tween: Tween = null
 var _boss_max: int = 1
@@ -86,9 +89,13 @@ var _pause_btn: Button = null
 var _pause_dim: ColorRect = null
 var _pause_panel: PanelContainer = null
 var _pause_time: Label = null             # 일시정지 화면의 생존 시간(HUD 에서 옮겨 온 경과 시간)
+var _pause_scroll: ScrollContainer = null # 내용이 화면을 넘으면 여기서 스크롤된다
+var _pause_vb: VBoxContainer = null       # 스크롤 내용(높이 계산용)
 var _stat_icons: Array = []               # 상단 우측 스탯 아이콘들 — 세이프에어리어 이동 대상
 var _cheat_box: VBoxContainer = null      # 일시정지 메뉴의 치트 하위 메뉴(접이식)
 var _cheat_auto_btn: Button = null        # 자동플레이 토글 버튼(라벨 ON/OFF 갱신)
+var _cheat_perf_btn: Button = null        # 성능 오버레이 토글 버튼(라벨 ON/OFF 갱신)
+var _perf_overlay: Control = null         # 성능 디버그 오버레이(좌상단)
 var _auto_tag: Label = null               # 자동플레이 중임을 알리는 화면 표시
 
 
@@ -117,6 +124,7 @@ func _ready() -> void:
 	_build_hud_icons()
 	_build_xp_bar()
 	_build_swarm_banner()
+	_build_perf_overlay()
 	_build_loadout()
 	_build_goal_hint()
 	_build_gameover_stats()
@@ -352,8 +360,12 @@ func _update_hp_bar(health: int, max_health: int) -> void:
 	var ratio := float(cur) / float(mx)
 	var target := _hp_fill_max * ratio
 	hp_label.text = "HP %d / %d" % [cur, mx]
-	var tw := create_tween()
-	tw.tween_property(hp_fill, "size:x", target, 0.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	# 연속 피격(접촉 데미지)에서 트윈을 새로 만들기만 하면 여러 트윈이 같은 size:x 를 놓고 다퉈
+	# 바가 튀고 트윈 객체도 누적된다 — 잔상 바(_hp_ghost_tween)처럼 직전 트윈을 반드시 정리한다.
+	if _hp_fill_tween and _hp_fill_tween.is_valid():
+		_hp_fill_tween.kill()
+	_hp_fill_tween = create_tween()
+	_hp_fill_tween.tween_property(hp_fill, "size:x", target, 0.15).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	if _hp_fill_sb is StyleBoxFlat:
 		_hp_fill_sb.bg_color = _hp_color(ratio)
 	elif _hp_fill_sb is StyleBoxTexture:
@@ -470,10 +482,16 @@ func _hp_color(ratio: float) -> Color:
 	return Color(0.9, 0.25, 0.2).lerp(Color(0.85, 0.75, 0.2), ratio * 2.0)
 
 
+## 피격 섬광. 전체 화면 ColorRect 는 alpha 0 이어도 visible 이면 매 프레임 풀스크린 블렌딩을
+## 하므로(720x1280 ≈ 92만 픽셀), 연출이 끝나면 visible=false 로 렌더에서 완전히 빼낸다.
 func _flash_hurt() -> void:
+	if _flash_tween and _flash_tween.is_valid():
+		_flash_tween.kill()
 	flash_overlay.color = Color(1, 0, 0, 0.35)
-	var tw := create_tween()
-	tw.tween_property(flash_overlay, "color", Color(1, 0, 0, 0.0), 0.4)
+	flash_overlay.visible = true
+	_flash_tween = create_tween()
+	_flash_tween.tween_property(flash_overlay, "color", Color(1, 0, 0, 0.0), 0.4)
+	_flash_tween.tween_callback(func() -> void: flash_overlay.visible = false)
 
 
 ## 체력이 1일 때 화면 가장자리를 붉게 경고. 껌뻑이는 점멸(1초 주기·0→0.30)은 눈이 피로해서,
@@ -487,6 +505,7 @@ func _update_low_hp_warning(health: int) -> void:
 	var should_pulse := health > 0 and float(health) / float(maxi(_max_health, 1)) <= 0.2
 	if should_pulse and _low_hp_tween == null:
 		low_hp_overlay.color.a = _LOW_HP_MIN_A
+		low_hp_overlay.visible = true
 		_low_hp_tween = create_tween()
 		_low_hp_tween.set_loops()
 		_low_hp_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -496,6 +515,7 @@ func _update_low_hp_warning(health: int) -> void:
 		_low_hp_tween.kill()
 		_low_hp_tween = null
 		low_hp_overlay.color.a = 0.0
+		low_hp_overlay.visible = false   # 투명한 풀스크린 레이어를 렌더에 남겨두지 않는다
 
 
 ## 무기 픽업 획득 시 이름/등급을 잠시 표시 후 자동 페이드 아웃.
@@ -1161,6 +1181,9 @@ func _build_pause_menu() -> void:
 
 	_pause_panel = PanelContainer.new()
 	_pause_panel.set_anchors_preset(Control.PRESET_CENTER)
+	# 내용이 늘어도 중앙을 기준으로 위아래 양쪽으로 자라게 한다(한쪽으로만 자라면 화면 밖으로 밀린다).
+	_pause_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_pause_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_pause_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.09, 0.13, 0.97), Color(0.5, 0.6, 0.8), 22, 3))
 	_pause_panel.visible = false
 	add_child(_pause_panel)
@@ -1170,10 +1193,20 @@ func _build_pause_menu() -> void:
 		margin.add_theme_constant_override("margin_" + m, 26)
 	_pause_panel.add_child(margin)
 
+	# CHEATS 를 펼치면 버튼이 6개 더 붙어 패널이 화면 높이에 육박한다. 스크롤이 없으면
+	# 그 순간 아래쪽이 잘려 손댈 수가 없으므로, 내용을 스크롤 영역에 담는다.
+	# (높이는 _fit_pause_scroll() 이 "내용 높이 vs 화면 여유" 중 작은 쪽으로 맞춘다)
+	_pause_scroll = ScrollContainer.new()
+	_pause_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_pause_scroll.scroll_deadzone = 24   # 터치 드래그가 버튼 클릭에 먹히지 않게
+	margin.add_child(_pause_scroll)
+
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 14)
 	vb.custom_minimum_size = Vector2(300, 0)
-	margin.add_child(vb)
+	vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_pause_scroll.add_child(vb)
+	_pause_vb = vb
 
 	var title := Label.new()
 	title.text = Locale.t("pause_title")
@@ -1218,14 +1251,18 @@ func _build_pause_menu() -> void:
 	_cheat_box.add_theme_constant_override("separation", 8)
 	_cheat_box.visible = false
 	vb.add_child(_cheat_box)
-	cheats.pressed.connect(func(): _cheat_box.visible = not _cheat_box.visible)
+	cheats.pressed.connect(func():
+		_cheat_box.visible = not _cheat_box.visible
+		call_deferred("_fit_pause_scroll"))   # 펼침/접힘 후 바뀐 높이로 다시 맞춘다
 
 	_cheat_auto_btn = _make_cheat_button("AUTO-PLAY: OFF", _on_cheat_autoplay)
 	_make_cheat_button("TIME +5 MIN", func(): Cheats.time_skip.emit(300.0))
 	_make_cheat_button("SPAWN TO CAP", func(): Cheats.spawn_fill.emit())
 	_make_cheat_button("GOLD +500", func(): Events.add_gold(500))
 	_make_cheat_button("LEVEL UP +1", func(): Events.bonus_level())
+	_cheat_perf_btn = _make_cheat_button("PERF HUD: OFF", func(): Cheats.toggle_perf_overlay())
 	Cheats.changed.connect(_refresh_cheat_ui)
+	_refresh_cheat_ui()   # 씬 재진입 시 이미 켜져 있던 토글이 라벨에 반영되도록 초기 1회 갱신
 
 	# 자동플레이 동작 중 표시 — 일시정지 버튼 아래 작은 태그.
 	_auto_tag = Label.new()
@@ -1240,6 +1277,28 @@ func _build_pause_menu() -> void:
 	_auto_tag.add_theme_color_override("font_color", Color(0.55, 1.0, 0.6))
 	_auto_tag.visible = false
 	add_child(_auto_tag)
+
+	call_deferred("_fit_pause_scroll")   # 레이아웃이 확정된 다음 프레임에 1회
+
+
+## 일시정지 패널 높이 맞추기 — 내용이 다 들어가면 그 높이로 딱 맞추고(스크롤 불필요),
+## 화면 여유를 넘으면 거기서 잘라 스크롤로 넘긴다. 세로가 짧은 화면이나 CHEATS 를 펼친
+## 상태에서 아래쪽 버튼이 화면 밖으로 나가 손댈 수 없던 문제를 막는다.
+func _fit_pause_scroll() -> void:
+	if _pause_scroll == null or _pause_vb == null:
+		return
+	var want := _pause_vb.get_combined_minimum_size().y
+	# 패널 여백(마진 26x2 + 프레임 콘텐츠 18x2)과 화면 위아래 숨통을 뺀 값이 실제 여유.
+	var room := get_viewport().get_visible_rect().size.y - 88.0 - 80.0
+	_pause_scroll.custom_minimum_size.y = minf(want, maxf(room, 200.0))
+
+
+## 성능 디버그 오버레이(좌상단). 기본은 숨김이며 CHEATS > PERF HUD 로 켠다.
+## 씬을 다시 들어와도 Cheats 의 토글 상태를 그대로 따른다.
+func _build_perf_overlay() -> void:
+	_perf_overlay = _PerfOverlay.new()
+	add_child(_perf_overlay)
+	_perf_overlay.visible = Cheats.perf_overlay
 
 
 func _make_cheat_button(text: String, on_pressed: Callable) -> Button:
@@ -1262,6 +1321,10 @@ func _refresh_cheat_ui() -> void:
 		_cheat_auto_btn.text = "AUTO-PLAY: ON" if Cheats.autoplay else "AUTO-PLAY: OFF"
 	if _auto_tag:
 		_auto_tag.visible = Cheats.autoplay
+	if _cheat_perf_btn:
+		_cheat_perf_btn.text = "PERF HUD: ON" if Cheats.perf_overlay else "PERF HUD: OFF"
+	if _perf_overlay:
+		_perf_overlay.visible = Cheats.perf_overlay
 
 
 func _on_pause_pressed() -> void:
@@ -1274,6 +1337,7 @@ func _on_pause_pressed() -> void:
 	get_tree().paused = true
 	_pause_dim.visible = true
 	_pause_panel.visible = true
+	call_deferred("_fit_pause_scroll")   # 열 때마다 현재 화면 크기에 맞춰 재계산
 	if _pause_btn:
 		_pause_btn.visible = false
 

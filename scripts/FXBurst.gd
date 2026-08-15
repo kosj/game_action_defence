@@ -23,6 +23,14 @@ static func reset_pool() -> void:
 	_spawned_this_frame = 0
 
 
+## 현재 동시 활성 수 / 상한 — 성능 디버그 오버레이(PerfOverlay)가 읽는다.
+static func debug_active() -> int:
+	return _active_count
+
+static func debug_cap() -> int:
+	return MAX_ACTIVE
+
+
 var color: Color = Color(1.0, 0.7, 0.2)
 var max_radius: float = 32.0
 var duration: float = 0.35

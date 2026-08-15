@@ -19,6 +19,14 @@ static func reset_pool() -> void:
 	_spawned = 0
 
 
+## 현재 동시 활성 수 / 상한 — 성능 디버그 오버레이(PerfOverlay)가 읽는다.
+static func debug_active() -> int:
+	return _active
+
+static func debug_cap() -> int:
+	return MAX_ACTIVE
+
+
 var _t: float = 0.0
 var _dur: float = 0.3
 var _bscale: float = 1.0     # 표시 크기 기준 스케일(size_px / 텍스처폭)
@@ -76,5 +84,10 @@ func _process(delta: float) -> void:
 func _recycle() -> void:
 	_flag = false
 	visible = false
-	_active -= 1
+	# reset_pool() 이 _active 를 0 으로 되돌린 뒤 잔존 노드가 반납되면 음수가 되어 상한이 풀린다.
+	_active = maxi(0, _active - 1)
+	# 트리에서 떼어낸다 — 붙여둔 채로는 비활성 노드의 _process 가 계속 호출되고
+	# 씬 자식 목록(및 y_sort 정렬 대상)에도 남는다(FXBurst/DamageNumber 와 동일한 처리).
+	if get_parent() != null:
+		get_parent().remove_child(self)
 	_pool.append(self)

@@ -276,8 +276,14 @@ func live_zombies() -> Array:
 # 총알마다 전체 좀비를 훑으면 O(총알×좀비)라 대량 난전에서 급격히 느려진다. 물리 프레임당
 # 1회만 격자에 담아두고, 근접 판정은 주변 3×3 셀만 보게 해 O(총알×이웃)로 낮춘다.
 const _ZG_CELL := 64.0
+const _ZG_GC_FRAMES := 600   # 빈 셀 키 정리 주기(60fps 기준 10초) — 맵을 돌아다니면 키가 계속 쌓인다
 var _zg_frame: int = -1
-var _zg: Dictionary = {}
+var _zg: Dictionary = {}     # Vector2i -> Array[Node2D]. 셀 배열 객체는 프레임 간 재사용한다.
+# 질의 결과용 재사용 버퍼. 호출부는 즉시 순회하고 보관하지 않는다는 전제이며,
+# 같은 함수를 순회 도중 다시 호출하면 안 된다(버퍼가 덮인다). 총알 순회 중 스플래시가
+# 겹치는 실제 사례가 있어 near/radius 는 서로 다른 버퍼를 쓴다.
+var _near_buf: Array = []
+var _radius_buf: Array = []
 
 
 func _ensure_zgrid() -> void:
@@ -285,7 +291,10 @@ func _ensure_zgrid() -> void:
 	if f == _zg_frame:
 		return
 	_zg_frame = f
-	_zg.clear()
+	# 셀 배열을 통째로 버리지 않고 비워서 재사용한다. _zg.clear() 로 매 프레임 점유 셀 수만큼
+	# (좀비 300+ 에서 150~300개) 새 Array 를 만드는 것이 이 시스템의 최대 상시 할당원이었다.
+	for key in _zg:
+		(_zg[key] as Array).clear()
 	for z in live_zombies():
 		if not is_instance_valid(z) or not z.is_in_group("zombies"):
 			continue
@@ -296,21 +305,63 @@ func _ensure_zgrid() -> void:
 			_zg[key] = [z]
 		else:
 			arr.append(z)
+	# 빈 셀을 계속 들고 있으면 위 clear 루프와 딕셔너리가 무한히 커진다 — 주기적으로 회수.
+	if f % _ZG_GC_FRAMES == 0:
+		var dead: Array = []
+		for key in _zg:
+			if (_zg[key] as Array).is_empty():
+				dead.append(key)
+		for key in dead:
+			_zg.erase(key)
 
 
 ## pos 주변(3×3 셀 ≈ ±96px)에 있는 좀비 후보만 반환. 정밀 거리 판정은 호출부가 수행한다.
 ## 셀(64px)이 최대 판정 반경(보스 38+총알 반경)보다 커서 3×3 스캔이면 누락 없이 커버된다.
+## 반환값은 공유 버퍼다 — 즉시 순회용이며, 다음 zombies_near() 호출 시 내용이 덮인다.
 func zombies_near(pos: Vector2) -> Array:
 	_ensure_zgrid()
 	var cx := int(floor(pos.x / _ZG_CELL))
 	var cy := int(floor(pos.y / _ZG_CELL))
-	var out: Array = []
+	_near_buf.clear()
 	for ox in range(-1, 2):
 		for oy in range(-1, 2):
 			var arr: Variant = _zg.get(Vector2i(cx + ox, cy + oy))
-			if arr != null:
-				out.append_array(arr)
-	return out
+			if arr != null and not (arr as Array).is_empty():
+				_near_buf.append_array(arr)
+	return _near_buf
+
+
+## pos 반경 r 안의 살아있는 좀비를 반환(거리 판정까지 포함). 오라·폭발·터렛 조준처럼 반경이
+## 셀(64px)보다 큰 광역 질의용 — 전체 좀비를 훑는 대신 필요한 셀 범위만 순회한다.
+## 반환값은 공유 버퍼다 — 즉시 순회용이며, 다음 zombies_in_radius() 호출 시 내용이 덮인다.
+## (풀 반납된 좀비는 인스턴스가 유효한 채 그룹만 빠지므로 호출부의 is_in_group 확인은 계속 필요하다)
+func zombies_in_radius(pos: Vector2, r: float) -> Array:
+	_ensure_zgrid()
+	_radius_buf.clear()
+	var r_sq := r * r
+	var span := int(ceil(r / _ZG_CELL))
+	# 반경이 아주 크면 셀 순회(25×25 이상)가 전수 스캔보다 비싸다 — 훑는 대상만 스냅샷으로 바꾸고
+	# 거리 필터는 그대로 적용한다(어느 경로로 오든 "반경 안"이라는 반환 계약은 동일해야 한다).
+	if span >= 12:
+		for z in live_zombies():
+			if not is_instance_valid(z):
+				continue
+			if pos.distance_squared_to(z.global_position) <= r_sq:
+				_radius_buf.append(z)
+		return _radius_buf
+	var cx := int(floor(pos.x / _ZG_CELL))
+	var cy := int(floor(pos.y / _ZG_CELL))
+	for ox in range(-span, span + 1):
+		for oy in range(-span, span + 1):
+			var arr: Variant = _zg.get(Vector2i(cx + ox, cy + oy))
+			if arr == null:
+				continue
+			for z in arr:
+				if not is_instance_valid(z):
+					continue
+				if pos.distance_squared_to(z.global_position) <= r_sq:
+					_radius_buf.append(z)
+	return _radius_buf
 
 
 ## 화면 흔들림 요청 — 타격감이 필요한 순간(플레이어 피격·보스 사망·폭발 등)에 호출한다.

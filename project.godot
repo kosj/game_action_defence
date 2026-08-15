@@ -10,6 +10,12 @@ config/name="Zombie Buster"
 run/main_scene="res://scenes/TitleScreen.tscn"
 config/features=PackedStringArray("4.1", "GL Compatibility")
 
+; 프레임 상한 60. 물리가 60Hz 이고 이 엔진 설정에는 2D 물리 보간이 없어, 좀비·총알·플레이어의
+; 위치는 초당 60번만 갱신된다 — 그보다 빨리 렌더해도 같은 그림을 다시 그릴 뿐이라 얻는 게 없다.
+; 120Hz 단말에서 발열·배터리만 쓰고 프레임 페이싱도 불규칙해지므로 상한을 명시한다.
+; (0 = 무제한. vsync 는 기본값 유지 — 표시 주사율이 60 미만이면 그쪽이 먼저 걸린다)
+run/max_fps=60
+
 ; 최초 구동 시 고도 엔진 로고(부팅 스플래시) 이미지를 숨긴다 — 배경색만 잠깐 보이고 바로 게임으로.
 boot_splash/show_image=false
 boot_splash/bg_color=Color(0, 0, 0, 1)
@@ -69,6 +75,28 @@ rendering/text_driver="ICU / HarfBuzz / FreeType"
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
+
+[physics]
+
+; 프레임이 늦어졌을 때 물리를 몰아서 여러 번 돌리면(기본 8회) 저사양 웹에서 "따라잡기 →
+; 더 느려짐"의 악순환(death spiral)에 빠진다. 4회로 제한해 그 경우 물리를 늦추는 쪽을 택한다.
+; 주의: physics_ticks_per_second 는 60 을 유지한다 — 좀비·총알·플레이어가 모두
+; _physics_process 에서 이동하고 이 엔진 설정에는 2D 물리 보간이 없어, 30 으로 낮추면
+; 연산은 절반이 되지만 화면 움직임도 30fps 로 보인다(실측 후 판단할 항목).
+common/max_physics_steps_per_frame=4
+
+[importer_defaults]
+
+; 텍스처 기본 임포트 설정 — 웹 pck 는 전량 다운로드해야 첫 프레임이 뜨므로 텍스처 용량이
+; 곧 초기 로딩 시간이다. 무손실(기본값 0) 대신 손실 압축(1=Lossy/WebP)을 기본으로 쓴다.
+; .import 파일은 .gitignore 대상이라 CI 가 매 빌드 재생성하는데, 그때 이 기본값이 적용된다.
+; lossy_quality 는 기본 0.7 보다 훨씬 높은 0.95 — 실측상 0.85 대비 용량은 0.6MB 늘지만
+; 평균 오차가 줄어(MAE 1.55→1.05 / 255) 아이콘·스프라이트 경계 아티팩트 위험이 낮아진다.
+; 나인패치로 늘려 쓰는 assets/ui/frames·hud 텍스처는 예외로 무손실(.import 를 저장소에 고정).
+texture={
+"compress/mode": 1,
+"compress/lossy_quality": 0.95
+}
 
 [layer_names]
 
