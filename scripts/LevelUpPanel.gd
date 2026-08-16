@@ -17,6 +17,7 @@ var _evo_queued: int = 0        # 패널이 떠 있는 동안 들어온 진화 �
 var _auto_t: float = 0.0        # 자동플레이 치트 — 카드가 뜬 뒤 이 시간이 지나면 무작위 선택
 var _stuck_t: float = 0.0       # 카드 없는 패널이 떠 있는 시간(안전망 — 강제 진행/닫기)
 var _fw_holder: Control = null  # 축하 폭죽 홀더(패널 뒤)
+var _fw_tw: Tween = null        # 폭죽 발사 예약 트윈 — 패널을 닫을 때 끊는다
 
 
 ## 자동플레이 치트: 패널이 떠 있으면 잠시 보여준 뒤 카드를 무작위로 골라준다(진화 선택 포함).
@@ -126,7 +127,8 @@ func _present() -> void:
 	if SoundManager.has_stream("level_up"):
 		SoundManager.play_ui("level_up", 0.03, 1.0)   # 레벨업 징글(파일 있을 때만)
 	# 레벨업 축하 폭죽 — 패널 주변 화면 전역에 금빛/청색 폭죽을 쏟아붓는다.
-	FireworksFX.celebrate(_fw_holder, Rect2(70, 190, 580, 760),
+	_stop_fireworks()   # 직전 레벨업의 잔여 폭죽을 먼저 비운다
+	_fw_tw = FireworksFX.celebrate(_fw_holder, Rect2(70, 190, 580, 760),
 		[Color(1.0, 0.85, 0.35), Color(0.5, 0.8, 1.0), Color(1.0, 1.0, 0.9)], 40)
 	_refresh()
 	_panel.scale = Vector2(0.85, 0.85)
@@ -351,9 +353,24 @@ func _advance_or_close() -> void:
 	_evo_rules = []
 	_showing = false
 	visible = false
+	_stop_fireworks()   # 숨겨진 파티클은 스스로 끝나지 못한다 — 닫을 때 확실히 비운다
 	Events.pause_pop(self)
+
+
+## 폭죽 정리 — 남은 발사 예약을 끊고 살아있는 파티클을 즉시 제거한다.
+## CPUParticles2D 는 숨겨지면 시뮬레이션이 멈춰 finished 를 영영 emit 하지 않는다.
+## 여기서 확실히 지우지 않으면 레벨업마다 수십 개가 홀더에 쌓이고, 다음에 패널이 열리는
+## 순간 전부 한꺼번에 되살아나 프레임이 무너진다(고레벨 프리즈의 직접 원인이었다).
+func _stop_fireworks() -> void:
+	if _fw_tw != null and _fw_tw.is_valid():
+		_fw_tw.kill()
+	_fw_tw = null
+	if _fw_holder != null:
+		for c in _fw_holder.get_children():
+			c.queue_free()
 
 
 ## 씬 전환 등으로 패널이 뜬 채 사라질 때 — 정지가 영구히 남지 않게 소유권을 반납한다.
 func _exit_tree() -> void:
+	_stop_fireworks()
 	Events.pause_pop(self)

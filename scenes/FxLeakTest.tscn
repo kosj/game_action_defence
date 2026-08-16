@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cfxlktst0001"]
+
+[ext_resource type="Script" path="res://scenes/FxLeakTest.gd" id="1_fxlk"]
+
+[node name="FxLeakTest" type="Node"]
+script = ExtResource("1_fxlk")
