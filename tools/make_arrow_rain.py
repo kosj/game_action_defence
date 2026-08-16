@@ -8,17 +8,17 @@ AI 생성기는 "화살이 쏟아진다"를 자꾸 단발 사건으로 해석하
 두 가지 모드:
   합성(기본)  화살 한 발을 절차적으로 합성해 사용한다. 나무 타격 대역(200~800Hz)이
               지배적이라 '나무 화살이 땅에 꽂히는' 소리로 뽑힌다.
-  녹음 사용    잘 뽑힌 화살 1발 WAV 가 있으면 그것을 재료로 쓴다(--src one_arrow.wav).
+  녹음 사용    잘 뽑힌 화살 1발이 있으면 그것을 재료로 쓴다(--src one_arrow.mp4).
+               형식은 아무거나 된다 — 앞 무음 제거와 정규화는 자동으로 한다.
 
 사용:
   python3 tools/make_arrow_rain.py                       # 합성 → assets/audio/sfx_ult_arrow.ogg
-  python3 tools/make_arrow_rain.py --src one_arrow.wav   # 실제 녹음 1발로 합성
+  python3 tools/make_arrow_rain.py --src one_arrow.mp4   # 실제 녹음 1발로 합성
   python3 tools/make_arrow_rain.py --count 60 --length 4.0 --out /tmp/rain.ogg
 """
 import argparse
 import subprocess
 import sys
-import wave
 from pathlib import Path
 
 import numpy as np
@@ -103,13 +103,22 @@ def synth_arrow(rng: np.random.Generator) -> np.ndarray:
     return arrow / max(float(np.abs(arrow).max()), 1e-9)
 
 
-def read_wav_mono(path: Path) -> np.ndarray:
-    with wave.open(str(path), "rb") as w:
-        if w.getsampwidth() != 2:
-            sys.exit(f"16-bit PCM WAV만 지원합니다 (입력: {w.getsampwidth() * 8}-bit)")
-        ch, n = w.getnchannels(), w.getnframes()
-        raw = np.frombuffer(w.readframes(n), dtype="<i2").astype(np.float64) / 32768.0
-    return raw.reshape(-1, ch).mean(axis=1) if ch > 1 else raw
+def load_mono(path: Path) -> np.ndarray:
+    """어떤 형식이든(mp4/wav/mp3/ogg) 48kHz 모노로 읽는다 — 생성기 출력은 보통 mp4 다.
+
+    앞의 무음을 잘라내고 진폭을 정규화해서 돌려준다. 재료 한 발의 시작이 늦으면 겹칠 때
+    타이밍이 전부 밀린다.
+    """
+    if not path.exists():
+        sys.exit(f"원본을 찾을 수 없다: {path}")
+    out = subprocess.run(
+        [FFMPEG, "-v", "error", "-i", str(path), "-f", "f32le", "-ac", "1", "-ar", str(SR), "-"],
+        capture_output=True, check=True).stdout
+    x = np.frombuffer(out, dtype=np.float32).astype(np.float64)
+    loud = np.where(np.abs(x) > 10.0 ** (-50.0 / 20.0))[0]
+    if len(loud):
+        x = x[max(0, loud[0] - int(0.003 * SR)):]
+    return x / max(float(np.abs(x).max()), 1e-9)
 
 
 def resample(x: np.ndarray, ratio: float) -> np.ndarray:
@@ -187,7 +196,7 @@ def encode(x: np.ndarray, path: Path) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="화살비 사운드 합성")
-    ap.add_argument("--src", type=Path, help="화살 1발 WAV(없으면 절차적 합성)")
+    ap.add_argument("--src", type=Path, help="화살 1발 오디오(mp4/wav/mp3 — 없으면 절차적 합성)")
     # 70 발은 너무 촘촘해 타격의 여운이 서로 메워지면서 벌떼처럼 웅웅거렸다. 44~70 을
     # 비교해 48 발로 낮췄다 — 타격 12회/초로 여전히 빽빽하면서, 피크-바닥이 29.9dB 로
     # 개별 화살이 또렷하다(파리떼 17.0dB, 유리 깨짐 29.3dB 와 비교한 값).
@@ -198,7 +207,7 @@ def main() -> None:
 
     rng = np.random.default_rng(SEED)
     if args.src:
-        sample = read_wav_mono(args.src)
+        sample = load_mono(args.src)
         arrow_of = lambda _r: sample
         mode = f"녹음({args.src.name})"
     else:
