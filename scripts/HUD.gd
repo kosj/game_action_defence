@@ -156,6 +156,7 @@ func _ready() -> void:
 	Events.boss_health_changed.connect(_on_boss_health_changed)
 	Events.boss_died.connect(_on_boss_died)
 	Events.swarm_incoming.connect(_on_swarm_incoming)
+	Events.weather_changed.connect(_on_weather_changed)
 	Events.xp_changed.connect(_on_xp_changed)
 	Events.inventory_changed.connect(_on_inventory_changed)
 	Events.game_won.connect(_on_game_won)
@@ -311,6 +312,13 @@ func _on_swarm_incoming(elite: bool) -> void:
 	_swarm_tween.parallel().tween_property(_swarm_banner, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_swarm_tween.tween_interval(0.7)
 	_swarm_tween.tween_property(_swarm_banner, "modulate:a", 0.0, 0.4)
+
+
+## 날씨 전환 알림 — 상시 위젯을 두지 않고(시간 표시 과밀 방지) 바뀌는 순간만 짧게 띄운다.
+## key == "" 는 '맑아짐'.
+func _on_weather_changed(key: String) -> void:
+	var col := Color(0.72, 0.86, 1.0) if key != "" else Color(0.85, 0.88, 0.92)
+	_show_toast(Locale.t("weather_clear" if key == "" else "weather_" + key), col, 215.0)
 
 
 ## 도전과제 달성 토스트 — 화면 상단 중앙에 잠깐 떴다 사라진다(코드로 즉석 생성).
