@@ -82,8 +82,9 @@ func _fire(lvl: int) -> void:
 		b.is_crit = is_crit
 		b.scale = Vector2.ONE * _data.proj_scale
 		b.trail_color = _data.color
-		if _data.proj_style != "":
-			b.style = _data.proj_style   # 무기 고유 모양(톱날 등)이 캐릭터 기본 모양을 덮는다
+		# 모양은 캐릭터를 따르고(헌터=볼트, 엔지니어=못), 무기가 고유 모양을 가진 경우에만
+		# 그쪽이 이긴다(톱날). 색은 무기 색이므로 무기 구분은 그대로 남는다.
+		b.style = _data.proj_style if _data.proj_style != "" else _style()
 		b.spin = _data.proj_spin
 		b.homing = _data.proj_homing
 		b.homing_arc = _data.proj_homing_arc
@@ -101,6 +102,13 @@ func _facing() -> float:
 	if _player != null and _player.has_method("aim_facing"):
 		return _player.aim_facing()
 	return 1.0
+
+
+## 쏘는 캐릭터의 기본 탄 모양(예광탄/볼트/못).
+func _style() -> String:
+	if _player != null and _player.has_method("projectile_style"):
+		return _player.projectile_style()
+	return "bullet"
 
 
 ## 그림 속 총구 위치 — 캐릭터마다 무기를 뻗은 지점이 달라 Player 가 알려준다.
