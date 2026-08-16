@@ -28,6 +28,9 @@ extends Resource
 ## "blade" = 회전하는 톱날(관통 무기용). Bullet._draw 의 style 과 같은 값.
 @export var proj_style: String = ""
 @export var proj_spin: float = 0.0        # 탄 자전 각속도(rad/s). 0이면 진행 방향으로 고정.
+## 유도 선회 속도(rad/s). 0이면 직진. 진행 방향 기준 전방 호(Bullet.HOMING_ARC) 안에 적이
+## 있을 때만 그쪽으로 휘어진다 — 뒤나 옆의 적을 쫓아 되돌아오지는 않는다.
+@export var proj_homing: float = 0.0
 @export_group("Area Module")
 @export var area_radius: float = 80.0     # 콘 길이(화염방사기) / 장판·폭발 반경
 @export var area_duration: float = 0.0    # 장판 지속(초) / 지뢰 최대 수명

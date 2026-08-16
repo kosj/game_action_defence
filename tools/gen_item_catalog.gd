@@ -21,13 +21,13 @@ func _w(id: String, disp: String, desc: String, color: Color, max_level: int, ev
 ## 데이터 구동 발사체 무기(ProjectileWeapon 모듈). params = [fire_interval, pellets, spread,
 ## pierce, knockback, proj_speed, proj_damage, dmg_per_level, proj_scale]
 func _wm(id: String, disp: String, desc: String, color: Color, params: Array,
-		style: String = "", spin: float = 0.0) -> WeaponData:
+		style: String = "", spin: float = 0.0, homing: float = 0.0) -> WeaponData:
 	var w := _w(id, disp, desc, color, 8, false)
 	w.module = "projectile"
 	w.fire_interval = params[0]; w.pellets = params[1]; w.spread = params[2]
 	w.pierce = params[3]; w.knockback = params[4]; w.proj_speed = params[5]
 	w.proj_damage = params[6]; w.dmg_per_level = params[7]; w.proj_scale = params[8]
-	w.proj_style = style; w.proj_spin = spin
+	w.proj_style = style; w.proj_spin = spin; w.proj_homing = homing
 	return w
 
 
@@ -83,7 +83,7 @@ func _initialize() -> void:
 		# 못배트(melee_arc)는 제거됨 — 근접 원호가 캐릭터 좌우 플립과 어긋나 등 뒤를 후려쳐서,
 		# 전방으로 날아가는 회전 관통 톱날로 교체했다. 전용 모듈 없이 projectile + 모양만 지정.
 		_wm("sawblade", "Buzz Blade", "Spinning blade that cuts through a line of foes",
-			Color(0.90, 0.75, 0.35), [1.00, 1, 0.00, 3, 150.0, 430.0, 4, 2, 1.35], "blade", 14.0),
+			Color(0.90, 0.75, 0.35), [1.00, 1, 0.00, 3, 150.0, 430.0, 4, 2, 1.35], "blade", 14.0, 3.4),
 		_wa("chainsaw",   "Chainsaw",   "Point-blank grinder",           Color(0.85, 0.88, 0.95), "chainsaw",  [0.16, 1, 1, 78.0,  0.0, 0.85, 40.0]),
 		# 설치물 무기(Phase 2-C 배치 4) — 터렛(설치 자동사격) / 드론(추종 자동사격) / 테슬라(연쇄 번개).
 		_wa("turret", "Turret", "Deploys auto-firing sentries", Color(0.60, 0.75, 0.95), "turret", [3.00, 2, 1, 300.0, 6.0, 0.0, 0.0]),
