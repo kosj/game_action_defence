@@ -16,10 +16,19 @@ const BOMB_DAMAGE := 40           # 폭탄: 화면 내 잡몹 일소(보스 제�
 const CHEST_GOLD_MIN := 12        # 보물상자 골드 획득 범위
 const CHEST_GOLD_MAX := 55
 
+# 상자 아트 — 있으면 스프라이트로, 없으면 아래 절차 드로잉으로 그린다.
+# (Pool.acquire 가 kind 를 지정하기 "전에" on_spawn 을 부르므로 미리 정할 수 없어
+#  그리는 시점에 kind 를 보고 한 번만 로드해 캐시한다.)
+const CHEST_TEX_PATH := "res://assets/sprites/props/chest_treasure.png"
+const EVOCHEST_TEX_PATH := "res://assets/sprites/props/chest_evolution.png"
+const CHEST_DRAW_PX := 46.0   # 화면에 그릴 긴 변 크기
+
 var kind: String = "chest"   # "chest" | "bomb" — 스포너가 스폰 시 지정
 var player: Node2D = null
 var _alive: bool = false
 var _t: float = 0.0
+var _tex: Texture2D = null
+var _tex_kind: String = ""   # _tex 를 어느 kind 로 캐시했는지
 
 
 func _icon_color() -> Color:
@@ -131,10 +140,45 @@ func _draw() -> void:
 	draw_string(font, center + Vector2(-60.0, -34.0), _label(), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 14, Color(1.0, 1.0, 1.0, alpha))
 
 
+## 종류에 맞는 상자 텍스처(없으면 null). 파일이 없으면 절차 드로잉으로 폴백하므로
+## 에셋이 아직 안 들어와도 게임은 그대로 돌아간다.
+func _chest_texture() -> Texture2D:
+	if _tex_kind == kind:
+		return _tex
+	_tex_kind = kind
+	_tex = null
+	var path := EVOCHEST_TEX_PATH if kind == "evochest" else CHEST_TEX_PATH
+	if ResourceLoader.exists(path):
+		var r = load(path)
+		if r is Texture2D:
+			_tex = r
+	return _tex
+
+
 func _draw_chest(center: Vector2, alpha: float) -> void:
 	var pulse := 1.0 + sin(_t * 4.0) * 0.05
 	var band := _icon_color()   # 보물=금색 / 진화=보라
-	draw_circle(center, 20.0 * pulse, Color(band.r, band.g, band.b, 0.22 * alpha))   # 후광
+	var tex := _chest_texture()
+	if tex:
+		# 스프라이트(긴 변 46px)는 절차 드로잉(폭 30px)보다 커서 반경 20 짜리 후광이
+		# 상자 뒤에 완전히 가린다. 반경을 키우되 단색 원판이 되지 않도록 여러 겹으로
+		# 쌓아 바깥으로 갈수록 옅어지게 한다.
+		for i in 5:
+			var f := float(i) / 5.0
+			draw_circle(center, (33.0 - 13.0 * f) * pulse,
+				Color(band.r, band.g, band.b, 0.05 * alpha))
+	else:
+		draw_circle(center, 20.0 * pulse, Color(band.r, band.g, band.b, 0.22 * alpha))
+
+	if tex:
+		# 비율을 유지한 채 긴 변을 CHEST_DRAW_PX 에 맞추고, 후광과 같은 맥동을 준다.
+		var ts := Vector2(tex.get_size())
+		var longest := maxf(ts.x, ts.y)
+		if longest > 0.0:
+			var dst := ts * (CHEST_DRAW_PX * pulse / longest)
+			draw_texture_rect(tex, Rect2(center - dst * 0.5, dst), false, Color(1, 1, 1, alpha))
+			return
+
 	var gold := Color(band.r, band.g, band.b, alpha)
 	var wood := Color(0.5, 0.32, 0.15, alpha)
 	var wood_d := Color(0.38, 0.24, 0.11, alpha)
