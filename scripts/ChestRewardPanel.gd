@@ -418,7 +418,10 @@ func _reveal() -> void:
 	for i in n:
 		var card := PanelContainer.new()
 		card.custom_minimum_size = Vector2(cw, ch)
-		card.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 1.0), col, 14, 3))
+		# 콘텐츠 여백 18 → 10: 카드가 128px 밖에 안 돼 기본 여백으로는 글자 자리가 92px 만
+		# 남는데, 아이템 이름 중 "Thunderstorm"(94.5px)·"Flamethrower"(92.4px) 가 그보다 넓어
+		# 카드 밖으로 삐져나왔다. 여백을 줄여 안쪽을 108px 로 넓힌다.
+		card.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 1.0), col, 14, 3, 10))
 		card.pivot_offset = Vector2(cw * 0.5, ch * 0.5)
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.clip_contents = true   # 긴 보상 텍스트가 카드 밖으로 흘러넘치지 않게

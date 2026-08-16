@@ -65,11 +65,16 @@ static func hud_top_bar_box() -> StyleBoxTexture:
 
 ## 텍스처 나인패치 패널. bg/border/radius/border_w 인자는 하위 호환용으로 유지하되
 ## 프레임 아트가 시각을 담당하므로 무시된다(콘텐츠 여백만 프레임 안쪽으로 잡는다).
-static func panel(_bg: Color, _border: Color, _radius: int = 18, _border_w: int = 3) -> StyleBoxTexture:
+##
+## content_margin: 기본 18 은 큰 패널 기준이다. 보상 카드처럼 폭이 128px 밖에 안 되는
+## 작은 패널에서는 좌우 36px 을 먹어 글자가 들어갈 자리가 92px 밖에 남지 않으므로,
+## 호출부가 줄일 수 있게 열어 둔다.
+static func panel(_bg: Color, _border: Color, _radius: int = 18, _border_w: int = 3,
+		content_margin: int = 18) -> StyleBoxTexture:
 	var sb := StyleBoxTexture.new()
 	sb.texture = _PANEL_FRAME_TEX
 	sb.set_texture_margin_all(_PANEL_FRAME_MARGIN)   # 코너는 원본 픽셀 크기로, 가운데는 늘어남
-	sb.set_content_margin_all(18)                    # 자식이 프레임 안쪽 어두운 영역에 앉도록
+	sb.set_content_margin_all(content_margin)        # 자식이 프레임 안쪽 어두운 영역에 앉도록
 	sb.draw_center = true
 	return sb
 

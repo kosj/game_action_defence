@@ -100,11 +100,14 @@ func _build() -> void:
 	ver.anchor_right = 1.0
 	ver.anchor_top = 1.0
 	ver.anchor_bottom = 1.0
-	ver.offset_left = -130.0
+	# 빌드 라벨은 "v1.0.0 · <sha> · <날짜 시각> UTC" 라 16pt 에서 295px 이다.
+	# 박스가 116px 이던 탓에 우측 정렬 글자가 화면 왼쪽으로 흘러나왔다 → 346px 로 넓힌다.
+	ver.offset_left = -360.0
 	ver.offset_top = -34.0
 	ver.offset_right = -14.0
 	ver.offset_bottom = -10.0
 	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	ver.clip_text = true   # 빌드 문자열이 더 길어져도 박스 밖으로 새지 않게
 	ver.add_theme_font_size_override("font_size", 16)
 	ver.add_theme_color_override("font_color", Color(0.6, 0.62, 0.68, 0.7))
 	ver.mouse_filter = Control.MOUSE_FILTER_IGNORE
