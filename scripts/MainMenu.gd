@@ -1517,4 +1517,5 @@ func _on_continue_pressed() -> void:
 	if data.is_empty():
 		return
 	SaveManager.apply_to_events(data)
+	Events.set_high_score(RankingManager.current_best())   # 새 게임과 동일한 신기록 기준점
 	SceneFade.transition_to("res://scenes/Main.tscn")
