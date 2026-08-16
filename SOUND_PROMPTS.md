@@ -91,38 +91,43 @@ battlefield texture
   a wooden roof,`로 바꿔 재시도 — "비/우박" 비유가 밀도를 가장 잘 끌어낸다.
 - 저음이 부족하면 `deep bow release thump at the start`를 덧붙여 재생성.
 
-### 현재 적용본 — 절차적 합성(`tools/make_arrow_rain.py`)
-AI 생성본은 밀도가 부족하면(초당 4.4회) **유리 깨지는 소리로 들린다** — 성긴 데다
-0.8~8kHz 의 밝은 타격만 남기 때문이다. 그래서 화살 한 발을 절차적으로 합성해
-48발을 겹치는 방식으로 교체했다. 대역·밀도를 직접 통제할 수 있는 게 핵심이다.
+### 현재 적용본 — 실제 녹음 + 레이어링(`tools/make_arrow_rain.py`)
+AI 에 "화살비" 전체를 시키면 밀도가 부족해 유리 깨지는 소리가 되고, 화살 한 발을
+**절차적으로 합성**해 겹치면 이번엔 벌떼처럼 웅웅거렸다(감쇠 정현파 몸통이 악기음처럼
+들린다). 결국 **화살 한 발만 실제로 생성**하고, 겹치는 일은 스크립트가 하는 방식이 맞았다.
+생성기는 단발은 잘 만들고, 밀도·길이·좌우 배치는 코드가 정확히 통제할 수 있다.
 
 ```bash
-python3 tools/make_arrow_rain.py                       # → assets/audio/sfx_ult_arrow.ogg
-python3 tools/make_arrow_rain.py --src one_arrow.wav   # 잘 뽑힌 녹음 1발이 있으면 그걸로
+python3 tools/make_arrow_rain.py --src arrow.mp4   # → assets/audio/sfx_ult_arrow.ogg
+python3 tools/make_arrow_rain.py                   # 소스 없이 절차적 합성(폴백)
 ```
 
-| | 기존(AI 생성) | 현재(합성) | 실제 유리 | 나무 배트 |
-|---|---|---|---|---|
-| 중심 주파수 | 2031Hz | **480Hz** | 5538Hz | 374Hz |
-| 200~800Hz(나무) | 35.6% | **60.0%** | 1.6% | 60.1% |
-| 3~8kHz(유리) | 22.6% | **3.9%** | 57.8% | 0.4% |
-| 타격 밀도 | 4.4회/초 | **12.0회/초** | — | — |
+한 파일에 테이크가 여러 개 들어있으면 **전부 찾아내 변주로 쓴다**(이번 소스는 5종).
+화살마다 꽂히는 소리가 달라져 같은 소리의 반복으로 들리지 않는다. 가장 큰 테이크보다
+12dB 이상 작은 조각은 잔향·잡음으로 보고 버린다.
 
-합성 화살 1발 = 짧은 비행음(3.2k→1.4kHz, 0.07초) + 나무 공명 3개(205/415/760Hz) +
-흙먼지. 어택 클릭은 3.2kHz 로우패스로 눌러 겹쳤을 때 챙그랑거리지 않게 했다.
-비행음과 공명의 여운은 짧아야 한다 — 길면 수십 발의 꼬리가 서로 메워져 화살비가
-아니라 벌떼가 웅웅거리는 소리가 된다(실제로 그렇게 들려 한 번 고쳤다).
-배치는 층화(구간을 발수만큼 나눠 한 칸에 하나) — 무작위로 뿌리면 뭉치고 비는
-구간이 생겨 "쉼 없이 쏟아진다"가 깨진다. 도입부 몇 발은 시작을 음수로 둬 발동
-즉시(온셋 0ms) 타격이 꽂힌다.
+**길이는 연출에 맞춘다** — 궁극기 지속은 3.0초(`area_duration`)다. 사운드가 더 길면
+화면에는 아무것도 없는데 화살만 계속 떨어져 어긋난다. 3.25초(3.0초 + 짧은 여운)로 맞췄다.
 
-### 플랜 C — 녹음 1발로 만들기
-AI 로 화살 **한 발**을 뽑는 건 잘 된다. 아래로 0.4초짜리를 뽑아 `--src` 로 넘기면
-같은 레이어링을 실제 녹음 재료로 쓸 수 있다:
+| | 값 | 비고 |
+|---|---|---|
+| 길이 | 3.25초 | 연출 3.0초 + 여운 |
+| 타격 밀도 | 9.8회/초 | 프롬프트 목표 8~10 |
+| 피크-바닥 | 28.7dB | 개별 화살이 또렷함(파리떼 17.0dB) |
+| 온셋 | 0ms | 발동 셰이크와 동기 |
+
+배치는 층화(구간을 발수만큼 나눠 한 칸에 하나) — 무작위로 뿌리면 뭉치고 비는 구간이
+생겨 "쉼 없이 쏟아진다"가 깨진다. 도입부 몇 발은 시작을 음수로 둬 발동 즉시 타격이 꽂힌다.
+
+### 화살 한 발 생성 프롬프트 (재생성이 필요할 때)
 ```
-single arrow flyby: one quick sharp whoosh cutting through air then a solid
-wooden thunk impact into the ground, short and dry, no reverb tail
+Single arrow shot into dirt: one quick sharp whoosh as the arrow cuts through
+air, then a deep solid thud as the arrowhead buries into packed earth, with a
+brief wooden shaft wobble and a little scattered soil, dry and close, no reverb,
+no echo. Realistic, clean 2D game sound effect, no music, no voice, no silence
+at the beginning.
 ```
+한 번에 여러 테이크가 나와도 좋다 — 많을수록 변주가 풍부해진다.
 
 ## 3) 엔지니어 — Orbital Barrage (`sfx_ult_orbital.ogg`)
 > 연출: 0.35초마다 자리를 옮기며 하늘에서 수직 광선 5기가 꽂힘(3초간 약 8세트).

@@ -8,8 +8,9 @@ AI 생성기는 "화살이 쏟아진다"를 자꾸 단발 사건으로 해석하
 두 가지 모드:
   합성(기본)  화살 한 발을 절차적으로 합성해 사용한다. 나무 타격 대역(200~800Hz)이
               지배적이라 '나무 화살이 땅에 꽂히는' 소리로 뽑힌다.
-  녹음 사용    잘 뽑힌 화살 1발이 있으면 그것을 재료로 쓴다(--src one_arrow.mp4).
-               형식은 아무거나 된다 — 앞 무음 제거와 정규화는 자동으로 한다.
+  녹음 사용    실제로 뽑은 화살 소리를 재료로 쓴다(--src arrow.mp4). 형식은 아무거나
+               되고, 한 파일에 테이크가 여러 개 들어있으면 전부 찾아내 변주로 쓴다 —
+               화살마다 꽂히는 소리가 달라져 같은 소리의 반복으로 들리지 않는다.
 
 사용:
   python3 tools/make_arrow_rain.py                       # 합성 → assets/audio/sfx_ult_arrow.ogg
@@ -103,11 +104,12 @@ def synth_arrow(rng: np.random.Generator) -> np.ndarray:
     return arrow / max(float(np.abs(arrow).max()), 1e-9)
 
 
-def load_mono(path: Path) -> np.ndarray:
-    """어떤 형식이든(mp4/wav/mp3/ogg) 48kHz 모노로 읽는다 — 생성기 출력은 보통 mp4 다.
+def load_variants(path: Path) -> list:
+    """원본에서 화살 소리를 하나씩 뽑아 목록으로 돌려준다(mp4/wav/mp3/ogg 모두 가능).
 
-    앞의 무음을 잘라내고 진폭을 정규화해서 돌려준다. 재료 한 발의 시작이 늦으면 겹칠 때
-    타이밍이 전부 밀린다.
+    생성기에 "화살 한 발"을 시켜도 보통 여러 테이크를 한 파일에 담아 준다. 그걸 전부
+    변주로 쓰면 같은 소리를 피치만 바꿔 반복하는 것보다 훨씬 자연스럽다 — 실제 화살비도
+    화살마다 꽂히는 소리가 다르다. 각 테이크는 어택이 0초에 오도록 잘라 정규화한다.
     """
     if not path.exists():
         sys.exit(f"원본을 찾을 수 없다: {path}")
@@ -115,10 +117,30 @@ def load_mono(path: Path) -> np.ndarray:
         [FFMPEG, "-v", "error", "-i", str(path), "-f", "f32le", "-ac", "1", "-ar", str(SR), "-"],
         capture_output=True, check=True).stdout
     x = np.frombuffer(out, dtype=np.float32).astype(np.float64)
-    loud = np.where(np.abs(x) > 10.0 ** (-50.0 / 20.0))[0]
-    if len(loud):
-        x = x[max(0, loud[0] - int(0.003 * SR)):]
-    return x / max(float(np.abs(x).max()), 1e-9)
+
+    step = SR // 200                                   # 5ms 격자로 소리가 있는 구간을 찾는다
+    e = np.array([np.sqrt(np.mean(x[i:i + step] ** 2)) for i in range(0, len(x) - step, step)])
+    on = 20 * np.log10(np.maximum(e, 1e-9)) > -32.0
+    variants, i = [], 0
+    while i < len(on):
+        if not on[i]:
+            i += 1
+            continue
+        j, gap = i, 0
+        while j < len(on) and gap <= 30:               # 150ms 이상 조용하면 다른 테이크
+            gap = 0 if on[j] else gap + 1
+            j += 1
+        seg = x[i * step:min(len(x), (j + 8) * step)]  # 꼬리 40ms 여유
+        peak = float(np.abs(seg).max())
+        if peak > 0.02 and len(seg) > step * 2:        # 너무 작거나 짧은 조각은 버린다
+            variants.append((peak, seg))
+        i = j
+    if not variants:
+        sys.exit(f"원본에서 화살 소리를 찾지 못했다: {path}")
+    # 가장 큰 테이크보다 12dB 이상 작은 조각은 화살이 아니라 잔향·잡음이다 — 정규화하면
+    # 오히려 도드라지므로 버린다.
+    loudest = max(p for p, _ in variants)
+    return [seg / p for p, seg in variants if p > loudest * 10.0 ** (-12.0 / 20.0)]
 
 
 def resample(x: np.ndarray, ratio: float) -> np.ndarray:
@@ -201,21 +223,23 @@ def main() -> None:
     # 비교해 48 발로 낮췄다 — 타격 12회/초로 여전히 빽빽하면서, 피크-바닥이 29.9dB 로
     # 개별 화살이 또렷하다(파리떼 17.0dB, 유리 깨짐 29.3dB 와 비교한 값).
     ap.add_argument("--count", type=int, default=48, help="화살 발수")
-    ap.add_argument("--length", type=float, default=4.0, help="전체 길이(초)")
+    # 궁극기 연출은 3.0초에 끝난다(area_duration). 사운드가 더 길면 화면에는 아무것도
+    # 없는데 화살만 계속 떨어져 어긋난다 — 3.0초 + 짧은 여운으로 맞춘다.
+    ap.add_argument("--length", type=float, default=3.25, help="전체 길이(초)")
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     args = ap.parse_args()
 
     rng = np.random.default_rng(SEED)
     if args.src:
-        sample = load_mono(args.src)
-        arrow_of = lambda _r: sample
-        mode = f"녹음({args.src.name})"
+        variants = load_variants(args.src)
+        arrow_of = lambda r: variants[r.integers(len(variants))]
+        mode = f"녹음({args.src.name}, 변주 {len(variants)}종)"
     else:
         arrow_of = synth_arrow
         mode = "절차적 합성"
 
     x = layer(arrow_of, args.count, args.length, rng)
-    fade = int(0.30 * SR)
+    fade = int(0.18 * SR)
     x[:, -fade:] *= np.linspace(1.0, 0.0, fade)
     x = normalize(x)
     encode(x, args.out)
