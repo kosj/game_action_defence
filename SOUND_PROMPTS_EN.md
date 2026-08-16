@@ -5,6 +5,8 @@ Every prompt below is **self-contained** — the shared style base is already me
 each one, so paste a single block as-is without assembling anything.
 
 Korean design notes and in-game context live in [`SOUND_PROMPTS.md`](SOUND_PROMPTS.md).
+When a sound is *wrong* rather than missing, start from [`SOUND_GUIDE.md`](SOUND_GUIDE.md) —
+symptom-to-cause diagnosis, overlap density, inaudible bass, and repeat-play rules.
 
 ## How to use
 
