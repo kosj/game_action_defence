@@ -104,12 +104,19 @@ def synth_arrow(rng: np.random.Generator) -> np.ndarray:
     return arrow / max(float(np.abs(arrow).max()), 1e-9)
 
 
+MAX_ARROW = 0.22        # 화살 한 발로 쓸 최대 길이(초) — 겹침 밀도를 좌우한다
+
+
 def load_variants(path: Path) -> list:
     """원본에서 화살 소리를 하나씩 뽑아 목록으로 돌려준다(mp4/wav/mp3/ogg 모두 가능).
 
     생성기에 "화살 한 발"을 시켜도 보통 여러 테이크를 한 파일에 담아 준다. 그걸 전부
     변주로 쓰면 같은 소리를 피치만 바꿔 반복하는 것보다 훨씬 자연스럽다 — 실제 화살비도
     화살마다 꽂히는 소리가 다르다. 각 테이크는 어택이 0초에 오도록 잘라 정규화한다.
+
+    **꼬리는 반드시 자른다.** 생성음 한 발은 잔향까지 0.4~0.6초씩 되는데, 그대로 48발을
+    3.25초에 뿌리면 언제나 여섯 발이 동시에 울려 개별 타격이 뭉개지고 잡음처럼 들린다
+    (실제로 그랬다). 0.22초로 자르면 동시 겹침이 3개로 떨어져 하나하나가 살아난다.
     """
     if not path.exists():
         sys.exit(f"원본을 찾을 수 없다: {path}")
@@ -130,9 +137,12 @@ def load_variants(path: Path) -> list:
         while j < len(on) and gap <= 30:               # 150ms 이상 조용하면 다른 테이크
             gap = 0 if on[j] else gap + 1
             j += 1
-        seg = x[i * step:min(len(x), (j + 8) * step)]  # 꼬리 40ms 여유
+        seg = x[i * step:min(len(x), (j + 8) * step)]
         peak = float(np.abs(seg).max())
         if peak > 0.02 and len(seg) > step * 2:        # 너무 작거나 짧은 조각은 버린다
+            seg = seg[:int(MAX_ARROW * SR)].copy()     # 잔향 꼬리를 잘라 겹침을 억제
+            tail = min(len(seg), int(0.06 * SR))
+            seg[-tail:] *= np.linspace(1.0, 0.0, tail)  # 자른 끝을 닫아 딸깍임 방지
             variants.append((peak, seg))
         i = j
     if not variants:
@@ -219,10 +229,10 @@ def encode(x: np.ndarray, path: Path) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description="화살비 사운드 합성")
     ap.add_argument("--src", type=Path, help="화살 1발 오디오(mp4/wav/mp3 — 없으면 절차적 합성)")
-    # 70 발은 너무 촘촘해 타격의 여운이 서로 메워지면서 벌떼처럼 웅웅거렸다. 44~70 을
-    # 비교해 48 발로 낮췄다 — 타격 12회/초로 여전히 빽빽하면서, 피크-바닥이 29.9dB 로
-    # 개별 화살이 또렷하다(파리떼 17.0dB, 유리 깨짐 29.3dB 와 비교한 값).
-    ap.add_argument("--count", type=int, default=48, help="화살 발수")
+    # 발수는 '동시에 몇 발이 울리는가'로 정한다 — 화살 길이(0.22초) x 발수 / 전체 길이.
+    # 3 개를 넘으면 타격이 서로 메워져 잡음 덩어리가 된다(48발=3.2개일 때 그랬다).
+    # 36 발이면 겹침 2.4 개, 타격은 여전히 10회/초라 빽빽하면서 하나하나가 들린다.
+    ap.add_argument("--count", type=int, default=36, help="화살 발수")
     # 궁극기 연출은 3.0초에 끝난다(area_duration). 사운드가 더 길면 화면에는 아무것도
     # 없는데 화살만 계속 떨어져 어긋난다 — 3.0초 + 짧은 여운으로 맞춘다.
     ap.add_argument("--length", type=float, default=3.25, help="전체 길이(초)")
