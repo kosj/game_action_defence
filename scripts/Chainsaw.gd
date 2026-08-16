@@ -6,7 +6,11 @@ extends WeaponModule
 ## 등 뒤를 갈아댔다. 독립 소환물이면 어느 방향으로 움직여도 자연스럽다(드론·터렛과 같은 문법).
 ##
 ## _data: fire_interval=피해 틱 간격, proj_damage/dmg_per_level=틱 피해, knockback=약넉백,
-## area_radius=표적 탐색 반경의 기준.
+## area_radius=교전 반경의 기준.
+##
+## 교전은 **캐릭터 주변으로 묶어둔다**. 표적은 캐릭터 기준 ATTACK 반경 안에서만 고르고,
+## 톱이 LEASH 를 넘어가면 표적을 놓고 돌아온다 — 안 그러면 좀비를 따라 화면 밖까지
+## 끌려가 플레이어 근처가 무방비가 된다.
 
 const HOVER_RADIUS := 54.0    # 대기 중 캐릭터 주위를 도는 반경
 const HOVER_ORBIT := 1.3      # 대기 공전 각속도(rad/s)
@@ -16,7 +20,8 @@ const RETURN_SPEED := 300.0   # 대기 위치로 돌아오는 속도
 const GRIND_TIME := 1.1       # 한 표적을 갈아내는 시간(초)
 const GRIND_PER_LEVEL := 0.06 # 레벨당 갈기 시간 증가
 const GRIND_OFFSET := 16.0    # 표적 중심에서 이만큼 앞에 붙는다(겹쳐 가리지 않게)
-const SEARCH_MULT := 4.2      # 탐색 반경 = area_radius × 이 값 (날아다니므로 넓게)
+const ATTACK_MULT := 2.4      # 교전 반경 = area_radius × 이 값 (캐릭터 기준)
+const LEASH_SLACK := 70.0     # 교전 반경 + 이만큼 벗어나면 강제 귀환
 const ARRIVE_DIST := 22.0     # 이 거리 안이면 붙은 것으로 본다
 const _SPRITE_PATH := "res://assets/sprites/chainsaw_summon.png"
 
@@ -46,8 +51,14 @@ func _ready() -> void:
 	_saw.global_position = global_position
 
 
-func _search_range() -> float:
-	return _data.area_radius * SEARCH_MULT * Events.area_mult()
+## 교전 반경 — 캐릭터를 중심으로 이 안의 적만 상대한다.
+func _attack_range() -> float:
+	return _data.area_radius * ATTACK_MULT * Events.area_mult()
+
+
+## 이 거리를 넘어가면 표적을 버리고 돌아온다.
+func _leash() -> float:
+	return _attack_range() + LEASH_SLACK
 
 
 ## 대기 위치 — 캐릭터 주위를 천천히 도는 지점.
@@ -66,6 +77,15 @@ func _physics_process(delta: float) -> void:
 		_target = null
 		if _state == GRIND or _state == SEEK:
 			_state = SEEK   # 표적을 잃으면 즉시 다음 표적 탐색
+	# 목줄: 캐릭터에서 너무 멀어졌거나 표적이 교전 반경 밖으로 달아나면 놓고 돌아온다.
+	if _state != HOVER:
+		var leash := _leash()
+		var out_of_leash := _saw.global_position.distance_to(global_position) > leash
+		var target_gone := _target != null \
+			and _target.global_position.distance_to(global_position) > leash
+		if out_of_leash or target_gone:
+			_target = null
+			_state = HOVER
 	match _state:
 		HOVER:
 			_move_to(_hover_point(), RETURN_SPEED, delta)
@@ -109,16 +129,16 @@ func _target_alive() -> bool:
 	return _target != null and is_instance_valid(_target) and _target.is_in_group("zombies")
 
 
-## 톱 위치에서 가장 가까운 적을 새 표적으로. 찾으면 true.
+## 새 표적 고르기. 후보는 **캐릭터** 기준 교전 반경 안에서만 뽑고(멀리 끌려가지 않게),
+## 그중에서는 톱에서 가장 가까운 것을 고른다(이동 낭비를 줄이려고). 찾으면 true.
 func _acquire() -> bool:
-	var from := _saw.global_position
-	var rng := _search_range()
+	var rng := _attack_range()
 	var nearest: Node2D = null
-	var min_d := rng * rng
-	for z in Events.zombies_in_radius(from, rng):
+	var min_d := INF
+	for z in Events.zombies_in_radius(global_position, rng):
 		if not is_instance_valid(z) or not z.is_in_group("zombies"):
 			continue
-		var d := from.distance_squared_to(z.global_position)
+		var d := _saw.global_position.distance_squared_to(z.global_position)
 		if d < min_d:
 			min_d = d
 			nearest = z
