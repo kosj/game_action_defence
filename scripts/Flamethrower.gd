@@ -169,7 +169,9 @@ func _burn() -> void:
 ## 180° 돌린 모습은 "뒤집힌 버너"로 읽힌다. 그래서 그럴 때만 세로로 한 번 더 미러링해
 ## 똑바로 선 채 왼쪽을 보게 만든다(좀비·플레이어의 좌우 플립과 같은 결과).
 class _FlamePod extends Node2D:
-	const DRAW_SIDE := 40.0   # 긴 변 기준 화면 크기(드론과 같은 규약 — 원본 해상도와 무관하게)
+	## 긴 변 기준 화면 크기(드론과 같은 규약 — 원본 해상도와 무관하게).
+	## 40 은 좀비 옆에서 존재감이 약해 1.5배로 키웠다.
+	const DRAW_SIDE := 60.0
 
 	var tex: Texture2D = null
 	var _flipped: bool = false
