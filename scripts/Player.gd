@@ -336,6 +336,10 @@ func aim_facing() -> float:
 func muzzle_position() -> Vector2:
 	return muzzle.global_position if muzzle != null else global_position
 
+## 이 캐릭터가 쏘는 탄의 기본 모양(예광탄/볼트/못). 무기가 고유 모양을 지정하면 그쪽이 이긴다.
+func projectile_style() -> String:
+	return _proj_style
+
 
 ## 그림자를 스프라이트 폭에 맞춘 납작한 타원으로 발밑에 배치(shadow.png 128x72).
 func _fit_shadow() -> void:
