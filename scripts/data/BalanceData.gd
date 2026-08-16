@@ -40,6 +40,15 @@ extends Resource
 @export var boss_rage_seconds: float = 35.0
 @export var boss_rage_max: float = 1.9         # 격화 상한(공격 빈도 배수)
 @export var boss_summon_ring: float = 300.0    # 호위 소환 위치: 플레이어 주변 이 반경의 링
+## 회복 스킬(전 아키타입 공용) — 체력이 boss_heal_trigger 이하로 떨어지면 쿨타임마다 그 자리에
+## 멈춰 시전한다. 시전을 끝내면 최대 체력의 boss_heal_ratio 만큼 회복하지만, 시전 중
+## boss_heal_break_ratio 만큼 피해를 누적시키면 회복을 끊을 수 있다. 시전 횟수가
+## boss_heal_charges 로 제한되므로 총 회복량에 상한이 있다(저 DPS 에서도 전투가 끝난다).
+@export var boss_heal_trigger: float = 0.55    # 이 체력 비율 이하에서만 발동
+@export var boss_heal_ratio: float = 0.15      # 1회 회복량 = 최대 체력 × 이 값
+@export var boss_heal_cooldown: float = 15.0   # 회복 시도 간격(초) — 발동 체력 이하일 때만 흐른다
+@export var boss_heal_break_ratio: float = 0.07 # 시전 중 이만큼(최대 체력 비율) 주면 저지
+@export var boss_heal_charges: int = 2         # 보스 1마리당 시전 횟수(저지당해도 소모)
 
 @export_group("Chest")
 @export var chest_interval_min: float = 24.0   # 필드 보물상자 스폰 주기(초)
