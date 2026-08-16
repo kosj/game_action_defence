@@ -16,6 +16,10 @@ var pending_weapon_tier_id: String = "common"
 func _ready() -> void:
 	# 난이도 모드 제거 — 단일 통합 모드. difficulty 는 랭킹 키 호환용으로 0 고정.
 	Events.difficulty = 0
+	# 사망한 판의 체크포인트는 무효다. 남겨두면 게임오버로 은행에 적립한 골드를 이어하기로
+	# 되살려 다시 적립할 수 있고(메타 골드 중복), 이어하기가 "죽은 판 되감기"가 된다.
+	# 부활하면 Player 의 자동저장이 곧바로 새 체크포인트를 다시 만든다.
+	Events.player_died.connect(delete_save)
 
 
 func save_difficulty() -> void:
@@ -66,6 +70,11 @@ func delete_save() -> void:
 ## 웨이브 클리어/상점 종료/무기 획득 시점에 호출 — player 의 현재 체력·무기를 기록.
 func save_game(player: Node) -> void:
 	var data := {
+		# 캐릭터/테마 — 이어하기가 "저장 당시의 그 판"을 그대로 재현하려면 반드시 필요하다.
+		# 없으면 메뉴에서 마지막으로 고른 캐릭터로 이어져 시작 무기·시그니처 패시브·보너스
+		# 스탯·트레잇·외형·궁극기가 통째로 달라진다.
+		"character_id": CharacterManager.selected_id(),
+		"theme_id": ThemeManager.selected_id(),
 		"total_gold": Events.total_gold,
 		"total_kills": Events.total_kills,
 		"score": Events.score,
@@ -115,6 +124,9 @@ func load_save() -> Dictionary:
 ## 씬 전환 전(MainMenu) 호출 — Events 전역 상태를 복원하고, Main 씬이 로드되면
 ## Player 가 소비할 보류 상태(체력/무기)를 채워둔다.
 func apply_to_events(data: Dictionary) -> void:
+	# 캐릭터/테마 선택은 Events.reset() 보다 먼저 되돌린다 — reset() 이 시작 인벤토리를,
+	# ItemDB.recompute() 가 캐릭터 보너스 스탯을 "현재 선택" 기준으로 채우기 때문이다.
+	_restore_selection(data)
 	Events.reset()
 	Events.total_gold = data.get("total_gold", 0)
 	Events.total_kills = data.get("total_kills", 0)
@@ -153,6 +165,20 @@ func apply_to_events(data: Dictionary) -> void:
 	pending_player_health = data.get("player_health", 1)
 	pending_weapon_id = data.get("weapon_id", "pistol")
 	pending_weapon_tier_id = data.get("weapon_tier_id", "common")
+
+
+## 저장 당시의 캐릭터/테마로 선택을 되돌린다.
+## 해금이 풀리지 않았거나(기기 이동·구매 데이터 유실) 삭제된 id 면 select() 가 실패하며,
+## 그때는 현재 선택을 유지하고 경고만 남긴다 — 이어하기 자체를 막지는 않는다.
+func _restore_selection(data: Dictionary) -> void:
+	var cid := str(data.get("character_id", ""))
+	if cid != "" and cid != CharacterManager.selected_id() and not CharacterManager.select(cid):
+		push_warning("[SaveManager] 저장된 캐릭터 '%s' 를 선택할 수 없어 '%s' 로 이어간다"
+			% [cid, CharacterManager.selected_id()])
+	var tid := str(data.get("theme_id", ""))
+	if tid != "" and tid != ThemeManager.selected_id() and not ThemeManager.select(tid):
+		push_warning("[SaveManager] 저장된 아레나 '%s' 를 선택할 수 없어 '%s' 로 이어간다"
+			% [tid, ThemeManager.selected_id()])
 
 
 ## JSON 이 숫자를 float 로 파싱하므로 인벤토리 dict 의 값(아이템 레벨)을 int 로 변환한다.

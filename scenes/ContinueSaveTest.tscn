@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cctnsvtst0001"]
+
+[ext_resource type="Script" path="res://scenes/ContinueSaveTest.gd" id="1_cstt"]
+
+[node name="ContinueSaveTest" type="Node"]
+script = ExtResource("1_cstt")
