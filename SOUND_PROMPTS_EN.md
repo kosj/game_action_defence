@@ -129,16 +129,6 @@ satisfying finish, clean and crisp, light and quick, not a long fanfare. Clean
 Plays on every wave, so keep it noticeably lighter and shorter than the 30-minute
 clear jingle.
 
-### `sfx_horde.ogg` — zombie swarm spawns (1.5-2s)
-
-```
-A distant crowd of zombies growling and shrieking together: a low ominous mass
-of many layered undead voices swelling closer, menacing and threatening, dry.
-Clean 2D game sound effect, no music, no silence at the beginning.
-```
-
-This is an organic warning — it must not sound like the electronic boss alarm.
-
 ### `sfx_revive.ogg` — free revive (1.5-2s)
 
 ```
@@ -213,7 +203,7 @@ Checklist before committing a file:
 2. **Same loudness across the set** — normalize as above.
 3. **No hard cut at the end** — let the tail decay, adding a 60-100ms fade-out if needed.
 4. **In-game check** — audible over the BGM, not confusable with `boom` or `laser`, and
-   the repeating sounds (`swing`, `spit`, `holy_splash`, `bomber_fuse`, `horde`) still
+   the repeating sounds (`swing`, `spit`, `holy_splash`, `bomber_fuse`) still
    feel fine after several minutes of play.
 
 ## Plan B — build the arrow storm from single arrows

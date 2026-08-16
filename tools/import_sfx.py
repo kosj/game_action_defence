@@ -51,11 +51,6 @@ PLAN = {
                      "shelf": (2200.0, -13.0)},
     # 1.0~2.2s 가 정점, 이후 완만한 감쇠 — 감쇠 구간에서 페이드해 자연스럽게 마무리.
     "revive":       {"src": "6eef21e5-heroic_chime.mp4",     "cut": (0.0, 2.45),  "fade": 0.30},
-    # 첫 소스는 화음 스웰(플랫니스 0.003)로 뽑혀 레벨업 징글과 혼동됐다 — 재생성본으로 교체.
-    # 그중 2.2s 구간이 가장 노이즈다웠고(플랫니스 0.0143 = 레벨업의 2.1배) 중심 주파수도
-    # 763Hz 로 가장 낮아 레벨업(1746Hz)과 멀다. 250ms 스웰로 시작해 '몰려온다'는 느낌도
-    # 살아난다. 길이는 레벨업(2.0s)의 65% 로 잘라 음색·길이 두 축 모두에서 갈라놓는다.
-    "horde":        {"src": "56c946b1-zombie_horde.mp4",     "cut": (2.20, 3.50), "fade": 0.22},
     "wave_clear":   {"src": "dfe8faad-achievement_tone.mp4", "cut": (0.0, 1.60),  "fade": 0.25},
     "evolve":       {"src": "7adc5116-weapon_fanfare.mp4",   "cut": (0.0, 3.00),  "fade": 0.40},
     "bomber_blast": {"src": "a5229eba-zombie_explosion.mp4", "cut": (0.0, 1.15),  "fade": 0.12},
