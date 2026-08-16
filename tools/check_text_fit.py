@@ -73,7 +73,13 @@ def main() -> None:
     def lit(*texts):
         return [("-", t) for t in texts]
 
-    # (화면·위젯, 사용 가능 폭 px, 글꼴 크기, 굵게, 후보 문자열들)
+    # 보물 상자 카드에 실제로 올라가는 문구 전체(ChestRewardPanel 의 _roll_* 참고)
+    chest_texts = ([("data", "NEW  %s" % n) for _, n in res_strings("data/item_catalog.tres", "display")]
+                   + [("data", "%s  Lv+1" % n) for _, n in res_strings("data/item_catalog.tres", "display")]
+                   + lit("+999 Gold", "+9999 XP", "XP Magnet  8s", "FREE LEVEL UP",
+                         "Full Heal", "+1 REVIVE", "+99 Meta Gold", "JACKPOT\n+999 Gold"))
+
+    # (화면·위젯, 사용 가능 폭 px, 글꼴 크기, 굵게, 후보 문자열들, [mode])
     cases = [
         # ── 인트로 (앵커 고정) ─────────────────────────────────
         ("인트로 · 건너뛰기 버튼", 132 - BTN_PAD, 18, True, loc("intro_skip")),
@@ -134,17 +140,70 @@ def main() -> None:
         # ── 아레나 카드 (전체화면 팝업 안, 카드 여백 16*2) ─────
         ("아레나 카드 · 이름", 612 - 32, 22, True, res_strings("data/themes.tres", "display")),
         ("아레나 카드 · 설명", 612 - 32, 15, False, res_strings("data/themes.tres", "desc")),
+
+        # ── 타이틀 화면 ────────────────────────────────────────
+        ("타이틀 · 태그라인", 720, 22, True, loc("title_tagline")),
+        ("타이틀 · 탭 안내", 720, 26, True, loc("title_tap")),
+        ("타이틀 · 버전 라벨", 346, 16, False,
+         lit("v1.0.0 · 8f52771 · 2026-08-13 09:45 UTC")),
+
+        # ── 보상 광고 오버레이(AdManager) — 패널 폭 420, 마진 24*2 ──
+        ("광고 · 제목", 420 - 36 - 48, 26, True, loc("ad_title")),
+        ("광고 · 안내", 420 - 36 - 48, 14, False, loc("ad_demo_hint"), "word"),
+        ("광고 · 버튼", 420 - 36 - 48 - BTN_PAD, 22, True,
+         loc("ad_watch_fmt", 5) + loc("ad_finished") + loc("ad_claim")),
+
+        # ── 보상 카드(보물 상자) — 카드 폭이 고정이라 이름이 카드를 넘칠 수 있다.
+        # 카드 128(4장) / 140(3장) / 152(2장 이하), 콘텐츠 여백 10*2.
+        # 줄바꿈이 켜져 있으므로 "가장 긴 단어"가 기준이다.
+        ("보상 카드 · 이름(4장)", 128 - 20, 14, False, chest_texts, "word"),
+        ("보상 카드 · 이름(3장)", 140 - 20, 14, False, chest_texts, "word"),
+
+        # ── 레벨업 카드 — vb 440, 좌측 슬롯(12+68+12=92) + 우측 여백 18 ──
+        ("레벨업 카드", 440 - 92 - 18, 19, True,
+         [("data", "%s  (%s)" % (n, "NEW")) for _, n in res_strings("data/item_catalog.tres", "display")]
+         + res_strings("data/item_catalog.tres", "desc"), "word"),
+
+        # ── 캐릭터 선택 카드 — 전체화면 팝업 612, 좌측 썸네일 여백 172 + 우측 18 ──
+        ("캐릭터 카드", 612 - 172 - 18, 19, True,
+         res_strings("data/character_db.tres", "display")
+         + res_strings("data/character_db.tres", "desc"), "word"),
+
+        # ── 영구 강화 카드 — 좌측 여백 86 ──
+        ("영구 강화 카드", 612 - 86 - 18, 19, True,
+         res_strings("data/meta_upgrades.tres", "display")
+         + res_strings("data/meta_upgrades.tres", "desc"), "word"),
     ]
+
+    # 줄바꿈(autowrap)이 켜진 위젯은 전체 문자열이 아니라 "쪼갤 수 없는 가장 긴 단어"가
+    # 한 줄에 들어가야 한다. 그보다 넓으면 줄바꿈으로도 해결되지 않아 밖으로 삐져나온다.
+    # (보물상자 카드가 정확히 이 경우였다 — 전체 길이만 보면 통과라 놓쳤다.)
+    def worst_token(texts, size, bold):
+        best = None
+        for lang, s_ in texts:
+            for tok in s_.replace("\n", " ").split():
+                px = tw(tok, size, bold)
+                if best is None or px > best[0]:
+                    best = (px, lang, tok)
+        return best
 
     print(f"{'위젯':26} {'가용':>5} {'실측':>6} {'여유':>7}  최악 후보")
     print("-" * 96)
     over, warn = [], []
-    for name, avail, size, bold, texts in cases:
+    for case in cases:
+        name, avail, size, bold, texts = case[:5]
+        mode = case[5] if len(case) > 5 else "full"
         texts = [t for t in texts if t[1]]
         if not texts:
             continue
-        lang, s = max(texts, key=lambda t: tw(t[1], size, bold))
-        px = tw(s, size, bold)
+        if mode == "word":
+            got = worst_token(texts, size, bold)
+            if got is None:
+                continue
+            px, lang, s = got
+        else:
+            lang, s = max(texts, key=lambda t: tw(t[1], size, bold))
+            px = tw(s, size, bold)
         head = (avail - px) / avail if avail else -1
         mark = "OK  "
         if px > avail:
@@ -155,9 +214,50 @@ def main() -> None:
         print(f"{name:26} {avail:5.0f} {px:6.0f} {head*100:6.1f}%  {mark} [{lang}] {flat[:34]!r}")
 
     print(f"\n넘침 {len(over)}건 · 빠듯(여유 {HEADROOM_WARN*100:.0f}% 미만) {len(warn)}건")
-    for n, a, p, lang, s in over + warn:
-        print(f"  - {n}: 가용 {a:.0f}px < 실측 {p:.0f}px  [{lang}] {s.replace(chr(10),' / ')!r}")
-    sys.exit(1 if over or warn else 0)
+    for n, a, px_, lang, s in over + warn:
+        print(f"  - {n}: 가용 {a:.0f}px < 실측 {px_:.0f}px  [{lang}] {s.replace(chr(10),' / ')!r}")
+
+    missing = coverage_gaps()
+    if missing:
+        print("\n미검증 파일(텍스트 위젯이 있는데 위 목록에 케이스가 없다):")
+        for f, n in missing:
+            print(f"  - {f}: 텍스트 위젯 {n}곳")
+    sys.exit(1 if over or warn or missing else 0)
+
+
+# 케이스 이름 앞머리 → 어느 파일을 검증하는지 매핑. 새 화면을 만들면 여기에도 추가해야
+# 커버리지 검사를 통과한다(이번에 보물 상자를 통째로 빠뜨린 재발을 막는 장치).
+COVERED_BY = {
+    "MainMenu.gd": ("메뉴", "팝업 행", "아레나", "캐릭터", "영구 강화"),
+    "HUD.gd": ("HUD", "게임오버"),
+    "IntroStory.gd": ("인트로",),
+    "ShopPanel.gd": ("상점",),
+    "ChestRewardPanel.gd": ("보상 카드",),
+    "LevelUpPanel.gd": ("레벨업",),
+    "UIListRow.gd": ("팝업 행",),
+    "TitleScreen.gd": ("타이틀",),
+    "AdManager.gd": ("광고",),
+    "HUD.tscn": ("HUD", "게임오버"),
+}
+# 검증 대상이 아닌 곳과 그 이유.
+EXEMPT = {
+    "PerfOverlay.gd": "개발용 성능 오버레이 — 출시 화면이 아니고 폭 제약도 없다",
+}
+
+
+def coverage_gaps() -> list:
+    """텍스트 위젯이 있는 파일 중 케이스도 면제도 없는 곳을 돌려준다."""
+    import glob
+    counts = {}
+    for path in glob.glob("scripts/*.gd") + glob.glob("scenes/*.tscn"):
+        name = path.replace("\\", "/").split("/")[-1]
+        raw = open(path, encoding="utf-8", errors="replace").read()
+        n = len(re.findall(r"\b(?:Label|Button)\.new\(\)", raw))
+        n += len(re.findall(r'\[node name="\w+" type="(?:Label|Button)"', raw))
+        if n:
+            counts[name] = n
+    return sorted((f, n) for f, n in counts.items()
+                  if f not in COVERED_BY and f not in EXEMPT)
 
 
 if __name__ == "__main__":
