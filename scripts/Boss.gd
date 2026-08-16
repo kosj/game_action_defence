@@ -10,6 +10,7 @@ extends CharacterBody2D
 ##   bomber   — 원거리에서 지연 폭발 탄착 표식(BossShell) 포격
 ##   berserk  — 느린 추적 ↔ 텔레그래프 후 초고속 대시 순환
 ## 모든 특수 공격은 HP 50% 이하에서 격노(페이즈)로 격화된다.
+## 아키타입과 무관하게 공유하는 스킬이 하나 있다 — 쿨타임 기반 자가 회복(_tick_heal).
 
 const GOLD := preload("res://scenes/Gold.tscn")
 const _FXBurst := preload("res://scripts/FXBurst.gd")
@@ -105,6 +106,25 @@ var _bstate: String = "stalk"
 var _is_final: bool = false        # 최종 보스(REAPER)면 처치 시 보너스 레벨업 대신 승리 처리
 var _bt: float = 0.0               # 현재 상태 경과 시간
 
+# ── 공용 스킬: 자가 회복(재생) ────────────────────────────────────────
+# 아키타입 5종이 모두 공유하는 유일한 스킬. 체력이 balance.boss_heal_trigger 아래로 떨어지면
+# 쿨타임마다 그 자리에 멈춰 시전하고, HEAL_CHANNEL 을 버텨내면 최대 체력의 일정 비율을 회복한다.
+#
+# 공정성 설계(다른 특수 공격과 같은 규칙):
+#   · 시전 = 긴 텔레그래프. 초록 링이 조여드는 동안 보스는 이동·공격을 전부 멈추므로
+#     그 자체가 플레이어에게 열리는 무료 딜 타임이다.
+#   · 저지 가능. 시전 중 최대 체력의 boss_heal_break_ratio 만큼 피해를 누적시키면 회복이 깨진다.
+#     저지에 필요한 피해(7%)가 회복량(15%)보다 훨씬 적어, "맞불 딜"보다 "끊기"가 항상 이득이다.
+# 안전 장치: 시전 횟수(balance.boss_heal_charges)가 정해져 있고 저지당해도 소모되므로,
+# 회복 총량에 상한이 있다 — DPS 가 낮아도 보스가 무한히 버티는 교착이 생기지 않는다.
+const HEAL_CHANNEL := 1.4          # 시전(텔레그래프) 시간 — 이만큼 버티면 회복 성립
+const HEAL_FIRST_DELAY := 3.0      # 발동 체력에 도달한 뒤 첫 시전까지의 유예
+const HEAL_COLOR := Color(0.35, 1.0, 0.55)
+var _heal_cd: float = HEAL_FIRST_DELAY
+var _heal_t: float = 0.0           # >0 이면 회복 시전 중
+var _heal_left: int = 0            # 남은 시전 횟수
+var _heal_taken: int = 0           # 이번 시전 중 누적된 피해(저지 판정용)
+
 
 func _ready() -> void:
 	add_to_group("zombies")
@@ -153,6 +173,10 @@ func setup(stats: Dictionary) -> void:
 	_alive_time = 0.0
 	_bstate = "stalk"
 	_bt = 0.0
+	_heal_cd = HEAL_FIRST_DELAY
+	_heal_t = 0.0
+	_heal_taken = 0
+	_heal_left = maxi(0, _bal.boss_heal_charges) if _bal != null else 0
 	_flash = 0.0
 	body.modulate = _base_color
 	# HUD 가 체력바 위에 표시할 보스 이름(타입). 시그널 시그니처 변경 없이 Events 에 실어 보낸다.
@@ -191,6 +215,9 @@ func _physics_process(delta: float) -> void:
 			_volley_pending -= 1
 			_volley_t = 0.22
 			_fire_volley(true)
+	# 자가 회복 시전 중이면 이 프레임의 아키타입 행동(이동·공격)을 통째로 건너뛴다 — 무방비 상태.
+	if _tick_heal(delta):
+		return
 	match _archetype:
 		"gunner":   _behave_gunner(delta, player)
 		"summoner": _behave_summoner(delta, player)
@@ -457,6 +484,80 @@ func _dash_end() -> void:
 			_bal.boss_slam_damage, Color(1.0, 0.35, 0.35))
 
 
+## 자가 회복 진행. 시전 중이면 true 를 돌려주고, 호출부는 그 프레임의 아키타입 행동을 건너뛴다.
+## 쿨타임은 "발동 체력 이하일 때만" 흐른다 — 회복으로 발동선 위까지 올라가면 다시 그 아래로
+## 깎일 때까지 다음 시전 시계가 멈춰, 두 번의 회복 사이에 반드시 눈에 보이는 간격이 생긴다.
+func _tick_heal(delta: float) -> bool:
+	if _heal_t > 0.0:
+		velocity = Vector2.ZERO   # 시전 중 완전 정지(대시 관성도 여기서 끊긴다)
+		_heal_t -= delta
+		if _heal_t <= 0.0:
+			_finish_heal()
+		return true
+	if _heal_left <= 0 or _bal == null:
+		return false
+	if float(health) > float(max_health) * _bal.boss_heal_trigger:
+		return false
+	if _heal_cd > 0.0:
+		_heal_cd -= delta
+		return false
+	if not _can_start_heal():
+		return false   # 다른 예비 동작과 겹치지 않게 미룬다 — 끝나는 즉시 시전한다
+	_start_heal()
+	return true
+
+
+## 텔레그래프는 한 번에 하나만 — 사격/소환/돌진 예고와 겹치면 무엇을 피해야 할지 읽히지 않는다.
+func _can_start_heal() -> bool:
+	if _telegraph_t > 0.0 or _summon_tel > 0.0 or _volley_pending > 0:
+		return false
+	if _archetype == "berserk" and _bstate != "stalk":
+		return false   # 예고한 돌진 도중에 멈춰 서면 대시 경로 경고가 거짓말이 된다
+	return true
+
+
+func _start_heal() -> void:
+	_heal_t = HEAL_CHANNEL
+	_heal_taken = 0
+	velocity = Vector2.ZERO
+	SoundManager.play("revive", 0.0, 0.7)   # 회복 차임(보스라 낮은 피치)
+	_FXBurst.spawn(get_tree().current_scene, global_position, HEAL_COLOR, 95.0, 0.45)
+
+
+## 시전을 끝까지 버텨낸 경우 — 최대 체력 비율만큼 회복하고 횟수/쿨타임을 소모한다.
+func _finish_heal() -> void:
+	_heal_t = 0.0
+	_heal_left -= 1
+	_heal_cd = _bal.boss_heal_cooldown
+	if not _alive:
+		return
+	var before := health
+	health = mini(max_health, health + maxi(1, int(round(float(max_health) * _bal.boss_heal_ratio))))
+	var gained := health - before
+	if gained <= 0:
+		return
+	Events.boss_health_changed.emit(health, max_health)
+	# 회복량은 피해 숫자와 같은 채널에 초록으로 띄운다(보스 표시라 우선 슬롯 사용).
+	_DamageNumber.spawn(get_tree().current_scene, global_position + Vector2(0, -40), gained, true, HEAL_COLOR, true)
+	SoundManager.play("revive", 0.0, 0.5)
+	_FXBurst.spawn(get_tree().current_scene, global_position, HEAL_COLOR, 160.0, 0.55)
+	Events.shake(3.0)
+
+
+## 회복 저지 — 회복 없이 횟수와 쿨타임만 소모한다(끊을수록 보스의 남은 회복이 줄어든다).
+func _break_heal() -> void:
+	_heal_t = 0.0
+	_heal_left -= 1
+	_heal_cd = _bal.boss_heal_cooldown
+	SoundManager.play("card_flip", 0.05, 0.65)   # 시전이 끊기는 파열음
+	_FXBurst.spawn(get_tree().current_scene, global_position, Color(0.55, 0.62, 0.6), 75.0, 0.3)
+
+
+## 시전을 깨는 데 필요한 누적 피해. 회복량보다 훨씬 적게 잡아 "맞불 딜"보다 "끊기"가 항상 이득.
+func _heal_break_amount() -> int:
+	return maxi(1, int(round(float(max_health) * _bal.boss_heal_break_ratio)))
+
+
 func _process(delta: float) -> void:
 	if not _alive:
 		return
@@ -509,6 +610,16 @@ func _draw() -> void:
 		draw_arc(Vector2.ZERO, half_h * 1.25, 0.0, TAU, 40, Color(0.4, 1.0, 0.55, sa), 4.0, true)
 		draw_arc(Vector2.ZERO, half_h * 0.75, 0.0, TAU, 32, Color(0.5, 1.0, 0.6, sa * 0.7), 2.5, true)
 
+	# 자가 회복 시전 — 조여드는 초록 링 + 12시부터 채워지는 진행 게이지.
+	# 게이지가 한 바퀴 차면 회복이 성립한다("남은 시간"이 눈에 보이게 — 지금 끊으라는 신호).
+	if _heal_t > 0.0:
+		var ht := 1.0 - clampf(_heal_t / HEAL_CHANNEL, 0.0, 1.0)
+		var hglow := 0.35 + 0.35 * absf(sin(_pulse * 14.0))
+		draw_arc(Vector2.ZERO, half_h * (1.55 - 0.45 * ht), 0.0, TAU, 40,
+				Color(HEAL_COLOR.r, HEAL_COLOR.g, HEAL_COLOR.b, hglow), 4.0, true)
+		draw_arc(Vector2.ZERO, half_h * 1.05, -PI * 0.5, -PI * 0.5 + TAU * ht, 36,
+				Color(0.72, 1.0, 0.82, 0.95), 5.0, true)
+
 	# 체력바 — 스프라이트 머리 위쪽에 확실히 떨어뜨려 그린다(겹침 방지).
 	var bar_w := 96.0
 	var bar_h := 9.0
@@ -539,7 +650,14 @@ func take_damage(amount: int, is_crit: bool = false) -> void:
 	_flash = _HIT_FLASH
 	body.modulate = Color(1, 1, 1)
 	# 다단계 전환: 체력 비율이 66%/33% 아래로 처음 내려갈 때마다 한 단계씩 격화한다.
+	# (회복으로 비율이 올라가도 페이즈는 되돌아가지 않는다 — 임계선을 오르내리며 전환 연출이
+	#  반복되면 화면이 시끄럽고, 이미 드러난 패턴이 도로 잠기는 것도 이상하다.)
 	if health > 0:
+		# 회복 시전 중이라면 누적 피해로 저지할 수 있다 — 이 창이 곧 반격 기회다.
+		if _heal_t > 0.0:
+			_heal_taken += amount
+			if _heal_taken >= _heal_break_amount():
+				_break_heal()
 		var ratio := float(health) / float(max_health)
 		if _phase < 2 and ratio <= 0.33:
 			_enter_phase(2)
