@@ -8,9 +8,11 @@ extends WeaponModule
 ## 머리 위에서 불이 뿜어져 나왔다. 독립된 부유 장치가 쏘면 어느 방향이든 자연스럽다
 ## (드론·터렛과 같은 문법).
 
-const POD_RADIUS := 44.0    # 캐릭터에서 떨어져 떠 있는 거리
-const POD_ORBIT := 1.05     # 공전 각속도(rad/s) — 느리게 돌아 존재감만 준다
-const POD_SQUASH := 0.55    # 궤도를 납작하게(사이드뷰라 정원이면 붕 떠 보인다)
+const POD_RADIUS := 52.0     # 캐릭터에서 떨어져 떠 있는 거리
+const POD_SQUASH := 0.62     # 사이드뷰라 위아래 오프셋을 눌러 붕 떠 보이지 않게
+const POD_SPEED := 260.0     # 자리를 옮기는 속도(px/s)
+const AIM_TOLERANCE := 0.16  # 이 각도(rad) 안으로 정렬되면 발사 개시
+const IDLE_HEIGHT := -14.0   # 표적이 없을 때 캐릭터 옆에 떠 있는 높이
 const _SPRITE_PATH := "res://assets/sprites/flame_pod.png"   # 있으면 절차 드로잉 대신 사용
 
 var _t: float = 0.0
@@ -18,8 +20,8 @@ var _aim: Vector2 = Vector2.RIGHT
 var _fire: CPUParticles2D
 var _core: CPUParticles2D
 var _pod: Node2D            # 불길이 실제로 나오는 부유 버너
-var _orbit: float = 0.0
 var _tex: Texture2D = null
+var _lit: bool = false      # 자리를 잡고 조준이 맞아 실제로 분사 중인가
 
 
 func _ready() -> void:
@@ -58,7 +60,7 @@ func _make_emitter(amount: int, tint: Color, scale: float) -> CPUParticles2D:
 	ramp.add_point(0.45, Color(tint.r, tint.g, tint.b, 0.75))
 	ramp.add_point(0.8, Color(0.85, 0.25, 0.08, 0.35))
 	p.color_ramp = ramp
-	p.emitting = true
+	p.emitting = false   # 분사 on/off 는 _set_lit 가 관리한다(자리+조준이 맞을 때만)
 	return p
 
 
@@ -80,20 +82,53 @@ func _length() -> float:
 	return _data.area_radius * (1.0 + 0.05 * float(_level() - 1)) * Events.area_mult()
 
 
+## 버너는 공전하지 않는다. 캐릭터에서 POD_RADIUS 만큼 떨어진 채 **표적 쪽 방향으로** 자리를
+## 옮기고, 그 자리에 도착해 조준이 맞으면 그때 분사한다. 늘 돌고 있으면 불길이 표적과
+## 무관하게 휘둘러져 조준하고 있다는 느낌이 안 산다.
 func _physics_process(delta: float) -> void:
 	if _data == null:
 		return
-	# 버너는 캐릭터 주위를 천천히 공전하고, 조준은 버너 위치 기준으로 잡는다.
-	_orbit += delta * POD_ORBIT
-	_pod.position = Vector2(cos(_orbit), sin(_orbit) * POD_SQUASH) * POD_RADIUS
-	_aim = _pod_aim(_length())
+	var target := _nearest_zombie(_length() + POD_RADIUS)
+	var want_pos: Vector2
+	if target != null:
+		var bearing: Vector2 = (target.global_position - global_position).normalized()
+		want_pos = Vector2(bearing.x, bearing.y * POD_SQUASH).normalized() * POD_RADIUS
+	else:
+		# 표적이 없으면 캐릭터가 보는 쪽 옆에 조용히 떠 있는다.
+		want_pos = Vector2(_facing * POD_RADIUS * 0.75, IDLE_HEIGHT)
+	_pod.position = _pod.position.move_toward(want_pos, POD_SPEED * delta)
+
+	if target != null:
+		_aim = (target.global_position - _pod.global_position).normalized()
+		if absf(_aim.x) > 0.05:
+			_facing = signf(_aim.x)
+	else:
+		_aim = Vector2(_facing, 0.0)
 	_pod.rotation = _aim.angle()
+
+	# 자리를 잡았고(도착) 조준이 맞았을 때만 불을 뿜는다.
+	var in_place := _pod.position.distance_to(want_pos) <= 6.0
+	var aimed := target != null and absf(_aim.angle_to(target.global_position - _pod.global_position)) <= AIM_TOLERANCE
+	_set_lit(target != null and in_place and aimed)
+
 	_update_emitters()
+	if not _lit:
+		return
 	_t += delta
 	var interval: float = maxf(_data.fire_interval * 0.6, _data.fire_interval * pow(0.96, float(_level() - 1)))
 	if _t >= interval:
 		_t = 0.0
 		_burn()
+
+
+func _set_lit(on: bool) -> void:
+	if on == _lit:
+		return
+	_lit = on
+	_fire.emitting = on
+	_core.emitting = on
+	if not on:
+		_t = 0.0
 
 
 ## 콘 길이/반각을 파티클 속도·확산에 반영(사거리가 커지면 불길도 길어짐). 속도×수명 ≈ 사거리.
@@ -124,24 +159,6 @@ func _burn() -> void:
 			continue
 		if absf(to.angle_to(_aim)) <= half:   # 콘(부채꼴) 안에 있는가
 			z.take_damage(dmg)
-
-
-## 버너 위치에서 본 최근접 적 방향. 적이 없으면 캐릭터 바깥쪽(공전 진행 방향)을 향해 뿜는다.
-func _pod_aim(rng: float) -> Vector2:
-	var from := _pod.global_position
-	var nearest: Node2D = null
-	var min_d := rng * rng
-	for z in Events.zombies_in_radius(from, rng):
-		if not is_instance_valid(z) or not z.is_in_group("zombies"):
-			continue
-		var d := from.distance_squared_to(z.global_position)
-		if d < min_d:
-			min_d = d
-			nearest = z
-	if nearest != null:
-		return (nearest.global_position - from).normalized()
-	var out := _pod.position
-	return out.normalized() if out.length() > 1.0 else Vector2.RIGHT
 
 
 ## 부유 버너 본체 — 전용 아트가 있으면 그걸 쓰고, 없으면 노즐 모양을 절차적으로 그린다.

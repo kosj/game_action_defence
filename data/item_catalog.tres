@@ -489,6 +489,7 @@ dmg_per_level = 2
 proj_scale = 1.35
 proj_style = "blade"
 proj_spin = 14.0
+proj_homing = 3.4
 area_radius = 0.0
 area_duration = 0.0
 

@@ -23,6 +23,13 @@ var style: String = "bullet"
 ## 자전 각속도(rad/s). 톱날처럼 방향과 무관하게 도는 탄이 쓴다. 노드 rotation 만 돌리므로
 ## 매 프레임 다시 그릴 필요가 없다(_draw 는 발사 시 1회).
 var spin: float = 0.0
+## 유도 선회 속도(rad/s). 0이면 직진. 전방 호 안의 적만 쫓는다.
+var homing: float = 0.0
+
+const HOMING_ARC := PI / 4.0      # 진행 방향 기준 반각(=전방 90° 호)
+const HOMING_RANGE := 320.0       # 이 거리 안의 적만 유도 대상
+const _TEX_BLADE := preload("res://assets/ui/icons/weapon_sawblade.png")
+const _BLADE_SIDE := 30.0         # 톱날 스프라이트 화면 크기(긴 변)
 var splash_radius: float = 0.0
 var is_crit: bool = false          # 이 탄이 크리티컬인지(Player._shoot_at 에서 주입) — 명중 시 강조 피드백
 var pierce: int = 0                # 관통 가능 적 수(0=첫 명중에 소멸). 석궁 등 관통 무기가 주입.
@@ -44,6 +51,7 @@ func on_spawn() -> void:
 	trail_color = Color(1.0, 0.30, 0.10)
 	style = "bullet"
 	spin = 0.0
+	homing = 0.0
 	splash_radius = 0.0
 	is_crit = false
 	# 풀 재사용 대비: 관통/넉백은 발사 측이 매 발 주입하므로 여기서 기본값으로 되돌린다.
@@ -62,6 +70,8 @@ func _physics_process(delta: float) -> void:
 	if not _alive:
 		return
 	var from := global_position
+	if homing > 0.0:
+		_steer(delta)
 	if spin != 0.0:
 		rotation += spin * delta   # 톱날 자전 — 그림은 그대로 두고 노드만 돌린다
 	global_position += direction * speed * delta
@@ -162,18 +172,12 @@ func _draw() -> void:
 			draw_colored_polygon(PackedVector2Array([
 				Vector2(0, 4), Vector2(7, 16), Vector2(0, 11)]), fletch)
 		"blade":
-			# 회전 톱날 — 자전하므로 진행 방향과 무관하게 읽혀야 한다. 원판 + 바깥 톱니.
-			var r := 11.0
-			draw_circle(Vector2.ZERO, r + 2.0, Color(c.r, c.g, c.b, 0.22))
-			var teeth := PackedVector2Array()
-			var n := 8
-			for i in range(n * 2):
-				var a := TAU * float(i) / float(n * 2)
-				var rr := r if i % 2 == 0 else r * 0.72
-				teeth.push_back(Vector2(cos(a), sin(a)) * rr)
-			draw_colored_polygon(teeth, body)
-			draw_circle(Vector2.ZERO, r * 0.40, hot)
-			draw_circle(Vector2.ZERO, r * 0.16, Color(c.r * 0.4, c.g * 0.4, c.b * 0.4, 0.9))
+			# 회전 톱날 — 전용 아트를 그대로 쓴다(무기 아이콘과 같은 그림이라 정체가 바로 읽힌다).
+			# 자전은 노드 rotation 이 담당하므로 여기서는 중심 정렬만 하면 된다.
+			var side := maxf(_TEX_BLADE.get_size().x, _TEX_BLADE.get_size().y)
+			var sz: Vector2 = _TEX_BLADE.get_size() * (_BLADE_SIDE / maxf(side, 1.0))
+			draw_circle(Vector2.ZERO, _BLADE_SIDE * 0.62, Color(c.r, c.g, c.b, 0.20))
+			draw_texture_rect(_TEX_BLADE, Rect2(-sz * 0.5, sz), false)
 		"nail":
 			# 네일건 못 — 짧고 굵은 몸통 + 뒤쪽 넓은 납작 머리. 화살과 달리 T 자로 읽힌다.
 			draw_line(Vector2(0, -7), Vector2(0, 9), body, 6.0, true)
@@ -186,6 +190,30 @@ func _draw() -> void:
 			draw_line(Vector2(0, 1), Vector2(0, 24), Color(c.r, c.g, c.b, 0.47), 3.0, true)
 			draw_circle(Vector2.ZERO, 5.0, Color(c.r, c.g, c.b, 0.24))
 			draw_circle(Vector2.ZERO, 3.4, hot)
+
+
+## 전방 호 안에서 가장 가까운(=각도가 가장 잘 맞는) 적 쪽으로 진행 방향을 조금씩 튼다.
+## 이미 지나친 적을 쫓아 되돌아오면 관통 무기의 '한 줄로 베고 지나간다'는 느낌이 깨지므로
+## 후보를 전방 호로 제한한다.
+func _steer(delta: float) -> void:
+	var best: Node2D = null
+	var best_d := HOMING_RANGE * HOMING_RANGE
+	for z in Events.zombies_in_radius(global_position, HOMING_RANGE):
+		if not is_instance_valid(z) or not z.is_in_group("zombies"):
+			continue
+		if _hit_ids.has(z.get_instance_id()):
+			continue   # 이미 벤 적은 다시 쫓지 않는다
+		var to: Vector2 = z.global_position - global_position
+		if absf(direction.angle_to(to)) > HOMING_ARC:
+			continue
+		var d := to.length_squared()
+		if d < best_d:
+			best_d = d
+			best = z
+	if best == null:
+		return
+	var want: Vector2 = (best.global_position - global_position).normalized()
+	direction = direction.rotated(clampf(direction.angle_to(want), -homing * delta, homing * delta))
 
 
 ## 폭발형 무기: 명중 지점 주변의 모든 좀비에게 피해 + 확산 이펙트.
