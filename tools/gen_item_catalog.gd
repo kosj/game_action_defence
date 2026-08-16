@@ -21,13 +21,15 @@ func _w(id: String, disp: String, desc: String, color: Color, max_level: int, ev
 ## 데이터 구동 발사체 무기(ProjectileWeapon 모듈). params = [fire_interval, pellets, spread,
 ## pierce, knockback, proj_speed, proj_damage, dmg_per_level, proj_scale]
 func _wm(id: String, disp: String, desc: String, color: Color, params: Array,
-		style: String = "", spin: float = 0.0, homing: float = 0.0) -> WeaponData:
+		style: String = "", spin: float = 0.0, homing: float = 0.0,
+		homing_arc_deg: float = 45.0) -> WeaponData:
 	var w := _w(id, disp, desc, color, 8, false)
 	w.module = "projectile"
 	w.fire_interval = params[0]; w.pellets = params[1]; w.spread = params[2]
 	w.pierce = params[3]; w.knockback = params[4]; w.proj_speed = params[5]
 	w.proj_damage = params[6]; w.dmg_per_level = params[7]; w.proj_scale = params[8]
-	w.proj_style = style; w.proj_spin = spin; w.proj_homing = homing
+	w.proj_style = style; w.proj_spin = spin
+	w.proj_homing = homing; w.proj_homing_arc = deg_to_rad(homing_arc_deg)
 	return w
 
 
@@ -72,9 +74,9 @@ func _initialize() -> void:
 		_w("garlic",    "Garlic Aura","Damages foes around you",    C_ORB,   8, false),
 		_w("holy",      "Holy Water", "Blasts random nearby spots", C_LIGHT, 8, false),
 		# 신규 발사체 무기(Phase 2-C 배치 1) — 자동 조준, 각자 독립 발사.
-		_wm("shotgun",    "Shotgun",     "Wide spread + strong knockback", Color(1.00, 0.55, 0.15), [0.85, 5, 0.50, 0, 240.0, 620.0, 1, 1, 0.85]),
-		_wm("machinegun", "Machine Gun", "Very fast, low damage",          Color(0.80, 0.95, 0.25), [0.16, 1, 0.12, 0, 0.0,   760.0, 1, 1, 0.60]),
-		_wm("crossbow",   "Crossbow",    "Piercing high-damage bolt",      Color(0.55, 0.85, 1.00), [0.95, 1, 0.00, 2, 60.0,  900.0, 3, 2, 1.15]),
+		_wm("shotgun",    "Shotgun",     "Wide spread + strong knockback", Color(1.00, 0.55, 0.15), [0.85, 5, 0.50, 0, 240.0, 620.0, 1, 1, 0.85], "", 0.0, 1.6, 38.0),
+		_wm("machinegun", "Machine Gun", "Very fast, low damage",          Color(0.80, 0.95, 0.25), [0.16, 1, 0.12, 0, 0.0,   760.0, 1, 1, 0.60], "", 0.0, 3.0, 55.0),
+		_wm("crossbow",   "Crossbow",    "Piercing high-damage bolt",      Color(0.55, 0.85, 1.00), [0.95, 1, 0.00, 2, 60.0,  900.0, 3, 2, 1.15], "", 0.0, 4.5, 65.0),
 		# 광역 무기(Phase 2-C 배치 2) — 화염 콘 / 불바다 장판 / 설치 지뢰.
 		_wa("flamethrower", "Flamethrower", "Cone of continuous fire",        Color(1.00, 0.50, 0.12), "flamethrower", [0.25, 1, 1, 165.0, 0.0,  0.50, 0.0]),
 		_wa("molotov",      "Molotov",      "Throws a lingering fire pool",   Color(1.00, 0.42, 0.10), "molotov",      [2.60, 2, 1, 82.0,  3.2,  0.00, 0.0]),
@@ -83,7 +85,7 @@ func _initialize() -> void:
 		# 못배트(melee_arc)는 제거됨 — 근접 원호가 캐릭터 좌우 플립과 어긋나 등 뒤를 후려쳐서,
 		# 전방으로 날아가는 회전 관통 톱날로 교체했다. 전용 모듈 없이 projectile + 모양만 지정.
 		_wm("sawblade", "Buzz Blade", "Spinning blade that cuts through a line of foes",
-			Color(0.90, 0.75, 0.35), [1.00, 1, 0.00, 3, 150.0, 430.0, 4, 2, 1.35], "blade", 14.0, 3.4),
+			Color(0.90, 0.75, 0.35), [1.00, 1, 0.00, 3, 150.0, 430.0, 4, 2, 1.35], "blade", 14.0, 3.4, 45.0),
 		_wa("chainsaw",   "Chainsaw",   "Point-blank grinder",           Color(0.85, 0.88, 0.95), "chainsaw",  [0.16, 1, 1, 78.0,  0.0, 0.85, 40.0]),
 		# 설치물 무기(Phase 2-C 배치 4) — 터렛(설치 자동사격) / 드론(추종 자동사격) / 테슬라(연쇄 번개).
 		_wa("turret", "Turret", "Deploys auto-firing sentries", Color(0.60, 0.75, 0.95), "turret", [3.00, 2, 1, 300.0, 6.0, 0.0, 0.0]),
@@ -95,9 +97,9 @@ func _initialize() -> void:
 		_w("sanctuary",    "Sanctuary",    "Evolved Garlic Aura", C_ORB,   5, true),
 		_w("crucifix",     "Crucifix",     "Evolved Holy Water",  C_LIGHT, 5, true),
 		# 신규 무기 진화체(Phase 3-B). 모듈 무기라 강화 파라미터만 다른 새 WeaponData — recompute 오버라이드 불필요.
-		_evo(_wm("dragonsbreath", "Dragon's Breath", "Evolved Shotgun",     Color(1.00, 0.40, 0.10), [0.75, 8, 0.60, 1, 300.0, 660.0, 2, 2, 0.95])),
-		_evo(_wm("gatling",       "Gatling Gun",     "Evolved Machine Gun", Color(0.90, 0.95, 0.20), [0.10, 2, 0.14, 1, 0.0,   820.0, 1, 2, 0.65])),
-		_evo(_wm("ballista",      "Ballista",        "Evolved Crossbow",    Color(0.45, 0.80, 1.00), [0.75, 1, 0.00, 5, 90.0,  1000.0, 5, 3, 1.40])),
+		_evo(_wm("dragonsbreath", "Dragon's Breath", "Evolved Shotgun",     Color(1.00, 0.40, 0.10), [0.75, 8, 0.60, 1, 300.0, 660.0, 2, 2, 0.95], "", 0.0, 1.6, 38.0)),
+		_evo(_wm("gatling",       "Gatling Gun",     "Evolved Machine Gun", Color(0.90, 0.95, 0.20), [0.10, 2, 0.14, 1, 0.0,   820.0, 1, 2, 0.65], "", 0.0, 3.2, 55.0)),
+		_evo(_wm("ballista",      "Ballista",        "Evolved Crossbow",    Color(0.45, 0.80, 1.00), [0.75, 1, 0.00, 5, 90.0,  1000.0, 5, 3, 1.40], "", 0.0, 5.0, 70.0)),
 		_evo(_wa("inferno",  "Inferno",   "Evolved Flamethrower", Color(1.00, 0.42, 0.08), "flamethrower", [0.18, 2, 2, 210.0, 0.0, 0.62, 0.0])),
 		_evo(_wa("napalm",   "Napalm",    "Evolved Molotov",      Color(1.00, 0.35, 0.08), "molotov",      [2.00, 3, 2, 100.0, 4.5, 0.00, 0.0])),
 		_evo(_wa("claymore", "Claymore",  "Evolved Land Mine",    Color(1.00, 0.42, 0.12), "mine",         [1.50, 6, 3, 95.0,  9.0, 0.00, 260.0])),

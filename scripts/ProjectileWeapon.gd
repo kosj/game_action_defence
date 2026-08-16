@@ -86,6 +86,7 @@ func _fire(lvl: int) -> void:
 			b.style = _data.proj_style   # 무기 고유 모양(톱날 등)이 캐릭터 기본 모양을 덮는다
 		b.spin = _data.proj_spin
 		b.homing = _data.proj_homing
+		b.homing_arc = _data.proj_homing_arc
 		b.pierce = pierce_total
 		b.knockback = _data.knockback
 		b.splash_radius = 0.0
