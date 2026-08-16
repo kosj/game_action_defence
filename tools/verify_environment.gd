@@ -232,28 +232,41 @@ func _test_distribution(weather, events, game_data) -> void:
 		_ok("[%s] 같은 날씨 연속 반복 없음" % th.id, repeats == 0, "%d/%d" % [repeats, n])
 
 
-## 실제로 시간을 흘려도 파티클 이미터가 절대 2개 이상 생기지 않는가(예산 하드 캡).
+## 실제로 시간을 흘려도 이미터가 예산을 넘지 않는가.
+## 날씨 이미터 1개 + 비 전용 파문 1개 = 최대 2개, 그리고 파문은 비일 때만 방출해야 한다.
 func _test_single_emitter(weather, events, game_data) -> void:
 	var th = game_data.themes[1] if game_data.themes.size() > 1 else game_data.themes[0]
 	weather._keys = th.weather_keys
 	events.env_seed = 7
 	var max_emitters := 0
+	var max_emitting := 0
+	var splash_off_rain := true
 	var seen := {}
 	var t := 0.0
 	while t < 1800.0:
 		events.elapsed_time = t
 		weather._process(1.0 / 60.0)
 		var n := 0
+		var live := 0
 		for c in weather.get_children():
 			if c is CPUParticles2D:
 				n += 1
+				if c.emitting:
+					live += 1
 		max_emitters = maxi(max_emitters, n)
+		max_emitting = maxi(max_emitting, live)
+		# 비가 아닌데 파문이 돌고 있으면 예산 누수다.
+		if weather._splash.emitting and weather._key != "rain":
+			splash_off_rain = false
 		seen[weather._key] = true
 		t += 0.5
-	_ok("이미터 항상 1개", max_emitters == 1, "최대 %d개" % max_emitters)
+	_ok("이미터 최대 2개(날씨 + 비 파문)", max_emitters == 2, "실측 %d개" % max_emitters)
+	_ok("동시 방출 최대 2개", max_emitting <= 2, "실측 %d개" % max_emitting)
+	_ok("파문은 비일 때만 방출", splash_off_rain)
 	_ok("30분 동안 날씨가 여러 번 바뀜", seen.size() >= 3, "관측 %d종" % seen.size())
 	var amt: int = weather._emitter.amount
 	_ok("입자 수 예산(<= 90)", amt <= 90, "실측 %d" % amt)
+	_ok("파문 입자 예산(<= 24)", weather._splash.amount <= 24, "실측 %d" % weather._splash.amount)
 
 
 ## 이어하기: 중간 시점부터 시작한 인스턴스가 통짜로 흘러온 인스턴스와 같은 상태인가.
