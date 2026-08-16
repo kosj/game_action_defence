@@ -87,6 +87,7 @@ signal level_up(level: int)
 signal inventory_changed        # 무기/패시브 인벤토리 변경 — HUD 장착 표시 갱신
 signal evolution_offer          # 진화 보물상자 개봉 — LevelUpPanel 이 진화 선택지를 띄운다
 signal elite_pack               # 예약 엘리트 팩 등장(주기적) — 진화 상자 드롭 트리거
+signal weather_changed(key: String)          # 날씨 전환("" = 맑음) — HUD 가 짧은 배너로 알린다
 signal achievement_unlocked(title: String)   # 도전과제 달성 — HUD 토스트 알림
 signal quest_completed(title: String, reward: int)   # 끝없는 과제 완료 — HUD 토스트 + 메타 골드 보상
 
@@ -97,6 +98,10 @@ var player_health: int = 0
 var player_max_health: int = 0
 var current_wave: int = 1
 var elapsed_time: float = 0.0
+
+## 이번 런의 환경 시드 — 날씨 스케줄이 (이 값 + 슬롯 인덱스)만으로 결정된다.
+## 세이브에 실려 이어하기가 같은 날씨 타임라인을 복원하고, 검증 스크립트가 재현할 수 있다.
+var env_seed: int = 0
 
 # 현재 보스의 표시 이름(타입) — HUD 체력바 라벨용. 보스가 setup() 에서 채우고 boss_spawned 직후 읽힌다.
 var boss_display_name: String = "BOSS"
@@ -440,6 +445,7 @@ func reset() -> void:
 	player_max_health = 0
 	current_wave = 1
 	elapsed_time = 0.0
+	env_seed = randi()   # 런마다 새 날씨 타임라인
 	wave_kill_progress = 0
 	wave_kill_total = 0
 	gold_magnet_active = false

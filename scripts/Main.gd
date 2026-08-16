@@ -66,6 +66,7 @@ func _spawn_ambient() -> void:
 	p.scale_amount_min = 1.0
 	p.scale_amount_max = 2.4
 	p.color = Color(tint.r, tint.g, tint.b, 0.28)
+	p.add_to_group("ambient_fx")   # DayNightCycle 이 밤에 반딧불 톤으로 옮긴다
 	player.add_child(p)
 
 

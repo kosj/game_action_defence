@@ -80,6 +80,7 @@ func save_game(player: Node) -> void:
 		"score": Events.score,
 		"current_wave": Events.current_wave,
 		"elapsed_time": Events.elapsed_time,
+		"env_seed": Events.env_seed,         # 이어하기가 저장 당시와 같은 날씨 타임라인을 복원하도록
 		"player_health": player.health,
 		"level": Events.level,               # 레벨업 곡선 진행(누락 시 이어하기마다 Lv1 로 리셋되던 것 보강)
 		"xp": Events.xp,
@@ -133,6 +134,8 @@ func apply_to_events(data: Dictionary) -> void:
 	Events.score = data.get("score", 0)
 	Events.current_wave = data.get("current_wave", 1)
 	Events.elapsed_time = data.get("elapsed_time", 0.0)
+	# 구 세이브에는 없다 — 그 경우 reset() 이 방금 발급한 새 시드를 그대로 쓴다.
+	Events.env_seed = int(data.get("env_seed", Events.env_seed))
 	Events.level = int(data.get("level", 1))
 	Events.xp = int(data.get("xp", 0))
 	Events.xp_to_next = int(data.get("xp_to_next", Events.xp_to_next))
