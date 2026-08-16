@@ -355,6 +355,8 @@ proj_speed = 620.0
 proj_damage = 1
 dmg_per_level = 1
 proj_scale = 0.85
+proj_homing = 1.6
+proj_homing_arc = 0.6632
 area_radius = 80.0
 area_duration = 0.0
 
@@ -377,6 +379,8 @@ proj_speed = 760.0
 proj_damage = 1
 dmg_per_level = 1
 proj_scale = 0.6
+proj_homing = 3.0
+proj_homing_arc = 0.9599
 area_radius = 80.0
 area_duration = 0.0
 
@@ -399,6 +403,8 @@ proj_speed = 900.0
 proj_damage = 3
 dmg_per_level = 2
 proj_scale = 1.15
+proj_homing = 4.5
+proj_homing_arc = 1.1345
 area_radius = 80.0
 area_duration = 0.0
 
@@ -487,9 +493,10 @@ proj_speed = 430.0
 proj_damage = 4
 dmg_per_level = 2
 proj_scale = 1.35
+proj_homing = 3.4
+proj_homing_arc = 0.7854
 proj_style = "blade"
 proj_spin = 14.0
-proj_homing = 3.4
 area_radius = 0.0
 area_duration = 0.0
 
@@ -710,6 +717,8 @@ proj_speed = 660.0
 proj_damage = 2
 dmg_per_level = 2
 proj_scale = 0.95
+proj_homing = 1.6
+proj_homing_arc = 0.6632
 area_radius = 80.0
 area_duration = 0.0
 
@@ -732,6 +741,8 @@ proj_speed = 820.0
 proj_damage = 1
 dmg_per_level = 2
 proj_scale = 0.65
+proj_homing = 3.2
+proj_homing_arc = 0.9599
 area_radius = 80.0
 area_duration = 0.0
 
@@ -754,6 +765,8 @@ proj_speed = 1000.0
 proj_damage = 5
 dmg_per_level = 3
 proj_scale = 1.4
+proj_homing = 5.0
+proj_homing_arc = 1.2217
 area_radius = 80.0
 area_duration = 0.0
 

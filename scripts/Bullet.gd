@@ -25,9 +25,9 @@ var style: String = "bullet"
 var spin: float = 0.0
 ## 유도 선회 속도(rad/s). 0이면 직진. 전방 호 안의 적만 쫓는다.
 var homing: float = 0.0
+var homing_arc: float = PI / 4.0  # 진행 방향 기준 반각(무기별로 주입)
 
-const HOMING_ARC := PI / 4.0      # 진행 방향 기준 반각(=전방 90° 호)
-const HOMING_RANGE := 320.0       # 이 거리 안의 적만 유도 대상
+const HOMING_RANGE := 420.0       # 이 거리 안의 적만 유도 대상 — 빠른 탄이 일찍 물도록 넉넉히
 const _TEX_BLADE := preload("res://assets/ui/icons/weapon_sawblade.png")
 const _BLADE_SIDE := 30.0         # 톱날 스프라이트 화면 크기(긴 변)
 var splash_radius: float = 0.0
@@ -52,6 +52,7 @@ func on_spawn() -> void:
 	style = "bullet"
 	spin = 0.0
 	homing = 0.0
+	homing_arc = PI / 4.0
 	splash_radius = 0.0
 	is_crit = false
 	# 풀 재사용 대비: 관통/넉백은 발사 측이 매 발 주입하므로 여기서 기본값으로 되돌린다.
@@ -72,6 +73,10 @@ func _physics_process(delta: float) -> void:
 	var from := global_position
 	if homing > 0.0:
 		_steer(delta)
+		if spin == 0.0:
+			# 휘었으면 그림도 같이 틀어야 한다 — 안 그러면 볼트가 옆으로 날아간다.
+			# (자전하는 톱날은 방향이 의미 없으므로 제외)
+			rotation = direction.angle() + PI / 2.0
 	if spin != 0.0:
 		rotation += spin * delta   # 톱날 자전 — 그림은 그대로 두고 노드만 돌린다
 	global_position += direction * speed * delta
@@ -204,7 +209,7 @@ func _steer(delta: float) -> void:
 		if _hit_ids.has(z.get_instance_id()):
 			continue   # 이미 벤 적은 다시 쫓지 않는다
 		var to: Vector2 = z.global_position - global_position
-		if absf(direction.angle_to(to)) > HOMING_ARC:
+		if absf(direction.angle_to(to)) > homing_arc:
 			continue
 		var d := to.length_squared()
 		if d < best_d:
