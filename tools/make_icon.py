@@ -5,9 +5,14 @@
 "배경 투명 + 내용에 맞춰 크롭 + 긴 변을 지정 크기로" 규약을 따른다. 키잉은
 make_character_sheet.py 의 것을 그대로 재사용한다(같은 마젠타 파이프라인).
 
+좀비·보스 스프라이트(zombie_*.png / boss_*.png)는 규약이 다르다 — **높이**를 맞춘다.
+화면에서의 크기가 텍스처 높이 × Body 스케일로 정해지므로, 가로로 긴 보스(네발 짐승 등)를
+긴 변 기준으로 맞추면 혼자 작아진다. 그럴 때는 --max 대신 --height 를 쓴다.
+
 사용법:
     python tools/make_icon.py -o assets/ui/icons/weapon_sawblade.png --max 128 raw/blade.png
     python tools/make_icon.py -o assets/sprites/flame_pod.png --max 256 raw/pod.png
+    python tools/make_icon.py -o assets/sprites/boss_wrecker.png --height 120 --black-halo raw/w.png
 """
 
 from __future__ import annotations
@@ -34,6 +39,8 @@ def main() -> int:
     ap.add_argument("input")
     ap.add_argument("-o", "--out", required=True)
     ap.add_argument("--max", type=int, default=128, help="긴 변 목표 픽셀")
+    ap.add_argument("--height", type=int, default=0,
+                    help="높이 목표 픽셀. 주면 --max 대신 이 값으로 맞춘다(좀비·보스 스프라이트 규약).")
     ap.add_argument("--strip-halo", action="store_true",
                     help="흰 테두리를 벗겨낸다. UI 아이콘은 흰 스티커 외곽선이 스타일의"
                          " 일부라 기본은 유지 — 캐릭터 시트와 반대다.")
@@ -59,7 +66,7 @@ def main() -> int:
     cols = np.where(solid.any(axis=0))[0]
     cut = rgba.crop((cols.min(), rows.min(), cols.max() + 1, rows.max() + 1))
 
-    scale = args.max / float(max(cut.size))
+    scale = (args.height / float(cut.height)) if args.height > 0 else (args.max / float(max(cut.size)))
     if scale < 1.0:
         cut = cut.resize((max(1, round(cut.width * scale)),
                           max(1, round(cut.height * scale))), Image.LANCZOS)
