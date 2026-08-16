@@ -115,11 +115,13 @@ const STRINGS: Dictionary = {
 	"hud_elite":       {"en": "!! ELITE PACK !!", "ko": "!! 정예 무리 !!", "ja": "!! エリート !!"},
 
 	# ── 날씨 전환 배너(WeatherSystem) ─────────────────────────────────────
-	"weather_rain":    {"en": "RAIN",       "ko": "비",         "ja": "雨"},
-	"weather_snow":    {"en": "SNOW",       "ko": "눈",         "ja": "雪"},
-	"weather_fog":     {"en": "FOG",        "ko": "안개",       "ja": "霧"},
-	"weather_dust":    {"en": "DUST STORM", "ko": "모래바람",   "ja": "砂嵐"},
-	"weather_clear":   {"en": "CLEARING",   "ko": "날이 갠다",  "ja": "晴れてきた"},
+	# ja 는 가나로 적는다 — 번들 폰트에 한자가 89자뿐이라 雨/雪/霧/砂嵐/晴 이 들어 있지 않다.
+	# (게임 HUD 에서 가타카나 외래어 표기는 일본어로도 자연스럽다)
+	"weather_rain":    {"en": "RAIN",       "ko": "비",         "ja": "レイン"},
+	"weather_snow":    {"en": "SNOW",       "ko": "눈",         "ja": "スノー"},
+	"weather_fog":     {"en": "FOG",        "ko": "안개",       "ja": "フォグ"},
+	"weather_dust":    {"en": "DUST STORM", "ko": "모래바람",   "ja": "サンドストーム"},
+	"weather_clear":   {"en": "CLEARING",   "ko": "날이 갠다",  "ja": "はれてきた"},
 
 	"go_victory":      {"en": "VICTORY!", "ko": "승리!", "ja": "VICTORY!"},
 	"pause_title":     {"en": "PAUSED", "ko": "일시정지", "ja": "ポーズ"},

@@ -18,8 +18,21 @@ Noto Sans CJK 는 한글 음절 11,172자를 전부 담고 있어 Regular+Bold �
 
 새 문자를 추가했다면
 --------------------
-`--check` 가 실패한다. 저장소의 폰트는 이미 축소돼 있어 빠진 글리프를 되살릴 수 없으니,
-원본을 다시 받아 assets/fonts 의 두 파일을 덮어쓴 뒤 다시 실행해야 한다:
+`--check` 가 실패한다. 저장소의 폰트는 이미 축소돼 있어 빠진 글리프를 되살릴 수 없다.
+**서브셋 이전 원본(각 1.2MB)이 git 히스토리에 남아 있으므로 내려받을 필요가 없다** — 되살린 뒤
+다시 서브셋하면 그 자리에서 다시 117KB 로 줄어든다:
+
+    git cat-file -p 026b6f7:assets/fonts/NotoSansCJK-Subset.otf      > assets/fonts/NotoSansCJK-Subset.otf
+    git cat-file -p 026b6f7:assets/fonts/NotoSansCJK-Subset-Bold.otf > assets/fonts/NotoSansCJK-Subset-Bold.otf
+    python3 tools/subset_fonts.py
+
+한자는 89자뿐이다 (중요)
+------------------------
+번들 원본은 "Noto Sans CJK 전체"가 아니라 **한글 위주 빌드**다 — 한글 음절 11,172자는 전부
+있지만 한자는 89자뿐이고, 그마저 기존 ja 문자열이 쓰는 글자에 맞춰진 것이다. 그래서
+**일본어에 새 한자를 쓰면 되살릴 방법이 없다**(雨/雪/霧/砂/嵐/晴 전부 없음). ja 문자열은
+가나로 적어라 — 게임 HUD 에서 가타카나 외래어 표기는 일본어로도 자연스럽다.
+정말 한자가 필요하면 그때는 진짜 원본을 받아 폰트를 통째로 교체해야 한다(용량 재검토 필요):
     https://github.com/notofonts/noto-cjk  (Sans/OTF/Korean/NotoSansCJKkr-{Regular,Bold}.otf)
 """
 
