@@ -114,8 +114,13 @@ func _ready() -> void:
 	_UIStyle.apply_button_style(main_menu_button, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
 	_style_bars()
 	# 전장 위에 뜨는 상단 라벨들에 어두운 외곽선을 넣어 가독성을 확보한다.
-	for lbl in [gold_label, score_label, wave_label, time_label, high_score_label, hp_label]:
+	# clip_text: 이들은 앵커로 폭이 고정돼 있어 늘어날 수 없다. 번역이나 수치가 예상보다
+	# 길어져도 글자가 전장 위로 새지 않도록 위젯 안에서 잘라낸다(현재는 전부 여유가 있다 —
+	# tools/check_text_fit.py 로 검증). 안전장치이지 상시 동작하는 기능이 아니다.
+	for lbl in [gold_label, score_label, wave_label, time_label, high_score_label, hp_label,
+			weapon_label, buff_label, boss_name_label]:
 		UITheme.outline_label(lbl)
+		lbl.clip_text = true
 	UITheme.outline_label(boss_name_label, 6, Color(0.18, 0.0, 0.0, 0.75))
 	restart_button.text = Locale.t("go_retry")
 	main_menu_button.text = Locale.t("go_menu")
