@@ -130,6 +130,34 @@ def key_out(img: Image.Image) -> tuple[Image.Image, np.ndarray]:
     return Image.fromarray(rgba, mode="RGBA"), key
 
 
+def recolor_white_halo(rgba: Image.Image, color: tuple[int, int, int]) -> tuple[Image.Image, int]:
+    """스티커풍 흰 테두리를 다른 색으로 칠한다(지우지 않고 색만 바꾼다).
+
+    UI 아이콘은 흰 테두리가 규약이지만, 월드에 놓이는 오브젝트는 좀비·플레이어와 같은
+    검은 외곽선이어야 겉돌지 않는다. 판정 기준은 strip_white_halo 와 같다.
+    """
+    a = np.asarray(rgba).copy()
+    rgb = a[..., :3].astype(np.float32)
+    lum = rgb.mean(axis=2)
+    mx = rgb.max(axis=2)
+    mn = rgb.min(axis=2)
+    sat = np.where(mx > 0, (mx - mn) / np.maximum(mx, 1e-6) * 255.0, 0.0)
+    solid = a[..., 3] > ALPHA_SOLID
+    hit = solid & (lum > HALO_LUM) & (sat < HALO_SAT)
+    # 안쪽의 흰 아트(수염·하이라이트)를 건드리지 않도록 바깥 경계에 닿은 덩어리만 칠한다.
+    lab, n = ndimage.label(hit, structure=np.ones((3, 3), dtype=np.uint8))
+    if n > 0:
+        outside = ~solid
+        touching = set(np.unique(lab[ndimage.binary_dilation(
+            outside, np.ones((3, 3), dtype=bool)) & hit]))
+        touching.discard(0)
+        hit = np.isin(lab, list(touching)) if touching else np.zeros_like(hit)
+    a[..., 0] = np.where(hit, color[0], a[..., 0])
+    a[..., 1] = np.where(hit, color[1], a[..., 1])
+    a[..., 2] = np.where(hit, color[2], a[..., 2])
+    return Image.fromarray(a, mode="RGBA"), int(np.count_nonzero(hit))
+
+
 def strip_white_halo(rgba: Image.Image) -> tuple[Image.Image, int]:
     """실루엣 바깥 경계에 붙은 밝은 무채색 테두리를 벗겨낸다. (제거한 픽셀 수도 돌려줌)"""
     a = np.asarray(rgba).copy()

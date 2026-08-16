@@ -12,7 +12,9 @@ const POD_RADIUS := 52.0     # 캐릭터에서 떨어져 떠 있는 거리
 const POD_SQUASH := 0.62     # 사이드뷰라 위아래 오프셋을 눌러 붕 떠 보이지 않게
 const POD_SPEED := 260.0     # 자리를 옮기는 속도(px/s)
 const AIM_TOLERANCE := 0.16  # 이 각도(rad) 안으로 정렬되면 발사 개시
-const IDLE_HEIGHT := -14.0   # 표적이 없을 때 캐릭터 옆에 떠 있는 높이
+## 표적이 없을 때 대기 위치 — 캐릭터 머리 위. 몸(150px 아트 × sprite_scale 0.52 ≈ 78px)의
+## 위쪽 끝이 원점에서 약 -39 이므로 그보다 조금 더 위에 띄운다.
+const IDLE_POS := Vector2(0.0, -58.0)
 const _SPRITE_PATH := "res://assets/sprites/flame_pod.png"   # 있으면 절차 드로잉 대신 사용
 
 var _t: float = 0.0
@@ -94,8 +96,7 @@ func _physics_process(delta: float) -> void:
 		var bearing: Vector2 = (target.global_position - global_position).normalized()
 		want_pos = Vector2(bearing.x, bearing.y * POD_SQUASH).normalized() * POD_RADIUS
 	else:
-		# 표적이 없으면 캐릭터가 보는 쪽 옆에 조용히 떠 있는다.
-		want_pos = Vector2(_facing * POD_RADIUS * 0.75, IDLE_HEIGHT)
+		want_pos = IDLE_POS   # 표적이 없으면 캐릭터 머리 위에서 대기
 	_pod.position = _pod.position.move_toward(want_pos, POD_SPEED * delta)
 
 	if target != null:
@@ -104,7 +105,7 @@ func _physics_process(delta: float) -> void:
 			_facing = signf(_aim.x)
 	else:
 		_aim = Vector2(_facing, 0.0)
-	_pod.rotation = _aim.angle()
+	_pod.set_aim(_aim.angle())
 
 	# 자리를 잡았고(도착) 조준이 맞았을 때만 불을 뿜는다.
 	var in_place := _pod.position.distance_to(want_pos) <= 6.0
@@ -162,21 +163,39 @@ func _burn() -> void:
 
 
 ## 부유 버너 본체 — 전용 아트가 있으면 그걸 쓰고, 없으면 노즐 모양을 절차적으로 그린다.
+##
+## 노드 자체는 조준 각도로 회전한다(자식 파티클이 그 방향으로 분사해야 하므로). 그런데
+## 왼쪽을 조준하면 회전이 ±90°를 넘어 그림이 위아래로 뒤집힌 채 보인다 — 사이드뷰 아트라
+## 180° 돌린 모습은 "뒤집힌 버너"로 읽힌다. 그래서 그럴 때만 세로로 한 번 더 미러링해
+## 똑바로 선 채 왼쪽을 보게 만든다(좀비·플레이어의 좌우 플립과 같은 결과).
 class _FlamePod extends Node2D:
 	const DRAW_SIDE := 40.0   # 긴 변 기준 화면 크기(드론과 같은 규약 — 원본 해상도와 무관하게)
 
 	var tex: Texture2D = null
+	var _flipped: bool = false
+
+
+	## 조준 각도를 적용한다. 좌/우가 바뀌는 순간에만 다시 그린다(매 프레임 redraw 방지).
+	func set_aim(ang: float) -> void:
+		rotation = ang
+		var f := cos(ang) < 0.0
+		if f != _flipped:
+			_flipped = f
+			queue_redraw()
 
 	func _draw() -> void:
+		var fy := -1.0 if _flipped else 1.0
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, fy))
 		if tex != null:
 			var side := maxf(tex.get_size().x, tex.get_size().y)
 			var sz: Vector2 = tex.get_size() * (DRAW_SIDE / maxf(side, 1.0))
 			draw_texture_rect(tex, Rect2(-sz * 0.5, sz), false)
-			return
-		# 로컬 +X 가 분사 방향. 뒤쪽이 두툼한 탱크, 앞쪽이 좁아지는 노즐.
-		draw_circle(Vector2(-5, 0), 7.0, Color(0.22, 0.24, 0.28))
-		draw_colored_polygon(PackedVector2Array([
-			Vector2(-6, -5), Vector2(9, -3), Vector2(9, 3), Vector2(-6, 5)]),
-			Color(0.34, 0.36, 0.40))
-		draw_line(Vector2(9, 0), Vector2(13, 0), Color(1.0, 0.62, 0.20, 0.95), 4.0, true)
-		draw_circle(Vector2(-5, 0), 3.0, Color(1.0, 0.55, 0.15, 0.85))
+		else:
+			# 로컬 +X 가 분사 방향. 뒤쪽이 두툼한 탱크, 앞쪽이 좁아지는 노즐.
+			draw_circle(Vector2(-5, 0), 7.0, Color(0.22, 0.24, 0.28))
+			draw_colored_polygon(PackedVector2Array([
+				Vector2(-6, -5), Vector2(9, -3), Vector2(9, 3), Vector2(-6, 5)]),
+				Color(0.34, 0.36, 0.40))
+			draw_line(Vector2(9, 0), Vector2(13, 0), Color(1.0, 0.62, 0.20, 0.95), 4.0, true)
+			draw_circle(Vector2(-5, 0), 3.0, Color(1.0, 0.55, 0.15, 0.85))
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

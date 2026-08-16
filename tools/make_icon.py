@@ -20,7 +20,8 @@ import numpy as np
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from make_character_sheet import key_out, strip_white_halo, ALPHA_SOLID  # noqa: E402
+from make_character_sheet import (  # noqa: E402
+    key_out, strip_white_halo, recolor_white_halo, ALPHA_SOLID)
 
 
 def main() -> int:
@@ -34,14 +35,20 @@ def main() -> int:
     ap.add_argument("-o", "--out", required=True)
     ap.add_argument("--max", type=int, default=128, help="긴 변 목표 픽셀")
     ap.add_argument("--strip-halo", action="store_true",
-                    help="흰 테두리를 벗겨낸다. 아이콘·소환물은 흰 스티커 외곽선이 스타일의"
+                    help="흰 테두리를 벗겨낸다. UI 아이콘은 흰 스티커 외곽선이 스타일의"
                          " 일부라 기본은 유지 — 캐릭터 시트와 반대다.")
+    ap.add_argument("--black-halo", action="store_true",
+                    help="흰 테두리를 검게 칠한다. 월드에 놓이는 오브젝트용 — 좀비·플레이어와"
+                         " 같은 검은 외곽선이라야 겉돌지 않는다.")
     args = ap.parse_args()
 
     rgba, key = key_out(Image.open(args.input))
     if args.strip_halo:
         rgba, removed = strip_white_halo(rgba)
         print(f"흰 테두리 {removed}px 제거")
+    elif args.black_halo:
+        rgba, painted = recolor_white_halo(rgba, (18, 18, 20))
+        print(f"흰 테두리 {painted}px 를 검정으로")
 
     a = np.asarray(rgba)
     solid = a[..., 3] > ALPHA_SOLID
