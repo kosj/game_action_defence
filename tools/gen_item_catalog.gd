@@ -1,6 +1,9 @@
 extends SceneTree
 ## 일회성: 무기/패시브/진화 카탈로그 .tres 생성(기존 ItemDB 하드코딩 값과 동일 — 회귀 없음).
 ##   godot --headless --path . --script res://tools/gen_item_catalog.gd
+##
+## ⚠ data/item_catalog.tres 는 생성 이후 손으로 조정됐다(못배트 → 톱날 교체 등).
+## 다시 돌리기 전에 .tres 와 이 스크립트가 일치하는지 확인할 것.
 
 const C_ATK := Color(1.00, 0.75, 0.20)
 const C_ORB := Color(0.45, 0.82, 1.00)
@@ -17,12 +20,14 @@ func _w(id: String, disp: String, desc: String, color: Color, max_level: int, ev
 
 ## 데이터 구동 발사체 무기(ProjectileWeapon 모듈). params = [fire_interval, pellets, spread,
 ## pierce, knockback, proj_speed, proj_damage, dmg_per_level, proj_scale]
-func _wm(id: String, disp: String, desc: String, color: Color, params: Array) -> WeaponData:
+func _wm(id: String, disp: String, desc: String, color: Color, params: Array,
+		style: String = "", spin: float = 0.0) -> WeaponData:
 	var w := _w(id, disp, desc, color, 8, false)
 	w.module = "projectile"
 	w.fire_interval = params[0]; w.pellets = params[1]; w.spread = params[2]
 	w.pierce = params[3]; w.knockback = params[4]; w.proj_speed = params[5]
 	w.proj_damage = params[6]; w.dmg_per_level = params[7]; w.proj_scale = params[8]
+	w.proj_style = style; w.proj_spin = spin
 	return w
 
 
@@ -75,7 +80,10 @@ func _initialize() -> void:
 		_wa("molotov",      "Molotov",      "Throws a lingering fire pool",   Color(1.00, 0.42, 0.10), "molotov",      [2.60, 2, 1, 82.0,  3.2,  0.00, 0.0]),
 		_wa("mine",         "Land Mine",    "Deploys mines that explode",     Color(1.00, 0.45, 0.15), "mine",         [1.90, 4, 2, 72.0,  9.0,  0.00, 210.0]),
 		# 근접 원호 무기(Phase 2-C 배치 3) — 못배트(강타 스윙) / 체인소(밀착 그라인더).
-		_wa("spikedbat",  "Spiked Bat", "Wide melee swing + knockback",  Color(0.90, 0.75, 0.35), "melee_arc", [1.00, 3, 2, 118.0, 0.0, 1.15, 270.0]),
+		# 못배트(melee_arc)는 제거됨 — 근접 원호가 캐릭터 좌우 플립과 어긋나 등 뒤를 후려쳐서,
+		# 전방으로 날아가는 회전 관통 톱날로 교체했다. 전용 모듈 없이 projectile + 모양만 지정.
+		_wm("sawblade", "Buzz Blade", "Spinning blade that cuts through a line of foes",
+			Color(0.90, 0.75, 0.35), [1.00, 1, 0.00, 3, 150.0, 430.0, 4, 2, 1.35], "blade", 14.0),
 		_wa("chainsaw",   "Chainsaw",   "Point-blank grinder",           Color(0.85, 0.88, 0.95), "chainsaw",  [0.16, 1, 1, 78.0,  0.0, 0.85, 40.0]),
 		# 설치물 무기(Phase 2-C 배치 4) — 터렛(설치 자동사격) / 드론(추종 자동사격) / 테슬라(연쇄 번개).
 		_wa("turret", "Turret", "Deploys auto-firing sentries", Color(0.60, 0.75, 0.95), "turret", [3.00, 2, 1, 300.0, 6.0, 0.0, 0.0]),

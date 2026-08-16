@@ -20,7 +20,6 @@ const _MODULE_CLASSES := {
 	"flamethrower": preload("res://scripts/Flamethrower.gd"),
 	"molotov": preload("res://scripts/Molotov.gd"),
 	"mine": preload("res://scripts/MineLayer.gd"),
-	"melee_arc": preload("res://scripts/MeleeArc.gd"),
 	"chainsaw": preload("res://scripts/Chainsaw.gd"),
 	"turret": preload("res://scripts/Turret.gd"),
 	"drone": preload("res://scripts/Drone.gd"),
@@ -326,6 +325,16 @@ func _handle_attack(delta: float) -> void:
 func _update_facing() -> void:
 	if absf(velocity.x) > 5.0:
 		_facing = -1.0 if velocity.x < 0.0 else 1.0
+
+
+## 캐릭터가 들고 쏘는 무기 모듈이 쓰는 조준 기준.
+## 모듈이 제각각 360° 자동 조준하면 좌우 플립만 있는 그림과 어긋나(등 뒤로 발사) 어색하다.
+## 손에 든 무기는 이 둘을 써서 그림 속 총구에서 바라보는 쪽으로 나가게 한다.
+func aim_facing() -> float:
+	return _facing
+
+func muzzle_position() -> Vector2:
+	return muzzle.global_position if muzzle != null else global_position
 
 
 ## 그림자를 스프라이트 폭에 맞춘 납작한 타원으로 발밑에 배치(shadow.png 128x72).

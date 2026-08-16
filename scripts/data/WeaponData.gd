@@ -24,6 +24,10 @@ extends Resource
 @export var proj_damage: int = 1          # 기본 데미지
 @export var dmg_per_level: int = 1        # 레벨당 데미지 증가
 @export var proj_scale: float = 1.0       # 탄 크기 배수
+## 탄 모양 덮어쓰기. 빈 문자열이면 쏘는 캐릭터의 기본 모양(예광탄/볼트/못)을 그대로 쓴다.
+## "blade" = 회전하는 톱날(관통 무기용). Bullet._draw 의 style 과 같은 값.
+@export var proj_style: String = ""
+@export var proj_spin: float = 0.0        # 탄 자전 각속도(rad/s). 0이면 진행 방향으로 고정.
 @export_group("Area Module")
 @export var area_radius: float = 80.0     # 콘 길이(화염방사기) / 장판·폭발 반경
 @export var area_duration: float = 0.0    # 장판 지속(초) / 지뢰 최대 수명

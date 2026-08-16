@@ -1,18 +1,25 @@
 extends Node2D
 ## 데이터 구동 발사체 무기 모듈(뱀서식 인벤토리 무기). Player 의 자식으로 붙어,
-## 자신의 WeaponData(GameData) 파라미터로 가장 가까운 적을 자동 조준해 독립 타이머로 발사한다.
+## 자신의 WeaponData(GameData) 파라미터로 독립 타이머로 발사한다.
 ## 여러 종(산탄총/기관총/석궁 등)이 같은 코드를 파라미터만 바꿔 공유한다(동작 모듈 패턴).
+##
+## 캐릭터가 손에 들고 쏘는 무기이므로 **그림 속 총구에서 바라보는 쪽으로** 나간다.
+## 예전에는 최근접 적을 360° 자동 조준했는데, 캐릭터 그림은 좌우 플립뿐이라 등 뒤나
+## 위아래로 총알이 나가 어색했다. 360° 조준이 필요한 무기는 소환물 계열(드론/터렛)이 맡는다.
 
 const BULLET := preload("res://scenes/Bullet.tscn")
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 
-const RANGE := 430.0            # 이 반경 안의 적만 조준
 const _MULTI_SPREAD := 0.20     # 무기 자체 분산이 0인데 다중탄일 때 보기 좋게 퍼뜨리는 최소 분산
 
 var weapon_id: String = ""
 var _data: WeaponData = null
 var _accum: float = 0.0
-var _facing: float = 1.0        # 조준 대상이 없을 때 사용할 마지막 좌/우 방향
+var _player: Node2D = null
+
+
+func _ready() -> void:
+	_player = get_parent() as Node2D
 
 
 ## Player 가 생성 직후 호출 — 어떤 무기인지 지정하고 데이터를 물어온다.
@@ -44,14 +51,8 @@ func _interval(lvl: int) -> float:
 
 
 func _fire(lvl: int) -> void:
-	var target := _nearest_zombie()
-	var base_dir: Vector2
-	if target != null:
-		base_dir = (target.global_position - global_position).normalized()
-		if absf(base_dir.x) > 0.05:
-			_facing = signf(base_dir.x)
-	else:
-		base_dir = Vector2(_facing, 0.0)   # 사거리 내 적 없음 — 바라보던 방향 유지
+	var base_dir := Vector2(_facing(), 0.0)   # 캐릭터가 바라보는 좌/우로만 발사
+	var origin := _origin()
 
 	var pellets: int = _data.pellets + int((lvl - 1) / 4)     # 레벨업 시 완만히 탄 수 증가
 	var pierce_total: int = _data.pierce + int((lvl - 1) / 5)
@@ -70,7 +71,7 @@ func _fire(lvl: int) -> void:
 			angle_off = side * spread * float(pair) / float(maxi(steps, 1))
 		var dir := base_dir.rotated(angle_off)
 		var b := Pool.acquire(BULLET, get_tree().current_scene)
-		b.global_position = global_position
+		b.global_position = origin
 		b.direction = dir
 		b.rotation = dir.angle() + PI / 2
 		b.speed = _data.proj_speed
@@ -81,24 +82,27 @@ func _fire(lvl: int) -> void:
 		b.is_crit = is_crit
 		b.scale = Vector2.ONE * _data.proj_scale
 		b.trail_color = _data.color
+		if _data.proj_style != "":
+			b.style = _data.proj_style   # 무기 고유 모양(톱날 등)이 캐릭터 기본 모양을 덮는다
+		b.spin = _data.proj_spin
 		b.pierce = pierce_total
 		b.knockback = _data.knockback
 		b.splash_radius = 0.0
 		b.queue_redraw()
 
 	SoundManager.play("shoot", 0.1, 1.0)
-	_FXBurst.spawn(get_tree().current_scene, global_position, _data.color, 12.0, 0.08)
+	_FXBurst.spawn(get_tree().current_scene, origin, _data.color, 12.0, 0.08)
 
 
-## 사거리 내 최근접 좀비 — Player 와 동일하게 프레임 공유 스냅샷 + distance_squared 사용.
-func _nearest_zombie() -> Node2D:
-	var nearest: Node2D = null
-	var min_d := RANGE * RANGE
-	for z in Events.live_zombies():
-		if not is_instance_valid(z) or not z.is_in_group("zombies"):
-			continue
-		var d := global_position.distance_squared_to(z.global_position)
-		if d < min_d:
-			min_d = d
-			nearest = z
-	return nearest
+## 캐릭터가 바라보는 좌/우. Player 가 없으면(테스트 등) 오른쪽으로 둔다.
+func _facing() -> float:
+	if _player != null and _player.has_method("aim_facing"):
+		return _player.aim_facing()
+	return 1.0
+
+
+## 그림 속 총구 위치 — 캐릭터마다 무기를 뻗은 지점이 달라 Player 가 알려준다.
+func _origin() -> Vector2:
+	if _player != null and _player.has_method("muzzle_position"):
+		return _player.muzzle_position()
+	return global_position

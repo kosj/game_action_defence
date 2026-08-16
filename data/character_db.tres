@@ -7,9 +7,9 @@
 script = ExtResource("1_0yjwo")
 id = "veteran"
 display = "Veteran"
-desc = "Melee tank. Starts with a Spiked Bat and heavy armor."
+desc = "Bruiser. Starts with a Buzz Blade and heavy armor."
 color = Color(0.85, 0.45, 0.35, 1)
-start_weapon = "spikedbat"
+start_weapon = "sawblade"
 signature_passive = "armor"
 sprite_path = "res://assets/sprites/player_veteran.png"
 sprite_scale = 0.52
