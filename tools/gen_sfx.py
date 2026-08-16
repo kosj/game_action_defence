@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 """절차적 효과음 합성 — 대역·길이를 수치로 통제해야 하는 소리를 직접 만든다.
 
-AI 생성음은 질감이 좋지만 "이 소리는 저역이 몇 %여야 한다" 같은 요구를 맞추기 어렵다.
-반복 재생되는 짧은 타격음·전기음은 대역 구성이 곧 정체성이라(살점이냐 나무냐, 전기냐
-전자음이냐) 합성으로 만드는 편이 확실하다.
+두 종류의 작업을 한다 — 순수 합성(전기음처럼 물리 대상이 없는 소리)과, 생성음을 재료로
+쓰는 가공(자르기·겹치기·배음 생성). 대역·길이를 수치로 맞춰야 할 때 쓴다.
 
-  zombie_hit  좀비 피격 — 기존 음은 중심 124Hz 에 800Hz 이상이 0% 라 살점이 아니라
-              나무를 치는 소리였다(툭툭거림). 젖은 타격(중역 노이즈)과 짧은 몸통 울림으로
-              다시 만들고 길이도 0.43s → 0.18s 로 줄인다(초당 최대 18회 재생되는 소리).
+교훈 하나: 실물 타격음(살점·흙)은 순수 합성으로 만들지 않는 게 낫다. 노이즈와 감쇠
+정현파로는 대역 수치는 맞출 수 있어도 "무엇을 때린 소리인가"가 만들어지지 않는다.
+
+  zombie_hit  좀비 피격 — 생성 소스의 두 테이크(둔중한 몸통 + 젖은 파열)를 겹쳐 만든다.
+              한때 순수 합성으로 만들었으나 대역 수치는 맞아도 타격으로 들리지 않았다.
+  ult_quake   베테랑 궁극기 — 원본이 저역 덩어리라 폰 스피커로 안 들렸다. 배음을 생성해
+              들리는 대역을 만들고 암석 파열을 얹는다.
   tesla_arc   테슬라 방전 — 총성(shoot)·전자음(laser)을 돌려쓰고 있었다. 불규칙한 스파크
               게이트로 파직거림을 만들고 코일 험을 깔아 '전기가 옮겨붙는' 소리로 만든다.
 
@@ -49,36 +52,43 @@ def one_pole_lp(x: np.ndarray, fc: float) -> np.ndarray:
 
 
 def synth_zombie_hit(rng: np.random.Generator) -> np.ndarray:
-    """좀비 피격 — 젖은 타격.
+    """좀비 피격 — 실제 생성음 두 테이크를 겹쳐 만든다.
 
-    구성: 짧은 어택 클릭 + 중역 '철퍽'(700~3500Hz 노이즈) + 아래로 훑는 스퀄치 +
-    낮은 몸통 울림 + 옅은 고역 비산. 기존 음은 저역 순음뿐이라 나무를 치는 소리였다 —
-    살점의 정체성은 중역 노이즈에 있으므로 그쪽에 무게를 준다.
+    앞서 절차적으로(노이즈+감쇠 정현파) 만든 버전은 대역 수치는 맞췄지만 타격으로 들리지
+    않았다. 감쇠 정현파 몸통이 '악기음'처럼 들리는 게 원인으로 보인다 — 실제 살점 타격은
+    비조화 노이즈 덩어리다. 그래서 생성 소스를 재료로 쓴다.
+
+    원본에는 성격이 다른 테이크가 둘 들어있다. 하나는 저역(200Hz 이하 66%)의 둔중한
+    몸통이고 다른 하나는 고역(3~8kHz 35%)의 젖은 파열음이다. 어느 하나만 쓰면 각각
+    먹먹하거나 얇아서, 어택을 맞춰 겹쳐 '묵직하면서 축축한' 한 방으로 만든다.
+    길이는 0.55초짜리 원본을 0.22초로 자른다 — 초당 최대 18회 울리는 소리다.
     """
-    n = int(0.18 * SR)
-    t = np.arange(n) / SR
+    src_dir = Path(os.environ.get("SFX_SRC_DIR", "/root/.claude/uploads"))
+    found = next(iter(src_dir.rglob("24eaf120-zombie_hit.mp4")), None)
+    if found is None:
+        sys.exit("좀비 피격 원본(24eaf120-zombie_hit.mp4)을 찾을 수 없다")
+    src = decode(found)
+
+    def take(t0: float, t1: float) -> np.ndarray:
+        """구간을 잘라 어택이 0초에 오도록 맞추고 진폭을 정규화한다."""
+        seg = src[int(t0 * SR):int(t1 * SR)]
+        step = SR // 400
+        e = np.array([np.sqrt(np.mean(seg[i:i + step] ** 2)) for i in range(0, len(seg) - step, step)])
+        peak = float(e.max()) if len(e) else 0.0
+        hit = np.where(e > peak * 0.35)[0]      # 본 타격이 시작되는 지점
+        if len(hit):
+            seg = seg[max(0, (hit[0] - 1) * step):]
+        return seg / max(float(np.abs(seg).max()), 1e-9)
+
+    body = take(0.07, 0.65)     # 둔중한 몸통
+    wet = take(1.75, 2.29)      # 젖은 파열
+
+    n = int(0.22 * SR)
     out = np.zeros(n)
-
-    click = rng.standard_normal(n) * np.exp(-t / 0.0025)          # 맞는 순간의 날카로움
-    out += one_pole_lp(click, 5000.0) * 1.6
-
-    slap = svf_bandpass(rng.standard_normal(n), np.full(n, 1600.0), q=0.8)
-    out += slap * np.exp(-t / 0.030) * 0.95                         # 젖은 철퍽(중역)
-
-    # 스퀄치 — 공명 중심이 2600→700Hz 로 훑어 내리며 '찌걱'하는 질감을 만든다.
-    sweep = 2600.0 * (700.0 / 2600.0) ** (t / t[-1])
-    out += svf_bandpass(rng.standard_normal(n), sweep, q=3.0) * np.exp(-t / 0.055) * 0.75
-
-    # 살점의 몸통 — 200~800Hz. 이 대역이 비면 저역 쿵과 중역 철퍽만 남아 속이 빈 소리가 된다.
-    out += svf_bandpass(rng.standard_normal(n), np.full(n, 430.0), q=1.4) * np.exp(-t / 0.045) * 2.4
-
-    for freq, decay, gain in ((125.0, 0.050, 0.80), (245.0, 0.034, 0.85), (430.0, 0.020, 0.55)):
-        out += gain * np.sin(2 * np.pi * freq * t) * np.exp(-t / decay)   # 몸통이 흔들리는 둔중함
-
-    spray = rng.standard_normal(n) - one_pole_lp(rng.standard_normal(n), 3500.0)
-    out += spray * np.exp(-t / 0.012) * 0.30                       # 옅은 비산
-
-    out[-int(0.02 * SR):] *= np.linspace(1.0, 0.0, int(0.02 * SR))
+    for layer, gain in ((body, 1.0), (wet, 0.75)):
+        m = min(n, len(layer))
+        out[:m] += layer[:m] * gain
+    out[-int(0.05 * SR):] *= np.linspace(1.0, 0.0, int(0.05 * SR))
     return out
 
 
