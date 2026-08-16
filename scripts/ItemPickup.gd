@@ -158,9 +158,18 @@ func _chest_texture() -> Texture2D:
 func _draw_chest(center: Vector2, alpha: float) -> void:
 	var pulse := 1.0 + sin(_t * 4.0) * 0.05
 	var band := _icon_color()   # 보물=금색 / 진화=보라
-	draw_circle(center, 20.0 * pulse, Color(band.r, band.g, band.b, 0.22 * alpha))   # 후광
-
 	var tex := _chest_texture()
+	if tex:
+		# 스프라이트(긴 변 46px)는 절차 드로잉(폭 30px)보다 커서 반경 20 짜리 후광이
+		# 상자 뒤에 완전히 가린다. 반경을 키우되 단색 원판이 되지 않도록 여러 겹으로
+		# 쌓아 바깥으로 갈수록 옅어지게 한다.
+		for i in 5:
+			var f := float(i) / 5.0
+			draw_circle(center, (33.0 - 13.0 * f) * pulse,
+				Color(band.r, band.g, band.b, 0.05 * alpha))
+	else:
+		draw_circle(center, 20.0 * pulse, Color(band.r, band.g, band.b, 0.22 * alpha))
+
 	if tex:
 		# 비율을 유지한 채 긴 변을 CHEST_DRAW_PX 에 맞추고, 후광과 같은 맥동을 준다.
 		var ts := Vector2(tex.get_size())
