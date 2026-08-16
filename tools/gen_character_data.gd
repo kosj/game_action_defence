@@ -27,9 +27,9 @@ func _initialize() -> void:
 	DirAccess.make_dir_recursive_absolute("res://data")
 	var db := CharacterDB.new()
 	db.characters = [
-		# 베테랑 — 근접 탱커: 못배트 시작 + 방탄조끼, 높은 체력.
-		_c("veteran", "Veteran", "Melee tank. Starts with a Spiked Bat and heavy armor.",
-			Color(0.85, 0.45, 0.35), "spikedbat", "armor", "veteran",
+		# 베테랑 — 브루저: 회전 톱날 시작 + 방탄조끼, 높은 체력.
+		_c("veteran", "Veteran", "Bruiser. Starts with a Buzz Blade and heavy armor.",
+			Color(0.85, 0.45, 0.35), "sawblade", "armor", "veteran",
 			{"max_health": 3, "move_speed": 1,
 			"sprite_path": "res://assets/sprites/player_veteran.png", "sprite_scale": 0.66}),
 		# 사냥꾼 — 원거리 딜러: 석궁 시작 + 조준경. 메타 골드 300 으로 해금.

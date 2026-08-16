@@ -25,7 +25,7 @@
 [ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_flamethrower.png" id="23_fpjjd"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_molotov.png" id="24_ph5i8"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_mine.png" id="25_bym6v"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_spikedbat.png" id="26_hfe73"]
+[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_sawblade.png" id="26_hfe73"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_chainsaw.png" id="27_y1yr8"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_turret.png" id="28_pp36u"]
 [ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_drone.png" id="29_f11ww"]
@@ -470,24 +470,26 @@ area_duration = 9.0
 
 [sub_resource type="Resource" id="Resource_b3dfo"]
 script = ExtResource("14_20nvg")
-id = "spikedbat"
-display = "Spiked Bat"
-desc = "Wide melee swing + knockback"
+id = "sawblade"
+display = "Buzz Blade"
+desc = "Spinning blade that cuts through a line of foes"
 color = Color(0.9, 0.75, 0.35, 1)
 max_level = 8
 evolved = false
 icon = ExtResource("26_hfe73")
-module = "melee_arc"
+module = "projectile"
 fire_interval = 1.0
 pellets = 1
-spread = 1.15
-pierce = 0
-knockback = 270.0
-proj_speed = 700.0
-proj_damage = 3
+spread = 0.0
+pierce = 3
+knockback = 150.0
+proj_speed = 430.0
+proj_damage = 4
 dmg_per_level = 2
-proj_scale = 1.0
-area_radius = 118.0
+proj_scale = 1.35
+proj_style = "blade"
+proj_spin = 14.0
+area_radius = 0.0
 area_duration = 0.0
 
 [sub_resource type="Resource" id="Resource_iwi26"]
