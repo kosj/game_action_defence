@@ -57,6 +57,12 @@ var _lod_phase: int = 0          # 화면 밖 LOD 틱 위상(개체별로 어긋
 var _body_base_scale: float = 1.0   # 종류별 기본 스프라이트 스케일(스쿼시는 이 값을 기준으로)
 var _facing: float = 1.0            # 사이드뷰 좌우 방향: 1=오른쪽, -1=왼쪽(회전 대신 수평 플립)
 
+## 몸통 반경 — 겹침 해소와 접촉 피해 판정이 같은 값을 쓴다. 스프라이트 폭에서 유도하므로
+## 종류(크기)마다 자동으로 맞는다. 이 값이 접촉 사거리이기도 해서, 밀려나 맞닿은 좀비는
+## 반드시 피해를 준다(예전에는 판정 반경이 스프라이트보다 작아 "겹쳤는데 안 아픈" 구간이 있었다).
+const SEP_RATIO := 0.40          # 스프라이트 폭 대비 몸통 반경 비율
+var sep_radius: float = 16.0
+
 # 넉백(피격 반응): 총알 직격 시 잠깐 뒤로 밀린다 — "총알이 박히는" 타격감.
 # 빠르게 감쇠해 순 이동은 미미(밸런스 영향 최소). 누적 상한으로 폭주 방지.
 const KNOCKBACK_DECAY := 1400.0   # 감쇠 가속(px/s^2) — 클수록 금방 멈춘다
@@ -161,6 +167,27 @@ func _physics_process(delta: float) -> void:
 	if _knockback != Vector2.ZERO:
 		global_position += _knockback * delta
 		_knockback = _knockback.move_toward(Vector2.ZERO, KNOCKBACK_DECAY * delta)
+	_resolve_overlap()   # 이동·넉백을 모두 반영한 뒤 마지막에 겹침을 푼다
+
+
+## 겹침 해소 — 플레이어 몸통 안으로 파고들지 못하게 밀어낸다.
+## 플레이어 자신은 밀리지 않는다(막아 세우면 군중에 갇혀 조작이 죽는다). 밀려난 좀비는
+## 정확히 접촉 사거리에 서게 되므로, 닿은 좀비는 반드시 접촉 피해를 준다
+## (Player._check_contact_damage 가 같은 반경을 쓴다).
+##
+## 좀비끼리의 분리는 넣지 않는다 — 320마리 기준 물리 시간이 5.3ms → 10.8ms 로 2배가 됐고,
+## 플레이어 주변으로 한정해도 7.3ms 였다. 웹(WASM)에서는 그대로 프레임 붕괴로 이어진다.
+func _resolve_overlap() -> void:
+	var to_p := global_position - player.global_position
+	var min_p: float = sep_radius + Events.player_body_radius
+	var d_sq := to_p.length_squared()
+	if d_sq >= min_p * min_p:
+		return                     # 대부분의 좀비는 여기서 끝난다(제곱 비교 — sqrt 없음)
+	if d_sq < 0.0001:
+		to_p = Vector2.from_angle(float(_lod_phase) * 0.83)   # 정확히 겹쳤으면 개체별 방향으로
+		global_position = player.global_position + to_p * min_p
+		return
+	global_position = player.global_position + to_p / sqrt(d_sq) * min_p
 
 
 ## 절차적 걷기: 이동 거리에 비례해 위상을 진행시켜, 좌우로 뒤뚱거리고(tilt) 발을 딛을 때마다
@@ -198,6 +225,7 @@ func _fit_shadow() -> void:
 	var sx: float = (tex.x * _body_base_scale * 1.28) / 128.0
 	shadow.scale = Vector2(sx, sx * 0.52)
 	shadow.position = Vector2(0.0, tex.y * _body_base_scale * 0.46)
+	sep_radius = tex.x * _body_base_scale * SEP_RATIO   # 종류별 크기에 맞는 몸통 반경
 
 
 ## 기본: 플레이어를 향해 직진 추격.

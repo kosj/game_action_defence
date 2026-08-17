@@ -6,7 +6,7 @@ extends CharacterBody2D
 @export var max_health: int = 5
 @export var contact_damage: int = 1
 @export var contact_cooldown: float = 0.4   # 좀비 접촉 피해 간격(= 피격 후 무적 시간)
-@export var contact_radius: float = 26.0    # 실제 접촉으로 인정할 중심간 거리(스프라이트가 겹쳤을 때만 피해)
+@export var contact_radius: float = 26.0    # 플레이어 몸통 반경 — 겹침 해소와 접촉 피해가 함께 쓴다
 
 const BULLET := preload("res://scenes/Bullet.tscn")
 const _OrbClass := preload("res://scripts/Orb.gd")
@@ -101,6 +101,7 @@ func _ready() -> void:
 	_base_attack_cooldown = attack_cooldown
 	_base_max_health = max_health
 	contact_cooldown = GameData.balance.contact_cooldown   # 밸런스 테이블(res://data/balance.tres)
+	Events.player_body_radius = contact_radius   # 좀비가 겹침 해소에 쓰는 값 — 접촉 판정과 동일
 	_recompute_combat_stats()
 	health = max_health
 	# 시작 인벤토리 반영 — Events.reset() 은 메뉴에서 Player 가 생기기 전에 실행되므로
@@ -276,16 +277,26 @@ func _tick_regen(delta: float) -> void:
 		Events.update_player_health(health, max_health)
 
 
+## 접촉 피해 판정 반경은 겹침 해소 반경과 같다 — 즉 "몸이 맞닿으면 반드시 아프다".
+## 예전에는 상대 크기와 무관하게 중심거리 26px 고정이라, 플레이어 반폭(32px)보다도 작았다.
+## 그래서 스프라이트가 뚜렷이 겹쳐 보이는데도 판정이 안 나는 사각지대가 있었다.
+const _CONTACT_SLACK := 2.0     # 밀려나 정확히 맞닿은 상태에서도 판정이 나도록 하는 여유
+
 func _check_contact_damage() -> void:
 	if _hurt_timer > 0.0:
 		return
-	var contact_r_sq := contact_radius * contact_radius
 	# Area2D 물리 질의(get_overlapping_bodies) 대신 공유 공간 해시에서 주변 좀비만 본다 —
 	# 좀비가 수천이어도 비용이 주변 몇 마리로 고정된다.
 	for body_node in Events.zombies_near(global_position):
 		if is_instance_valid(body_node) and body_node.is_in_group("zombies"):
-			# 스프라이트가 실제로 겹친 경우(중심거리 ≤ contact_radius)에만 피해를 준다.
-			if global_position.distance_squared_to(body_node.global_position) > contact_r_sq:
+			# 몬스터 몸통 반경이 있으면 "맞닿음"(겹침 해소 반경과 동일) 기준으로 판정한다.
+			# 없으면(보스) 종전대로 중심거리 기준 — 보스는 스프라이트가 266px 라 같은 규칙을
+			# 쓰면 접촉 사거리가 135px 가 되어 난이도가 통째로 달라진다. 밸런스를 건드리지 않는다.
+			var other: Variant = body_node.get("sep_radius")
+			var touch: float = contact_radius
+			if other != null:
+				touch += _CONTACT_SLACK + float(other)
+			if global_position.distance_squared_to(body_node.global_position) > touch * touch:
 				continue
 			var dmg := contact_damage
 			if body_node.has_method("get_contact_damage"):

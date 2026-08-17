@@ -274,6 +274,12 @@ var _z_frame: int = -1
 var _z_cache: Array = []
 
 
+## 플레이어 몸통 반경 — 좀비가 이 안으로 파고들지 못하게 하고, 접촉 피해 판정에도 같은 값을 쓴다.
+## Player 가 _ready 에서 자기 값(contact_radius)으로 채운다. 좀비 수백 마리가 매 프레임 읽으므로
+## 그룹 조회 대신 여기에 캐시해 둔다.
+var player_body_radius: float = 26.0
+
+
 func live_zombies() -> Array:
 	var f := Engine.get_physics_frames()
 	if f != _z_frame:
