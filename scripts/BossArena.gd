@@ -52,7 +52,9 @@ static func spawn(parent: Node, center: Vector2, p_radius: float) -> Node2D:
 
 func _ready() -> void:
 	add_to_group("boss_arena")   # 자동플레이 조종 AI 가 경계를 피하려고 찾는다
-	z_index = -5                 # 유닛·탄착 표식 아래, 바닥 위
+	# 지면 위·유닛 아래(GroundHazard 와 같은 층). Main 씬의 층은 배경 -3 · 바닥 -2 · 프롭 -1 이라
+	# 이 값이 -3 이하로 내려가면 배경 ColorRect 에 통째로 덮여 화면에서 사라진다(실제로 그랬다).
+	z_index = -1
 	Events.boss_died.connect(_on_boss_died)
 	SoundManager.play("tesla_arc", 0.0, 0.55)   # 역장 전개 저음
 	_FXBurst.spawn(get_tree().current_scene, global_position, COLOR, 130.0, 0.5)

@@ -52,9 +52,13 @@ extends Resource
 ## 보스 격리 구역 — 보스전 동안 플레이어를 가두는 원형 경계(BossArena). 월드에 벽이 없고 보스가
 ## 플레이어보다 항상 느려서 보스전이 "뒤로 걸으며 딜"로 끝나던 것을 막는다. 회차가 오를수록
 ## 좁아져(= 압박 증가) 체력 말고도 난이도가 오르는 축이 된다.
-@export var boss_arena_radius: float = 620.0        # 1회차 반경
-@export var boss_arena_shrink_per_count: float = 30.0   # 회차마다 좁아지는 양
-@export var boss_arena_radius_min: float = 460.0    # 이보다 좁아지지는 않는다(회피 공간 보장)
+## 반경 상한은 화면이 정한다: 뷰포트 720×1280(줌 1.0)이라 플레이어 기준 세로 ±640 까지만 보인다.
+## 640 을 넘기면 경계가 화면 밖이라 "갇혔다"가 전혀 안 읽힌다(620 으로 처음 넣었다가 겪었다).
+## 하한은 보스가 정한다: 보스 유지 거리가 최대 340(바머)이라, 그보다 넉넉히 커야 보스가 경계
+## 밖에 자리잡고 근접 무기가 안 닿는 상황이 안 생긴다.
+@export var boss_arena_radius: float = 480.0        # 1회차 반경
+@export var boss_arena_shrink_per_count: float = 16.0   # 회차마다 좁아지는 양
+@export var boss_arena_radius_min: float = 400.0    # 이보다 좁아지지는 않는다(회피 공간 보장)
 
 @export_group("Chest")
 @export var chest_interval_min: float = 24.0   # 필드 보물상자 스폰 주기(초)
