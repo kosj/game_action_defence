@@ -15,19 +15,24 @@ extends Node2D
 ## 공격 텔레그래프와 헷갈리지 않으면서도 "위험"으로 즉시 읽힌다(기존 prop_barrier 와 같은 언어).
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
-## 경계 아트. field = 경고 레일 사이를 흐르는 전류 밴드(호를 따라 반복), pylon = 감전 경고
-## 파일런(일정 간격으로 세운다). 둘 다 마젠타 키잉 파이프라인으로 만든 것(BOSS_PLAN 11장).
-const _FIELD := preload("res://assets/sprites/arena_field.png")
+## 경계 아트는 파일런(감전 경고 기둥) 한 장뿐이고, 기둥 사이는 코드로 그린 전기선으로 잇는다.
+## 띠 텍스처를 호를 따라 반복해 두르는 방식을 먼저 썼는데, 같은 그림이 이어 붙는 이음매가 드러나
+## 전기 울타리가 아니라 굵은 밧줄처럼 보였다. 선으로 잇는 쪽이 이음매가 없고, 지직거리는 애니메이션도
+## 공짜로 얻는다(FXLightning 과 같은 "넓은 글로우 → 얇은 흰 코어" 겹치기).
 const _PYLON := preload("res://assets/sprites/arena_pylon.png")
 
 const OPEN_TIME := 0.5       # 전개 연출: 넓은 원에서 제 크기로 조여든다
 const OPEN_SCALE := 1.4      # 전개 시작 반경 배수
 const CLOSE_TIME := 0.45     # 보스 처치 후 해제 연출
 const NEAR_BAND := 90.0      # 경계에서 이 거리 안이면 "붙었다"로 보고 더 밝게 그린다
-const TILE_ARC := 180.0      # 전류 밴드 한 장이 덮는 호 길이. 좁히면 번개가 뭉개져 통짜 띠로 보인다
-const TILE_FACETS := 3       # 한 장을 이 수만큼 쪼개 곡률을 낸다(각지지 않게)
-const PYLON_GAP := 260.0     # 파일런 간격
-## 경고 노랑 — 스파크·전개 연출 등 코드로 그리는 부분을 아트의 레일 색에 맞춘다.
+const PYLON_GAP := 165.0     # 기둥 간격 = 전기선 한 칸의 길이
+## 전선은 2단이다 — 한 줄만 걸면 울타리가 아니라 빨랫줄로 보인다. 위쪽이 기둥 단자에 걸리는 본선.
+const WIRE_Y := -60.0        # 본선 높이(기둥 위 방전 단자). 기둥 밑동은 경계선 위에 선다
+const WIRE_Y2 := -32.0       # 아래 보조선
+const WIRE_KINKS := 6        # 한 칸에 들어가는 꺾임 수
+const WIRE_JITTER := 4.0     # 꺾임 폭. 크게 잡으면 팽팽한 전선이 아니라 번개 리본이 된다
+const FLICKER_HZ := 12.0     # 지직거림 갱신 빈도(매 프레임 흔들면 노이즈로 보인다)
+## 경고 노랑 — 스파크·전개 연출 등 코드로 그리는 부분을 파일런의 경고 줄무늬 색에 맞춘다.
 const COLOR := Color(1.0, 0.72, 0.15)
 const ZAP_INTERVAL := 0.22   # 경계에 닿아 있는 동안 스파크가 튀는 간격
 
@@ -124,37 +129,62 @@ func _draw() -> void:
 	var fade := (1.0 - clampf(_close_t / CLOSE_TIME, 0.0, 1.0)) if _closing else 1.0
 	# 전류가 흐르는 느낌 — 맥동에 더해 플레이어가 붙을수록 밝아진다("여기가 벽이다").
 	var hot := clampf(0.86 + 0.09 * sin(_pulse * 7.0) + 0.15 * _near, 0.0, 1.2)
-	var tint := Color(hot, hot, hot, fade)
 
-	# ── 전류 밴드 — 아트 한 장을 호를 따라 반복해 두른다 ──────────────────
-	# 한 장을 TILE_FACETS 개의 사각 조각으로 쪼개 곡률을 낸다. 조각 하나가 통짜면 반경이 커서
-	# 원이 각져 보이고, 반대로 잘게 쪼개면 draw_polygon 호출 수만 늘어난다.
-	var tiles: int = maxi(8, int(round(TAU * r / TILE_ARC)))
-	var facets: int = tiles * TILE_FACETS
-	var half_h := float(_FIELD.get_height()) * 0.5
-	var cols := PackedColorArray([tint, tint, tint, tint])
-	var step := TAU / float(facets)
-	for i in range(facets):
-		var a0 := step * float(i)
-		var a1 := a0 + step
-		var d0 := Vector2.from_angle(a0)
-		var d1 := Vector2.from_angle(a1)
-		# 이 조각이 아트에서 차지하는 가로 구간(0~1). 조각이 타일 경계를 넘지 않도록
-		# facets 를 tiles 의 배수로 잡았다 — 넘으면 UV 가 잘려 이음매가 생긴다.
-		var u0 := float(i % TILE_FACETS) / float(TILE_FACETS)
-		var u1 := u0 + 1.0 / float(TILE_FACETS)
-		draw_polygon(
-			PackedVector2Array([d0 * (r - half_h), d1 * (r - half_h),
-					d1 * (r + half_h), d0 * (r + half_h)]),
-			cols,
-			PackedVector2Array([Vector2(u0, 0.0), Vector2(u1, 0.0),
-					Vector2(u1, 1.0), Vector2(u0, 1.0)]),
-			_FIELD)
-
-	# ── 경고 파일런 — 밴드 위에 일정 간격으로 세운다(감전 경고판·빨간 경광등) ──
-	# 스프라이트는 세워서 그린다: 밑동이 링 위에 놓이도록 위로 올려 배치(다른 프롭과 같은 규약).
 	var pn: int = maxi(6, int(round(TAU * r / PYLON_GAP)))
+
+	# ── 경계선(지면) — 기둥이 서 있는 실제 경계. 전기선은 기둥 높이에 걸리므로,
+	# 발이 어디서 막히는지는 이 얇은 선이 알려준다.
+	draw_arc(Vector2.ZERO, r, 0.0, TAU, 72,
+			Color(COLOR.r, COLOR.g, COLOR.b, (0.20 + 0.20 * _near) * fade), 2.0, true)
+
+	# ── 전기선 — 기둥 단자를 잇는 한 줄 폐곡선. 통째로 한 번에 그려 이음매가 없다.
+	# FXLightning 과 같은 겹치기: 넓고 흐린 글로우 → 중간 → 얇고 흰 코어. 글로우를 아끼면
+	# 코어만 남아 흰 줄 하나로 보인다 — 방전으로 읽히는 건 바깥의 주황 번짐 쪽이다.
+	var low := _wire_points(r, pn, WIRE_Y2, 53)
+	draw_polyline(low, Color(1.0, 0.35, 0.03, 0.22 * hot * fade), 10.0, true)
+	draw_polyline(low, Color(1.0, 0.88, 0.40, 0.70 * hot * fade), 1.6, true)
+
+	var wire := _wire_points(r, pn, WIRE_Y, 0)
+	draw_polyline(wire, Color(1.0, 0.30, 0.02, 0.30 * hot * fade), 17.0, true)
+	draw_polyline(wire, Color(1.0, 0.55, 0.06, 0.55 * hot * fade), 9.0, true)
+	draw_polyline(wire, Color(1.0, 0.85, 0.30, 0.85 * hot * fade), 4.0, true)
+	draw_polyline(wire, Color(1.0, 1.0, 0.90, 1.0 * hot * fade), 1.6, true)
+	# 방전 마디 — 몇 군데만 골라 밝게 튀긴다(전부 찍으면 점선처럼 보인다).
+	var flick := int(_pulse * FLICKER_HZ)
+	for i in range(wire.size()):
+		if (i + flick) % 9 != 0:
+			continue
+		var p: Vector2 = wire[i]
+		draw_circle(p, 5.0, Color(1.0, 0.7, 0.2, 0.32 * fade))
+		draw_circle(p, 2.0, Color(1.0, 1.0, 0.92, 0.9 * fade))
+
+	# ── 경고 파일런 — 밑동이 경계선 위에 놓이도록 세운다(다른 프롭과 같은 규약).
 	var psz: Vector2 = _PYLON.get_size()
 	for i in range(pn):
 		var p := Vector2.from_angle(TAU * float(i) / float(pn)) * r
 		draw_texture(_PYLON, p - Vector2(psz.x * 0.5, psz.y), Color(1, 1, 1, fade))
+
+
+## 기둥 단자를 잇는 지직거리는 전기선. 기둥 위치는 고정점이고 그 사이만 흔들린다 —
+## 선이 기둥에서 떨어져 보이면 "매달려 있다"는 인상이 깨진다.
+func _wire_points(r: float, n: int, y: float, seed: int) -> PackedVector2Array:
+	var pts := PackedVector2Array()
+	var step := TAU / float(n)
+	var flick := int(_pulse * FLICKER_HZ)   # 이 값이 바뀔 때만 꺾임이 새로 잡힌다
+	var lift := Vector2(0.0, y)
+	for i in range(n):
+		pts.append(Vector2.from_angle(step * float(i)) * r + lift)
+		for k in range(1, WIRE_KINKS + 1):
+			var f := float(k) / float(WIRE_KINKS + 1)
+			var dir := Vector2.from_angle(step * (float(i) + f))
+			pts.append(dir * (r + _jitter(i + seed, k, flick) * WIRE_JITTER)
+					+ lift + Vector2(0.0, _jitter(i + seed, k + 91, flick) * WIRE_JITTER))
+	pts.append(Vector2.from_angle(0.0) * r + lift)   # 시작 기둥으로 닫는다
+	return pts
+
+
+## 정수 삼중항 → -1~1. 프레임마다 randf() 를 쓰면 선 전체가 매 프레임 다시 뽑혀 노이즈가 되므로,
+## flick 단계가 같은 동안에는 같은 모양이 유지되도록 해시로 만든다.
+func _jitter(a: int, b: int, c: int) -> float:
+	var h: int = (a * 73856093) ^ (b * 19349663) ^ (c * 83492791)
+	return float(h & 0xFFFF) / 32767.5 - 1.0
