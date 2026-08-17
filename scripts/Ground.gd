@@ -7,10 +7,12 @@ const TILE := 80
 const TILE_DARKEN := Color(0.55, 0.55, 0.60)
 
 ## 테마별 전용 바닥 타일 텍스처(있으면 체커+절차 장식 대신 타일링). 없는 테마(desert 등)는 폴백.
+## 타일은 assets/sprites 가 아니라 assets/tiles 에 둔다 — sprites/ 는 통째로 아틀라스 대상이자
+## 익스포트 제외 대상인데, 타일은 texture_repeat 로 화면을 채워야 해서 아틀라스에 못 넣는다.
 const _TILE_TEX := {
-	"grass":  preload("res://assets/sprites/tiles/tile_grass.png"),
-	"stone":  preload("res://assets/sprites/tiles/tile_stone.png"),
-	"frozen": preload("res://assets/sprites/tiles/tile_frozen.png"),
+	"grass":  preload("res://assets/tiles/tile_grass.png"),
+	"stone":  preload("res://assets/tiles/tile_stone.png"),
+	"frozen": preload("res://assets/tiles/tile_frozen.png"),
 }
 
 ## name: 로직 분기용 식별자

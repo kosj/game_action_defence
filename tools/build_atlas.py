@@ -80,8 +80,17 @@ ATLASES: dict[str, list[str]] = {
 }
 
 
-## 아틀라스에 넣으면 깨지는 것 — 타일은 texture_repeat 로 화면을 채우므로 region 화가 불가능하다.
-EXCLUDE = ("assets/sprites/tiles/",)
+## export_presets.cfg 의 exclude_filter 와 같은 목록. 아틀라스에 들어간 원본을 웹 빌드에서
+## 빼기 위한 것인데, **Godot 의 와일드카드는 `/` 까지 매칭한다** — `assets/sprites/*.png` 는
+## `assets/sprites/tiles/tile_grass.png` 도 지운다. 실제로 그래서 바닥 타일이 빌드에서
+## 사라진 적이 있다. 그래서 타일은 assets/tiles 로 옮겨 sprites/ 밖에 두었고,
+## --check 가 "여기 걸리는 파일은 전부 아틀라스에 있어야 한다"를 검증한다.
+EXPORT_EXCLUDE = (
+    "assets/sprites/",
+    "assets/ui/icons/",
+    "assets/ui/portraits/",
+    "assets/ui/thumbs/",
+)
 
 
 def _sources(root: pathlib.Path, patterns: list[str]) -> list[pathlib.Path]:
@@ -89,7 +98,6 @@ def _sources(root: pathlib.Path, patterns: list[str]) -> list[pathlib.Path]:
     for pat in patterns:
         out += [pathlib.Path(p) for p in glob.glob(str(root / pat))]
     # 경로 순 정렬 — 배치 결과가 실행마다 동일해야 diff 가 안정된다.
-    out = [p for p in out if not any(e in str(p).replace("\\", "/") for e in EXCLUDE)]
     return sorted(set(out))
 
 
@@ -176,12 +184,32 @@ def build(root: pathlib.Path, check_only: bool) -> int:
                   f"region({x},{y},{im.width},{im.height})")
 
     if check_only:
+        stray = _stray_excluded(root)
+        if stray:
+            print("\n[ATLAS] 익스포트에서 제외되는데 아틀라스에도 없는 파일이 있습니다 —\n"
+                  "        웹 빌드에서 그림이 사라집니다. 아틀라스에 넣거나 제외 대상 밖으로 옮기세요:")
+            for f in stray:
+                print(f"          {f}")
+            return 1
         if changed:
             print("\n[ATLAS] 아틀라스가 원본과 어긋나 있습니다 — "
                   "`python3 tools/build_atlas.py` 를 실행해 다시 만드세요.")
             return 1
         print("[ATLAS] 최신 상태입니다.")
     return 0
+
+
+## exclude_filter 에 걸리는데 어느 아틀라스에도 들어가지 않은 PNG — 있으면 빌드에서 사라진다.
+def _stray_excluded(root: pathlib.Path) -> list[str]:
+    packed = set()
+    for patterns in ATLASES.values():
+        packed |= {p.name for p in _sources(root, patterns)}
+    stray = []
+    for pre in EXPORT_EXCLUDE:
+        for p in sorted((root / pre).rglob("*.png")):
+            if p.name not in packed:
+                stray.append(str(p.relative_to(root)))
+    return stray
 
 
 def _png_bytes(img: Image.Image) -> bytes:

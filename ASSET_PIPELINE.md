@@ -44,7 +44,7 @@ python3 tools/build_atlas.py
 
 | 대상 | 이유 |
 |---|---|
-| `assets/sprites/tiles/*` | `texture_repeat` 로 반복 샘플링해야 해서 아틀라스에 넣을 수 없다 |
+| `assets/tiles/*` | `texture_repeat` 로 반복 샘플링해야 해서 아틀라스에 넣을 수 없다. **`sprites/` 밖에 둔다** — 아래 참조 |
 | `assets/sprites/props/*` | `PropField` 가 단일 CanvasItem 에서 한 번에 그려 배칭 영향이 작다 |
 | `assets/ui/frames/*`·`hud/*` | `StyleBoxTexture` 나인패치 + 무손실 고정(아래 3절) |
 | `assets/ui` 루트(배경·로고·비네트) | 한 번에 한 장만 뜨는 큰 그림이라 배칭 이득이 없다 |
@@ -56,7 +56,14 @@ python3 tools/build_atlas.py
 
 아틀라스에 들어간 원본 PNG 는 `export_presets.cfg` 의 `exclude_filter` 로 웹 빌드에서 빠진다.
 안 그러면 아틀라스와 원본이 **둘 다** pck 에 들어가 1.4MB 가 그대로 중복된다.
-새 폴더를 아틀라스 대상에 추가했다면 `exclude_filter` 에도 함께 넣어야 한다.
+
+> ⚠️ **Godot 의 와일드카드는 `/` 까지 매칭한다.** `assets/sprites/*.png` 는 하위 폴더인
+> `assets/sprites/tiles/tile_grass.png` 까지 지운다. 실제로 이것 때문에 바닥 타일이 빌드에서
+> 통째로 사라진 적이 있다(에디터에서는 멀쩡해 더 헷갈린다). 그래서 **아틀라스에 못 넣는 것은
+> `assets/sprites/` 밖에 둔다** — 타일이 `assets/tiles/` 에 있는 이유다.
+>
+> `python3 tools/build_atlas.py --check` 가 "제외 대상인데 아틀라스에도 없는 파일"을 찾아
+> 빌드를 실패시킨다. 새 폴더를 추가할 때는 `ATLASES` 와 `EXPORT_EXCLUDE` 를 함께 갱신할 것.
 
 ### 크기는 "표시 크기 × 2" 가 기준
 
