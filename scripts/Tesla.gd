@@ -3,6 +3,7 @@ extends WeaponModule
 ## _data: fire_interval=방전 주기, area_radius=첫 표적 사거리, proj_damage/dmg_per_level=타격당 피해.
 ## 연쇄 수는 레벨로 늘어난다.
 
+const _FXMaterial := preload("res://scripts/FXMaterial.gd")
 const CHAIN_RANGE := 170.0   # 다음 연쇄 대상까지 허용 거리
 const ARC_FADE := 0.22       # 아크 잔상 지속 — 번개가 "번쩍하고 남는" 여운
 const JAG_STEP := 26.0       # 지그재그 분할 간격(px) — 짧을수록 세밀한 번개
@@ -22,9 +23,7 @@ func _chain_count(lvl: int) -> int:
 
 func _ready() -> void:
 	# 가산 블렌드 — 번개 겹칠수록 빛나는 이미시브 발광(FXLightning 과 동일 규약).
-	var mat := CanvasItemMaterial.new()
-	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	material = mat
+	material = _FXMaterial.additive()   # 공유 인스턴스 — 개별 생성 시 드로우 배치가 쪼개진다
 
 
 func _physics_process(delta: float) -> void:

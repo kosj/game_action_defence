@@ -21,11 +21,11 @@ const ENEMY_BULLET := preload("res://scenes/EnemyBullet.tscn")
 ## 아키타입별 전용 보스 스프라이트(업로드된 실제 아트워크). bomber 는 gunner 아트를 재사용,
 ## 최종 보스 REAPER(berserk)는 berserk 아트를 사용한다.
 const _BOSS_TEX := {
-	"melee":    preload("res://assets/sprites/boss_brute.png"),
-	"gunner":   preload("res://assets/sprites/boss_gunner.png"),
-	"summoner": preload("res://assets/sprites/boss_summoner.png"),
-	"bomber":   preload("res://assets/sprites/boss_gunner.png"),
-	"berserk":  preload("res://assets/sprites/boss_berserk.png"),
+	"melee":    preload("res://assets/atlas/boss_brute.tres"),
+	"gunner":   preload("res://assets/atlas/boss_gunner.tres"),
+	"summoner": preload("res://assets/atlas/boss_summoner.tres"),
+	"bomber":   preload("res://assets/atlas/boss_gunner.tres"),
+	"berserk":  preload("res://assets/atlas/boss_berserk.tres"),
 }
 
 @onready var body: Node2D = $Body
@@ -334,7 +334,7 @@ func _fire_volley(is_followup: bool = false) -> void:
 
 
 func _fire_bullet(dir: Vector2) -> void:
-	var p := Pool.acquire(ENEMY_BULLET, get_tree().current_scene)
+	var p := Pool.acquire(ENEMY_BULLET, Events.fx_layer())
 	p.global_position = global_position + dir * 24.0
 	p.direction = dir
 	p.speed = GUNNER_PROJ_SPEED

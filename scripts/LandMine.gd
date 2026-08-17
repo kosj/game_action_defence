@@ -4,8 +4,8 @@ extends Node2D
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 const _SpriteFX := preload("res://scripts/SpriteFX.gd")
-const _FX_EXPLOSION := preload("res://assets/sprites/fx/fx_explosion.png")
-const _FX_SMOKE := preload("res://assets/sprites/fx/fx_smoke.png")
+const _FX_EXPLOSION := preload("res://assets/atlas/fx_explosion.tres")
+const _FX_SMOKE := preload("res://assets/atlas/fx_smoke.tres")
 
 const ARM_TIME := 0.4       # 설치 직후 무장 지연(즉폭 방지)
 const TRIGGER_R := 34.0     # 이 반경에 좀비가 들어오면 기폭
@@ -24,7 +24,7 @@ var _spr: Sprite2D
 func _ready() -> void:
 	# 발밑 그림자(설치물 존재감) — 스프라이트 아래에 먼저 깐다.
 	var sh := Sprite2D.new()
-	sh.texture = preload("res://assets/sprites/shadow.png")
+	sh.texture = preload("res://assets/atlas/shadow.tres")
 	sh.z_index = -1
 	var mtex: Vector2 = preload("res://assets/sprites/field_mine.png").get_size()
 	var ssx: float = (mtex.x * 0.26 * 1.1) / 128.0

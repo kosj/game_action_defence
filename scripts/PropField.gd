@@ -16,7 +16,7 @@ const DENSITY := 30                       # 셀당 프롭 확률(해시 %100 < �
 ## 베이크해 두었고, 여기서 한 번 더 어둡게 깔아 3D 렌더 프롭이 페인팅 배경 위로 과하게 튀지 않게 한다.
 const DARKEN := Color(0.70, 0.68, 0.66)
 ## 접지 그림자 — 프롭이 지면에 붙어 보이게 해 투시(3/4 렌더 vs 측면 뷰) 불일치를 크게 완화한다.
-const _SHADOW_TEX := preload("res://assets/sprites/shadow.png")
+const _SHADOW_TEX := preload("res://assets/atlas/shadow.tres")
 const SHADOW_W := 0.80     # 프롭 폭 대비 그림자 폭
 const SHADOW_H := 0.26     # 그림자 폭 대비 높이(납작한 타원)
 const SHADOW_COL := Color(0.0, 0.0, 0.0, 0.38)

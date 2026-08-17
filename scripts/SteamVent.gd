@@ -4,7 +4,7 @@ extends Node2D
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 const _SpriteFX := preload("res://scripts/SpriteFX.gd")
-const _FX_SMOKE := preload("res://assets/sprites/fx/fx_smoke.png")
+const _FX_SMOKE := preload("res://assets/atlas/fx_smoke.tres")
 
 const TELEGRAPH := 1.0
 const ACTIVE := 0.35

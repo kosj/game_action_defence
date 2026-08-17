@@ -58,10 +58,16 @@ static func spawn(parent: Node, pos: Vector2, p_color: Color, p_max_radius: floa
 	fx._time = 0.0
 	fx._active = true
 	fx.visible = true
-	if fx.get_parent() != parent:
+	# 이펙트는 Y 정렬이 필요 없다 — 전용 레이어(Events.fx_layer)에 붙여 유닛 스트림에서 빼면
+	# 유닛 스프라이트 사이에 다른 텍스처/절차 드로우가 끼지 않아 배칭이 유지된다.
+	# 레이어를 못 얻는 상황(씬 밖 호출)에서는 넘겨받은 parent 로 폴백한다.
+	var host: Node = Events.fx_layer()
+	if host == null:
+		host = parent
+	if fx.get_parent() != host:
 		if fx.get_parent() != null:
 			fx.get_parent().remove_child(fx)
-		parent.add_child(fx)
+		host.add_child(fx)
 	fx.global_position = pos
 	fx.queue_redraw()
 

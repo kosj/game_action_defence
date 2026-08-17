@@ -243,7 +243,7 @@ func _behave_spitter(delta: float) -> void:
 
 func _spit(dir: Vector2) -> void:
 	SoundManager.play("spit", 0.12, 1.0)   # 원거리 공격 예고 — 날아오는 산성탄을 소리로 먼저 알린다
-	var p := Pool.acquire(ENEMY_BULLET, get_tree().current_scene)
+	var p := Pool.acquire(ENEMY_BULLET, Events.fx_layer())
 	p.global_position = global_position
 	p.direction = dir
 	p.speed = SPIT_PROJ_SPEED

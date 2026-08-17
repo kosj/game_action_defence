@@ -60,7 +60,7 @@ func _fire_all() -> void:
 		if target == null:
 			continue
 		var dir: Vector2 = (target.global_position - world).normalized()
-		var b := Pool.acquire(BULLET, get_tree().current_scene)
+		var b := Pool.acquire(BULLET, Events.fx_layer())
 		b.global_position = world
 		b.direction = dir
 		b.rotation = dir.angle() + PI / 2

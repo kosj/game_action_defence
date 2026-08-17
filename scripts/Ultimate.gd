@@ -4,6 +4,7 @@ extends WeaponModule
 ## _data: fire_interval=재사용 대기(초), area_duration=지속(초),
 ## proj_damage/dmg_per_level=틱 피해(레벨업 카드로 강화), color=연출색(캐릭터 테마).
 
+const _FXMaterial := preload("res://scripts/FXMaterial.gd")
 const TICK := 0.30           # 피해 틱 간격
 const SCREEN_R := 720.0      # 화면 커버 반경(포트레이트 720x1280 반대각 ≈ 734)
 const FX_PER_TICK := 6       # 틱마다 무작위 피격 지점에 터뜨릴 버스트 수(과부하 방지 상한)
@@ -25,9 +26,7 @@ func _h(n: int) -> float:
 
 func _ready() -> void:
 	z_index = 3
-	var mat := CanvasItemMaterial.new()
-	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD   # 발동 중 화면을 물들이는 발광 오버레이
-	material = mat
+	material = _FXMaterial.additive()   # 공유 인스턴스 — 개별 생성 시 드로우 배치가 쪼개진다   # 발동 중 화면을 물들이는 발광 오버레이
 
 
 func _physics_process(delta: float) -> void:

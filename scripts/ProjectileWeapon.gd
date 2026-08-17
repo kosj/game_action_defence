@@ -70,7 +70,7 @@ func _fire(lvl: int) -> void:
 			var steps: int = pellets / 2
 			angle_off = side * spread * float(pair) / float(maxi(steps, 1))
 		var dir := base_dir.rotated(angle_off)
-		var b := Pool.acquire(BULLET, get_tree().current_scene)
+		var b := Pool.acquire(BULLET, Events.fx_layer())
 		b.global_position = origin
 		b.direction = dir
 		b.rotation = dir.angle() + PI / 2

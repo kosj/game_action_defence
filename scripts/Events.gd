@@ -374,6 +374,34 @@ func zombies_in_radius(pos: Vector2, r: float) -> Array:
 	return _radius_buf
 
 
+# ── 이펙트 레이어 ────────────────────────────────────────────────────
+# Main 은 y_sort 라 자식들이 Y 순서로 정렬된다. 폭발·데미지 숫자 같은 이펙트가 그 사이에
+# 끼면 유닛 스프라이트 사이사이로 "다른 텍스처/절차 드로우"가 들어가 배칭이 계속 끊긴다.
+# 이펙트는 Y 정렬이 필요 없으므로 전용 컨테이너(y_sort 꺼짐)에 모아 유닛 스트림에서 뺀다.
+#
+# z_index 3 = 유닛(0) 위. 자식들의 z_index 는 상대값이라 서로의 순서(FXBurst 0 < SpriteFX 3
+# < DamageNumber 60)는 그대로 유지된다.
+const FX_LAYER_NAME := "FXLayer"
+const FX_LAYER_Z := 3
+
+
+## 현재 씬의 이펙트 레이어(없으면 생성). 씬이 없으면 null — 호출부가 원래 부모로 폴백한다.
+func fx_layer() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.current_scene == null:
+		return null
+	var scene := tree.current_scene
+	var n := scene.get_node_or_null(NodePath(FX_LAYER_NAME))
+	if n == null:
+		var layer := Node2D.new()
+		layer.name = FX_LAYER_NAME
+		layer.y_sort_enabled = false
+		layer.z_index = FX_LAYER_Z
+		scene.add_child(layer)
+		n = layer
+	return n
+
+
 ## 화면 흔들림 요청 — 타격감이 필요한 순간(플레이어 피격·보스 사망·폭발 등)에 호출한다.
 ## 실제 오프셋 적용은 Player 의 카메라가 담당(감쇠). amount 는 대략 흔들림 픽셀 세기.
 func shake(amount: float) -> void:

@@ -82,10 +82,16 @@ static func spawn(parent: Node, pos: Vector2, amount: int, big: bool = false, co
 	d._half_w = ThemeDB.fallback_font.get_string_size(str(amount), HORIZONTAL_ALIGNMENT_LEFT, -1, base_size).x * 0.5
 	d.z_index = 60   # 유닛·이펙트 위에 표시
 	d._vel = Vector2(randf_range(-18.0, 18.0), randf_range(-62.0, -42.0))
-	if d.get_parent() != parent:
+	# 이펙트는 Y 정렬이 필요 없다 — 전용 레이어(Events.fx_layer)에 붙여 유닛 스트림에서 빼면
+	# 유닛 스프라이트 사이에 다른 텍스처/절차 드로우가 끼지 않아 배칭이 유지된다.
+	# 레이어를 못 얻는 상황(씬 밖 호출)에서는 넘겨받은 parent 로 폴백한다.
+	var host: Node = Events.fx_layer()
+	if host == null:
+		host = parent
+	if d.get_parent() != host:
 		if d.get_parent() != null:
 			d.get_parent().remove_child(d)
-		parent.add_child(d)
+		host.add_child(d)
 	d.global_position = pos + Vector2(randf_range(-6.0, 6.0), -12.0)
 	d.queue_redraw()
 

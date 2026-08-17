@@ -40,7 +40,7 @@ var _spr: Sprite2D
 var _shadow: Sprite2D
 var _oct: int = -1
 
-const _SHADOW_TEX := preload("res://assets/sprites/shadow.png")
+const _SHADOW_TEX := preload("res://assets/atlas/shadow.tres")
 
 
 func setup(pos: Vector2, dmg: int, bspeed: float, rng: float, life: float, tint: Color) -> void:
@@ -106,7 +106,7 @@ func _fit_shadow() -> void:
 
 func _fire(target: Node2D) -> void:
 	_aim = (target.global_position - global_position).normalized()
-	var b := Pool.acquire(BULLET, get_tree().current_scene)
+	var b := Pool.acquire(BULLET, Events.fx_layer())
 	b.global_position = global_position + _aim * MUZZLE_LEN   # 포신 끝에서 발사
 	b.direction = _aim
 	b.rotation = _aim.angle() + PI / 2

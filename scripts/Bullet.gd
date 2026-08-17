@@ -12,8 +12,8 @@ extends Node2D
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 const _SpriteFX := preload("res://scripts/SpriteFX.gd")
-const _FX_HITSPARK := preload("res://assets/sprites/fx/fx_hitspark.png")
-const _FX_EXPLOSION := preload("res://assets/sprites/fx/fx_explosion.png")
+const _FX_HITSPARK := preload("res://assets/atlas/fx_hitspark.tres")
+const _FX_EXPLOSION := preload("res://assets/atlas/fx_explosion.tres")
 
 var direction: Vector2 = Vector2.RIGHT
 var trail_color: Color = Color(1.0, 0.30, 0.10)
@@ -37,12 +37,12 @@ const HOMING_RANGE := 420.0       # 이 거리 안의 적만 유도 대상 — �
 ## 유지된다. 검은 외곽선은 곱셈에도 검게 남아 밝은 바닥 위에서 실루엣을 잡아준다.
 ## 아트는 오른쪽(+X)을 향해 그려져 있고, 진행 방향은 로컬 -Y 라 그릴 때 -90° 돌린다.
 const _TEX := {
-	"bullet": preload("res://assets/sprites/proj_tracer.png"),
-	"bullet_guided": preload("res://assets/sprites/proj_tracer_guided.png"),
-	"bolt": preload("res://assets/sprites/proj_bolt.png"),
-	"bolt_guided": preload("res://assets/sprites/proj_bolt_guided.png"),
-	"nail": preload("res://assets/sprites/proj_nail.png"),
-	"nail_guided": preload("res://assets/sprites/proj_nail_guided.png"),
+	"bullet": preload("res://assets/atlas/proj_tracer.tres"),
+	"bullet_guided": preload("res://assets/atlas/proj_tracer_guided.tres"),
+	"bolt": preload("res://assets/atlas/proj_bolt.tres"),
+	"bolt_guided": preload("res://assets/atlas/proj_bolt_guided.tres"),
+	"nail": preload("res://assets/atlas/proj_nail.tres"),
+	"nail_guided": preload("res://assets/atlas/proj_nail_guided.tres"),
 	"blade": preload("res://assets/ui/icons/weapon_sawblade.png"),
 }
 ## 스타일별 화면 크기(긴 변, px). 원본 해상도와 무관하게 여기로 정규화한다.

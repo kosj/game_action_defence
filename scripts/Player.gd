@@ -29,7 +29,7 @@ const _MODULE_CLASSES := {
 }
 const _FXBurst  := preload("res://scripts/FXBurst.gd")
 const _SpriteFX := preload("res://scripts/SpriteFX.gd")
-const _FX_MUZZLE := preload("res://assets/sprites/fx/fx_muzzle.png")
+const _FX_MUZZLE := preload("res://assets/atlas/fx_muzzle.tres")
 const _WeaponDB := preload("res://scripts/WeaponDB.gd")
 const BASE_BULLET_SPEED := 700.0
 
@@ -428,7 +428,7 @@ func _shoot_dir(base_dir: Vector2) -> void:
 			var steps: int = count / 2
 			angle_off = side * spread * float(pair) / float(maxi(steps, 1))
 		var dir := base_dir.rotated(angle_off)
-		var b := Pool.acquire(BULLET, get_tree().current_scene)
+		var b := Pool.acquire(BULLET, Events.fx_layer())
 		b.global_position = muzzle.global_position
 		b.direction = dir
 		b.rotation = dir.angle() + PI / 2

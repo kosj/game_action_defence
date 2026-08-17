@@ -26,9 +26,9 @@ const BOSS_SEQUENCE: Array = ["brute", "gunner", "summoner", "bomber", "berserk"
 ##   교외=변이 사냥개(광폭 근접), 도심=견인 변이체(폭파형 탱커), 연구소=프라임 변이체(소환형 다단계).
 ## sprite: 테마 보스 전용 아트(빈 문자열이면 아키타입 기본 텍스처 사용). 사이드뷰·오른쪽 향함.
 const THEME_BOSSES: Dictionary = {
-	"mutant_dog": {"archetype": "berserk",  "name": "MUTANT HOUND",   "hp_mul": 0.85, "speed_mul": 1.35, "contact": 2, "tint": Color(0.58, 0.40, 0.24), "proj": Color(1, 1, 1),          "sprite": "res://assets/sprites/boss_mutant_dog.png"},
-	"wrecker":    {"archetype": "bomber",   "name": "THE WRECKER",    "hp_mul": 1.30, "speed_mul": 0.70, "contact": 3, "tint": Color(0.40, 0.42, 0.48), "proj": Color(1.0, 0.55, 0.15), "sprite": "res://assets/sprites/boss_wrecker.png"},
-	"mutation":   {"archetype": "summoner", "name": "PRIME MUTATION", "hp_mul": 1.20, "speed_mul": 0.60, "contact": 2, "tint": Color(0.42, 0.85, 0.35), "proj": Color(0.5, 1.0, 0.6),   "sprite": "res://assets/sprites/boss_mutation.png"},
+	"mutant_dog": {"archetype": "berserk",  "name": "MUTANT HOUND",   "hp_mul": 0.85, "speed_mul": 1.35, "contact": 2, "tint": Color(0.58, 0.40, 0.24), "proj": Color(1, 1, 1),          "sprite": "res://assets/atlas/boss_mutant_dog.tres"},
+	"wrecker":    {"archetype": "bomber",   "name": "THE WRECKER",    "hp_mul": 1.30, "speed_mul": 0.70, "contact": 3, "tint": Color(0.40, 0.42, 0.48), "proj": Color(1.0, 0.55, 0.15), "sprite": "res://assets/atlas/boss_wrecker.tres"},
+	"mutation":   {"archetype": "summoner", "name": "PRIME MUTATION", "hp_mul": 1.20, "speed_mul": 0.60, "contact": 2, "tint": Color(0.42, 0.85, 0.35), "proj": Color(0.5, 1.0, 0.6),   "sprite": "res://assets/atlas/boss_mutation.tres"},
 }
 
 ## 스웜 이벤트: 주기적으로 한 무리가 떼로 몰려온다(뱀서식 긴장 스파이크).

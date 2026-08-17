@@ -56,6 +56,13 @@ jobs:
       - name: Check font coverage
         run: godot --headless --script res://tools/check_font_coverage.gd
 
+      # 좀비·보스·그림자·젬·투사체·FX 스프라이트는 아틀라스 한 장으로 묶여 있다. 새 이미지를
+      # 추가하고 아틀라스를 다시 만들지 않거나 PNG 를 직접 참조하면, 그 스프라이트만 아틀라스 밖
+      # 텍스처가 되어 드로우 배칭이 다시 끊긴다 — 눈으로는 안 보이고 프레임만 떨어진다.
+      # 절차는 ASSET_PIPELINE.md 참고.
+      - name: Check texture atlas
+        run: godot --headless --script res://tools/check_atlas.gd
+
       - name: Export to Web
         run: |
           mkdir -p build/web

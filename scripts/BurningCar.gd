@@ -4,8 +4,8 @@ extends Node2D
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 const _SpriteFX := preload("res://scripts/SpriteFX.gd")
-const _FX_EXPLOSION := preload("res://assets/sprites/fx/fx_explosion.png")
-const _FX_SMOKE := preload("res://assets/sprites/fx/fx_smoke.png")
+const _FX_EXPLOSION := preload("res://assets/atlas/fx_explosion.tres")
+const _FX_SMOKE := preload("res://assets/atlas/fx_smoke.tres")
 
 const TRIGGER_R := 52.0
 const EXPLODE_R := 150.0

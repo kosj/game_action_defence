@@ -4,6 +4,7 @@ extends Node2D
 ## 반경·피해가 커진다. 지면 효과처럼 유닛 아래에 깔린다(z_index=-1).
 ## 연출: 따뜻한 금빛 다층 글로우 + 천천히 도는 햇살 살(god-ray) + 은은한 맥동(가산 블렌드).
 
+const _FXMaterial := preload("res://scripts/FXMaterial.gd")
 const BASE_RADIUS := 92.0
 const RADIUS_PER_LV := 13.0
 const TICK := 0.5          # 이 간격마다 반경 내 전원에게 1회 피해
@@ -17,9 +18,7 @@ var _ray_buf := PackedVector2Array()   # 햇살 살 삼각형 — 드로우마�
 
 func _ready() -> void:
 	z_index = -1   # 좀비·플레이어 아래(지면 위)에 그려지는 오라
-	var mat := CanvasItemMaterial.new()
-	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD   # 겹칠수록 빛나는 햇살 발광
-	material = mat
+	material = _FXMaterial.additive()   # 공유 인스턴스 — 개별 생성 시 드로우 배치가 쪼개진다   # 겹칠수록 빛나는 햇살 발광
 
 
 func _radius() -> float:

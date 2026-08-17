@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="ZombieData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/ZombieData.gd" id="1_3cbac"]
-[ext_resource type="Texture2D" path="res://assets/sprites/zombie_screamer.png" id="2_vstsr"]
+[ext_resource type="Texture2D" path="res://assets/atlas/zombie_screamer.tres" id="2_vstsr"]
 
 [resource]
 script = ExtResource("1_3cbac")
