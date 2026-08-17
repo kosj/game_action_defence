@@ -55,7 +55,7 @@ func _zap() -> void:
 	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1)
 	var chain := _chain_count(lvl)
 	var hit: Dictionary = {}
-	var prev: Vector2 = global_position
+	var prev: Vector2 = _muzzle()   # 첫 아크는 캐릭터 몸통이 아니라 그림 속 총구에서 뻗는다
 	var cur: Node2D = first
 	_segs.clear()
 	for _i in range(chain):
