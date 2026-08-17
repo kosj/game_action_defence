@@ -95,6 +95,7 @@ var _stat_icons: Array = []               # 상단 우측 스탯 아이콘들 �
 var _cheat_box: VBoxContainer = null      # 일시정지 메뉴의 치트 하위 메뉴(접이식)
 var _cheat_auto_btn: Button = null        # 자동플레이 토글 버튼(라벨 ON/OFF 갱신)
 var _cheat_perf_btn: Button = null        # 성능 오버레이 토글 버튼(라벨 ON/OFF 갱신)
+var _cheat_day_btn: Button = null         # 낮/밤 시간 처리 토글 버튼(라벨 ON/OFF 갱신)
 var _perf_overlay: Control = null         # 성능 디버그 오버레이(좌상단)
 var _auto_tag: Label = null               # 자동플레이 중임을 알리는 화면 표시
 
@@ -1208,7 +1209,7 @@ func _build_pause_menu() -> void:
 		margin.add_theme_constant_override("margin_" + m, 26)
 	_pause_panel.add_child(margin)
 
-	# CHEATS 를 펼치면 버튼이 6개 더 붙어 패널이 화면 높이에 육박한다. 스크롤이 없으면
+	# CHEATS 를 펼치면 버튼이 7개 더 붙어 패널이 화면 높이에 육박한다. 스크롤이 없으면
 	# 그 순간 아래쪽이 잘려 손댈 수가 없으므로, 내용을 스크롤 영역에 담는다.
 	# (높이는 _fit_pause_scroll() 이 "내용 높이 vs 화면 여유" 중 작은 쪽으로 맞춘다)
 	_pause_scroll = ScrollContainer.new()
@@ -1276,6 +1277,8 @@ func _build_pause_menu() -> void:
 	_make_cheat_button("GOLD +500", func(): Events.add_gold(500))
 	_make_cheat_button("LEVEL UP +1", func(): Events.bonus_level())
 	_cheat_perf_btn = _make_cheat_button("PERF HUD: OFF", func(): Cheats.toggle_perf_overlay())
+	# 낮/밤 시간 틴트를 통째로 끈다(날씨는 유지) — 밤 구간에서 화면이 어두워 확인이 어려울 때.
+	_cheat_day_btn = _make_cheat_button("DAY/NIGHT: ON", func(): Cheats.toggle_daynight())
 	Cheats.changed.connect(_refresh_cheat_ui)
 	_refresh_cheat_ui()   # 씬 재진입 시 이미 켜져 있던 토글이 라벨에 반영되도록 초기 1회 갱신
 
@@ -1340,6 +1343,8 @@ func _refresh_cheat_ui() -> void:
 		_cheat_perf_btn.text = "PERF HUD: ON" if Cheats.perf_overlay else "PERF HUD: OFF"
 	if _perf_overlay:
 		_perf_overlay.visible = Cheats.perf_overlay
+	if _cheat_day_btn:
+		_cheat_day_btn.text = "DAY/NIGHT: ON" if Cheats.daynight else "DAY/NIGHT: OFF"
 
 
 func _on_pause_pressed() -> void:

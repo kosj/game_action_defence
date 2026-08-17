@@ -46,6 +46,10 @@ const NIGHT_TO := 0.68
 ## 앰비언트 입자(Main.gd 가 만든 티끌)를 밤에 따뜻한 반딧불 톤으로 옮긴다.
 const FIREFLY := Color(1.0, 0.85, 0.45)
 
+## 치트(CHEATS > DAY/NIGHT)로 시간 처리를 껐을 때 쓰는 고정 시간 틴트 — 한낮(무보정).
+## 날씨 틴트는 계속 곱한다. 치트가 끄는 것은 "시간"뿐이라 비/안개는 그대로 보여야 한다.
+const CHEAT_OFF_TINT := Color.WHITE
+
 var _mod: CanvasModulate = null
 var _halo: Sprite2D = null
 var _player: Node2D = null
@@ -71,6 +75,13 @@ func _ready() -> void:
 	add_child(_mod)
 	_build_halo()
 	_player = get_tree().get_first_node_in_group("player")
+	# 치트 토글은 일시정지 메뉴에서 눌린다 — 그때는 _process 가 멈춰 있어 신호로 즉시 반영해야
+	# 패널을 닫기 전에 화면이 바뀐 것을 볼 수 있다.
+	Cheats.changed.connect(_on_cheats_changed)
+	_apply(Events.elapsed_time)
+
+
+func _on_cheats_changed() -> void:
 	_apply(Events.elapsed_time)
 
 
@@ -100,7 +111,11 @@ func tint_at(elapsed: float) -> Color:
 
 ## 시간 틴트 × 날씨 틴트에 가독성 하한을 씌운 최종 색. 순수 함수(검증용).
 func composed_at(elapsed: float, weather: Color) -> Color:
-	var c := tint_at(elapsed) * weather
+	return with_luma_floor(tint_at(elapsed) * weather)
+
+
+## 가독성 하한 보정 — 휘도가 하한 밑이면 채널을 비례 확대한다.
+static func with_luma_floor(c: Color) -> Color:
 	var l := luma(c)
 	if l >= LUMA_FLOOR or l <= 0.0001:
 		return c
@@ -118,13 +133,16 @@ func _process(_delta: float) -> void:
 
 
 func _apply(elapsed: float) -> void:
-	var c := composed_at(elapsed, _weather_tint)
+	# 치트로 시간 처리를 끄면 시간 틴트만 한낮으로 고정한다 — 날씨 틴트와 가독성 하한은 그대로.
+	var on: bool = Cheats.daynight
+	var c := composed_at(elapsed, _weather_tint) if on else with_luma_floor(CHEAT_OFF_TINT * _weather_tint)
 	# 색이 사실상 그대로면 쓰기를 건너뛴다(한낮·한밤 구간에서는 몇 초씩 정체된다).
 	if absf(c.r - _applied.r) + absf(c.g - _applied.g) + absf(c.b - _applied.b) > 0.002:
 		_applied = c
 		if _mod != null:
 			_mod.color = c
-	var n := night_amount(elapsed)
+	# 시간 처리를 끈 동안은 항상 낮 — 달빛 헤일로와 반딧불 앰비언트도 함께 꺼진다.
+	var n := night_amount(elapsed) if on else 0.0
 	if _halo != null:
 		if not is_instance_valid(_player):
 			_player = get_tree().get_first_node_in_group("player")
