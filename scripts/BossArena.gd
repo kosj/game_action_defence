@@ -9,17 +9,27 @@ extends Node2D
 ##
 ## 공정성: 경계 밖으로는 **밀어내기만** 한다 — 피해를 주지 않는다. 플레이어 최대 체력이
 ## 5(+업그레이드)라 경계 피해는 사실상 즉사이고, "모든 위협은 보고 피할 수 있어야 한다"는
-## 이 게임의 규칙에도 어긋난다. 경계선은 항상 그려지고 가까이 갈수록 밝아진다.
+## 이 게임의 규칙에도 어긋난다. 대신 아트로 "닿으면 아프다"를 말한다 — 노랑·검정 경고 줄무늬
+## 레일 사이로 흐르는 고압 전류 밴드 + 감전 경고판을 단 파일런, 그리고 닿는 순간의 스파크.
+## 노랑/검정 경고 줄무늬는 이 게임의 다른 위협 표식(주황·빨강·초록)과 겹치지 않아,
+## 공격 텔레그래프와 헷갈리지 않으면서도 "위험"으로 즉시 읽힌다(기존 prop_barrier 와 같은 언어).
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
+## 경계 아트. field = 경고 레일 사이를 흐르는 전류 밴드(호를 따라 반복), pylon = 감전 경고
+## 파일런(일정 간격으로 세운다). 둘 다 마젠타 키잉 파이프라인으로 만든 것(BOSS_PLAN 11장).
+const _FIELD := preload("res://assets/sprites/arena_field.png")
+const _PYLON := preload("res://assets/sprites/arena_pylon.png")
 
 const OPEN_TIME := 0.5       # 전개 연출: 넓은 원에서 제 크기로 조여든다
 const OPEN_SCALE := 1.4      # 전개 시작 반경 배수
 const CLOSE_TIME := 0.45     # 보스 처치 후 해제 연출
-const SEGMENTS := 96         # 경계 원 분할 수(반경이 커서 성기면 각져 보인다)
 const NEAR_BAND := 90.0      # 경계에서 이 거리 안이면 "붙었다"로 보고 더 밝게 그린다
-## 차가운 청록 — 보스 공격 표식(주황·빨강·초록)과 절대 헷갈리지 않을 색.
-const COLOR := Color(0.45, 0.85, 1.0)
+const TILE_ARC := 180.0      # 전류 밴드 한 장이 덮는 호 길이. 좁히면 번개가 뭉개져 통짜 띠로 보인다
+const TILE_FACETS := 3       # 한 장을 이 수만큼 쪼개 곡률을 낸다(각지지 않게)
+const PYLON_GAP := 260.0     # 파일런 간격
+## 경고 노랑 — 스파크·전개 연출 등 코드로 그리는 부분을 아트의 레일 색에 맞춘다.
+const COLOR := Color(1.0, 0.72, 0.15)
+const ZAP_INTERVAL := 0.22   # 경계에 닿아 있는 동안 스파크가 튀는 간격
 
 var radius: float = 620.0
 
@@ -28,6 +38,7 @@ var _closing: bool = false
 var _close_t: float = 0.0
 var _pulse: float = 0.0
 var _near: float = 0.0       # 플레이어가 경계에 붙은 정도(0~1)
+var _zap_cd: float = 0.0     # 접촉 스파크 쿨다운
 
 
 ## 지정 위치를 중심으로 구역을 전개한다. 보스 처치(Events.boss_died) 시 스스로 사라진다.
@@ -68,11 +79,25 @@ func _physics_process(_delta: float) -> void:
 	if d > r and d > 0.001:
 		# 경계 위로 되돌린다. 속도를 건드리지 않는 이유: 플레이어는 매 프레임 입력으로 velocity 를
 		# 새로 쓰기 때문에(Player._handle_move) 여기서 손대도 다음 프레임에 덮어써진다.
-		player.global_position = global_position + to_p / d * r
+		var hit := global_position + to_p / d * r
+		player.global_position = hit
+		_zap(hit)
+
+
+## 경계에 밀린 순간의 감전 연출 — 피해는 없지만 "닿으면 아프다"를 몸으로 알린다.
+## 벽을 따라 계속 문지르면 매 프레임 터지므로 간격을 둔다(FX 상한·소리 폭주 방지).
+func _zap(at: Vector2) -> void:
+	if _zap_cd > 0.0:
+		return
+	_zap_cd = ZAP_INTERVAL
+	_FXBurst.spawn(get_tree().current_scene, at, Color(1.0, 0.95, 0.6), 46.0, 0.22)
+	SoundManager.play("tesla_arc", 0.15, 1.25)
+	Events.shake(2.0)
 
 
 func _process(delta: float) -> void:
 	_pulse += delta
+	_zap_cd = maxf(0.0, _zap_cd - delta)
 	if _closing:
 		_close_t += delta
 		if _close_t >= CLOSE_TIME:
@@ -95,13 +120,39 @@ func _on_boss_died() -> void:
 func _draw() -> void:
 	var r := current_radius()
 	var fade := (1.0 - clampf(_close_t / CLOSE_TIME, 0.0, 1.0)) if _closing else 1.0
-	# 경계선 — 맥동 + 플레이어가 붙을수록 밝아진다("여기가 벽이다").
-	var a := clampf(0.5 + 0.2 * sin(_pulse * 3.0) + 0.3 * _near, 0.0, 1.0) * fade
-	draw_arc(Vector2.ZERO, r, 0.0, TAU, SEGMENTS, Color(COLOR.r, COLOR.g, COLOR.b, a), 5.0, true)
-	# 안쪽 띠 — 벽이 두께로 읽히게.
-	draw_arc(Vector2.ZERO, r - 9.0, 0.0, TAU, SEGMENTS,
-			Color(COLOR.r, COLOR.g, COLOR.b, (0.10 + 0.26 * _near) * fade), 16.0, true)
-	# 구역 눈금 — 세로 화면에선 원의 좌우가 화면 밖이라, 천천히 도는 눈금으로 "갇혔다"를 알린다.
-	for i in range(12):
-		var dir := Vector2.from_angle(TAU * float(i) / 12.0 + _pulse * 0.15)
-		draw_line(dir * (r - 26.0), dir * r, Color(COLOR.r, COLOR.g, COLOR.b, 0.5 * fade), 3.0, true)
+	# 전류가 흐르는 느낌 — 맥동에 더해 플레이어가 붙을수록 밝아진다("여기가 벽이다").
+	var hot := clampf(0.86 + 0.09 * sin(_pulse * 7.0) + 0.15 * _near, 0.0, 1.2)
+	var tint := Color(hot, hot, hot, fade)
+
+	# ── 전류 밴드 — 아트 한 장을 호를 따라 반복해 두른다 ──────────────────
+	# 한 장을 TILE_FACETS 개의 사각 조각으로 쪼개 곡률을 낸다. 조각 하나가 통짜면 반경이 커서
+	# 원이 각져 보이고, 반대로 잘게 쪼개면 draw_polygon 호출 수만 늘어난다.
+	var tiles: int = maxi(8, int(round(TAU * r / TILE_ARC)))
+	var facets: int = tiles * TILE_FACETS
+	var half_h := float(_FIELD.get_height()) * 0.5
+	var cols := PackedColorArray([tint, tint, tint, tint])
+	var step := TAU / float(facets)
+	for i in range(facets):
+		var a0 := step * float(i)
+		var a1 := a0 + step
+		var d0 := Vector2.from_angle(a0)
+		var d1 := Vector2.from_angle(a1)
+		# 이 조각이 아트에서 차지하는 가로 구간(0~1). 조각이 타일 경계를 넘지 않도록
+		# facets 를 tiles 의 배수로 잡았다 — 넘으면 UV 가 잘려 이음매가 생긴다.
+		var u0 := float(i % TILE_FACETS) / float(TILE_FACETS)
+		var u1 := u0 + 1.0 / float(TILE_FACETS)
+		draw_polygon(
+			PackedVector2Array([d0 * (r - half_h), d1 * (r - half_h),
+					d1 * (r + half_h), d0 * (r + half_h)]),
+			cols,
+			PackedVector2Array([Vector2(u0, 0.0), Vector2(u1, 0.0),
+					Vector2(u1, 1.0), Vector2(u0, 1.0)]),
+			_FIELD)
+
+	# ── 경고 파일런 — 밴드 위에 일정 간격으로 세운다(감전 경고판·빨간 경광등) ──
+	# 스프라이트는 세워서 그린다: 밑동이 링 위에 놓이도록 위로 올려 배치(다른 프롭과 같은 규약).
+	var pn: int = maxi(6, int(round(TAU * r / PYLON_GAP)))
+	var psz: Vector2 = _PYLON.get_size()
+	for i in range(pn):
+		var p := Vector2.from_angle(TAU * float(i) / float(pn)) * r
+		draw_texture(_PYLON, p - Vector2(psz.x * 0.5, psz.y), Color(1, 1, 1, fade))
