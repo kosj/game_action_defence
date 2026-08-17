@@ -7,11 +7,13 @@ extends Node2D
 ## 걸으며 원거리 딜"로 끝났고, 체력만 올려도(1차 902 → 6차 128,002) 그 구조는 그대로인 채 전투
 ## 시간만 늘어났다. 도망칠 공간을 없애 "좁은 곳에서 패턴을 피하며 싸우는" 보스전으로 바꾼다.
 ##
-## 공정성: 경계 밖으로는 **밀어내기만** 한다 — 피해를 주지 않는다. 플레이어 최대 체력이
-## 5(+업그레이드)라 경계 피해는 사실상 즉사이고, "모든 위협은 보고 피할 수 있어야 한다"는
-## 이 게임의 규칙에도 어긋난다. 대신 아트로 "닿으면 아프다"를 말한다 — 노랑·검정 경고 줄무늬
-## 레일 사이로 흐르는 고압 전류 밴드 + 감전 경고판을 단 파일런, 그리고 닿는 순간의 스파크.
-## 노랑/검정 경고 줄무늬는 이 게임의 다른 위협 표식(주황·빨강·초록)과 겹치지 않아,
+## 경계는 플레이어를 안쪽으로 밀어내고, 닿아 있는 동안 감전 피해를 준다.
+## 피해 간격(SHOCK_INTERVAL)을 길게 잡은 이유: 플레이어 최대 체력이 5(+업그레이드)뿐이고
+## take_hit 의 자체 무적은 0.25초라, 그대로 두면 초당 4대 = 벽에 스치는 순간 즉사다.
+## 밀려나는 판정 자체는 그대로라, 계속 밀어붙이지만 않으면 한 대로 끝난다.
+##
+## 경고는 전부 아트로 한다 — 감전 경고판·경광등을 단 파일런과 그 사이에 걸린 전선, 닿는 순간의
+## 스파크. 노랑/검정 경고 줄무늬는 이 게임의 다른 위협 표식(주황·빨강·초록)과 겹치지 않아,
 ## 공격 텔레그래프와 헷갈리지 않으면서도 "위험"으로 즉시 읽힌다(기존 prop_barrier 와 같은 언어).
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
@@ -35,6 +37,12 @@ const FLICKER_HZ := 12.0     # 지직거림 갱신 빈도(매 프레임 흔들�
 ## 경고 노랑 — 스파크·전개 연출 등 코드로 그리는 부분을 파일런의 경고 줄무늬 색에 맞춘다.
 const COLOR := Color(1.0, 0.72, 0.15)
 const ZAP_INTERVAL := 0.22   # 경계에 닿아 있는 동안 스파크가 튀는 간격
+## 울타리 그림만 판정선 바깥으로 이 만큼 물린다. 같은 반경에 그리면 막혀 선 플레이어 스프라이트와
+## 기둥이 겹쳐, 캐릭터가 울타리 밖으로 빠져나간 것처럼 보인다. 판정은 건드리지 않는다.
+const ART_MARGIN := 40.0
+## 감전 피해량·간격은 밸런스 테이블에서 온다(다른 보스 피해 수치와 같은 자리). _ready 에서 채운다.
+var shock_damage: int = 1
+var shock_interval: float = 0.6
 
 var radius: float = 620.0
 
@@ -44,6 +52,7 @@ var _close_t: float = 0.0
 var _pulse: float = 0.0
 var _near: float = 0.0       # 플레이어가 경계에 붙은 정도(0~1)
 var _zap_cd: float = 0.0     # 접촉 스파크 쿨다운
+var _shock_cd: float = 0.0   # 감전 피해 쿨다운
 
 
 ## 지정 위치를 중심으로 구역을 전개한다. 보스 처치(Events.boss_died) 시 스스로 사라진다.
@@ -57,6 +66,10 @@ static func spawn(parent: Node, center: Vector2, p_radius: float) -> Node2D:
 
 func _ready() -> void:
 	add_to_group("boss_arena")   # 자동플레이 조종 AI 가 경계를 피하려고 찾는다
+	var bal: BalanceData = GameData.balance
+	if bal != null:
+		shock_damage = bal.boss_arena_shock_damage
+		shock_interval = bal.boss_arena_shock_interval
 	# 지면 위·유닛 아래(GroundHazard 와 같은 층). Main 씬의 층은 배경 -3 · 바닥 -2 · 프롭 -1 이라
 	# 이 값이 -3 이하로 내려가면 배경 ColorRect 에 통째로 덮여 화면에서 사라진다(실제로 그랬다).
 	z_index = -1
@@ -73,7 +86,8 @@ func current_radius() -> float:
 	return radius * lerpf(OPEN_SCALE, 1.0, 1.0 - pow(1.0 - t, 3.0))
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
+	_shock_cd = maxf(0.0, _shock_cd - delta)
 	if _closing:
 		return
 	var player: Node2D = get_tree().get_first_node_in_group("player")
@@ -89,6 +103,7 @@ func _physics_process(_delta: float) -> void:
 		var hit := global_position + to_p / d * r
 		player.global_position = hit
 		_zap(hit)
+		_shock(player)
 
 
 ## 경계에 밀린 순간의 감전 연출 — 피해는 없지만 "닿으면 아프다"를 몸으로 알린다.
@@ -100,6 +115,15 @@ func _zap(at: Vector2) -> void:
 	_FXBurst.spawn(get_tree().current_scene, at, Color(1.0, 0.95, 0.6), 46.0, 0.22)
 	SoundManager.play("tesla_arc", 0.15, 1.25)
 	Events.shake(2.0)
+
+
+## 감전 — 경계에 닿아 있는 동안 주기적으로 피해. take_hit 이 알아서 무적 시간·사망·부활을
+## 처리하므로(스피터 산성탄 등과 같은 진입점) 여기서는 간격만 관리한다.
+func _shock(player: Node) -> void:
+	if _shock_cd > 0.0 or not player.has_method("take_hit"):
+		return
+	_shock_cd = shock_interval
+	player.take_hit(shock_damage)
 
 
 func _process(delta: float) -> void:
@@ -125,17 +149,18 @@ func _on_boss_died() -> void:
 
 
 func _draw() -> void:
-	var r := current_radius()
+	var stop_r := current_radius()          # 실제로 막히고 감전되는 반경
+	var r := stop_r + ART_MARGIN            # 울타리 그림은 그 바깥에 세운다
 	var fade := (1.0 - clampf(_close_t / CLOSE_TIME, 0.0, 1.0)) if _closing else 1.0
 	# 전류가 흐르는 느낌 — 맥동에 더해 플레이어가 붙을수록 밝아진다("여기가 벽이다").
 	var hot := clampf(0.86 + 0.09 * sin(_pulse * 7.0) + 0.15 * _near, 0.0, 1.2)
 
 	var pn: int = maxi(6, int(round(TAU * r / PYLON_GAP)))
 
-	# ── 경계선(지면) — 기둥이 서 있는 실제 경계. 전기선은 기둥 높이에 걸리므로,
-	# 발이 어디서 막히는지는 이 얇은 선이 알려준다.
-	draw_arc(Vector2.ZERO, r, 0.0, TAU, 72,
-			Color(COLOR.r, COLOR.g, COLOR.b, (0.20 + 0.20 * _near) * fade), 2.0, true)
+	# ── 감전선(지면) — 발이 실제로 막히고 피해를 받는 선. 울타리 그림은 이보다 바깥에 있으므로,
+	# 어디까지 갈 수 있는지는 이 선이 알려줘야 한다.
+	draw_arc(Vector2.ZERO, stop_r, 0.0, TAU, 72,
+			Color(COLOR.r, COLOR.g, COLOR.b, (0.22 + 0.28 * _near) * fade), 2.0, true)
 
 	# ── 전기선 — 기둥 단자를 잇는 한 줄 폐곡선. 통째로 한 번에 그려 이음매가 없다.
 	# FXLightning 과 같은 겹치기: 넓고 흐린 글로우 → 중간 → 얇고 흰 코어. 글로우를 아끼면
