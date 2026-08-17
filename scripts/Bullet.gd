@@ -195,6 +195,21 @@ func _draw() -> void:
 			draw_line(Vector2(0, 1), Vector2(0, 24), Color(c.r, c.g, c.b, 0.47), 3.0, true)
 			draw_circle(Vector2.ZERO, 5.0, Color(c.r, c.g, c.b, 0.24))
 			draw_circle(Vector2.ZERO, 3.4, hot)
+	if homing > 0.0:
+		_draw_guided(c)
+
+
+## 유도탄 표식 — 직진탄과 한눈에 갈리게 한다. 같은 캐릭터가 쏘면 모양도 색도 비슷해서,
+## 어떤 탄이 휘는지 모르면 조준 감각이 서지 않는다.
+## 탄심을 감싼 얇은 링(추적 중이라는 신호) + 뒤로 젖혀진 유도 날개 한 쌍.
+func _draw_guided(c: Color) -> void:
+	draw_arc(Vector2.ZERO, 7.2, 0.0, TAU, 18, Color(1.0, 0.98, 0.90, 0.85), 1.3, true)
+	var fin := Color(c.r, c.g, c.b, 1.0).lightened(0.45)
+	fin.a = 0.95
+	draw_colored_polygon(PackedVector2Array([
+		Vector2(-1.5, 3.0), Vector2(-7.5, 10.5), Vector2(-1.5, 8.0)]), fin)
+	draw_colored_polygon(PackedVector2Array([
+		Vector2(1.5, 3.0), Vector2(7.5, 10.5), Vector2(1.5, 8.0)]), fin)
 
 
 ## 전방 호 안에서 가장 가까운(=각도가 가장 잘 맞는) 적 쪽으로 진행 방향을 조금씩 튼다.

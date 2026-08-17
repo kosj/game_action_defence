@@ -7,6 +7,9 @@ extends WeaponModule
 const TICK := 0.30           # 피해 틱 간격
 const SCREEN_R := 720.0      # 화면 커버 반경(포트레이트 720x1280 반대각 ≈ 734)
 const FX_PER_TICK := 6       # 틱마다 무작위 피격 지점에 터뜨릴 버스트 수(과부하 방지 상한)
+const QUAKE_GROW := 0.55     # 균열이 끝까지 뻗는 데 걸리는 시간(초)
+const QUAKE_TREMOR := 9.0    # 균열 끝단이 옆으로 흔들리는 폭(px)
+const QUAKE_TREMOR_HZ := 14.0  # 흔들림 속도(rad/s) — 낮으면 출렁, 높으면 지직
 
 var _cd: float = 0.0
 var _active: float = 0.0
@@ -128,14 +131,45 @@ func _draw() -> void:
 
 func _draw_quake(c: Color, fade: float) -> void:
 	# 방사형 균열 — 안쪽은 벌겋게 달아오른 코어, 바깥은 어두운 틈.
-	for pts in _cracks:
+	# 발동 직후 바깥으로 **갈라져 나가고**, 그동안 계속 잘게 떤다. 예전에는 완성된 균열이
+	# 그 자리에 박힌 채 밝기만 깜빡여서 지진이라기보다 무늬처럼 보였다.
+	for ci in _cracks.size():
+		var pts := _quake_crack(ci)
+		if pts.size() < 2:
+			continue
 		draw_polyline(pts, Color(0.12, 0.05, 0.03, 0.85 * fade), 7.0, true)
 		draw_polyline(pts, Color(c.r, c.g * 0.7, c.b * 0.4, 0.8 * fade), 3.0, true)
 		draw_polyline(pts, Color(1.0, 0.85, 0.4, 0.5 * fade * (0.6 + 0.4 * sin(_pulse * 11.0))), 1.4, true)
+		# 갈라지는 끝단의 파편 불티 — 균열이 지금도 뻗어나가는 중임을 보여준다.
+		var tip: Vector2 = pts[pts.size() - 1]
+		var spark := 0.35 + 0.65 * absf(sin(_pulse * 17.0 + float(ci)))
+		draw_circle(tip, 3.4 * spark, Color(1.0, 0.8, 0.35, 0.75 * fade * spark))
 	# 연쇄 충격 링 3겹 — 시차를 두고 화면 밖으로 퍼진다.
 	for k in 3:
 		var ring_r := fmod(_pulse * 760.0 + float(k) * SCREEN_R / 3.0, SCREEN_R)
 		draw_arc(Vector2.ZERO, maxf(ring_r, 8.0), 0.0, TAU, 40, Color(c.r, c.g, c.b, 0.30 * fade * (1.0 - ring_r / SCREEN_R)), 6.0, true)
+
+
+## 균열 ci 의 이번 프레임 모양 — 자라난 길이까지만, 각 마디를 옆으로 떨어서 돌려준다.
+## 떨림은 결정적 sin 파라 프레임마다 튀지 않고 '진동'으로 읽힌다(randf 를 쓰면 지직거린다).
+func _quake_crack(ci: int) -> PackedVector2Array:
+	var src: PackedVector2Array = _cracks[ci]
+	var last := src.size() - 1
+	if last < 1:
+		return PackedVector2Array()
+	var grow := clampf(_pulse / QUAKE_GROW, 0.0, 1.0)
+	var shown := maxi(1, int(round(float(last) * grow)))   # 마지막 '인덱스'(개수 아님)
+	var out := PackedVector2Array()
+	for k in range(shown + 1):
+		var p: Vector2 = src[k]
+		if k == 0:
+			out.append(p)
+			continue
+		# 바깥 마디일수록 크게 흔들린다(중심은 플레이어 발밑이라 고정).
+		var amp := QUAKE_TREMOR * float(k) / float(last)
+		var ph := _pulse * QUAKE_TREMOR_HZ + _h(ci * 7 + k) * TAU
+		out.append(p + p.normalized().orthogonal() * sin(ph) * amp)
+	return out
 
 
 ## 화살비 — 화살 하나하나가 하늘에서 쏟아져 땅에 콱콱 꽂히는 사이클을 반복한다.
