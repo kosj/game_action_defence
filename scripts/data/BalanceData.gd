@@ -49,6 +49,12 @@ extends Resource
 @export var boss_heal_cooldown: float = 15.0   # 회복 시도 간격(초) — 발동 체력 이하일 때만 흐른다
 @export var boss_heal_break_ratio: float = 0.07 # 시전 중 이만큼(최대 체력 비율) 주면 저지
 @export var boss_heal_charges: int = 2         # 보스 1마리당 시전 횟수(저지당해도 소모)
+## 보스 격리 구역 — 보스전 동안 플레이어를 가두는 원형 경계(BossArena). 월드에 벽이 없고 보스가
+## 플레이어보다 항상 느려서 보스전이 "뒤로 걸으며 딜"로 끝나던 것을 막는다. 회차가 오를수록
+## 좁아져(= 압박 증가) 체력 말고도 난이도가 오르는 축이 된다.
+@export var boss_arena_radius: float = 620.0        # 1회차 반경
+@export var boss_arena_shrink_per_count: float = 30.0   # 회차마다 좁아지는 양
+@export var boss_arena_radius_min: float = 460.0    # 이보다 좁아지지는 않는다(회피 공간 보장)
 
 @export_group("Chest")
 @export var chest_interval_min: float = 24.0   # 필드 보물상자 스폰 주기(초)

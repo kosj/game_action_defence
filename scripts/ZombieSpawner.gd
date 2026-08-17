@@ -7,6 +7,7 @@ extends Node
 
 const ZOMBIE := preload("res://scenes/Zombie.tscn")
 const BOSS := preload("res://scenes/Boss.tscn")
+const _BossArena := preload("res://scripts/BossArena.gd")
 
 @export var spawn_margin: float = 80.0
 
@@ -84,6 +85,7 @@ var _start_delay: float = 5.0   # 초반 유예(플레이어 무적 시간과 �
 # 보스 상태
 var _boss_alive: bool = false
 var _boss_count: int = 0        # 지금까지 등장한 보스 수(아키타입 순환·강화에 사용)
+var _arena: Node2D = null       # 현재 보스전의 격리 구역(보스 처치 시 스스로 사라진다)
 var _next_boss_at: float = 0.0  # 이 경과 시각(초)에 도달하면 보스 등장
 var _next_elite_at: float = 0.0 # 이 경과 시각(초)에 도달하면 엘리트 팩 등장
 var _cleared: bool = false      # 30분 생존 클리어를 이미 알렸는가(1회)
@@ -365,6 +367,14 @@ func _spawn_boss() -> void:
 		"sprite": bt.get("sprite", ""),   # 테마 보스 전용 아트(없으면 아키타입 기본)
 	}
 	boss.setup(stats)
+
+	# 격리 구역 — 플레이어를 중심으로 전개해 도주로를 막는다. 보스는 가두지 않는다(어차피
+	# 플레이어를 향해 오고, 대시로 잠깐 넘어가도 곧 돌아온다). 회차가 오를수록 좁아진다.
+	if is_instance_valid(_arena):
+		_arena.queue_free()   # 이전 보스가 처치 없이 사라진 예외 상황 대비
+	var arena_r: float = maxf(_bal.boss_arena_radius_min,
+			_bal.boss_arena_radius - _bal.boss_arena_shrink_per_count * float(_boss_count - 1))
+	_arena = _BossArena.spawn(get_tree().current_scene, player.global_position, arena_r)
 
 	# 호위 정예 좀비 — 빠른(스프린터)/탱커(공사장) 혼합.
 	var escorts := _bal.boss_escort_base + _boss_count

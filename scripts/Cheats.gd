@@ -24,6 +24,7 @@ const _AVOID_R := 200.0    # 이 안의 좀비로부터 도망(너무 크면 겁
 const _BOSS_R := 360.0     # 보스는 더 멀리서부터 피한다
 const _ENGAGE_R := 300.0   # 최근접 적이 이보다 멀면 접근 — 무기 사거리 안에 적을 유지(카이팅)
 const _GEM_R := 480.0      # 젬 수집 감지 반경
+const _ARENA_MARGIN := 150.0   # 보스 격리 구역 경계에서 이 거리 안이면 안쪽으로 되돌린다
 
 const _Gem := preload("res://scripts/Gold.gd")
 
@@ -96,6 +97,15 @@ func auto_move_dir(p: Node2D) -> Vector2:
 				best = g
 		if best != null:
 			out += (best.global_position - pos).normalized() * (0.85 - danger * 0.6)
+	# 보스 격리 구역 안쪽으로 되돌리기 — 조종 AI 는 보스에게서 도망치므로, 그대로 두면 경계에
+	# 등을 붙인 채 얻어맞는다. 경계에 다가갈수록 강해지는 안쪽 힘을 더해 구역 안에서 돌게 한다.
+	var arena: Node2D = p.get_tree().get_first_node_in_group("boss_arena")
+	if is_instance_valid(arena):
+		var to_c: Vector2 = arena.global_position - pos
+		var edge: float = arena.current_radius() - to_c.length()
+		if edge < _ARENA_MARGIN:
+			var push: float = clampf((_ARENA_MARGIN - edge) / _ARENA_MARGIN, 0.0, 1.0)
+			out += to_c.normalized() * (0.6 + 2.2 * push * push)
 	if out.length() < 0.06:
 		return Vector2.ZERO
 	return out.normalized()
