@@ -59,6 +59,10 @@ extends Resource
 @export var boss_arena_radius: float = 480.0        # 1회차 반경
 @export var boss_arena_shrink_per_count: float = 16.0   # 회차마다 좁아지는 양
 @export var boss_arena_radius_min: float = 400.0    # 이보다 좁아지지는 않는다(회피 공간 보장)
+## 경계 감전. 간격을 Player.take_hit 의 자체 무적(contact_cooldown 0.25초)보다 길게 잡아야 한다 —
+## 그대로 두면 초당 4대라, 최대 체력 5인 플레이어가 벽에 스치는 순간 죽는다.
+@export var boss_arena_shock_damage: int = 1
+@export var boss_arena_shock_interval: float = 0.6
 
 @export_group("Chest")
 @export var chest_interval_min: float = 24.0   # 필드 보물상자 스폰 주기(초)

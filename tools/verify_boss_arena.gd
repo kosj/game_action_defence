@@ -38,7 +38,7 @@ func _process(_delta: float) -> bool:
 	if _freed_at < 0.0 and not is_instance_valid(_arena):
 		_freed_at = _t
 	_step()
-	if _t >= 3.2:
+	if _t >= 4.9:
 		return _report()
 	return false
 
@@ -50,6 +50,13 @@ func _setup() -> void:
 	# --script 메인 루프는 오토로드 등록 전에 컴파일된다 — 식별자 대신 트리에서 찾는다.
 	_bal = root.get_node("GameData").balance
 	_player = CharacterBody2D.new()
+	# 감전 검증용 대역 — 진짜 Player 의 take_hit 은 무적 시간·사망·부활까지 얽혀 있어서,
+	# 여기서는 "구역이 언제 몇 대 때리는가"만 세는 껍데기를 붙인다.
+	var stub := GDScript.new()
+	stub.source_code = "extends CharacterBody2D\nvar hits := 0\nvar last_amount := 0\n" \
+			+ "func take_hit(a: int) -> void:\n\thits += 1\n\tlast_amount = a\n"
+	stub.reload()
+	_player.set_script(stub)
 	_player.add_to_group("player")
 	scene.add_child(_player)
 	_player.global_position = CENTER
@@ -100,29 +107,49 @@ func _step() -> void:
 		var d: float = _player.global_position.distance_to(CENTER)
 		_expect(absf(d - R) < 1.0, "대각선 방향도 같은 반경에서 막힌다(%.1f)" % d))
 
-	# 매 프레임 바깥으로 밀어붙여도 새어 나가지 않는다.
-	if _t > 1.8 and _t < 2.3:
+	# 감전 계측 구간을 깨끗하게 시작한다 — 앞선 순간이동 검사들도 "접촉"이라 이미 몇 대 맞았다.
+	_at(1.78, "shock_reset", func() -> void:
+		_player.hits = 0
+		_arena._shock_cd = 0.0)
+
+	# 1.8~3.0s(1.2초) 동안 매 프레임 바깥으로 밀어붙인다 — 새지 않고, 주기적으로 감전된다.
+	if _t > 1.8 and _t < 3.0:
 		_player.global_position += Vector2(40.0, 0.0)
 		_expect_once("leak", _player.global_position.distance_to(CENTER) <= R + 41.0,
 				"계속 밀어붙여도 경계를 넘어 새어 나가지 않는다")
-	_at(2.3, "leak_ok", func() -> void:
-		_expect(not _done.has("leak"), "0.5초 동안 바깥으로 계속 밀어도 갇힌 상태가 유지된다"))
+	_at(3.02, "leak_ok", func() -> void:
+		_expect(not _done.has("leak"), "1.2초 동안 바깥으로 계속 밀어도 갇힌 상태가 유지된다")
+		# 간격 SHOCK_INTERVAL(0.6s) 이므로 1.2초 접촉이면 2~3대. 프레임 경계 때문에 3대까지 허용.
+		var lo: int = int(1.2 / _arena.shock_interval)
+		_expect(_player.hits >= lo and _player.hits <= lo + 1,
+				"붙어 있는 동안 %.1f초마다 감전 — 1.2초에 %d대(%d~%d 예상)" % [
+					_arena.shock_interval, _player.hits, lo, lo + 1])
+		_expect(_player.last_amount == _arena.shock_damage,
+				"감전 피해량 %d" % _arena.shock_damage))
+
+	# 떨어지면 더 이상 맞지 않는다.
+	_at(3.05, "away", func() -> void:
+		_player.global_position = CENTER
+		_player.hits = 0)
+	_at(3.9, "away_chk", func() -> void:
+		_expect(_player.hits == 0, "경계에서 떨어지면 감전이 멈춘다(0.85초 동안 0대)"))
 
 	# 보스 처치 → 해제 연출 뒤 스스로 사라진다.
-	_at(2.4, "die", func() -> void:
+	_at(4.0, "die", func() -> void:
 		root.get_node("Events").boss_died.emit()
 		_expect(is_instance_valid(_arena), "처치 즉시 사라지지 않고 해제 연출이 재생된다"))
-	_at(2.6, "release", func() -> void:
+	_at(4.2, "release", func() -> void:
 		_player.global_position = CENTER + Vector2(2000.0, 0.0))
-	_at(2.7, "release_chk", func() -> void:
+	_at(4.3, "release_chk", func() -> void:
 		_expect(_player.global_position.distance_to(CENTER) > 1000.0,
-				"해제 중에는 더 이상 가두지 않는다(중심에서 %.0f)" % _player.global_position.distance_to(CENTER)))
+				"해제 중에는 더 이상 가두지 않는다(중심에서 %.0f)" % _player.global_position.distance_to(CENTER))
+		_expect(_player.hits == 0, "해제 중에는 감전도 하지 않는다"))
 
 
 func _report() -> bool:
 	_expect(not is_instance_valid(_arena), "해제 연출이 끝나면 노드가 스스로 사라진다")
 	if _freed_at > 0.0:
-		print("  (소멸 %.2fs — 처치 2.40s + 해제 %.2fs)" % [_freed_at, _freed_at - 2.4])
+		print("  (소멸 %.2fs — 처치 4.00s + 해제 %.2fs)" % [_freed_at, _freed_at - 4.0])
 	print("결과: %s" % ("전부 통과" if _fail == 0 else "%d건 실패" % _fail))
 	(load("res://scripts/FXBurst.gd") as GDScript).clear_pool()
 	quit(_fail)
