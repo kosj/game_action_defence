@@ -12,6 +12,10 @@ var autoplay: bool = false
 ## 실기기에서 프레임 시간·드로우 콜·FX 상한을 눈으로 확인하기 위한 것 — 헤드리스 측정으로는
 ## 렌더 경로 비용이 드러나지 않아 실측 수단이 필요하다.
 var perf_overlay: bool = false
+## 낮/밤 시간 처리. false 면 DayNightCycle 이 시간 틴트를 한낮(무보정)으로 고정하고
+## 달빛 헤일로·반딧불 앰비언트도 끈다 — 날씨 연출은 그대로 남는다(끄는 건 "시간"뿐).
+## 밤 구간의 화면 색 때문에 스크린샷·아트 확인이 어려울 때 쓴다.
+var daynight: bool = true
 
 const _AVOID_R := 200.0    # 이 안의 좀비로부터 도망(너무 크면 겁쟁이가 되어 교전을 못 한다)
 const _BOSS_R := 360.0     # 보스는 더 멀리서부터 피한다
@@ -28,6 +32,11 @@ func toggle_autoplay() -> void:
 
 func toggle_perf_overlay() -> void:
 	perf_overlay = not perf_overlay
+	changed.emit()
+
+
+func toggle_daynight() -> void:
+	daynight = not daynight
 	changed.emit()
 
 

@@ -39,6 +39,7 @@ func _process(_delta: float) -> bool:
 	_test_tint_continuity(day)
 	_test_cycle_wrap(day, game_data)
 	_test_luma_floor(day, weather_script)
+	_test_cheat_toggle(day, root.get_node("Cheats"))
 
 	print("── 날씨 ─────────────────────────────────────────")
 	_test_theme_data(game_data)
@@ -135,6 +136,40 @@ func _test_luma_floor(day, weather_script: GDScript) -> void:
 		"최저 %.5f @ %s" % [worst, worst_desc])
 	_ok("하한 보정이 실제로 발동함", clamped_any, "한 번도 안 걸리면 테스트가 무의미")
 	_ok("최종 틴트 채널 <= 1.0", not over_one, "CanvasModulate 로 하이라이트가 날아감")
+
+
+## 치트(CHEATS > DAY/NIGHT)로 시간 처리를 끄면 한밤이어도 시간 틴트가 사라져야 한다.
+## 단, 날씨 틴트는 남아야 한다 — 치트가 끄는 것은 "시간"뿐이다. 다시 켜면 원래 밤으로 돌아온다.
+func _test_cheat_toggle(day, cheats) -> void:
+	var day_script: GDScript = load("res://scripts/DayNightCycle.gd")
+	var night := 0.0            # u=0 = 한밤(주기에서 가장 어두운 지점)
+	var rain := Color(0.80, 0.84, 0.92)
+	var night_c: Color = day.composed_at(night, Color.WHITE)
+
+	cheats.daynight = false
+	day.set_weather_tint(Color.WHITE)
+	day._apply(night)
+	_ok("시간 처리 OFF → 한밤에도 무보정", day._mod.color.is_equal_approx(Color.WHITE),
+		"실측 %s" % str(day._mod.color))
+	_ok("시간 처리 OFF → 달빛 헤일로 꺼짐", day._halo == null or not day._halo.visible)
+
+	day.set_weather_tint(rain)
+	day._apply(night)
+	_ok("시간 처리 OFF 여도 날씨 틴트는 유지",
+		day._mod.color.is_equal_approx(day_script.with_luma_floor(rain)),
+		"실측 %s" % str(day._mod.color))
+
+	cheats.daynight = true
+	day.set_weather_tint(Color.WHITE)
+	day._apply(night)
+	_ok("시간 처리 ON 복귀 → 밤 틴트 복원", day._mod.color.is_equal_approx(night_c),
+		"실측 %s / 기대 %s" % [str(day._mod.color), str(night_c)])
+	# 순수 함수는 치트와 무관해야 한다(검증·세이브 등 다른 소비자가 시간 곡선을 그대로 읽는다).
+	cheats.daynight = false
+	_ok("치트가 tint_at/composed_at 순수성을 건드리지 않음",
+		day.tint_at(night).is_equal_approx(day_script.KEYS[0][1])
+		and day.composed_at(night, Color.WHITE).is_equal_approx(night_c))
+	cheats.daynight = true
 
 
 ## ── 날씨 ─────────────────────────────────────────────────────────────────
