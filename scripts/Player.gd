@@ -147,7 +147,11 @@ func _apply_character_sprite() -> void:
 	if muzzle != null and c.muzzle_offset != Vector2.ZERO:
 		muzzle.position = c.muzzle_offset
 	_proj_style = c.projectile_style
-	var run_path := "res://assets/atlas/run_%s.tres" % c.id   # 게임플레이 아틀라스(hframes 는 region 을 분할한다)
+	# 러닝 시트 경로. 지금은 세 캐릭터 모두 run_frames = 0 이라 이 분기에 들어오지 않고,
+	# 시트 PNG 도 저장소에서 빼 뒀다(안 쓰는 그림이 아틀라스 한 변을 두 배로 키우고 있었다).
+	# 되살리려면 run_<id>.png 를 assets/sprites/ 에 넣고 build_atlas.py 를 돌린 뒤
+	# 캐릭터 데이터의 run_frames 만 프레임 수로 바꾸면 된다(코드 수정 불필요).
+	var run_path := "res://assets/atlas/run_%s.tres" % c.id   # hframes 는 AtlasTexture region 을 분할한다
 	var idle_path := "res://assets/atlas/idle_%s.tres" % c.id   # 게임플레이 아틀라스
 	if c.run_frames >= 2 and ResourceLoader.exists(run_path):
 		var sheet = load(run_path)
@@ -348,13 +352,13 @@ func _fit_shadow() -> void:
 	var tex: Vector2 = body.texture.get_size()
 	tex.x /= float(maxi(1, body.hframes))   # 러닝 시트면 프레임 1칸 폭 기준
 	# 그림 폭에는 앞으로 뻗은 무기와 벌어진 보폭이 들어 있어 실제 몸통보다 훨씬 넓다
-	# (그림자가 ~2배로 커지는 원인). 기준 단일 스프라이트가 있으면 그 폭으로 잡는다 —
+	# (그림자가 ~2배로 커지는 원인). 캐릭터 데이터에 몸통 기준 폭이 있으면 그걸로 잡는다 —
 	# 시트든 한 장이든 발밑 그림자 크기가 같게 유지된다.
+	# (예전에는 이 값을 얻으려고 옛 스프라이트를 통째로 load() 했다. 폭 하나 때문에
+	#  안 그리는 그림 3장이 아틀라스에 남아 있었어서 숫자로 바꿨다.)
 	var c: CharacterData = CharacterManager.selected()
-	if c != null and c.sprite_path != "" and ResourceLoader.exists(c.sprite_path):
-		var single = load(c.sprite_path)
-		if single is Texture2D:
-			tex.x = single.get_size().x
+	if c != null and c.shadow_ref_width > 0.0:
+		tex.x = c.shadow_ref_width
 	# 그림자를 캐릭터 폭보다 넉넉하게(1.8x) — 새 키포즈 아트의 벌어진 보폭까지 덮어
 	# 발밑 존재감을 준다(단일 스프라이트 폭 기준이라 프레임에 따라 변하지 않는다).
 	var sx: float = (tex.x * _body_base_scale.x * 1.8) / 128.0

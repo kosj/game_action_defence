@@ -21,36 +21,74 @@ shadow.png → zombie_walker.png → shadow.png → zombie_brute.png → ...
 이 되어 **아이템마다 배치가 끊긴다**. 좀비 300마리면 그것만으로 약 600 드로우 콜이었다.
 그래서 이 스프라이트들은 아틀라스(`assets/atlas/gameplay.png`) 한 장으로 묶여 있다.
 
+### 아틀라스는 5장이다 — 넣을 곳을 먼저 고른다
+
+| 아틀라스 | 원본 위치 | `.tres` 위치 | 언제 로드되나 |
+|---|---|---|---|
+| `gameplay` | `assets/sprites/{,fx/,turret/}*.png` | `assets/atlas/*.tres` | 항상 |
+| `ui` | `assets/ui/{icons,portraits,thumbs}/*.png` | `assets/atlas/ui/*.tres` | 항상 |
+| `props/suburb` | `assets/sprites/props/suburb/*.png` | `assets/atlas/props/suburb/*.tres` | **그 테마를 고른 판에서만** |
+| `props/city` | `assets/sprites/props/city/*.png` | `assets/atlas/props/city/*.tres` | 〃 |
+| `props/lab` | `assets/sprites/props/lab/*.png` | `assets/atlas/props/lab/*.tres` | 〃 |
+
+프롭을 테마별로 나눈 이유는 배칭이 아니라 **VRAM** 이다. 한 판에서 뜨는 테마는 하나뿐인데
+한 장에 합치면 안 쓰는 두 테마의 프롭까지 항상 올라간다. `PropField` 는 선택 테마의 폴더만
+`load()` 하므로 나머지 두 장은 아예 열리지 않는다.
+
+> **새 프롭을 추가할 때는 폴더 = 테마 id** 다(`suburb`/`city`/`lab` — `ThemeData.id`).
+> 세 곳이 같은 이름을 쓴다: `assets/sprites/props/<테마>/`, `build_atlas.py` 의
+> `ATLASES["props_<테마>"]`, `PropField._CATALOG` 의 `"theme"` 값.
+> 여러 테마에서 쓰고 싶은 프롭은 **한 테마에만 두고 그 테마 전용으로 취급한다**(중복 저장 금지).
+> 실제로 `prop_wreck_car` 는 도심 소속이고, 도심 전용 기믹인 `BurningCar` 가 같은 시트를 쓴다.
+
 ### 절차
 
 ```bash
-# 1) PNG 를 아래 위치에 넣는다 (tools/build_atlas.py 의 ATLASES 글롭에 걸리는 곳)
-#    게임플레이 → assets/sprites/ 아래 전부 (fx/ props/ turret/ 포함, tiles/ 만 제외)
-#    UI        → assets/ui/{icons,portraits,thumbs}/
+# 1) PNG 를 위 표의 "원본 위치" 에 넣는다
 
 # 2) 아틀라스를 다시 만든다
 python3 tools/build_atlas.py
 
 # 3) 참조는 PNG 가 아니라 생성된 AtlasTexture 를 가리킨다
 #      X  res://assets/sprites/zombie_new.png
-#      O  res://assets/atlas/zombie_new.tres        (게임플레이)
-#      O  res://assets/atlas/ui/weapon_new.tres     (UI)
+#      O  res://assets/atlas/zombie_new.tres              (게임플레이)
+#      O  res://assets/atlas/ui/weapon_new.tres           (UI)
+#      O  res://assets/atlas/props/city/prop_new.tres     (도심 프롭)
 ```
 
 3번은 `.tscn` · `.tres` · `.gd` 어디서든 동일하다. `ext_resource type="Texture2D"` 가
 `.tres` 를 가리켜도 정상 동작한다(AtlasTexture 는 Texture2D 다).
+
+원본 PNG 를 지우면 `build_atlas.py` 가 짝이 없어진 `.tres` 를 **자동으로 정리한다**. 남겨두면
+region 이 그 자리에 새로 들어온 다른 그림을 가리켜 엉뚱한 스프라이트가 그려진다.
 
 ### 아틀라스에 넣지 않는 것
 
 | 대상 | 이유 |
 |---|---|
 | `assets/tiles/*` | `texture_repeat` 로 반복 샘플링해야 해서 아틀라스에 넣을 수 없다. **`sprites/` 밖에 둔다** — 아래 참조 |
-| `assets/sprites/props/*` | `PropField` 가 단일 CanvasItem 에서 한 번에 그려 배칭 영향이 작다 |
 | `assets/ui/frames/*`·`hud/*` | `StyleBoxTexture` 나인패치 + 무손실 고정(아래 3절) |
 | `assets/ui` 루트(배경·로고·비네트) | 한 번에 한 장만 뜨는 큰 그림이라 배칭 이득이 없다 |
 
 캐릭터 러닝 시트는 아틀라스에 넣어도 된다 — `Sprite2D.hframes` 는 AtlasTexture 의 region 을
 분할하므로 그대로 동작한다(실측 확인).
+
+### 안 쓰는 그림은 저장소에 두지 않는다
+
+아틀라스에서 안 쓰는 그림은 "용량이 조금 늘어나는" 정도가 아니다. **시트 한 변이 한 단계
+올라가면 VRAM 이 4배가 된다.** 실제로 러닝 시트 3장 + 옛 캐릭터 4장(쓰이지 않던 것)을 빼자
+게임플레이 시트가 2048×2048 → 1024×1024 로 내려갔다(16MB → 4MB).
+
+그래서 **아트를 교체하면 옛 PNG 를 같은 커밋에서 지운다.** 되살릴 일이 생기면 git 히스토리에
+있다. "나중에 쓸지도 모르니 남겨둔다" 는 항상 시트 한 변을 잡아먹는다.
+
+판정 기준은 "파일이 참조되는가" 가 아니라 **"런타임에 실제로 그려지는가"** 다. 두 번 걸렸다.
+- `run_<id>.png` — `Player.gd` 가 경로를 문자열로 조립해 참조가 grep 에 안 잡혔다. 실제로는
+  세 캐릭터 모두 `run_frames = 0` 이라 **한 번도 로드되지 않았다**.
+- `player_<id>.png` — `CharacterData.sprite_path` 가 가리켜 "쓰는 것" 처럼 보였지만,
+  `_fit_shadow()` 가 `get_size().x` **숫자 하나** 를 얻으려고 load 할 뿐 그리지는 않았다.
+  지금은 그 숫자를 `CharacterData.shadow_ref_width` 로 들고 있다. 그림 하나를 폭 하나 때문에
+  시트에 남기지 말 것.
 
 ### 원본은 익스포트에서 제외된다
 
@@ -64,6 +102,11 @@ python3 tools/build_atlas.py
 >
 > `python3 tools/build_atlas.py --check` 가 "제외 대상인데 아틀라스에도 없는 파일"을 찾아
 > 빌드를 실패시킨다. 새 폴더를 추가할 때는 `ATLASES` 와 `EXPORT_EXCLUDE` 를 함께 갱신할 것.
+>
+> 와일드카드가 `/` 를 삼키는 성질은 뒤집어 쓰면 편하다. `exclude_filter` 는 **폴더 하나에
+> 패턴 하나**만 두면 하위 폴더까지 다 걸린다 — `assets/sprites/*.png` 하나가
+> `props/city/*.png` 까지 덮는다. 그래서 `exclude_filter` 의 항목과 `EXPORT_EXCLUDE` 의
+> 접두사는 **1:1 로 같은 4개**다. 이 대응이 깨지면 `--check` 의 검사가 헐거워진다.
 
 ### 크기는 "표시 크기 × 2" 가 기준
 
@@ -71,11 +114,17 @@ python3 tools/build_atlas.py
 
 | 구분 | 예 | 축소 가능? |
 |---|---|---|
-| 코드가 크기를 정규화 | FX(`SpriteFX` size_px), 투사체(`Bullet._TEX_SIDE`), 프롭(카탈로그 `w`) | ✅ 원본을 줄여도 화면 크기 그대로 |
+| 코드가 크기를 정규화 | FX(`SpriteFX` size_px), 투사체(`Bullet._TEX_SIDE`), 프롭(카탈로그 `w`), 상자(`CHEST_DRAW_PX`) | ✅ 원본을 줄여도 화면 크기 그대로 |
 | 고정 스케일 | 젬(`COLLECT_SCALE`), 터렛(`SPR_SCALE`), 좀비·캐릭터(`sprite_scale`) | ❌ 줄이면 **화면에서도 작아진다** |
 
 축소 기준은 **최대 표시 크기 × 2** 다. `display/window/stretch/mode="canvas_items"` 라
 고DPI 단말에서는 2D 가 실제 해상도로 그려지므로(720 설계 → 1440 단말이면 2배) 그만큼 여유가 필요하다.
+
+> 아래쪽 표는 "원본을 줄이면 화면도 줄어든다" 는 경고지만, **화면에서도 줄이고 싶을 때는
+> 원본을 줄이는 것이 맞는 방법**이다. 스케일 상수를 건드리면 트윈·자석·수집 연출이 전부
+> 그 상수를 곱해 쓰고 있어 같이 틀어진다. 젬을 0.8배로 줄인 것이 이 경우다 —
+> `xp_gem.png` 80×72 → 64×58 로 리샘플했고 `COLLECT_SCALE` 은 0.4 그대로다
+> (화면 32×28.8px → 25.6×23.2px).
 
 넣어야 할지 애매하면 기준은 하나다 — **`Main` 아래에서 y_sort 스트림에 섞여 그려지는가?**
 

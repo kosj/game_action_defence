@@ -22,30 +22,35 @@ const SHADOW_H := 0.26     # 그림자 폭 대비 높이(납작한 타원)
 const SHADOW_COL := Color(0.0, 0.0, 0.0, 0.38)
 const PLAYER_R := 16.0                     # 플레이어 충돌 반경(스프라이트 대략)
 const SNAP := 128.0                        # 재드로우 격자(_draw 의 margin=CELL 안에 들어와야 한다)
-## 프롭도 아틀라스에 들어가 있다 — 카탈로그의 파일명에서 확장자만 바꿔 AtlasTexture 를 찾는다.
-const PROP_DIR := "res://assets/atlas/"
+## 프롭은 **테마별 아틀라스**에 따로 묶여 있다(assets/atlas/props/<테마>/).
+## 한 판에서 뜨는 테마는 하나뿐이라, 한 장에 합치면 안 쓰는 두 테마의 프롭까지 늘 VRAM 에
+## 올라간다. 폴더를 나눠 선택 테마의 시트 한 장만 열리게 한다 — 아래 theme 값이 곧 폴더명이고
+## tools/build_atlas.py 의 ATLASES("props_<테마>")·assets/sprites/props/<테마>/ 와 짝을 이룬다.
+const PROP_DIR := "res://assets/atlas/props/"
 
-## 프롭 카탈로그: 키 → { path, w=표시 최대변(px), solid=장애물여부, rfrac=충돌반경/최소변 비율 }.
+## 프롭 카탈로그: 키 → { file, theme=소속 테마(폴더), w=표시 최대변(px),
+##                       solid=장애물여부, rfrac=충돌반경/최소변 비율 }.
 ## 아직 아트가 없는 키(파일 부재)는 로드 단계에서 자동 제외된다.
+## 어느 테마에서 쓸지는 ThemeData.prop_keys 가 정한다 — 여기 있어도 그 목록에 없으면 안 나온다.
 const _CATALOG := {
 	# 교외
-	"fence":     {"file": "prop_fence.png",     "w": 72.0,  "solid": true,  "rfrac": 0.32},
-	"wreck_car": {"file": "prop_wreck_car.png", "w": 120.0, "solid": true,  "rfrac": 0.42},
-	"mailbox":   {"file": "prop_mailbox.png",   "w": 40.0,  "solid": false, "rfrac": 0.40},
-	"bush":      {"file": "prop_bush.png",       "w": 62.0,  "solid": false, "rfrac": 0.40},
-	"forsale":   {"file": "prop_forsale.png",    "w": 54.0,  "solid": false, "rfrac": 0.40},
-	"hydrant":   {"file": "prop_hydrant.png",    "w": 34.0,  "solid": true,  "rfrac": 0.42},
-	# 도심
-	"tank":      {"file": "prop_tank.png",       "w": 118.0, "solid": true,  "rfrac": 0.42},
-	"barrier":   {"file": "prop_barrier.png",    "w": 100.0, "solid": true,  "rfrac": 0.40},
-	"dumpster":  {"file": "prop_dumpster.png",   "w": 82.0,  "solid": true,  "rfrac": 0.42},
-	"rubble":    {"file": "prop_rubble.png",     "w": 92.0,  "solid": false, "rfrac": 0.40},
-	"barrel":    {"file": "prop_barrel.png",     "w": 44.0,  "solid": false, "rfrac": 0.42},
+	"fence":     {"file": "prop_fence.png",     "theme": "suburb", "w": 72.0,  "solid": true,  "rfrac": 0.32},
+	"mailbox":   {"file": "prop_mailbox.png",   "theme": "suburb", "w": 40.0,  "solid": false, "rfrac": 0.40},
+	"bush":      {"file": "prop_bush.png",      "theme": "suburb", "w": 62.0,  "solid": false, "rfrac": 0.40},
+	"forsale":   {"file": "prop_forsale.png",   "theme": "suburb", "w": 54.0,  "solid": false, "rfrac": 0.40},
+	"hydrant":   {"file": "prop_hydrant.png",   "theme": "suburb", "w": 34.0,  "solid": true,  "rfrac": 0.42},
+	# 도심 — wreck_car 는 BurningCar 기믹(도심 전용)도 같은 시트를 쓴다.
+	"wreck_car": {"file": "prop_wreck_car.png", "theme": "city",   "w": 120.0, "solid": true,  "rfrac": 0.42},
+	"tank":      {"file": "prop_tank.png",      "theme": "city",   "w": 118.0, "solid": true,  "rfrac": 0.42},
+	"barrier":   {"file": "prop_barrier.png",   "theme": "city",   "w": 100.0, "solid": true,  "rfrac": 0.40},
+	"dumpster":  {"file": "prop_dumpster.png",  "theme": "city",   "w": 82.0,  "solid": true,  "rfrac": 0.42},
+	"rubble":    {"file": "prop_rubble.png",    "theme": "city",   "w": 92.0,  "solid": false, "rfrac": 0.40},
+	"barrel":    {"file": "prop_barrel.png",    "theme": "city",   "w": 44.0,  "solid": false, "rfrac": 0.42},
 	# 연구소
-	"pod":       {"file": "prop_pod.png",        "w": 66.0,  "solid": true,  "rfrac": 0.40},
-	"server":    {"file": "prop_server.png",     "w": 78.0,  "solid": true,  "rfrac": 0.42},
-	"drum":      {"file": "prop_drum.png",       "w": 42.0,  "solid": true,  "rfrac": 0.44},
-	"console":   {"file": "prop_console.png",    "w": 70.0,  "solid": false, "rfrac": 0.40},
+	"pod":       {"file": "prop_pod.png",       "theme": "lab",    "w": 66.0,  "solid": true,  "rfrac": 0.40},
+	"server":    {"file": "prop_server.png",    "theme": "lab",    "w": 78.0,  "solid": true,  "rfrac": 0.42},
+	"drum":      {"file": "prop_drum.png",      "theme": "lab",    "w": 42.0,  "solid": true,  "rfrac": 0.44},
+	"console":   {"file": "prop_console.png",   "theme": "lab",    "w": 70.0,  "solid": false, "rfrac": 0.40},
 }
 
 var _player: Node2D = null
@@ -67,7 +72,9 @@ func _ready() -> void:
 		if not _CATALOG.has(k):
 			continue
 		var meta: Dictionary = _CATALOG[k]
-		var path: String = PROP_DIR + String(meta["file"]).replace(".png", ".tres")
+		# 테마별 폴더에서 찾는다 — 다른 테마의 시트는 열지 않으니 그쪽 프롭은 VRAM 에 안 올라간다.
+		var path: String = "%s%s/%s" % [PROP_DIR, meta["theme"],
+			String(meta["file"]).replace(".png", ".tres")]
 		if not ResourceLoader.exists(path):
 			continue   # 아트 미준비 — 조용히 건너뛴다(나중에 파일 넣으면 자동 활성화)
 		var tex = load(path)

@@ -14,7 +14,14 @@ extends SceneTree
 ## 새 스프라이트 추가 절차는 tools/build_atlas.py 의 docstring 참고.
 ##   실행: godot --headless --script res://tools/check_atlas.gd
 
-const ATLAS_DIRS := ["res://assets/atlas", "res://assets/atlas/ui"]
+const ATLAS_DIRS := [
+	"res://assets/atlas",
+	"res://assets/atlas/ui",
+	# 프롭은 테마별로 나뉘어 있다 — 한 판에 한 테마만 로드된다(ASSET_PIPELINE.md 1절).
+	"res://assets/atlas/props/suburb",
+	"res://assets/atlas/props/city",
+	"res://assets/atlas/props/lab",
+]
 const SRC_DIR := "res://assets/sprites"
 ## 참조를 훑을 폴더(아틀라스 자신은 제외).
 const SCAN_DIRS := ["res://scripts", "res://scenes", "res://data", "res://tools"]

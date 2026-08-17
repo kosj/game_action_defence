@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/Player.gd" id="1"]
-[ext_resource type="Texture2D" path="res://assets/atlas/player.tres" id="2"]
+[ext_resource type="Texture2D" path="res://assets/atlas/idle_veteran.tres" id="2"]
 [ext_resource type="Texture2D" path="res://assets/atlas/shadow.tres" id="3"]
 
 [sub_resource type="CircleShape2D" id="shape_player"]

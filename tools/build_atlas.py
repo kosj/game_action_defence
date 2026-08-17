@@ -49,7 +49,19 @@ except ImportError:
 OUT_DIR = "assets/atlas"
 ## 아틀라스별 출력 하위 폴더. 같은 파일명이 스프라이트와 UI 아이콘 양쪽에 있을 수 있어
 ## (예: weapon_boomerang) 폴더를 나누지 않으면 .tres 가 서로를 덮어쓴다.
-OUT_SUBDIR = {"gameplay": "", "ui": "ui"}
+OUT_SUBDIR = {
+    "gameplay": "",
+    "ui": "ui",
+    "props_suburb": "props/suburb",
+    "props_city": "props/city",
+    "props_lab": "props/lab",
+}
+## 아틀라스 시트 PNG 의 경로(OUT_DIR 기준, 확장자 제외). 생략하면 아틀라스 이름 그대로.
+ATLAS_PNG = {
+    "props_suburb": "props/suburb",
+    "props_city": "props/city",
+    "props_lab": "props/lab",
+}
 PADDING = 4          # 항목 사이 투명 여백(px) — 필터링·손실 압축 번짐 방지
 MAX_SIZE = 2048      # 아틀라스 한 변 상한(모바일 GL 호환 안전선)
 
@@ -62,7 +74,6 @@ ATLASES: dict[str, list[str]] = {
     "gameplay": [
         "assets/sprites/*.png",
         "assets/sprites/fx/*.png",
-        "assets/sprites/props/*.png",
         "assets/sprites/turret/*.png",
         # 톱날 탄은 UI 아이콘 아트를 게임플레이 투사체로 재사용한다 — 게임플레이 스트림에서
         # 그려지므로 이쪽 아틀라스에도 넣어야 배칭이 끊기지 않는다(UI 쪽에도 아이콘으로 남는다).
@@ -77,6 +88,13 @@ ATLASES: dict[str, list[str]] = {
         "assets/ui/portraits/*.png",
         "assets/ui/thumbs/*.png",
     ],
+    # 미장센 프롭 — **테마별로 나눈다**. 한 판에서 뜨는 테마는 하나뿐이라, 한 장에 합치면
+    # 안 쓰는 두 테마의 프롭까지 항상 VRAM 에 올라간다(3배 낭비). PropField 는 선택 테마의
+    # 폴더만 load() 하므로 나머지 두 장은 아예 열리지 않는다.
+    # 폴더 = 테마 id (ThemeData.id / PropField._CATALOG 의 theme 키와 같아야 한다).
+    "props_suburb": ["assets/sprites/props/suburb/*.png"],
+    "props_city": ["assets/sprites/props/city/*.png"],
+    "props_lab": ["assets/sprites/props/lab/*.png"],
 }
 
 
@@ -101,30 +119,45 @@ def _sources(root: pathlib.Path, patterns: list[str]) -> list[pathlib.Path]:
     return sorted(set(out))
 
 
+## 후보 시트 크기(면적 오름차순). 정사각형만 시도하면 "512 에 아슬아슬하게 안 들어가서
+## 1024x1024(점유 17%)" 같은 결과가 나온다 — 절반이 그대로 VRAM 낭비다. 가로로 긴 후보를
+## 끼워 넣어 한 단계 작은 시트에 눕힐 수 있게 한다. 둘 다 2의 거듭제곱이라 GL 제약도 안전하다.
+def _candidates() -> list[tuple[int, int]]:
+    out = []
+    w = 256
+    while w <= MAX_SIZE:
+        h = 256
+        while h <= w:
+            out.append((w, h))
+            h *= 2
+        w *= 2
+    return sorted(out, key=lambda s: (s[0] * s[1], s[0]))
+
+
 def _pack(sizes: list[tuple[int, int]]) -> tuple[list[tuple[int, int]], int, int]:
     """선반(shelf) 배치. (배치좌표들, 폭, 높이) 반환. 항목 수가 적어 이걸로 충분하다."""
     order = sorted(range(len(sizes)), key=lambda i: -sizes[i][1])
-    for side in (256, 512, 1024, MAX_SIZE):
+    for aw, ah in _candidates():
         pos: list[tuple[int, int] | None] = [None] * len(sizes)
         x = y = shelf_h = 0
         ok = True
         for i in order:
             w, h = sizes[i][0] + PADDING * 2, sizes[i][1] + PADDING * 2
-            if w > side:
+            if w > aw:
                 ok = False
                 break
-            if x + w > side:            # 다음 선반으로
+            if x + w > aw:              # 다음 선반으로
                 x = 0
                 y += shelf_h
                 shelf_h = 0
-            if y + h > side:
+            if y + h > ah:
                 ok = False
                 break
             pos[i] = (x + PADDING, y + PADDING)
             x += w
             shelf_h = max(shelf_h, h)
         if ok and all(p is not None for p in pos):
-            return [p for p in pos if p is not None], side, side
+            return [p for p in pos if p is not None], aw, ah
     raise SystemExit(f"아틀라스가 {MAX_SIZE}x{MAX_SIZE} 를 넘습니다 — ATLASES 를 나누세요.")
 
 
@@ -155,7 +188,7 @@ def build(root: pathlib.Path, check_only: bool) -> int:
         for im, (x, y) in zip(imgs, positions):
             sheet.paste(im, (x, y))
 
-        png_path = root / OUT_DIR / f"{name}.png"
+        png_path = root / OUT_DIR / f"{ATLAS_PNG.get(name, name)}.png"
         png_path.parent.mkdir(parents=True, exist_ok=True)
         out_dir.mkdir(parents=True, exist_ok=True)
         new_bytes = _png_bytes(sheet)
@@ -165,7 +198,7 @@ def build(root: pathlib.Path, check_only: bool) -> int:
             if not check_only:
                 png_path.write_bytes(new_bytes)
 
-        atlas_res = f"res://{OUT_DIR}/{name}.png"
+        atlas_res = f"res://{OUT_DIR}/{ATLAS_PNG.get(name, name)}.png"
         sub = OUT_SUBDIR.get(name, name)
         for src, im, (x, y) in zip(srcs, imgs, positions):
             tres_path = out_dir / f"{src.stem}.tres"
@@ -175,6 +208,12 @@ def build(root: pathlib.Path, check_only: bool) -> int:
                 changed = True
                 if not check_only:
                     tres_path.write_text(text, encoding="utf-8")
+
+        for stale in _prune_stale(out_dir, {s.stem for s in srcs}):
+            changed = True
+            print(f"[ATLAS] {name}: 원본이 사라진 {stale.name} 를 정리합니다")
+            if not check_only:
+                stale.unlink()
 
         total = sum(im.width * im.height for im in imgs)
         print(f"[ATLAS] {name}: {len(srcs)}장 -> {aw}x{ah} "
@@ -197,6 +236,15 @@ def build(root: pathlib.Path, check_only: bool) -> int:
             return 1
         print("[ATLAS] 최신 상태입니다.")
     return 0
+
+
+## 원본 PNG 가 삭제됐는데 남아 있는 AtlasTexture — 남겨두면 region 이 다른 그림을 가리켜
+## 엉뚱한 스프라이트가 그려진다(조용히 틀어지는 종류의 버그다). 하위 폴더는 각 아틀라스가
+## 자기 out_dir 로 따로 검사하므로 여기서는 이 폴더의 .tres 만 본다.
+def _prune_stale(out_dir: pathlib.Path, keep: set[str]) -> list[pathlib.Path]:
+    if not out_dir.is_dir():
+        return []
+    return sorted(p for p in out_dir.glob("*.tres") if p.stem not in keep)
 
 
 ## exclude_filter 에 걸리는데 어느 아틀라스에도 들어가지 않은 PNG — 있으면 빌드에서 사라진다.

@@ -28,7 +28,8 @@ func _ready() -> void:
 	z_index = -1
 	_player = get_tree().get_first_node_in_group("player")
 	_spr = Sprite2D.new()
-	_spr.texture = preload("res://assets/atlas/prop_wreck_car.tres")
+	# 도심 전용 기믹이라 도심 프롭 아틀라스를 그대로 쓴다(PropField 와 같은 시트).
+	_spr.texture = preload("res://assets/atlas/props/city/prop_wreck_car.tres")
 	_spr.scale = Vector2(0.34, 0.34)
 	_spr.modulate = Color(0.7, 0.62, 0.6)
 	add_child(_spr)
