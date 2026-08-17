@@ -70,6 +70,13 @@ func _ready() -> void:
 	_ring_tex = _make_ring()
 	_build_emitter()
 	_build_splash()
+	# 치트 토글은 일시정지 메뉴에서 눌린다 — 그때는 _process 가 멈춰 있어 신호로 즉시 반영해야
+	# 패널을 닫기 전에 비/안개가 사라진 것을 볼 수 있다.
+	Cheats.changed.connect(_on_cheats_changed)
+
+
+func _on_cheats_changed() -> void:
+	_process(0.0)
 
 
 ## ── 스케줄(순수 함수) ────────────────────────────────────────────────────
@@ -148,7 +155,10 @@ func _process(delta: float) -> void:
 	if s != _slot:
 		_slot = s
 		_switch(weather_for_slot(s))
-	var strength := strength_at(elapsed) if _key != "" else 0.0
+	# 치트(CHEATS > WEATHER)로 날씨를 끄면 세기를 0 으로 눌러 입자·안개 판·틴트·번개가 한꺼번에
+	# 사라진다(=상시 맑음). 슬롯 스케줄과 _key 는 그대로 굴러가므로 결정론·이어하기가 유지되고,
+	# 다시 켜면 그 시점에 원래 와야 할 날씨가 이어진다.
+	var strength := strength_at(elapsed) if (_key != "" and Cheats.weather) else 0.0
 	if _emitter != null:
 		_emitter.emitting = _key != "" and strength > 0.01
 		_emitter.modulate.a = strength
@@ -171,7 +181,9 @@ func _tint_of(key: String) -> Color:
 ## 비가 충분히 세게 올 때만 간헐적으로 번개가 친다.
 func _tick_bolt(delta: float, strength: float) -> void:
 	if _flash > 0.0:
-		_flash = maxf(0.0, _flash - delta * BOLT_DECAY)
+		# 세기가 0 이면(맑음·슬롯 경계·날씨 치트 OFF) 잔광을 즉시 지운다 — 치트로 끈 순간
+		# 화면에 섬광 잔상이 남아 있으면 "꺼졌다"로 읽히지 않는다.
+		_flash = 0.0 if strength <= 0.0 else maxf(0.0, _flash - delta * BOLT_DECAY)
 	if not bool(_DEF.get(_key, {}).get("bolt", false)) or strength < 0.6:
 		return
 	_bolt_cd -= delta
@@ -190,7 +202,9 @@ func _switch(key: String) -> void:
 	_bolt_cd = randf_range(BOLT_MIN * 0.4, BOLT_MAX * 0.6)
 	if _emitter != null:
 		_configure(key)
-	Events.weather_changed.emit(key)
+	# 날씨를 꺼 둔 동안에는 화면에 아무것도 안 바뀌므로 전환 배너도 띄우지 않는다.
+	if Cheats.weather:
+		Events.weather_changed.emit(key)
 
 
 ## ── 파티클 ───────────────────────────────────────────────────────────────

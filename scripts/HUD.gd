@@ -96,6 +96,7 @@ var _cheat_box: VBoxContainer = null      # 일시정지 메뉴의 치트 하위
 var _cheat_auto_btn: Button = null        # 자동플레이 토글 버튼(라벨 ON/OFF 갱신)
 var _cheat_perf_btn: Button = null        # 성능 오버레이 토글 버튼(라벨 ON/OFF 갱신)
 var _cheat_day_btn: Button = null         # 낮/밤 시간 처리 토글 버튼(라벨 ON/OFF 갱신)
+var _cheat_weather_btn: Button = null     # 날씨 연출 토글 버튼(라벨 ON/OFF 갱신)
 var _perf_overlay: Control = null         # 성능 디버그 오버레이(좌상단)
 var _auto_tag: Label = null               # 자동플레이 중임을 알리는 화면 표시
 
@@ -1209,7 +1210,7 @@ func _build_pause_menu() -> void:
 		margin.add_theme_constant_override("margin_" + m, 26)
 	_pause_panel.add_child(margin)
 
-	# CHEATS 를 펼치면 버튼이 7개 더 붙어 패널이 화면 높이에 육박한다. 스크롤이 없으면
+	# CHEATS 를 펼치면 버튼이 8개 더 붙어 패널이 화면 높이에 육박한다. 스크롤이 없으면
 	# 그 순간 아래쪽이 잘려 손댈 수가 없으므로, 내용을 스크롤 영역에 담는다.
 	# (높이는 _fit_pause_scroll() 이 "내용 높이 vs 화면 여유" 중 작은 쪽으로 맞춘다)
 	_pause_scroll = ScrollContainer.new()
@@ -1279,6 +1280,8 @@ func _build_pause_menu() -> void:
 	_cheat_perf_btn = _make_cheat_button("PERF HUD: OFF", func(): Cheats.toggle_perf_overlay())
 	# 낮/밤 시간 틴트를 통째로 끈다(날씨는 유지) — 밤 구간에서 화면이 어두워 확인이 어려울 때.
 	_cheat_day_btn = _make_cheat_button("DAY/NIGHT: ON", func(): Cheats.toggle_daynight())
+	# 비·눈·안개·모래바람과 번개를 통째로 끈다(=상시 맑음). 스케줄은 계속 돌아 다시 켜면 이어진다.
+	_cheat_weather_btn = _make_cheat_button("WEATHER: ON", func(): Cheats.toggle_weather())
 	Cheats.changed.connect(_refresh_cheat_ui)
 	_refresh_cheat_ui()   # 씬 재진입 시 이미 켜져 있던 토글이 라벨에 반영되도록 초기 1회 갱신
 
@@ -1345,6 +1348,8 @@ func _refresh_cheat_ui() -> void:
 		_perf_overlay.visible = Cheats.perf_overlay
 	if _cheat_day_btn:
 		_cheat_day_btn.text = "DAY/NIGHT: ON" if Cheats.daynight else "DAY/NIGHT: OFF"
+	if _cheat_weather_btn:
+		_cheat_weather_btn.text = "WEATHER: ON" if Cheats.weather else "WEATHER: OFF"
 
 
 func _on_pause_pressed() -> void:

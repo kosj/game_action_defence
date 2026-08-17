@@ -16,6 +16,9 @@ var perf_overlay: bool = false
 ## 달빛 헤일로·반딧불 앰비언트도 끈다 — 날씨 연출은 그대로 남는다(끄는 건 "시간"뿐).
 ## 밤 구간의 화면 색 때문에 스크린샷·아트 확인이 어려울 때 쓴다.
 var daynight: bool = true
+## 날씨 연출. false 면 WeatherSystem 이 입자·안개 판·날씨 틴트·번개를 전부 끈다(=상시 맑음).
+## 스케줄 자체는 계속 돌아 결정론과 이어하기가 그대로 유지된다 — 켜면 그 시점의 날씨가 이어진다.
+var weather: bool = true
 
 const _AVOID_R := 200.0    # 이 안의 좀비로부터 도망(너무 크면 겁쟁이가 되어 교전을 못 한다)
 const _BOSS_R := 360.0     # 보스는 더 멀리서부터 피한다
@@ -37,6 +40,11 @@ func toggle_perf_overlay() -> void:
 
 func toggle_daynight() -> void:
 	daynight = not daynight
+	changed.emit()
+
+
+func toggle_weather() -> void:
+	weather = not weather
 	changed.emit()
 
 
