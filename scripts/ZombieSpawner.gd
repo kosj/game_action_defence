@@ -111,6 +111,7 @@ func _ready() -> void:
 	_swarm_cd = randf_range(_bal.swarm_interval_min, _bal.swarm_interval_max)
 	Cheats.time_skip.connect(_on_time_skip)
 	Cheats.spawn_fill.connect(_on_spawn_fill)
+	Cheats.spawn_boss.connect(_on_spawn_boss_cheat)
 	Events.wave_changed.emit(Events.total_kills)                 # HUD 킬 카운트 초기화
 	Events.run_progress.emit(_elapsed, _diff.clear_seconds)      # HUD 클리어 진행바 초기화
 
@@ -128,6 +129,16 @@ func _on_time_skip(seconds: float) -> void:
 
 ## 치트: 좀비를 현재 동시 출현 상한(_max_z)까지 채운다 — 대량 전투/성능 확인용.
 ## 스폰 큐로 분산 생성되므로 수백 마리도 프레임 스파이크 없이 순차 등장한다.
+## 치트: 보스 즉시 등장. 마일스톤을 기다리지 않고 그 자리에서 다음 회차 보스를 부른다.
+## 동시 1마리 규칙은 그대로라 이미 보스가 있으면 무시하고, 예약된 다음 마일스톤은 지금부터
+## 다시 센다(치트로 부른 직후 정규 보스가 겹쳐 나오지 않게).
+func _on_spawn_boss_cheat() -> void:
+	if _boss_alive or _game_over or not is_instance_valid(player):
+		return
+	_next_boss_at = _elapsed + _diff.boss_seconds
+	_spawn_boss()
+
+
 func _on_spawn_fill() -> void:
 	if not is_instance_valid(player):
 		return

@@ -6,6 +6,9 @@ extends Node
 signal changed                     # 토글 상태 변경 — UI 라벨/표시 갱신용
 signal time_skip(seconds: float)   # 경과 시간 점프 — ZombieSpawner 가 받아 난이도 시계를 당긴다
 signal spawn_fill                  # 좀비를 현재 동시 출현 상한까지 즉시 채운다 — ZombieSpawner 가 처리
+## 보스를 즉시 등장시킨다 — ZombieSpawner 가 처리. 보스전(격리 구역·페이즈·회복 스킬)을
+## 10분씩 기다리지 않고 확인하기 위한 것. 누를 때마다 회차가 올라가 강화 곡선도 같이 볼 수 있다.
+signal spawn_boss
 
 var autoplay: bool = false
 ## 성능 디버그 오버레이(HUD 좌상단) 표시 여부. HUD 의 PerfOverlay 노드가 이 값을 따른다.

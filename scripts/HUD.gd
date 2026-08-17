@@ -1275,6 +1275,8 @@ func _build_pause_menu() -> void:
 	_cheat_auto_btn = _make_cheat_button("AUTO-PLAY: OFF", _on_cheat_autoplay)
 	_make_cheat_button("TIME +5 MIN", func(): Cheats.time_skip.emit(300.0))
 	_make_cheat_button("SPAWN TO CAP", func(): Cheats.spawn_fill.emit())
+	# 보스전을 10분씩 기다리지 않고 확인 — 누를 때마다 회차가 올라 강화 곡선도 같이 볼 수 있다.
+	_make_cheat_button("SPAWN BOSS", func(): Cheats.spawn_boss.emit())
 	_make_cheat_button("GOLD +500", func(): Events.add_gold(500))
 	_make_cheat_button("LEVEL UP +1", func(): Events.bonus_level())
 	_cheat_perf_btn = _make_cheat_button("PERF HUD: OFF", func(): Cheats.toggle_perf_overlay())
