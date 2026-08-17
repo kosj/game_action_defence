@@ -18,17 +18,17 @@ const _RARITY := [
 ]
 
 ## 카드 앞면 아이콘 — 아이템은 카탈로그 아이콘, 나머지는 종류별 범용 아이콘/엠블럼.
-const _ICON_XP := preload("res://assets/ui/icons/hud_xp.png")
-const _ICON_MAGNET := preload("res://assets/ui/icons/passive_magnet.png")
-const _ICON_HEAL := preload("res://assets/ui/icons/passive_regen.png")
+const _ICON_XP := preload("res://assets/atlas/ui/hud_xp.tres")
+const _ICON_MAGNET := preload("res://assets/atlas/ui/passive_magnet.tres")
+const _ICON_HEAL := preload("res://assets/atlas/ui/passive_regen.tres")
 
 ## 전용 보상 아이콘(선택) — 파일이 있으면 사용하고 없으면 종류색 다이아 엠블럼으로 폴백.
 ## 아트가 준비되는 대로 아래 경로에 넣기만 하면 코드 수정 없이 적용된다.
 const _REWARD_ICON_PATHS := {
-	"gold": "res://assets/ui/icons/reward_gold.png",
-	"levelup": "res://assets/ui/icons/reward_levelup.png",
-	"revive": "res://assets/ui/icons/reward_revive.png",
-	"meta": "res://assets/ui/icons/reward_meta.png",
+	"gold": "res://assets/atlas/ui/reward_gold.tres",
+	"levelup": "res://assets/atlas/ui/reward_levelup.tres",
+	"revive": "res://assets/atlas/ui/reward_revive.tres",
+	"meta": "res://assets/atlas/ui/reward_meta.tres",
 }
 
 static func _reward_icon(kind: String) -> Texture2D:

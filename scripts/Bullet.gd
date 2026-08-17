@@ -43,7 +43,7 @@ const _TEX := {
 	"bolt_guided": preload("res://assets/atlas/proj_bolt_guided.tres"),
 	"nail": preload("res://assets/atlas/proj_nail.tres"),
 	"nail_guided": preload("res://assets/atlas/proj_nail_guided.tres"),
-	"blade": preload("res://assets/ui/icons/weapon_sawblade.png"),
+	"blade": preload("res://assets/atlas/weapon_sawblade.tres"),
 }
 ## 스타일별 화면 크기(긴 변, px). 원본 해상도와 무관하게 여기로 정규화한다.
 ## 직진 볼트는 그림이 유난히 납작해서(가로:세로 ≈ 9:1) 같은 값을 주면 세로가 4px 남짓이라

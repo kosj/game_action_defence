@@ -147,8 +147,8 @@ func _apply_character_sprite() -> void:
 	if muzzle != null and c.muzzle_offset != Vector2.ZERO:
 		muzzle.position = c.muzzle_offset
 	_proj_style = c.projectile_style
-	var run_path := "res://assets/sprites/run_%s.png" % c.id
-	var idle_path := "res://assets/sprites/idle_%s.png" % c.id
+	var run_path := "res://assets/atlas/run_%s.tres" % c.id   # 게임플레이 아틀라스(hframes 는 region 을 분할한다)
+	var idle_path := "res://assets/atlas/idle_%s.tres" % c.id   # 게임플레이 아틀라스
 	if c.run_frames >= 2 and ResourceLoader.exists(run_path):
 		var sheet = load(run_path)
 		if sheet is Texture2D:

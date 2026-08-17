@@ -11,11 +11,11 @@ const SPR_SCALE := 0.3
 ## 방향 스프라이트(3x3 시트에서 잘라낸 셀). 시트가 8방향을 완벽히 담진 않아 실제 그려진 방향에
 ## 맞춰 매핑: up=idx0, up-right=idx2, left=idx3, down=idx4, right=idx5. (없는 대각은 근접/미러 대체)
 const _TEX := [
-	preload("res://assets/sprites/turret/turret_0.png"),  # [0] 위(N)
-	preload("res://assets/sprites/turret/turret_2.png"),  # [1] 우상(NE)
-	preload("res://assets/sprites/turret/turret_3.png"),  # [2] 좌(W)
-	preload("res://assets/sprites/turret/turret_4.png"),  # [3] 아래(S)
-	preload("res://assets/sprites/turret/turret_5.png"),  # [4] 우(E)
+	preload("res://assets/atlas/turret_0.tres"),  # [0] 위(N)
+	preload("res://assets/atlas/turret_2.tres"),  # [1] 우상(NE)
+	preload("res://assets/atlas/turret_3.tres"),  # [2] 좌(W)
+	preload("res://assets/atlas/turret_4.tres"),  # [3] 아래(S)
+	preload("res://assets/atlas/turret_5.tres"),  # [4] 우(E)
 ]
 ## 조준 8분할(0=E,1=SE,2=S,3=SW,4=W,5=NW,6=N,7=NE) → [_TEX 인덱스, 좌우반전].
 const _DIR := [

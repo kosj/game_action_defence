@@ -19,8 +19,8 @@ const CHEST_GOLD_MAX := 55
 # 상자 아트 — 있으면 스프라이트로, 없으면 아래 절차 드로잉으로 그린다.
 # (Pool.acquire 가 kind 를 지정하기 "전에" on_spawn 을 부르므로 미리 정할 수 없어
 #  그리는 시점에 kind 를 보고 한 번만 로드해 캐시한다.)
-const CHEST_TEX_PATH := "res://assets/sprites/props/chest_treasure.png"
-const EVOCHEST_TEX_PATH := "res://assets/sprites/props/chest_evolution.png"
+const CHEST_TEX_PATH := "res://assets/atlas/chest_treasure.tres"
+const EVOCHEST_TEX_PATH := "res://assets/atlas/chest_evolution.tres"
 const CHEST_DRAW_PX := 46.0   # 화면에 그릴 긴 변 크기
 
 var kind: String = "chest"   # "chest" | "bomb" — 스포너가 스폰 시 지정

@@ -9,7 +9,7 @@ const RETURN_ACCEL := 2600.0 # 귀환 가속
 const CATCH_R := 26.0        # 플레이어 도달 판정
 const LIFE_MAX := 5.0        # 안전장치 — 어떤 이유로든 못 돌아오면 자멸
 
-const _SPRITE_PATH := "res://assets/sprites/weapon_boomerang.png"
+const _SPRITE_PATH := "res://assets/atlas/weapon_boomerang.tres"
 
 var _player: Node2D = null
 var _dir := Vector2.RIGHT

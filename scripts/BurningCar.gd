@@ -28,7 +28,7 @@ func _ready() -> void:
 	z_index = -1
 	_player = get_tree().get_first_node_in_group("player")
 	_spr = Sprite2D.new()
-	_spr.texture = preload("res://assets/sprites/props/prop_wreck_car.png")
+	_spr.texture = preload("res://assets/atlas/prop_wreck_car.tres")
 	_spr.scale = Vector2(0.34, 0.34)
 	_spr.modulate = Color(0.7, 0.62, 0.6)
 	add_child(_spr)

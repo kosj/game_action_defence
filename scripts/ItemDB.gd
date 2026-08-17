@@ -27,7 +27,8 @@ static func _icon_or_fallback(w: WeaponData) -> Texture2D:
 	if _icon_cache.has(w.id):
 		return _icon_cache[w.id]
 	var tex: Texture2D = null
-	var path := "res://assets/ui/icons/weapon_%s.png" % w.id
+	# 아이콘은 UI 아틀라스로 묶여 있다 — PNG 가 아니라 생성된 AtlasTexture 를 찾는다.
+	var path := "res://assets/atlas/ui/weapon_%s.tres" % w.id
 	if ResourceLoader.exists(path):
 		var t = load(path)
 		if t is Texture2D:

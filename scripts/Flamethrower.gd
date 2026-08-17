@@ -15,7 +15,7 @@ const AIM_TOLERANCE := 0.16  # 이 각도(rad) 안으로 정렬되면 발사 개
 ## 표적이 없을 때 대기 위치 — 캐릭터 머리 위. 몸(150px 아트 × sprite_scale 0.52 ≈ 78px)의
 ## 위쪽 끝이 원점에서 약 -39 이므로 그보다 조금 더 위에 띄운다.
 const IDLE_POS := Vector2(0.0, -58.0)
-const _SPRITE_PATH := "res://assets/sprites/flame_pod.png"   # 있으면 절차 드로잉 대신 사용
+const _SPRITE_PATH := "res://assets/atlas/flame_pod.tres"   # 있으면 절차 드로잉 대신 사용
 
 var _t: float = 0.0
 var _aim: Vector2 = Vector2.RIGHT

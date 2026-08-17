@@ -31,17 +31,17 @@ func _initialize() -> void:
 		_c("veteran", "Veteran", "Bruiser. Starts with a Buzz Blade and heavy armor.",
 			Color(0.85, 0.45, 0.35), "sawblade", "armor", "veteran",
 			{"max_health": 3, "move_speed": 1,
-			"sprite_path": "res://assets/sprites/player_veteran.png", "sprite_scale": 0.66}),
+			"sprite_path": "res://assets/atlas/player_veteran.tres", "sprite_scale": 0.66}),
 		# 사냥꾼 — 원거리 딜러: 석궁 시작 + 조준경. 메타 골드 300 으로 해금.
 		_c("hunter", "Hunter", "Ranged damage. Starts with a Crossbow and a Scope.",
 			Color(0.45, 0.80, 1.00), "crossbow", "crit", "hunter",
 			{"bullet_damage": 2, "crit": 2, "unlock_cost": 300,
-			"sprite_path": "res://assets/sprites/player_hunter.png", "sprite_scale": 0.66}),
+			"sprite_path": "res://assets/atlas/player_hunter.tres", "sprite_scale": 0.66}),
 		# 엔지니어 — 설치 디펜스: 터렛 시작 + 배터리. 'Boss Hunter'(보스 5처치) 달성 시 해금.
 		_c("engineer", "Engineer", "Deploy defense. Stronger turrets/drones/mines and more loot.",
 			Color(0.55, 0.90, 0.60), "turret", "battery", "engineer",
 			{"area": 2, "atk_speed": 1, "greed": 3, "unlock_achievement": "boss_5",
-			"sprite_path": "res://assets/sprites/player_engineer.png", "sprite_scale": 0.66}),
+			"sprite_path": "res://assets/atlas/player_engineer.tres", "sprite_scale": 0.66}),
 	]
 	var err := ResourceSaver.save(db, "res://data/character_db.tres")
 	print("gen_character_data: saved character_db.tres err=%d (chars=%d)" % [err, db.characters.size()])

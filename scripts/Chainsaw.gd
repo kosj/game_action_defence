@@ -23,7 +23,7 @@ const GRIND_OFFSET := 16.0    # 표적 중심에서 이만큼 앞에 붙는다(�
 const ATTACK_MULT := 2.4      # 교전 반경 = area_radius × 이 값 (캐릭터 기준)
 const LEASH_SLACK := 70.0     # 교전 반경 + 이만큼 벗어나면 강제 귀환
 const ARRIVE_DIST := 22.0     # 이 거리 안이면 붙은 것으로 본다
-const _SPRITE_PATH := "res://assets/sprites/chainsaw_summon.png"
+const _SPRITE_PATH := "res://assets/atlas/chainsaw_summon.tres"
 
 enum { HOVER, SEEK, GRIND }
 

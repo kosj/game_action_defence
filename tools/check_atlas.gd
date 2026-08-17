@@ -14,7 +14,7 @@ extends SceneTree
 ## 새 스프라이트 추가 절차는 tools/build_atlas.py 의 docstring 참고.
 ##   실행: godot --headless --script res://tools/check_atlas.gd
 
-const ATLAS_DIR := "res://assets/atlas"
+const ATLAS_DIRS := ["res://assets/atlas", "res://assets/atlas/ui"]
 const SRC_DIR := "res://assets/sprites"
 ## 참조를 훑을 폴더(아틀라스 자신은 제외).
 const SCAN_DIRS := ["res://scripts", "res://scenes", "res://data", "res://tools"]
@@ -22,25 +22,28 @@ const SCAN_DIRS := ["res://scripts", "res://scenes", "res://data", "res://tools"
 var _fails: Array = []
 
 
+## 스템 -> 그 스템의 .tres 경로. 같은 이름이 게임플레이/UI 양쪽에 있을 수 있으므로
+## (예: weapon_boomerang) 경로까지 들고 있어야 크기 비교를 올바른 쪽과 할 수 있다.
 func _atlas_stems() -> Dictionary:
 	var out := {}
-	var d := DirAccess.open(ATLAS_DIR)
-	if d == null:
-		return out
-	d.list_dir_begin()
-	var f := d.get_next()
-	while f != "":
-		if not d.current_is_dir() and f.ends_with(".tres"):
-			out[f.get_basename()] = true
-		f = d.get_next()
-	d.list_dir_end()
+	for dir_path in ATLAS_DIRS:
+		var d := DirAccess.open(dir_path)
+		if d == null:
+			continue
+		d.list_dir_begin()
+		var f := d.get_next()
+		while f != "":
+			if not d.current_is_dir() and f.ends_with(".tres"):
+				out[f.get_basename()] = dir_path.path_join(f)
+			f = d.get_next()
+		d.list_dir_end()
 	return out
 
 
 ## region 크기가 원본 PNG 와 같은지 — 다르면 스케일 계산이 어긋난다.
 func _check_sizes(stems: Dictionary) -> void:
 	for stem in stems.keys():
-		var tex: Texture2D = load("%s/%s.tres" % [ATLAS_DIR, stem])
+		var tex: Texture2D = load(stems[stem])
 		if tex == null:
 			_fails.append("%s.tres 로드 실패" % stem)
 			continue
@@ -48,8 +51,8 @@ func _check_sizes(stems: Dictionary) -> void:
 			_fails.append("%s.tres 가 AtlasTexture 가 아님" % stem)
 			continue
 		var src_path := "%s/%s.png" % [SRC_DIR, stem]
-		if not ResourceLoader.exists(src_path):
-			continue   # 원본이 다른 하위 폴더에 있을 수 있다 — 크기 비교는 생략
+		if not ResourceLoader.exists(src_path) or str(stems[stem]).contains("/atlas/ui/"):
+			continue   # 원본이 다른 하위 폴더(ui/icons 등)에 있으면 크기 비교는 생략
 		var src: Texture2D = load(src_path)
 		if src != null and src.get_size() != tex.get_size():
 			_fails.append("%s: 아틀라스 %s vs 원본 %s (크기 불일치)"
@@ -74,9 +77,9 @@ func _scan(dir_path: String, stems: Dictionary) -> void:
 				var text := fa.get_as_text()
 				for stem in stems.keys():
 					# 하위 폴더(props/ 등)까지 포함해 어떤 경로로든 그 PNG 를 가리키면 잡는다.
-					if text.contains("/%s.png" % stem) and text.contains("assets/sprites"):
-						_fails.append("%s: '%s.png' 를 직접 참조 (assets/atlas/%s.tres 를 쓰세요)"
-							% [p, stem, stem])
+					if text.contains("/%s.png" % stem) and (text.contains("assets/sprites") or text.contains("assets/ui/")):
+						_fails.append("%s: '%s.png' 를 직접 참조 (%s 를 쓰세요)"
+							% [p, stem, stems[stem]])
 		f = d.get_next()
 	d.list_dir_end()
 

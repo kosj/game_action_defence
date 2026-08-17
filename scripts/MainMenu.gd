@@ -345,16 +345,16 @@ func _on_close_options() -> void:
 ## 메타 성장(PowerUp) 오버레이 — 은행 골드로 영구 강화를 구매한다.
 ## 영구 강화 종류(effect_kind) → 아이콘 썸네일 경로.
 const _POWER_ICONS := {
-	"bullet_damage": "res://assets/ui/icons/passive_gunpowder.png",
-	"max_health": "res://assets/ui/icons/passive_armor.png",
-	"move_speed": "res://assets/ui/icons/passive_swift.png",
-	"atk_speed": "res://assets/ui/icons/passive_haste.png",
-	"crit": "res://assets/ui/icons/passive_crit.png",
-	"regen": "res://assets/ui/icons/passive_regen.png",
-	"area": "res://assets/ui/icons/passive_magnet.png",
-	"gold_mult": "res://assets/ui/icons/reward_gold.png",
-	"xp_mult": "res://assets/ui/icons/hud_xp.png",
-	"revive": "res://assets/ui/icons/reward_revive.png",
+	"bullet_damage": "res://assets/atlas/ui/passive_gunpowder.tres",
+	"max_health": "res://assets/atlas/ui/passive_armor.tres",
+	"move_speed": "res://assets/atlas/ui/passive_swift.tres",
+	"atk_speed": "res://assets/atlas/ui/passive_haste.tres",
+	"crit": "res://assets/atlas/ui/passive_crit.tres",
+	"regen": "res://assets/atlas/ui/passive_regen.tres",
+	"area": "res://assets/atlas/ui/passive_magnet.tres",
+	"gold_mult": "res://assets/atlas/ui/reward_gold.tres",
+	"xp_mult": "res://assets/atlas/ui/hud_xp.tres",
+	"revive": "res://assets/atlas/ui/reward_revive.tres",
 }
 
 
@@ -541,7 +541,7 @@ func _build_character_panel() -> void:
 		# 캐릭터 썸네일 — 전용 초상화(assets/ui/portraits/portrait_<id>.png)가 있으면 우선 사용,
 		# 없으면 인게임 스프라이트. 잠금 상태는 _refresh_character 가 실루엣처럼 어둡게 한다.
 		var thumb: TextureRect = null
-		var tex_path := "res://assets/ui/portraits/portrait_%s.png" % c.id
+		var tex_path := "res://assets/atlas/ui/portrait_%s.tres" % c.id   # UI 아틀라스
 		if not ResourceLoader.exists(tex_path):
 			tex_path = c.sprite_path
 		if tex_path != "" and ResourceLoader.exists(tex_path):
@@ -1186,7 +1186,7 @@ func _build_theme_panel() -> void:
 		# 와이드 썸네일 — 카드 가로를 꽉 채우고 남는 세로를 모두 차지. 원본(4:3)은
 		# 가운데를 잘라 배너처럼 보여준다(COVERED).
 		var thumb: TextureRect = null
-		var tex_path := "res://assets/ui/thumbs/theme_%s.png" % t.id
+		var tex_path := "res://assets/atlas/ui/theme_%s.tres" % t.id   # UI 아틀라스
 		if ResourceLoader.exists(tex_path):
 			thumb = TextureRect.new()
 			thumb.texture = load(tex_path)

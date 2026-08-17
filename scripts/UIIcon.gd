@@ -11,8 +11,8 @@ const _KINDS := ["coin", "star", "flag", "clock", "trophy", "skull", "heart", "b
 ## 전용 아트가 있는 종류는 절차적 드로잉 대신 텍스처를 그린다(색 modulate 없이 원색 사용).
 ## 파일이 있는 것만 배선 — 나머지는 아래 _draw 의 벡터 드로잉으로 폴백.
 const _KIND_TEX := {
-	"skull": preload("res://assets/ui/icons/hud_skull.png"),
-	"clock": preload("res://assets/ui/icons/hud_clock.png"),
+	"skull": preload("res://assets/atlas/ui/hud_skull.tres"),
+	"clock": preload("res://assets/atlas/ui/hud_clock.tres"),
 	"coin":  preload("res://assets/ui/ui_coin.png"),
 }
 

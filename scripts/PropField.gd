@@ -22,7 +22,8 @@ const SHADOW_H := 0.26     # 그림자 폭 대비 높이(납작한 타원)
 const SHADOW_COL := Color(0.0, 0.0, 0.0, 0.38)
 const PLAYER_R := 16.0                     # 플레이어 충돌 반경(스프라이트 대략)
 const SNAP := 128.0                        # 재드로우 격자(_draw 의 margin=CELL 안에 들어와야 한다)
-const PROP_DIR := "res://assets/sprites/props/"
+## 프롭도 아틀라스에 들어가 있다 — 카탈로그의 파일명에서 확장자만 바꿔 AtlasTexture 를 찾는다.
+const PROP_DIR := "res://assets/atlas/"
 
 ## 프롭 카탈로그: 키 → { path, w=표시 최대변(px), solid=장애물여부, rfrac=충돌반경/최소변 비율 }.
 ## 아직 아트가 없는 키(파일 부재)는 로드 단계에서 자동 제외된다.
@@ -66,7 +67,7 @@ func _ready() -> void:
 		if not _CATALOG.has(k):
 			continue
 		var meta: Dictionary = _CATALOG[k]
-		var path: String = PROP_DIR + String(meta["file"])
+		var path: String = PROP_DIR + String(meta["file"]).replace(".png", ".tres")
 		if not ResourceLoader.exists(path):
 			continue   # 아트 미준비 — 조용히 건너뛴다(나중에 파일 넣으면 자동 활성화)
 		var tex = load(path)

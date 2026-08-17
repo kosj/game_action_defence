@@ -9,7 +9,7 @@ const ORBIT_SPEED := 1.4    # 공전 각속도(rad/s)
 const FIRE_RANGE := 420.0
 
 ## 전용 아트가 있으면 절차 드로잉 대신 스프라이트로 그린다(부메랑과 같은 규약).
-const _SPRITE_PATH := "res://assets/sprites/drone.png"
+const _SPRITE_PATH := "res://assets/atlas/drone.tres"
 
 var _orbit: float = 0.0
 var _t: float = 0.0

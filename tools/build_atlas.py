@@ -47,6 +47,9 @@ except ImportError:
     raise
 
 OUT_DIR = "assets/atlas"
+## 아틀라스별 출력 하위 폴더. 같은 파일명이 스프라이트와 UI 아이콘 양쪽에 있을 수 있어
+## (예: weapon_boomerang) 폴더를 나누지 않으면 .tres 가 서로를 덮어쓴다.
+OUT_SUBDIR = {"gameplay": "", "ui": "ui"}
 PADDING = 4          # 항목 사이 투명 여백(px) — 필터링·손실 압축 번짐 방지
 MAX_SIZE = 2048      # 아틀라스 한 변 상한(모바일 GL 호환 안전선)
 
@@ -54,18 +57,31 @@ MAX_SIZE = 2048      # 아틀라스 한 변 상한(모바일 GL 호환 안전선
 ## y_sort 스트림에 섞여 그려지는(= 배칭이 깨지는) 스프라이트를 한 장에 모으는 것이 목적이다.
 ## 타일(tiles/)은 texture_repeat 로 반복 샘플링해야 해서 아틀라스에 넣을 수 없다 — 제외.
 ATLASES: dict[str, list[str]] = {
+    # 게임플레이 — Main 아래 y_sort 스트림에 섞여 그려지는 모든 스프라이트를 한 장에 모은다.
+    # (타일만 예외: texture_repeat 로 반복 샘플링해야 해서 아틀라스 region 으로는 못 쓴다)
     "gameplay": [
-        "assets/sprites/zombie_*.png",
-        "assets/sprites/boss_*.png",
-        "assets/sprites/shadow.png",
-        "assets/sprites/xp_gem.png",
-        "assets/sprites/bullet.png",
-        # 투사체 아트(#291 이후 총알은 텍스처로 그린다) — 총알은 화면에 수십 개가 동시에 뜬다.
-        "assets/sprites/proj_*.png",
-        # FX 스프라이트도 같은 y_sort 스트림에 섞여 그려진다(SpriteFX z_index=3).
+        "assets/sprites/*.png",
         "assets/sprites/fx/*.png",
+        "assets/sprites/props/*.png",
+        "assets/sprites/turret/*.png",
+        # 톱날 탄은 UI 아이콘 아트를 게임플레이 투사체로 재사용한다 — 게임플레이 스트림에서
+        # 그려지므로 이쪽 아틀라스에도 넣어야 배칭이 끊기지 않는다(UI 쪽에도 아이콘으로 남는다).
+        "assets/ui/icons/weapon_sawblade.png",
+    ],
+    # UI — HUD/메뉴는 CanvasLayer 라 유닛 스트림과 섞이지 않지만, 아이콘 49장이 로드아웃·상점·
+    # 레벨업 카드에서 줄줄이 그려지며 텍스처가 매번 바뀐다. 별도 아틀라스로 묶는다.
+    #  · frames/·hud/ 는 StyleBoxTexture 나인패치 + 무손실 고정이라 제외(ASSET_PIPELINE.md 3절)
+    #  · assets/ui 루트의 배경/로고/비네트는 한 번에 한 장만 뜨는 큰 그림이라 이득이 없다
+    "ui": [
+        "assets/ui/icons/*.png",
+        "assets/ui/portraits/*.png",
+        "assets/ui/thumbs/*.png",
     ],
 }
+
+
+## 아틀라스에 넣으면 깨지는 것 — 타일은 texture_repeat 로 화면을 채우므로 region 화가 불가능하다.
+EXCLUDE = ("assets/sprites/tiles/",)
 
 
 def _sources(root: pathlib.Path, patterns: list[str]) -> list[pathlib.Path]:
@@ -73,6 +89,7 @@ def _sources(root: pathlib.Path, patterns: list[str]) -> list[pathlib.Path]:
     for pat in patterns:
         out += [pathlib.Path(p) for p in glob.glob(str(root / pat))]
     # 경로 순 정렬 — 배치 결과가 실행마다 동일해야 diff 가 안정된다.
+    out = [p for p in out if not any(e in str(p).replace("\\", "/") for e in EXCLUDE)]
     return sorted(set(out))
 
 
@@ -116,9 +133,9 @@ def _tres(atlas_res: str, x: int, y: int, w: int, h: int) -> str:
 
 
 def build(root: pathlib.Path, check_only: bool) -> int:
-    out_dir = root / OUT_DIR
     changed = False
     for name, patterns in ATLASES.items():
+        out_dir = root / OUT_DIR / OUT_SUBDIR.get(name, name)
         srcs = _sources(root, patterns)
         if not srcs:
             print(f"[ATLAS] {name}: 원본을 찾지 못했습니다 — 건너뜁니다")
@@ -130,9 +147,9 @@ def build(root: pathlib.Path, check_only: bool) -> int:
         for im, (x, y) in zip(imgs, positions):
             sheet.paste(im, (x, y))
 
-        png_path = out_dir / f"{name}.png"
-        buf = png_path.parent
-        buf.mkdir(parents=True, exist_ok=True)
+        png_path = root / OUT_DIR / f"{name}.png"
+        png_path.parent.mkdir(parents=True, exist_ok=True)
+        out_dir.mkdir(parents=True, exist_ok=True)
         new_bytes = _png_bytes(sheet)
         old_bytes = png_path.read_bytes() if png_path.exists() else b""
         if new_bytes != old_bytes:
@@ -141,6 +158,7 @@ def build(root: pathlib.Path, check_only: bool) -> int:
                 png_path.write_bytes(new_bytes)
 
         atlas_res = f"res://{OUT_DIR}/{name}.png"
+        sub = OUT_SUBDIR.get(name, name)
         for src, im, (x, y) in zip(srcs, imgs, positions):
             tres_path = out_dir / f"{src.stem}.tres"
             text = _tres(atlas_res, x, y, im.width, im.height)
@@ -154,7 +172,7 @@ def build(root: pathlib.Path, check_only: bool) -> int:
         print(f"[ATLAS] {name}: {len(srcs)}장 -> {aw}x{ah} "
               f"(점유 {total / (aw * ah) * 100:.0f}%, 여백 {PADDING}px)")
         for src, (x, y), im in zip(srcs, positions, imgs):
-            print(f"         {src.name:28s} -> {OUT_DIR}/{src.stem}.tres  "
+            print(f"         {src.name:28s} -> {OUT_DIR}/{(sub + '/') if sub else ''}{src.stem}.tres  "
                   f"region({x},{y},{im.width},{im.height})")
 
     if check_only:

@@ -26,14 +26,14 @@ func _ready() -> void:
 	var sh := Sprite2D.new()
 	sh.texture = preload("res://assets/atlas/shadow.tres")
 	sh.z_index = -1
-	var mtex: Vector2 = preload("res://assets/sprites/field_mine.png").get_size()
+	var mtex: Vector2 = preload("res://assets/atlas/field_mine.tres").get_size()
 	var ssx: float = (mtex.x * 0.26 * 1.1) / 128.0
 	sh.scale = Vector2(ssx, ssx * 0.5)
 	sh.position = Vector2(0.0, mtex.y * 0.26 * 0.4)
 	add_child(sh)
 	# 전용 스프라이트(지뢰). 무장 경고등 깜빡임은 _draw 의 붉은 링으로 별도 표시.
 	_spr = Sprite2D.new()
-	_spr.texture = preload("res://assets/sprites/field_mine.png")
+	_spr.texture = preload("res://assets/atlas/field_mine.tres")
 	_spr.scale = Vector2(0.26, 0.26)
 	add_child(_spr)
 

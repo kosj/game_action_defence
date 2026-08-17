@@ -21,7 +21,7 @@ const _FXBurst := preload("res://scripts/FXBurst.gd")
 ## 띠 텍스처를 호를 따라 반복해 두르는 방식을 먼저 썼는데, 같은 그림이 이어 붙는 이음매가 드러나
 ## 전기 울타리가 아니라 굵은 밧줄처럼 보였다. 선으로 잇는 쪽이 이음매가 없고, 지직거리는 애니메이션도
 ## 공짜로 얻는다(FXLightning 과 같은 "넓은 글로우 → 얇은 흰 코어" 겹치기).
-const _PYLON := preload("res://assets/sprites/arena_pylon.png")
+const _PYLON := preload("res://assets/atlas/arena_pylon.tres")
 
 const OPEN_TIME := 0.5       # 전개 연출: 넓은 원에서 제 크기로 조여든다
 const OPEN_SCALE := 1.4      # 전개 시작 반경 배수

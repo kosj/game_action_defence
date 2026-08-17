@@ -24,19 +24,17 @@ shadow.png → zombie_walker.png → shadow.png → zombie_brute.png → ...
 ### 절차
 
 ```bash
-# 1) PNG 를 아래 위치 중 하나에 넣는다 (tools/build_atlas.py 의 ATLASES 글롭에 걸리는 곳)
-#      assets/sprites/zombie_*.png
-#      assets/sprites/boss_*.png
-#      assets/sprites/proj_*.png
-#      assets/sprites/fx/*.png
-#      assets/sprites/{shadow,xp_gem,bullet}.png
+# 1) PNG 를 아래 위치에 넣는다 (tools/build_atlas.py 의 ATLASES 글롭에 걸리는 곳)
+#    게임플레이 → assets/sprites/ 아래 전부 (fx/ props/ turret/ 포함, tiles/ 만 제외)
+#    UI        → assets/ui/{icons,portraits,thumbs}/
 
 # 2) 아틀라스를 다시 만든다
 python3 tools/build_atlas.py
 
 # 3) 참조는 PNG 가 아니라 생성된 AtlasTexture 를 가리킨다
 #      X  res://assets/sprites/zombie_new.png
-#      O  res://assets/atlas/zombie_new.tres
+#      O  res://assets/atlas/zombie_new.tres        (게임플레이)
+#      O  res://assets/atlas/ui/weapon_new.tres     (UI)
 ```
 
 3번은 `.tscn` · `.tres` · `.gd` 어디서든 동일하다. `ext_resource type="Texture2D"` 가
@@ -48,9 +46,29 @@ python3 tools/build_atlas.py
 |---|---|
 | `assets/sprites/tiles/*` | `texture_repeat` 로 반복 샘플링해야 해서 아틀라스에 넣을 수 없다 |
 | `assets/sprites/props/*` | `PropField` 가 단일 CanvasItem 에서 한 번에 그려 배칭 영향이 작다 |
-| `assets/ui/*` | HUD 는 CanvasLayer 라 유닛 스트림과 섞이지 않는다 |
-| 플레이어/캐릭터 시트 | 동시 1개뿐이고 `hframes` 로 잘라 쓰므로 제외 |
-| 소환수·아레나 아트 | 동시 개수가 적어 이득이 작다 |
+| `assets/ui/frames/*`·`hud/*` | `StyleBoxTexture` 나인패치 + 무손실 고정(아래 3절) |
+| `assets/ui` 루트(배경·로고·비네트) | 한 번에 한 장만 뜨는 큰 그림이라 배칭 이득이 없다 |
+
+캐릭터 러닝 시트는 아틀라스에 넣어도 된다 — `Sprite2D.hframes` 는 AtlasTexture 의 region 을
+분할하므로 그대로 동작한다(실측 확인).
+
+### 원본은 익스포트에서 제외된다
+
+아틀라스에 들어간 원본 PNG 는 `export_presets.cfg` 의 `exclude_filter` 로 웹 빌드에서 빠진다.
+안 그러면 아틀라스와 원본이 **둘 다** pck 에 들어가 1.4MB 가 그대로 중복된다.
+새 폴더를 아틀라스 대상에 추가했다면 `exclude_filter` 에도 함께 넣어야 한다.
+
+### 크기는 "표시 크기 × 2" 가 기준
+
+원본을 무작정 크게 넣으면 아틀라스만 커진다. 다만 **줄여도 되는 것과 아닌 것이 갈린다**.
+
+| 구분 | 예 | 축소 가능? |
+|---|---|---|
+| 코드가 크기를 정규화 | FX(`SpriteFX` size_px), 투사체(`Bullet._TEX_SIDE`), 프롭(카탈로그 `w`) | ✅ 원본을 줄여도 화면 크기 그대로 |
+| 고정 스케일 | 젬(`COLLECT_SCALE`), 터렛(`SPR_SCALE`), 좀비·캐릭터(`sprite_scale`) | ❌ 줄이면 **화면에서도 작아진다** |
+
+축소 기준은 **최대 표시 크기 × 2** 다. `display/window/stretch/mode="canvas_items"` 라
+고DPI 단말에서는 2D 가 실제 해상도로 그려지므로(720 설계 → 1440 단말이면 2배) 그만큼 여유가 필요하다.
 
 넣어야 할지 애매하면 기준은 하나다 — **`Main` 아래에서 y_sort 스트림에 섞여 그려지는가?**
 
