@@ -51,6 +51,7 @@ func _process(_delta: float) -> bool:
 	_test_distribution(weather, events, game_data)
 	_test_single_emitter(weather, events, game_data)
 	_test_continue_reproduces(weather, weather_script, events, game_data)
+	_test_weather_cheat(weather, day, events, game_data, root.get_node("Cheats"))
 
 	weather.queue_free()
 	day.queue_free()
@@ -331,3 +332,58 @@ func _test_continue_reproduces(weather, weather_script: GDScript, events, game_d
 	_ok("이어하기가 같은 세기를 복원",
 		absf(fresh.strength_at(resume_at) - weather.strength_at(resume_at)) < EPS)
 	fresh.queue_free()
+
+
+## 치트(CHEATS > WEATHER)로 날씨를 끄면 입자·안개 판·날씨 틴트·전환 배너가 전부 멈춰야 한다.
+## 단 슬롯 스케줄은 계속 굴러야 한다 — 결정론과 이어하기를 치트가 깨면 안 된다.
+func _test_weather_cheat(weather, day, events, game_data, cheats) -> void:
+	var th = game_data.themes[1] if game_data.themes.size() > 1 else game_data.themes[0]
+	weather._keys = th.weather_keys
+	events.env_seed = 7
+	weather._slot = -1
+	# 날씨가 확실히 켜져 있는 시점(비-맑음 슬롯의 한가운데 = 세기 1)을 찾는다.
+	var slot := 0
+	while slot < 200 and weather.weather_for_slot(slot) == "":
+		slot += 1
+	var t: float = float(slot) * weather.SLOT + weather.SLOT * 0.5
+	_ok("검증용 비-맑음 슬롯 확보", weather.weather_for_slot(slot) != "", "슬롯 %d" % slot)
+
+	cheats.weather = true
+	events.elapsed_time = t
+	weather._process(1.0 / 60.0)
+	var on_key: String = weather._key
+	_ok("날씨 ON → 이미터 방출", weather._emitter.emitting and weather._emitter.modulate.a > 0.5)
+
+	cheats.weather = false
+	weather._process(1.0 / 60.0)
+	_ok("날씨 OFF → 이미터 정지·투명",
+		not weather._emitter.emitting and weather._emitter.modulate.a < EPS)
+	_ok("날씨 OFF → 파문 정지", not weather._splash.emitting)
+	_ok("날씨 OFF → 안개 판 투명", weather.self_modulate.a < EPS)
+	_ok("날씨 OFF → 날씨 틴트 없음(무보정)", day._weather_tint.is_equal_approx(Color.WHITE),
+		"실측 %s" % str(day._weather_tint))
+
+	# 꺼 둔 동안에도 슬롯은 굴러야 한다(= 스케줄 결정론 유지). 전환 배너만 안 뜬다.
+	# GDScript 람다는 지역 변수를 **값으로** 캡처한다 — 배열에 담아야 바깥에서 증가가 보인다.
+	var toasts := [0]
+	var counter := func(_k: String): toasts[0] += 1
+	events.weather_changed.connect(counter)
+	var seen := {}
+	var tt := t
+	while tt < t + weather.SLOT * 4.0:
+		events.elapsed_time = tt
+		weather._process(1.0 / 60.0)
+		seen[weather._key] = true
+		tt += 0.5
+	_ok("날씨 OFF 여도 슬롯 스케줄은 진행", seen.size() >= 2, "관측 %d종" % seen.size())
+	_ok("날씨 OFF → 전환 배너 없음", toasts[0] == 0, "%d회" % toasts[0])
+
+	# 다시 켜면 그 시점에 원래 와야 할 날씨가 이어진다(치트가 시퀀스를 밀지 않는다).
+	cheats.weather = true
+	events.elapsed_time = t
+	weather._slot = -1
+	weather._process(1.0 / 60.0)
+	_ok("날씨 ON 복귀 → 같은 시점에 같은 날씨", weather._key == on_key,
+		"기대 '%s' 실측 '%s'" % [on_key, weather._key])
+	_ok("날씨 ON 복귀 → 배너 재개", toasts[0] > 0, "%d회" % toasts[0])
+	events.weather_changed.disconnect(counter)
