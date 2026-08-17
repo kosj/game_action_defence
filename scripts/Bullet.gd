@@ -28,8 +28,32 @@ var homing: float = 0.0
 var homing_arc: float = PI / 4.0  # 진행 방향 기준 반각(무기별로 주입)
 
 const HOMING_RANGE := 420.0       # 이 거리 안의 적만 유도 대상 — 빠른 탄이 일찍 물도록 넉넉히
-const _TEX_BLADE := preload("res://assets/ui/icons/weapon_sawblade.png")
-const _BLADE_SIDE := 30.0         # 톱날 스프라이트 화면 크기(긴 변)
+
+## 탄 그림은 전부 텍스처다. 예전에는 draw_line/draw_circle/draw_polygon 으로 그렸는데,
+## 이 엔진에서는 **draw_* 호출 하나가 draw call 하나로 그대로 나가 배칭되지 않는다** —
+## 탄 400개 기준 예광탄 3콜(4.6ms), 유도표식까지 8콜(11.3ms) 였다. 텍스처는 사각형 하나라
+## 2콜(2.9ms)이고, 글로우까지 그림에 구우면 1콜이 된다.
+## 그림은 무채색(흰~회색)으로 만들고 무기 색을 modulate 로 입힌다 — 그래야 무기별 색 구분이
+## 유지된다. 검은 외곽선은 곱셈에도 검게 남아 밝은 바닥 위에서 실루엣을 잡아준다.
+## 아트는 오른쪽(+X)을 향해 그려져 있고, 진행 방향은 로컬 -Y 라 그릴 때 -90° 돌린다.
+const _TEX := {
+	"bullet": preload("res://assets/sprites/proj_tracer.png"),
+	"bullet_guided": preload("res://assets/sprites/proj_tracer_guided.png"),
+	"bolt": preload("res://assets/sprites/proj_bolt.png"),
+	"bolt_guided": preload("res://assets/sprites/proj_bolt_guided.png"),
+	"nail": preload("res://assets/sprites/proj_nail.png"),
+	"nail_guided": preload("res://assets/sprites/proj_nail_guided.png"),
+	"blade": preload("res://assets/ui/icons/weapon_sawblade.png"),
+}
+## 스타일별 화면 크기(긴 변, px). 원본 해상도와 무관하게 여기로 정규화한다.
+## 직진 볼트는 그림이 유난히 납작해서(가로:세로 ≈ 9:1) 같은 값을 주면 세로가 4px 남짓이라
+## 배경에 묻힌다 — 그래서 혼자 크게 잡는다.
+const _TEX_SIDE := {
+	"bullet": 34.0, "bullet_guided": 34.0,
+	"bolt": 52.0, "bolt_guided": 42.0,
+	"nail": 30.0, "nail_guided": 32.0,
+	"blade": 30.0,
+}
 var splash_radius: float = 0.0
 var is_crit: bool = false          # 이 탄이 크리티컬인지(Player._shoot_at 에서 주입) — 명중 시 강조 피드백
 var pierce: int = 0                # 관통 가능 적 수(0=첫 명중에 소멸). 석궁 등 관통 무기가 주입.
@@ -155,61 +179,19 @@ func _resolve_hit(c: Node, pos: Vector2) -> void:
 func _draw() -> void:
 	if not _alive:
 		return
-	# 골드(노란 동전)와 헷갈리지 않도록 무기 색조를 유지하되, 모양은 쏜 캐릭터의 무기를 따른다.
-	# 로컬 +Y가 진행 방향의 반대쪽(꼬리) — Player._shoot_dir() 의 회전식 참고.
-	# 화면에서 탄은 20~35px 남짓이라 깃·못머리 같은 2~3px 디테일은 사라진다. 셋은 굵은
-	# 실루엣(길이·두께·머리 모양)으로 갈라야 구분된다. 반투명 원을 몸통에 겹치면 그 실루엣이
-	# 뭉개지므로 예광탄에만 남기고 볼트·못에서는 뺐다.
-	var c := trail_color
-	var mid := c.lightened(0.30)
-	var body := Color(mid.r, mid.g, mid.b, 0.96)
-	var hot := Color(1.0, 0.96, 0.88, 0.96)
-	match style:
-		"bolt":
-			# 석궁 볼트 — 셋 중 가장 길고 가늘다. 뒤쪽 큰 V 깃으로 화살임을 못박는다.
-			draw_line(Vector2(0, -10), Vector2(0, 18), Color(c.r, c.g, c.b, 0.43), 2.0, true)
-			draw_line(Vector2(0, -14), Vector2(0, 13), body, 3.0, true)
-			draw_colored_polygon(PackedVector2Array([
-				Vector2(0, -22), Vector2(-3.5, -12), Vector2(3.5, -12)]), hot)
-			var fletch := Color(mid.r, mid.g, mid.b, 0.90)
-			draw_colored_polygon(PackedVector2Array([
-				Vector2(0, 4), Vector2(-7, 16), Vector2(0, 11)]), fletch)
-			draw_colored_polygon(PackedVector2Array([
-				Vector2(0, 4), Vector2(7, 16), Vector2(0, 11)]), fletch)
-		"blade":
-			# 회전 톱날 — 전용 아트를 그대로 쓴다(무기 아이콘과 같은 그림이라 정체가 바로 읽힌다).
-			# 자전은 노드 rotation 이 담당하므로 여기서는 중심 정렬만 하면 된다.
-			var side := maxf(_TEX_BLADE.get_size().x, _TEX_BLADE.get_size().y)
-			var sz: Vector2 = _TEX_BLADE.get_size() * (_BLADE_SIDE / maxf(side, 1.0))
-			draw_circle(Vector2.ZERO, _BLADE_SIDE * 0.62, Color(c.r, c.g, c.b, 0.20))
-			draw_texture_rect(_TEX_BLADE, Rect2(-sz * 0.5, sz), false)
-		"nail":
-			# 네일건 못 — 짧고 굵은 몸통 + 뒤쪽 넓은 납작 머리. 화살과 달리 T 자로 읽힌다.
-			draw_line(Vector2(0, -7), Vector2(0, 9), body, 6.0, true)
-			draw_colored_polygon(PackedVector2Array([
-				Vector2(0, -12), Vector2(-3, -6), Vector2(3, -6)]), hot)
-			draw_line(Vector2(-9, 10), Vector2(9, 10), body, 5.0, true)
-			draw_line(Vector2(-9, 10), Vector2(9, 10), Color(hot.r, hot.g, hot.b, 0.47), 2.0, true)
-		_:
-			# 소총 예광탄 — 작고 뜨거운 탄심 + 길게 늘어지는 줄기. 화살·못과 달리 촉이 없다.
-			draw_line(Vector2(0, 1), Vector2(0, 24), Color(c.r, c.g, c.b, 0.47), 3.0, true)
-			draw_circle(Vector2.ZERO, 5.0, Color(c.r, c.g, c.b, 0.24))
-			draw_circle(Vector2.ZERO, 3.4, hot)
-	if homing > 0.0:
-		_draw_guided(c)
-
-
-## 유도탄 표식 — 직진탄과 한눈에 갈리게 한다. 같은 캐릭터가 쏘면 모양도 색도 비슷해서,
-## 어떤 탄이 휘는지 모르면 조준 감각이 서지 않는다.
-## 탄심을 감싼 얇은 링(추적 중이라는 신호) + 뒤로 젖혀진 유도 날개 한 쌍.
-func _draw_guided(c: Color) -> void:
-	draw_arc(Vector2.ZERO, 7.2, 0.0, TAU, 18, Color(1.0, 0.98, 0.90, 0.85), 1.3, true)
-	var fin := Color(c.r, c.g, c.b, 1.0).lightened(0.45)
-	fin.a = 0.95
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(-1.5, 3.0), Vector2(-7.5, 10.5), Vector2(-1.5, 8.0)]), fin)
-	draw_colored_polygon(PackedVector2Array([
-		Vector2(1.5, 3.0), Vector2(7.5, 10.5), Vector2(1.5, 8.0)]), fin)
+	# 사각형 하나로 끝낸다(draw call 1). 무채색 그림 × 무기 색 = 무기별로 구분되는 탄.
+	# 톱날은 자전하므로 방향 보정이 필요 없고, 나머지는 아트가 +X 를 보므로 -90° 돌린다.
+	var key: String = style if _TEX.has(style) else "bullet"
+	if homing > 0.0 and _TEX.has(key + "_guided"):
+		key += "_guided"
+	var tex: Texture2D = _TEX[key]
+	var side := maxf(tex.get_size().x, tex.get_size().y)
+	var sz: Vector2 = tex.get_size() * (float(_TEX_SIDE[key]) / maxf(side, 1.0))
+	if key != "blade":
+		draw_set_transform(Vector2.ZERO, -PI / 2.0, Vector2.ONE)
+	draw_texture_rect(tex, Rect2(-sz * 0.5, sz), false, trail_color)
+	if key != "blade":
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 ## 전방 호 안에서 가장 가까운(=각도가 가장 잘 맞는) 적 쪽으로 진행 방향을 조금씩 튼다.
