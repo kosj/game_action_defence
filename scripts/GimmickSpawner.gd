@@ -1,10 +1,12 @@
 extends Node
 ## 테마 기믹 스포너: 선택 테마(ThemeManager)의 gimmick_key 에 맞는 필드 위험물을 주기적으로 스폰한다.
-## 교외=가스통 / 도심=낙석 / 연구소=독가스 웅덩이. 기믹 키가 없거나 알 수 없으면 아무것도 안 한다.
+## 도심=낙석 등 4종 / 연구소=독가스 웅덩이 등 3종. 기믹 키가 없거나 알 수 없으면 아무것도 안 한다.
+##
+## 교외(입문)에는 기믹이 없다 — `#180` 의 의도된 결정이다(tools/gen_theme_data.gd 참고).
+## 교외 전용이던 가스통(GasCan)은 어느 테마도 참조하지 않는 고아 코드라 2026-08 에 삭제했다.
 
 const _CLASSES := {
-	# 교외
-	"gas_can": preload("res://scripts/GasCan.gd"),
+	# 교외 — 아래 mud_field 도 참조하는 테마가 없다(HANDOFF P2-7).
 	"mud_field": preload("res://scripts/MudField.gd"),
 	# 도심
 	"fly_swarm": preload("res://scripts/FlySwarm.gd"),
