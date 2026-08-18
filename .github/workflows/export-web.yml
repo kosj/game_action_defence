@@ -91,6 +91,7 @@ jobs:
           godot --headless --path . --script res://tools/verify_character_sheets.gd
           godot --headless --path . --script res://tools/verify_cheat_gate.gd
           godot --headless --path . --script res://tools/verify_quest_tracks.gd
+          godot --headless --path . --script res://tools/verify_event_forecast.gd
 
       - name: Export to Web
         run: |

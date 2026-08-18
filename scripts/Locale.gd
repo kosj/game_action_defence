@@ -118,6 +118,9 @@ const STRINGS: Dictionary = {
 	"hud_overtime":    {"en": "OVERTIME", "ko": "연장전", "ja": "OVERTIME"},
 	"hud_swarm":       {"en": "!! SWARM !!", "ko": "!! 좀비 무리 !!", "ja": "!! ゾンビラッシュ !!"},
 	"hud_elite":       {"en": "!! ELITE PACK !!", "ko": "!! 정예 무리 !!", "ja": "!! エリート !!"},
+	# 마일스톤 카운트다운(P1-4). 기존 문구의 글자만 조합해 폰트 서브셋을 늘리지 않는다.
+	"hud_boss_in_fmt":  {"en": "BOSS IN %ds",  "ko": "보스 %d초",  "ja": "ボス %d秒"},
+	"hud_elite_in_fmt": {"en": "ELITE IN %ds", "ko": "정예 %d초", "ja": "エリート %d秒"},
 
 	# ── 날씨 전환 배너(WeatherSystem) ─────────────────────────────────────
 	# ja 는 가나로 적는다 — 번들 폰트에 한자가 89자뿐이라 雨/雪/霧/砂嵐/晴 이 들어 있지 않다.

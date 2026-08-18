@@ -3,6 +3,11 @@ extends CanvasLayer
 
 const FOG_TEX := preload("res://assets/ui/fog_vision.png")   # 주변 시야 제한 오버레이(방사형 암전)
 const _UIStyle := preload("res://scripts/UIStyle.gd")
+const _Timeline := preload("res://scripts/TimelineBar.gd")
+## 카운트다운 임계값. 보스는 대비할 시간이 필요해 길게, 엘리트는 "곧 온다"만 알리면 되어 짧게.
+const BOSS_WARN_SEC := 60.0
+const ELITE_WARN_SEC := 20.0
+
 const _PerfOverlay := preload("res://scripts/PerfOverlay.gd")
 
 @onready var top_bg: Panel = $TopBg
@@ -69,6 +74,12 @@ var _go_vals: Dictionary = {}   # "score"/"best"/"kills"/"time" -> Label
 
 # 스웜 경고 배너 — 코드로 생성. 무리/엘리트 팩 등장 직전 화면 중앙 상단에 붉게 번쩍.
 var _swarm_banner: Label = null
+## 런 타임라인 바(P1-4) — 상단 바 아래 가장자리. 다음 엘리트/보스/클리어 눈금을 얹는다.
+var _timeline: Control = null
+## 카운트다운 배너를 한 마일스톤당 한 번만 띄우기 위한 잠금. 예정 시각이 바뀌면(다음 회차로
+## 넘어가거나 치트로 밀리면) 풀린다 — 같은 배너가 매초 다시 뜨면 화면이 깜박인다.
+var _boss_warned_at: float = -1.0
+var _elite_warned_at: float = -1.0
 var _swarm_tween: Tween = null
 
 # 인게임 레벨 표시 — 코드로 생성. 화면 최상단 경험치 바 + 상단바 중앙의 레벨 뱃지(알약형).
@@ -132,6 +143,7 @@ func _ready() -> void:
 	_build_hud_icons()
 	_build_xp_bar()
 	_build_swarm_banner()
+	_build_timeline()
 	_build_perf_overlay()
 	_build_loadout()
 	_build_goal_hint()
@@ -148,6 +160,7 @@ func _ready() -> void:
 	Events.player_died.connect(_on_player_died)
 	Events.kills_changed.connect(_on_kills_changed)
 	Events.run_progress.connect(_on_run_progress)
+	Events.forecast_changed.connect(_on_forecast)
 	Events.run_cleared.connect(_on_run_cleared)
 	Events.milestone_reached.connect(_on_milestone_reached)
 	Events.weapon_equipped.connect(_on_weapon_equipped)
@@ -285,6 +298,37 @@ func _on_boss_died() -> void:
 
 
 ## 스웜 경고 배너 — 화면 상단 중앙에 코드로 생성(씬 수정 없이).
+## 타임라인 바 — 상단 패널(TopBg, 높이 96) 안쪽 아래에 둔다.
+## y84~92 인 이유: 위로는 타이머/골드 줄(~y85)에 닿지 않고, 아래로는 패널의 장식 테두리선
+## (y94~96)을 피한다. 테두리에 겹쳐 놓았더니 빈 구간이 테두리와 뭉개져 읽히지 않았다(실렌더 확인).
+## 점수/최고점 줄은 y96 부터라 침범하지 않는다.
+func _build_timeline() -> void:
+	_timeline = _Timeline.new()
+	_timeline.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_timeline.offset_top = 84.0
+	_timeline.offset_bottom = 92.0
+	add_child(_timeline)
+
+
+## 마일스톤 카운트다운 — 보스 60초 전, 엘리트 20초 전에 기존 스웜 배너로 한 줄 예고한다.
+## 임계값이 다른 이유: 보스는 대비(위치 잡기·자원 쓰기)에 시간이 필요하고, 엘리트는 그냥
+## "곧 몰려온다"만 알면 된다. 예정 시각을 잠금 키로 써서 같은 회차는 한 번만 띄운다.
+func _on_forecast(next_boss: float, next_elite: float) -> void:
+	var now: float = Events.elapsed_time
+	if next_boss > 0.0:
+		var to_boss := next_boss - now
+		if to_boss > 0.0 and to_boss <= BOSS_WARN_SEC and _boss_warned_at != next_boss:
+			_boss_warned_at = next_boss
+			_show_banner(Locale.t("hud_boss_in_fmt") % int(ceil(to_boss)), Color(1.0, 0.35, 0.3))
+	if next_elite > 0.0:
+		var to_elite := next_elite - now
+		if to_elite > 0.0 and to_elite <= ELITE_WARN_SEC and _elite_warned_at != next_elite:
+			_elite_warned_at = next_elite
+			# 보스 예고가 떠 있는 동안에는 덮어쓰지 않는다 — 더 큰 위협이 먼저다.
+			if _boss_warned_at != next_boss or next_boss <= 0.0:
+				_show_banner(Locale.t("hud_elite_in_fmt") % int(ceil(to_elite)), Color(1.0, 0.6, 0.3))
+
+
 func _build_swarm_banner() -> void:
 	_swarm_banner = Label.new()
 	_swarm_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -303,8 +347,18 @@ func _build_swarm_banner() -> void:
 func _on_swarm_incoming(elite: bool) -> void:
 	if _swarm_banner == null:
 		return
-	_swarm_banner.text = Locale.t("hud_elite") if elite else Locale.t("hud_swarm")
-	_swarm_banner.add_theme_color_override("font_color", Color(1.0, 0.55, 0.25) if elite else Color(1.0, 0.85, 0.25))
+	_show_banner(Locale.t("hud_elite") if elite else Locale.t("hud_swarm"),
+		Color(1.0, 0.55, 0.25) if elite else Color(1.0, 0.85, 0.25))
+
+
+## 상단 예고 배너 한 줄 — 스웜/엘리트 등장 경고와 마일스톤 카운트다운이 함께 쓴다.
+## 같은 컴포넌트를 재사용하는 이유는 이 자리에 두 줄이 겹치면 무엇을 피해야 할지 읽히지 않기
+## 때문이다. 늦게 온 쪽이 이긴다(트윈을 죽이고 새로 띄운다).
+func _show_banner(text: String, col: Color) -> void:
+	if _swarm_banner == null:
+		return
+	_swarm_banner.text = text
+	_swarm_banner.add_theme_color_override("font_color", col)
 	if _swarm_tween and _swarm_tween.is_valid():
 		_swarm_tween.kill()
 	_swarm_banner.modulate.a = 0.0

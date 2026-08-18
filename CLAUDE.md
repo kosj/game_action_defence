@@ -121,11 +121,16 @@ godot --headless --path . --fixed-fps 60 --script res://tools/verify_environment
 godot --headless --path . --script res://tools/verify_character_sheets.gd
 godot --headless --path . --script res://tools/verify_cheat_gate.gd
 godot --headless --path . --script res://tools/verify_quest_tracks.gd
+godot --headless --path . --script res://tools/verify_event_forecast.gd
 ```
 
 UI 를 건드렸으면 추가로 `python3 tools/check_text_fit.py` (en/ko/ja 폭 초과 검사).
 
-**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 10종이 이 프로젝트의 안전망 전부다.
+**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 12종이 이 프로젝트의 안전망 전부다.
+
+비주얼을 건드렸으면 **실렌더 스크린샷**으로 확인한다 — 헤드리스는 `_draw` 를 부르고 오류도 안 내지만,
+그려진 것이 다른 레이어에 덮였는지·좌표가 화면 밖인지는 알려주지 않는다.
+`xvfb-run -a godot --path . --fixed-fps 60 --script res://tools/shot_timeline.gd` (또는 `shot_boss_arena.gd`).
 
 ---
 

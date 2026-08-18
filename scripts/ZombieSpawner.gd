@@ -110,6 +110,14 @@ func _ready() -> void:
 	Cheats.spawn_boss.connect(_on_spawn_boss_cheat)
 	Events.kills_changed.emit(Events.total_kills)                # HUD 킬 카운트 초기화
 	Events.run_progress.emit(_elapsed, _diff.clear_seconds)      # HUD 클리어 진행바 초기화
+	_emit_forecast()
+
+
+## 다음 마일스톤 예정 시각을 HUD 에 알린다. 스포너만이 실제 예약 시각을 안다 —
+## 보스는 전투 중이면 미뤄지고(_boss_alive), 치트로도 밀린다. 보스가 이미 나와 있으면
+## "다음 보스"는 아직 정해지지 않은 것이라 -1 로 보내 눈금·카운트다운을 모두 끈다.
+func _emit_forecast() -> void:
+	Events.forecast_changed.emit(-1.0 if _boss_alive else _next_boss_at, _next_elite_at)
 
 
 ## 치트: 경과 시간 점프 — 난이도 시계를 앞으로 당기고 보스/엘리트 예약 시각을 재정렬한다.
@@ -126,6 +134,7 @@ func _on_time_skip(seconds: float) -> void:
 	_next_elite_at = (floor(_elapsed / _diff.elite_seconds) + 1.0) * _diff.elite_seconds
 	Events.elapsed_changed.emit(_elapsed)
 	Events.run_progress.emit(_elapsed, _diff.clear_seconds)
+	_emit_forecast()
 
 
 ## 치트: 보스 즉시 등장. 마일스톤을 기다리지 않고 그 자리에서 다음 회차 보스를 부른다.
@@ -237,6 +246,7 @@ func _tick_elapsed() -> void:
 		Events.elapsed_time = _elapsed
 		Events.elapsed_changed.emit(_elapsed)
 		Events.run_progress.emit(_elapsed, _diff.clear_seconds)   # HUD 클리어 진행바(초당 1회)
+		_emit_forecast()
 
 
 func _on_zombie_killed() -> void:
