@@ -77,7 +77,7 @@ theme_override_colors/font_color = Color(1.0, 0.85, 0.2, 1.0)
 theme_override_font_sizes/font_size = 20
 text = "Score 0"
 
-[node name="WaveLabel" type="Label" parent="."]
+[node name="KillsLabel" type="Label" parent="."]
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -320.0
@@ -88,7 +88,7 @@ theme_override_colors/font_color = Color(0.78, 0.8, 0.86, 1.0)
 theme_override_font_sizes/font_size = 18
 horizontal_alignment = 2
 vertical_alignment = 1
-text = "Wave 1"
+text = "Kills 0"
 
 [node name="TimeLabel" type="Label" parent="."]
 anchor_left = 1.0
@@ -191,7 +191,7 @@ offset_right = 400.0
 offset_bottom = 40.0
 mouse_filter = 2
 
-[node name="WaveClearBg" type="Panel" parent="."]
+[node name="BannerBg" type="Panel" parent="."]
 anchor_left = 0.5
 anchor_right = 0.5
 anchor_top = 0.5
@@ -203,7 +203,7 @@ offset_bottom = 36.0
 mouse_filter = 2
 visible = false
 
-[node name="WaveClearLabel" type="Label" parent="."]
+[node name="BannerLabel" type="Label" parent="."]
 anchor_left = 0.5
 anchor_right = 0.5
 anchor_top = 0.5

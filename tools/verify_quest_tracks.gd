@@ -1,5 +1,6 @@
 extends SceneTree
-## 퀘스트 트랙 · 마일스톤 저장 검증 (P0-2).
+## 퀘스트 트랙 · 마일스톤 저장 · 웨이브 시대 잔재 검증 (P0-2 · P0-3 · P2-6).
+## C 레인이 걷어낸 것들이 조용히 돌아오지 않는지 한자리에서 지킨다.
 ##   godot --headless --path . --script res://tools/verify_quest_tracks.gd
 ## 종료 코드 = 실패 개수.
 ##
@@ -154,6 +155,38 @@ func _process(_delta: float) -> bool:
 		if key.begins_with("shop_") or key.begins_with("upg_") or key.begins_with("sec_"):
 			stale += key + " "
 	_ok("상점 전용 로케일 키가 남아 있지 않다", stale == "", stale)
+
+	print("── 웨이브 시대 데드 API (P2-6) ──────────────────")
+	# 이것들이 남아 있으면 다음 작업자가 "무한 스케일링이 있다"고 오인한다 —
+	# 실제 난이도 곡선은 ZombieSpawner._hp_mult() 의 2차 곡선과 difficulty.tres 다.
+	for sig in ["wave_changed", "wave_progress_changed"]:
+		_ok("Events 에 %s 가 없다" % sig, not events.has_signal(sig))
+	_ok("Events 에 kills_changed 가 있다", events.has_signal("kills_changed"))
+
+	for m in ["wave_pressure_mult", "wave_speed_pressure", "diff_spawn_mult",
+			"diff_total_mult", "difficulty_name"]:
+		_ok("Events 에 %s() 가 없다" % m, not events.has_method(m))
+
+	var props := {}
+	for pd in events.get_property_list():
+		props[String(pd["name"])] = true
+	for prop in ["current_wave", "wave_kill_progress", "wave_kill_total"]:
+		_ok("Events 에 %s 상태가 없다" % prop, not props.has(prop))
+
+	# 세이브에서도 빠졌는가 — 남으면 항상 1 인 값을 계속 쓰고 읽는다.
+	var sm_src := FileAccess.get_file_as_string("res://scripts/SaveManager.gd")
+	_ok("SaveManager 가 current_wave 를 저장/복원하지 않는다",
+		not sm_src.contains("current_wave"))
+
+	print("── HUD 노드 개명이 실제로 붙는가 (P2-6) ─────────")
+	# 씬 노드를 개명하면 @onready 경로가 조용히 어긋난다 — 화면을 띄우기 전엔 모른다.
+	# 실제로 인스턴스화해서 세 참조가 전부 잡히는지 본다.
+	var hud = load("res://scenes/HUD.tscn").instantiate()
+	root.add_child(hud)
+	_ok("HUD.KillsLabel 이 잡힌다", hud.kills_label != null)
+	_ok("HUD.BannerBg 가 잡힌다", hud.banner_bg != null)
+	_ok("HUD.BannerLabel 이 잡힌다", hud.banner_label != null)
+	hud.free()
 
 	print("──────────────────────────────────────────────────")
 	print("실패 %d건" % _fails)

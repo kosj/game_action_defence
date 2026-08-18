@@ -108,7 +108,7 @@ func _ready() -> void:
 	Cheats.time_skip.connect(_on_time_skip)
 	Cheats.spawn_fill.connect(_on_spawn_fill)
 	Cheats.spawn_boss.connect(_on_spawn_boss_cheat)
-	Events.wave_changed.emit(Events.total_kills)                 # HUD 킬 카운트 초기화
+	Events.kills_changed.emit(Events.total_kills)                # HUD 킬 카운트 초기화
 	Events.run_progress.emit(_elapsed, _diff.clear_seconds)      # HUD 클리어 진행바 초기화
 
 
@@ -242,7 +242,7 @@ func _tick_elapsed() -> void:
 func _on_zombie_killed() -> void:
 	_alive_zombies = maxi(0, _alive_zombies - 1)
 	Events.total_kills += 1
-	Events.wave_changed.emit(Events.total_kills)   # HUD 킬 카운트
+	Events.kills_changed.emit(Events.total_kills)   # HUD 킬 카운트
 
 
 ## 살아있는 좀비 + 스폰 대기열 — 상한 판정은 대기열까지 포함해야 큐가 쌓인 동안 초과 스폰이 없다.

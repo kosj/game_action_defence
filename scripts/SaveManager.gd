@@ -79,7 +79,6 @@ func save_game(player: Node) -> void:
 		"total_gold": Events.total_gold,
 		"total_kills": Events.total_kills,
 		"score": Events.score,
-		"current_wave": Events.current_wave,
 		"elapsed_time": Events.elapsed_time,
 		"env_seed": Events.env_seed,         # 이어하기가 저장 당시와 같은 날씨 타임라인을 복원하도록
 		"player_health": player.health,
@@ -133,7 +132,6 @@ func apply_to_events(data: Dictionary) -> void:
 	Events.total_gold = data.get("total_gold", 0)
 	Events.total_kills = data.get("total_kills", 0)
 	Events.score = data.get("score", 0)
-	Events.current_wave = data.get("current_wave", 1)
 	Events.elapsed_time = data.get("elapsed_time", 0.0)
 	# 구 세이브에는 없다 — 그 경우 reset() 이 방금 발급한 새 시드를 그대로 쓴다.
 	Events.env_seed = int(data.get("env_seed", Events.env_seed))

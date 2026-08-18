@@ -102,7 +102,6 @@ const STRINGS: Dictionary = {
 	# ── HUD (포맷 문자열은 %d 자리 유지) ──────────────────────────────────
 	"hud_score_fmt":   {"en": "Score %d",   "ko": "점수 %d",   "ja": "スコア %d"},
 	"hud_best_fmt":    {"en": "Best %d",    "ko": "최고 %d",   "ja": "ベスト %d"},
-	"hud_wave_fmt":    {"en": "Wave %d",    "ko": "웨이브 %d", "ja": "ウェーブ %d"},
 	"hud_kills_fmt":   {"en": "%d Kills",   "ko": "%d 처치",   "ja": "%d 体"},
 	"boss_cleared":    {"en": "Boss %d Clear!", "ko": "보스 %d 클리어!", "ja": "ボス %d クリア！"},
 	"run_cleared":     {"en": "SURVIVED 30:00\nCLEAR!", "ko": "30분 생존\n클리어!", "ja": "30分 生存\nクリア！"},
@@ -130,7 +129,6 @@ const STRINGS: Dictionary = {
 	"go_score_fmt":      {"en": "Score  %d", "ko": "점수  %d", "ja": "スコア  %d"},
 	"go_new_best_fmt":   {"en": "NEW BEST!  %d", "ko": "신기록!  %d", "ja": "新記録！  %d"},
 	"go_best_fmt":       {"en": "Best  %d", "ko": "최고  %d", "ja": "ベスト  %d"},
-	"go_wave_kills_fmt": {"en": "Wave %d   Kills %d", "ko": "웨이브 %d   처치 %d", "ja": "ウェーブ %d   撃破 %d"},
 	"go_retry":          {"en": "Retry",     "ko": "다시하기",   "ja": "リトライ"},
 	"go_menu":           {"en": "Main Menu", "ko": "메인 메뉴",  "ja": "メインメニュー"},
 	"pause_resume":      {"en": "Resume", "ko": "계속하기", "ja": "再開"},
