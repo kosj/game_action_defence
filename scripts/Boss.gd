@@ -4,11 +4,13 @@ extends CharacterBody2D
 ## 별도의 체력바·강화된 외형·다량의 보상을 가진다. 풀링하지 않고 등장 시마다 인스턴스화.
 ##
 ## 아키타입(archetype) 으로 고유 행동을 분기한다(Zombie.gd 의 behavior 분기와 동일한 방식):
-##   melee    — 근접 돌격(브루트)
-##   gunner   — 거리 유지하며 조준 사격(총 쏘는 보스) — 텔레그래프 후 스프레드/방사 발사
-##   summoner — 유지 거리에서 호위 좀비 주기 소환(스포너가 처리)
-##   bomber   — 원거리에서 지연 폭발 탄착 표식(BossShell) 포격
-##   berserk  — 느린 추적 ↔ 텔레그래프 후 초고속 대시 순환
+##   summoner — 유지 거리에서 호위 좀비 주기 소환(스포너가 처리)  ← 연구소 보스
+##   bomber   — 원거리에서 지연 폭발 탄착 표식(BossShell) 포격     ← 도심 보스
+##   berserk  — 느린 추적 ↔ 텔레그래프 후 초고속 대시 순환        ← 교외 보스
+##   melee    — 근접 돌격. 어느 테마 보스도 쓰지 않지만 미지정 아키타입의 기본 동작으로 남긴다.
+## gunner(조준 사격)는 2026-08 에 삭제했다 — 세 테마가 전부 boss_key 를 갖게 되면서 아키타입
+## 순환 경로가 죽었고, 그 결과 어떤 경로로도 등장할 수 없는 행동이 됐다(HANDOFF P1-1).
+## 보스를 늘리려면 아키타입이 아니라 ZombieSpawner.THEME_BOSSES 에 테마를 추가한다.
 ## 모든 특수 공격은 HP 50% 이하에서 격노(페이즈)로 격화된다.
 ## 아키타입과 무관하게 공유하는 스킬이 하나 있다 — 쿨타임 기반 자가 회복(_tick_heal).
 
@@ -16,17 +18,6 @@ const GOLD := preload("res://scenes/Gold.tscn")
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 const _BossShell := preload("res://scripts/BossShell.gd")
 const _DamageNumber := preload("res://scripts/DamageNumber.gd")
-const ENEMY_BULLET := preload("res://scenes/EnemyBullet.tscn")
-
-## 아키타입별 전용 보스 스프라이트(업로드된 실제 아트워크). bomber 는 gunner 아트를 재사용,
-## 최종 보스 REAPER(berserk)는 berserk 아트를 사용한다.
-const _BOSS_TEX := {
-	"melee":    preload("res://assets/atlas/boss_brute.tres"),
-	"gunner":   preload("res://assets/atlas/boss_gunner.tres"),
-	"summoner": preload("res://assets/atlas/boss_summoner.tres"),
-	"bomber":   preload("res://assets/atlas/boss_gunner.tres"),
-	"berserk":  preload("res://assets/atlas/boss_berserk.tres"),
-}
 
 @onready var body: Node2D = $Body
 @onready var shadow: Sprite2D = $Shadow
@@ -59,16 +50,8 @@ const SLAM_WARN := 0.55            # 표식 → 폭발 지연
 const SLAM_RADIUS := 175.0         # 충격파 반경
 var _slam_cd: float = 0.0
 
-# ── 거너(gunner) 전용 상태 ────────────────────────────────────────────
-const GUNNER_RANGE := 520.0        # 발사 사거리
-const GUNNER_KEEP_DIST := 300.0    # 유지하려는 거리(카이팅)
-const GUNNER_COOLDOWN := 1.7       # 발사 간격(초)
-const GUNNER_TELEGRAPH := 0.4      # 발사 예비 동작(총구 점멸) 시간 — 보고 피할 여지
-const GUNNER_PROJ_SPEED := 370.0   # 투사체 속도(플레이어 이속 220 대비 — 직선 도주로는 못 뿌리침)
-var _fire_cd: float = 0.0
-var _telegraph_t: float = 0.0      # >0 이면 발사 예비 동작 중
-var _volley_pending: int = 0       # 2단계 연사: 남은 추가 일제사격 수
-var _volley_t: float = 0.0         # 추가 일제사격까지 남은 시간
+# ── 조준·표시 방향 상태 ──────────────────────────────────────────────
+## _aim_dir 은 원래 거너 조준용이었고, 지금은 버서커 대시 방향(고정 후 돌진)이 쓴다.
 var _aim_dir: Vector2 = Vector2.RIGHT
 var _facing: float = 1.0            # 사이드뷰 좌우 방향(회전 대신 수평 플립)
 var _intro_scale_lock: bool = true # 등장 확대 트윈 중에는 스케일 플립을 보류(트윈 충돌 방지)
@@ -143,8 +126,11 @@ func setup(stats: Dictionary) -> void:
 	gold_drop = stats.get("gold", 12)
 	_archetype = stats.get("archetype", "melee")
 	_is_final = stats.get("final", false)
-	# 전용 아트워크 사용 — 타입별 틴트 대신 아키타입 스프라이트를 그대로 노출(피격 잔광은 흰색 복귀).
-	# 테마 보스는 전용 스프라이트(stats.sprite)를 우선 사용하고, 없으면 아키타입 기본 텍스처로 폴백.
+	# 전용 아트워크 사용 — 타입별 틴트 대신 스프라이트를 그대로 노출(피격 잔광은 흰색 복귀).
+	# stats.sprite 는 **필수**다. 예전에는 아키타입 기본 텍스처(_BOSS_TEX)로 폴백했지만,
+	# 아키타입 5종 순환 경로가 사라지면서(P1-1) 그 아트 4종도 함께 걷어냈다. 폴백이 없어진 대신
+	# tools/verify_boss_arena.gd 가 THEME_BOSSES 세 항목의 sprite 존재를 CI 에서 검사한다 —
+	# 안전망을 런타임이 아니라 데이터 층으로 옮긴 것이다. 그래도 비면 조용히 투명해지지 않게 알린다.
 	_base_color = Color(1, 1, 1)
 	if body:
 		var sprite_path: String = stats.get("sprite", "")
@@ -154,21 +140,17 @@ func setup(stats: Dictionary) -> void:
 			if loaded is Texture2D:
 				tex = loaded
 		if tex == null:
-			tex = _BOSS_TEX.get(_archetype, _BOSS_TEX["melee"])
+			push_error("보스 스프라이트를 불러오지 못했습니다: '%s'" % sprite_path)
 		body.texture = tex
 		_fit_shadow()   # 확대 트윈 전(스케일=씬 값)에 그림자를 발밑 크기로 배치
 	_proj_color = stats.get("proj_color", Color(0.55, 0.8, 1.0))
 	_alive = true
 	_enraged = false
 	_phase = 0
-	_fire_cd = GUNNER_COOLDOWN * 0.6   # 등장 직후 즉시 난사 방지
-	_telegraph_t = 0.0
 	_summon_cd = SUMMON_COOLDOWN * 0.5
 	_summon_tel = 0.0
 	_bomb_cd = BOMB_COOLDOWN * 0.5
 	_slam_cd = SLAM_COOLDOWN * 0.55
-	_volley_pending = 0
-	_volley_t = 0.0
 	_dash_chain = 0
 	_alive_time = 0.0
 	_bstate = "stalk"
@@ -209,21 +191,16 @@ func _physics_process(delta: float) -> void:
 		return
 	_alive_time += delta
 	# 2단계 연사 예약(거너): 첫 일제사격 뒤 짧은 간격으로 추가 탄막을 뿌린다.
-	if _volley_pending > 0:
-		_volley_t -= delta
-		if _volley_t <= 0.0:
-			_volley_pending -= 1
-			_volley_t = 0.22
-			_fire_volley(true)
 	# 자가 회복 시전 중이면 이 프레임의 아키타입 행동(이동·공격)을 통째로 건너뛴다 — 무방비 상태.
 	if _tick_heal(delta):
 		return
 	match _archetype:
-		"gunner":   _behave_gunner(delta, player)
 		"summoner": _behave_summoner(delta, player)
 		"bomber":   _behave_bomber(delta, player)
 		"berserk":  _behave_berserk(delta, player)
-		_:          _behave_melee(delta, player)   # melee 및 아직 미구현 아키타입의 기본 동작
+		# melee 는 어느 테마 보스도 쓰지 않지만(교외=berserk·도심=bomber·연구소=summoner)
+		# 아키타입 미지정·오타 시의 기본 동작이라 안전망으로 남긴다(P1-1).
+		_:          _behave_melee(delta, player)
 	# 걷기 바운스 — 이동 속도에 비례해 위상을 올려 발 딛는 느낌(스케일 플립·확대와 독립).
 	if not _intro_scale_lock:
 		_walk_phase += velocity.length() * delta * 0.06
@@ -280,67 +257,6 @@ func _do_slam(player: Node2D) -> void:
 			var off: Vector2 = Vector2.from_angle(randf() * TAU) * SLAM_RADIUS * 1.15 * sgn
 			_BossShell.spawn(scene, focus + off, SLAM_WARN + 0.35, SLAM_RADIUS * 0.8, dmg,
 					Color(1.0, 0.35, 0.2))
-
-
-## 사격형(거너) — 유지 거리를 두고 카이팅하며, 텔레그래프 후 조준 사격.
-## HP 50% 이하 격노 시 발사 간격 단축 + 방사형 난사로 격화(페이즈).
-func _behave_gunner(delta: float, player: Node2D) -> void:
-	var to_p := player.global_position - global_position
-	var dist := maxf(to_p.length(), 0.001)
-	var dir := to_p / dist
-	# 카이팅: 너무 가까우면 물러나고, 너무 멀면 접근, 적정 거리면 측면 스트레이프.
-	if dist < GUNNER_KEEP_DIST - 50.0:
-		velocity = -dir * speed
-	elif dist > GUNNER_KEEP_DIST + 50.0:
-		velocity = dir * speed
-	else:
-		velocity = dir.orthogonal() * speed * 0.6
-	_face(dir)
-	move_and_slide()
-
-	if _telegraph_t > 0.0:
-		# 예비 동작 중 — 착탄 시점을 예측해 조준을 계속 갱신하다 종료 시 발사.
-		_aim_dir = (_lead_point(player, GUNNER_PROJ_SPEED) - global_position).normalized()
-		_telegraph_t -= delta
-		if _telegraph_t <= 0.0:
-			_fire_volley()
-	else:
-		_fire_cd -= delta
-		if _fire_cd <= 0.0 and dist <= GUNNER_RANGE:
-			_aim_dir = dir
-			_telegraph_t = GUNNER_TELEGRAPH
-			_fire_cd = GUNNER_COOLDOWN * _cd_mult()
-
-
-## 조준 방향 기준 스프레드 발사. 평상시 5발(±11°/±22°), 격노 시 방사형 9발(2단계 13발).
-## 2단계에서는 첫 사격 뒤 추가 일제사격 2회를 예약해(각 0.22초 간격, 회전 오프셋) 탄막을 겹친다.
-func _fire_volley(is_followup: bool = false) -> void:
-	if not _alive:
-		return
-	SoundManager.play("zombie_hit")
-	if _enraged:
-		var n := 9 if _phase < 2 else 13   # 2단계 광란: 더 촘촘한 방사형 탄막
-		var twist := 0.0 if not is_followup else TAU / float(n) * 0.5   # 후속탄은 반 칸 어긋나게
-		for i in range(n):
-			_fire_bullet(Vector2.from_angle(_aim_dir.angle() + twist + TAU * i / n))
-	else:
-		var spread := deg_to_rad(11.0)
-		var offsets: Array[float] = [-spread * 2.0, -spread, 0.0, spread, spread * 2.0]
-		for off in offsets:
-			_fire_bullet(_aim_dir.rotated(off))
-	if _phase >= 2 and not is_followup:
-		_volley_pending = 2
-		_volley_t = 0.22
-
-
-func _fire_bullet(dir: Vector2) -> void:
-	var p := Pool.acquire(ENEMY_BULLET, Events.fx_layer())
-	p.global_position = global_position + dir * 24.0
-	p.direction = dir
-	p.speed = GUNNER_PROJ_SPEED
-	p.damage = _bal.boss_bullet_damage
-	p.color = _proj_color
-	p.queue_redraw()   # 색 주입 후 1회 그리기(EnemyBullet 은 매 프레임 redraw 하지 않음)
 
 
 ## 소환형(서머너) — 유지 거리를 두고 천천히 물러나며, 주기적으로 호위 좀비를 소환.
@@ -509,7 +425,7 @@ func _tick_heal(delta: float) -> bool:
 
 ## 텔레그래프는 한 번에 하나만 — 사격/소환/돌진 예고와 겹치면 무엇을 피해야 할지 읽히지 않는다.
 func _can_start_heal() -> bool:
-	if _telegraph_t > 0.0 or _summon_tel > 0.0 or _volley_pending > 0:
+	if _summon_tel > 0.0:
 		return false
 	if _archetype == "berserk" and _bstate != "stalk":
 		return false   # 예고한 돌진 도중에 멈춰 서면 대시 경로 경고가 거짓말이 된다
@@ -587,15 +503,6 @@ func _draw() -> void:
 	var r := half_h * 0.98 + sin(_pulse * 4.0) * 4.0
 	draw_arc(Vector2.ZERO, r, 0.0, TAU, 48, aura, 3.0, true)
 
-	# 거너 발사 예비 조준선 — 텔레그래프 동안 점멸하는 경고 라인(로컬 좌표).
-	if _telegraph_t > 0.0:
-		# 보스 루트(this)는 회전하지 않으므로 월드 방향 _aim_dir 이 곧 로컬 방향이다.
-		var a := 0.35 + 0.45 * absf(sin(_pulse * 22.0))
-		var start := _aim_dir * (half_h * 0.9)
-		var end := _aim_dir * (half_h * 0.9 + 260.0)
-		draw_line(start, end, Color(1.0, 0.85, 0.3, a), 3.0, true)
-		draw_circle(end, 7.0, Color(1.0, 0.6, 0.2, a * 0.8))
-
 	# 버서커 대시 예비 동작 — 돌진 경로를 붉게 예고(두꺼운 화살 라인).
 	if _archetype == "berserk" and _bstate == "wind":
 		var ba := 0.4 + 0.4 * absf(sin(_pulse * 26.0))
@@ -671,7 +578,6 @@ func take_damage(amount: int, is_crit: bool = false) -> void:
 func _enter_phase(n: int) -> void:
 	_phase = n
 	_enraged = true
-	_fire_cd = minf(_fire_cd, 0.35)   # 전환 직후 빠르게 반격
 	var col := Color(1.0, 0.5, 0.15) if n == 1 else Color(1.0, 0.2, 0.25)
 	_FXBurst.spawn(get_tree().current_scene, global_position, col, 80.0 + 40.0 * n, 0.4)
 	Events.shake(6.0 + 4.0 * n)

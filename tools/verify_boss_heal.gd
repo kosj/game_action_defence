@@ -8,8 +8,10 @@ extends SceneTree
 ##   godot --headless --fixed-fps 60 --script res://tools/verify_boss_heal.gd
 ##
 ## 1부: 근접형으로 시전→완주→쿨타임→저지→횟수 소진까지 상세 검증.
-## 2부: 나머지 아키타입 일괄 확인 — 각자의 예비 동작(사격/소환/돌진)에 막혀 회복이
+## 2부: 나머지 아키타입 일괄 확인 — 각자의 예비 동작(소환/폭격/돌진)에 막혀 회복이
 ##      영영 발동하지 못하는 교착이 없는지 본다(_can_start_heal 게이트 회귀 방지).
+##      gunner 는 P1-1 에서 삭제됐다(도달 불가 아키타입) — 목록에 남기면 melee 폴백을
+##      gunner 라는 이름으로 두 번 재는 셈이라 의미가 없다.
 ##
 ## 종료 코드 0 = 전부 통과, >0 = 실패 건수.
 
@@ -17,7 +19,7 @@ const DT := 1.0 / 60.0
 const MAX_HP := 1000
 const PART1_T := 46.0        # 1부 길이(초)
 const SWEEP_T := 12.0        # 2부 아키타입당 관찰 시간(초)
-const SWEEP := ["gunner", "summoner", "bomber", "berserk"]
+const SWEEP := ["summoner", "bomber", "berserk"]
 
 var _boss: Node2D = null
 var _t: float = 0.0
@@ -73,9 +75,11 @@ func _spawn(archetype: String) -> void:
 		_boss.queue_free()
 	_boss = load("res://scenes/Boss.tscn").instantiate()
 	current_scene.add_child(_boss)
+	# sprite 는 P1-1 이후 필수다(아키타입 기본 텍스처 폴백 없음) — 실제와 같은 경로를 준다.
 	_boss.setup({
 		"max_health": MAX_HP, "speed": 0.0, "contact_damage": 2,
 		"score": 0, "gold": 0, "archetype": archetype, "name": archetype.to_upper(),
+		"sprite": "res://assets/atlas/boss_mutant_dog.tres",
 	})
 	_starts.clear()
 	_channeling = false

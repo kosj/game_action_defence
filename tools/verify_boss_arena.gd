@@ -148,6 +148,7 @@ func _step() -> void:
 
 func _report() -> bool:
 	_expect(not is_instance_valid(_arena), "해제 연출이 끝나면 노드가 스스로 사라진다")
+	_check_boss_sprites()
 	if _freed_at > 0.0:
 		print("  (소멸 %.2fs — 처치 4.00s + 해제 %.2fs)" % [_freed_at, _freed_at - 4.0])
 	print("결과: %s" % ("전부 통과" if _fail == 0 else "%d건 실패" % _fail))
@@ -177,3 +178,57 @@ func _expect_once(key: String, cond: bool, msg: String) -> void:
 	_done[key] = true
 	_fail += 1
 	print("  FAIL %s" % msg)
+
+
+## 보스 스프라이트가 데이터에 전부 채워져 있는가.
+##
+## 왜 여기서 보는가: 예전에는 Boss.setup() 이 스프라이트를 못 찾으면 아키타입 기본 텍스처
+## (_BOSS_TEX)로 폴백했다. P1-1 에서 아키타입 5종 순환 경로와 그 아트 4종을 걷어내면서 그
+## 폴백도 사라졌으므로, 이제 sprite 가 비거나 경로가 틀리면 **보스가 투명하게 등장한다** —
+## 화면을 봐야만 알 수 있는 종류의 사고다. 런타임 안전망을 없앤 대가로 이 검사를 둔다.
+## 아트를 지우거나 이름을 바꾸면 여기서 빌드가 멈춘다.
+func _check_boss_sprites() -> void:
+	var spawner: GDScript = load("res://scripts/ZombieSpawner.gd")
+	var bosses: Dictionary = spawner.get("THEME_BOSSES")
+	_expect(not bosses.is_empty(), "THEME_BOSSES 가 비어 있지 않다")
+
+	# 테마가 가리키는 boss_key 가 실제로 정의돼 있는가 — 어긋나면 그 아레나에 보스가 안 뜬다.
+	var game_data := root.get_node_or_null("GameData")
+	if game_data != null:
+		var missing := ""
+		for th in game_data.themes:
+			if th == null:
+				continue
+			if not bosses.has(th.boss_key):
+				missing += "%s(boss_key='%s') " % [th.id, th.boss_key]
+		_expect(missing == "", "모든 테마의 boss_key 가 THEME_BOSSES 에 있다  %s" % missing)
+
+	for key in bosses:
+		var bt: Dictionary = bosses[key]
+		var path: String = String(bt.get("sprite", ""))
+		if path == "":
+			_expect(false, "%s: sprite 가 비어 있다(폴백이 없으므로 투명 보스가 된다)" % key)
+			continue
+		if not ResourceLoader.exists(path):
+			_expect(false, "%s: sprite 경로가 없다 — %s" % [key, path])
+			continue
+		_expect(load(path) is Texture2D, "%s: sprite 가 Texture2D 다 — %s" % [key, path])
+		_expect_spawns(key, bt)
+
+
+## 데이터가 맞는 것과 보스가 실제로 보이는 것은 다르다 — 세 테마 보스를 실제로 세워
+## Body 에 텍스처가 붙는지까지 본다. 예전에는 치트 SPAWN BOSS 로 눈으로 확인하던 항목이다.
+## (Boss.tscn 은 P1-1 이후 기본 텍스처를 갖지 않는다 — 전부 setup() 이 데이터에서 넣는다)
+func _expect_spawns(key: String, bt: Dictionary) -> void:
+	var boss = load("res://scenes/Boss.tscn").instantiate()
+	current_scene.add_child(boss)
+	boss.setup({
+		"max_health": 100, "speed": 40.0, "contact_damage": int(bt.get("contact", 1)),
+		"score": 0, "gold": 0,
+		"archetype": bt.get("archetype", ""), "name": bt.get("name", key),
+		"tint": bt.get("tint", Color.WHITE), "proj_color": bt.get("proj", Color.WHITE),
+		"sprite": bt.get("sprite", ""),
+	})
+	_expect(boss.body != null and boss.body.texture != null,
+		"%s: 실제로 세우면 Body 에 텍스처가 붙는다(투명 보스 아님)" % key)
+	boss.free()

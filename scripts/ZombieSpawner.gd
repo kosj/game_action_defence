@@ -11,20 +11,16 @@ const _BossArena := preload("res://scripts/BossArena.gd")
 
 @export var spawn_margin: float = 80.0
 
-## 보스 아키타입 테이블. archetype 은 Boss.gd 의 행동 분기 키.
-const BOSS_TYPES: Dictionary = {
-	"brute":    {"archetype": "melee",    "name": "BRUTE",    "hp_mul": 1.00, "speed_mul": 1.00, "contact": 2, "tint": Color(0.55, 0.12, 0.14), "proj": Color(1, 1, 1)},
-	"gunner":   {"archetype": "gunner",   "name": "GUNNER",   "hp_mul": 0.78, "speed_mul": 0.80, "contact": 1, "tint": Color(0.16, 0.34, 0.62), "proj": Color(0.55, 0.85, 1.0)},
-	"summoner": {"archetype": "summoner", "name": "SUMMONER", "hp_mul": 0.92, "speed_mul": 0.55, "contact": 2, "tint": Color(0.24, 0.52, 0.28), "proj": Color(0.5, 1.0, 0.6)},
-	"bomber":   {"archetype": "bomber",   "name": "BOMBER",   "hp_mul": 0.85, "speed_mul": 0.65, "contact": 1, "tint": Color(0.62, 0.40, 0.14), "proj": Color(1.0, 0.55, 0.15)},
-	"berserk":  {"archetype": "berserk",  "name": "BERSERKER","hp_mul": 1.05, "speed_mul": 1.00, "contact": 3, "tint": Color(0.60, 0.14, 0.34), "proj": Color(1, 1, 1)},
-}
-const BOSS_SEQUENCE: Array = ["brute", "gunner", "summoner", "bomber", "berserk"]
-
-## 테마 전용 보스(Phase 6-C). ThemeData.boss_key → 보스 정의. 기존 아키타입 행동을 재사용(Boss.gd 무변경)해
-## 프레젠테이션(이름/색/스탯)만 테마화한다. 선택 테마에 boss_key 가 있으면 해당 아레나의 모든 보스로 쓰인다.
+## 보스 정의는 **테마 보스 3종이 전부다**(P1-1, 2026-08).
+## 예전에는 아키타입 5종 테이블(BOSS_TYPES)을 회차마다 순환시키는 경로가 따로 있었는데,
+## 세 테마가 전부 boss_key 를 갖게 되면서 그 경로는 한 번도 실행되지 않았다 — 코드가 아니라
+## 유지 대상만 늘리는 자산이었다. 보스를 늘리려면 아키타입을 되살리는 대신 여기에 테마를 추가한다.
+##
+## 테마 전용 보스(Phase 6-C). ThemeData.boss_key → 보스 정의. Boss.gd 의 아키타입 행동을 재사용해
+## 프레젠테이션(이름/색/스탯)만 테마화한다. 선택 테마의 boss_key 가 해당 아레나의 모든 보스다.
 ##   교외=변이 사냥개(광폭 근접), 도심=견인 변이체(폭파형 탱커), 연구소=프라임 변이체(소환형 다단계).
-## sprite: 테마 보스 전용 아트(빈 문자열이면 아키타입 기본 텍스처 사용). 사이드뷰·오른쪽 향함.
+## sprite: **필수**. 아키타입 기본 텍스처 폴백을 없앴으므로 비우면 보스가 투명해진다 —
+## tools/verify_boss_arena.gd 가 세 항목의 sprite 존재를 CI 에서 검사한다. 사이드뷰·오른쪽 향함.
 const THEME_BOSSES: Dictionary = {
 	"mutant_dog": {"archetype": "berserk",  "name": "MUTANT HOUND",   "hp_mul": 0.85, "speed_mul": 1.35, "contact": 2, "tint": Color(0.58, 0.40, 0.24), "proj": Color(1, 1, 1),          "sprite": "res://assets/atlas/boss_mutant_dog.tres"},
 	"wrecker":    {"archetype": "bomber",   "name": "THE WRECKER",    "hp_mul": 1.30, "speed_mul": 0.70, "contact": 3, "tint": Color(0.40, 0.42, 0.48), "proj": Color(1.0, 0.55, 0.15), "sprite": "res://assets/atlas/boss_wrecker.tres"},
@@ -354,10 +350,14 @@ func _spawn_boss() -> void:
 	_boss_alive = true
 	_boss_count += 1
 
-	# 선택 테마에 전용 보스가 있으면 그 아레나의 보스로 사용, 없으면 기존 아키타입 순환.
+	# 선택 테마의 전용 보스를 쓴다. 세 테마 모두 boss_key 를 가지므로 항상 채워진다 —
+	# 그래도 빈 dict 면 데이터 사고이므로 조용히 넘기지 않고 여기서 멈춘다(투명 보스 방지).
 	var bt: Dictionary = _theme_boss()
 	if bt.is_empty():
-		bt = BOSS_TYPES[BOSS_SEQUENCE[(_boss_count - 1) % BOSS_SEQUENCE.size()]]
+		push_error("보스 정의를 찾지 못했습니다 — ThemeData.boss_key 가 THEME_BOSSES 에 없습니다.")
+		_boss_alive = false
+		_boss_count -= 1
+		return
 	var boss := BOSS.instantiate()
 	get_tree().current_scene.add_child(boss)
 	boss.global_position = _random_spawn_pos()
