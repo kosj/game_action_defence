@@ -42,7 +42,7 @@
 | 항목 | 레인 | 상태 | 담당 브랜치 | 갱신일 |
 |---|---|---|---|---|
 | P2-5 CI 회귀 게이트 + PR 트리거 | A | ✅ (9bd1100) | claude/game-designer-task-review-wvhkiq | 2026-08-18 |
-| P0-1 치트 게이팅 | A | ✅ (이 PR) | claude/a-lane-cheat-gate | 2026-08-18 |
+| P0-1 치트 게이팅 | A | ✅ (db7bb29) | claude/a-lane-cheat-gate | 2026-08-18 |
 | P0-2 마일스톤 저장 + 퀘스트 트랙 교체 | C | ⚪ 대기 | — | — |
 | P0-3 ShopPanel 폐기 | C | ⚪ 대기 | — | — |
 | P1-1 미배치 보스 리소스 삭제 | B | ✅ (defee2e) | claude/b-lane-boss-cleanup | 2026-08-18 |
