@@ -42,7 +42,7 @@
 | 항목 | 레인 | 상태 | 담당 브랜치 | 갱신일 |
 |---|---|---|---|---|
 | P2-5 CI 회귀 게이트 + PR 트리거 | A | ✅ (9bd1100) | claude/game-designer-task-review-wvhkiq | 2026-08-18 |
-| P0-1 치트 게이팅 | A | 🔵 진행중 | claude/a-lane-cheat-gate | 2026-08-18 |
+| P0-1 치트 게이팅 | A | ✅ (이 PR) | claude/a-lane-cheat-gate | 2026-08-18 |
 | P0-2 마일스톤 저장 + 퀘스트 트랙 교체 | C | ⚪ 대기 | — | — |
 | P0-3 ShopPanel 폐기 | C | ⚪ 대기 | — | — |
 | P1-1 미배치 보스 리소스 삭제 | B | ✅ (defee2e) | claude/b-lane-boss-cleanup | 2026-08-18 |
@@ -103,10 +103,36 @@
   게이트가 꺼져 있으면 신호를 무시하도록 방어선을 하나 더 둔다(UI 우회 대비).
 
 **수용 기준** — 릴리스 export 로 만든 웹 빌드의 일시정지 메뉴에 `CHEATS` 가 없고,
-에디터 실행(F5)에서는 기존과 동일하게 보인다.
+에디터 실행(F5)에서는 기존과 동일하게 보인다. ✅
 
-**검증** — `godot --headless --path . --export-release "Web" build/index.html` 후
-산출물에서 문자열 `AUTO-PLAY` 가 나오지 않는지 확인. 에디터 실행으로 치트 정상 동작 회귀 확인.
+**완료 (2026-08-18)** — 게이트는 `Cheats.enabled` 한 곳이다(`OS.is_debug_build() or
+OS.has_feature("cheats")`, `_ready` 에서 1회 판정). 세 층에 같은 게이트를 건다:
+1. **UI** — `HUD._build_pause_menu` 의 치트 블록 전체를 `if Cheats.enabled:` 로 감쌌다(노드를
+   아예 만들지 않는다). `export_presets.cfg` 의 Web 프리셋은 `custom_features=""` 라 기본 차단.
+2. **발신** — 버튼이 시그널을 직접 `emit` 하지 않고 `Cheats.request_time_skip/spawn_fill/spawn_boss`
+   를 부른다. 잠긴 빌드에서는 아무 신호도 나가지 않는다.
+3. **수신** — `ZombieSpawner` 의 세 핸들러가 `Cheats.enabled` 를 한 번 더 본다(우회 대비).
+   상태는 `Cheats.autoplay_active()` 로만 읽는다 — `Player`·`LevelUpPanel`·`HUD` 를 전부 옮겼다.
+
+`Cheats.enabled` 를 상수가 아니라 변수로 둔 이유는 회귀 테스트다 — 헤드리스는 항상 디버그
+빌드라 "잠긴 릴리스 빌드"를 달리 재현할 방법이 없다.
+
+**⚠️ 이 항목이 지정한 검증법은 아무것도 판별하지 못한다 (실측)**
+산출물에서 `AUTO-PLAY` 문자열을 grep 하는 방법은 **수정 전 빌드에서도 0건**이다. 직접 확인했다 —
+착수 시점 `main` 을 릴리스 export 해서 grep 했고 `AUTO-PLAY`·`SPAWN BOSS`·`CHEATS` 전부 0건이었다.
+Godot 이 `.gd` 를 `.gdc` 로 토큰화해 내보내므로 스크립트 안의 문자열 리터럴은 pck 에서 평문으로
+잡히지 않는다(같은 이유로 `MUTANT HOUND` 같은 다른 리터럴도 안 잡힌다. 반면 `.tres` 에서 온
+`Suburb`·`zombie_walker` 는 잡힌다 — 리소스는 평문이다).
+**그대로 CI 에 넣었다면 항상 통과하는 가짜 게이트가 됐다.**
+
+**검증** — `tools/verify_cheat_gate.gd` 신설(CI 회귀 목록에 추가, `CLAUDE.md` §3 도 9종으로 갱신):
+잠긴 빌드에서 `autoplay_active()`·`toggle_autoplay()`·`request_*` 3종이 전부 죽는지 · 열린 빌드에서는
+그대로 도는지 · 소비처가 `Cheats.autoplay` 를 직접 읽지 않는지(소스 검사) ·
+**어떤 export 프리셋도 `custom_features` 에 `cheats` 를 켜지 않는지**(실제 스위치. 프리셋에 한 단어만
+넣으면 P0 가 통째로 되살아난다). 프리셋에 `cheats` 를 넣어 이 검사가 실패하는 것을 확인했다.
+`CLAUDE.md` §3 전체 통과 + 릴리스 웹 export 성공(pck 12.06MB, 상한 15MB).
+
+**A 레인 완료 → E 레인(P1-4) 시작 가능** — `HUD.gd` 의 잠금이 풀렸다.
 
 ---
 
@@ -507,11 +533,11 @@ city 는 기믹 4종, lab 은 3종. 즉 **무료·기본 선택 아레나에만 
 
 | 레인 | 순서 | 독점하는 파일 |
 |---|---|---|
-| **A 인프라** | P2-5 → P0-1 | `.github/workflows/`, `HUD.gd`(치트 블록) |
+| **A 인프라** | P2-5 ✅ → P0-1 ✅ | `.github/workflows/`, `HUD.gd`(치트 블록) — **레인 완료, E 해금됨** |
 | **B 데이터** | P1-2 → P1-3 → P1-1 → P2-7 | `data/themes.tres`, `tools/gen_theme_data.gd`, `ZombieSpawner.gd` |
 | **C 시스템** | P0-2 → P0-3 → P2-6 | `Events.gd`, `QuestManager.gd`, `SaveManager.gd` |
 | **D UI** | P2-1 → P2-3 → P2-2 → P2-4 | `MainMenu.gd`, `UIStyle.gd`, `Locale.gd` |
-| **E HUD** | P1-4 | `HUD.gd`(진행바·배너) — **A 의 P0-1 과 같은 파일이라 A 완료 후 시작** |
+| **E HUD** | P1-4 | `HUD.gd`(진행바·배너) — ~~A 의 P0-1 대기~~ **이제 착수 가능**(P0-1 완료) |
 | **F 밸런스** | P1-5 | `data/difficulty.tres` — 실측 선행이라 언제든 가능 |
 
 ### 순서상의 제약

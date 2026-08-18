@@ -118,11 +118,12 @@ godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_arena.
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_heal.gd
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_environment.gd
 godot --headless --path . --script res://tools/verify_character_sheets.gd
+godot --headless --path . --script res://tools/verify_cheat_gate.gd
 ```
 
 UI 를 건드렸으면 추가로 `python3 tools/check_text_fit.py` (en/ko/ja 폭 초과 검사).
 
-**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 8종이 이 프로젝트의 안전망 전부다.
+**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 9종이 이 프로젝트의 안전망 전부다.
 
 ---
 
@@ -172,8 +173,13 @@ Events.pause_pop(self)                # 닫을 때
 - **웹 pck 상한 15MB** (CI 게이트). 현재 약 12MB. 에셋을 늘릴 땐 압축 설정을 같이 본다.
 - **렌더러는 `gl_compatibility` 고정.** 다른 렌더러 전용 기능(2D 라이트/SDF 등)을 쓰면 웹에서 깨진다.
 - **export 제외 필터는 하위 폴더까지 삼킨다** — 실제로 바닥 타일이 웹 빌드에서 통째로 사라진 적이 있다(`1137951`).
-- **치트가 릴리스 빌드에 노출돼 있다**(`HANDOFF.md` P0-1). 랭킹/과제 데이터를 다루는 작업을 한다면
-  이 항목이 먼저 처리됐는지 확인한다.
+- **치트는 `Cheats.enabled` 하나로 잠긴다**(P0-1 해결). 에디터·디버그 빌드는 열려 있고, 릴리스
+  export 는 프리셋 `custom_features` 에 `cheats` 가 있을 때만 열린다(현재 비어 있음 = 차단).
+  치트를 새로 추가하면 **UI(`HUD._build_pause_menu` 의 `if Cheats.enabled` 블록) 안에 넣고,
+  상태는 `Cheats.autoplay_active()` 같은 게이트 포함 접근자로 읽는다.** 상태 변수를 직접 읽거나
+  시그널을 직접 `emit` 하면 잠금을 우회하게 된다 — `verify_cheat_gate.gd` 가 이걸 검사한다.
+  ⚠️ 산출물에서 `AUTO-PLAY` 같은 문자열을 grep 하는 방식으로는 확인할 수 없다. Godot 이 `.gd` 를
+  `.gdc` 로 토큰화해 내보내 스크립트 리터럴이 pck 에서 평문으로 잡히지 않는다(수정 전 빌드에서도 0건).
 - `Events` 에 웨이브 시대의 **데드 API** 가 남아 있다(`wave_pressure_mult` 등, `HANDOFF.md` P2-6).
   실제 난이도 곡선은 `ZombieSpawner._hp_mult()` 의 2차 곡선이다 — 여기에 속지 말 것.
 
