@@ -94,7 +94,9 @@
 ### B-6. 픽업 / 오브젝트 🟡
 - [x] 경험치 젬(파란 다이아) · 골드 코인(`ui_coin.png` 교체) 적용 완료.
 - [ ] 보물상자·진화 상자·폭탄 — 현재 절차적 드로잉(`ItemPickup.gd`). 배선 시 스프라이트 교체 필요.
-- [~] 기믹 프롭 **에셋 준비됨**(`assets/sprites/props/prop_{wreck_car,fence,tank}.png`) — 아직 게임에 배치(스폰) 안 됨(장식 스폰 기능 필요).
+- [x] 미장센 프롭 15종 배치 완료 — `ThemeData.prop_keys` 에 테마별 목록을 넣어 `PropField` 가 필드에 흩뿌린다
+  (교외 5 · 도심 6 · 연구소 4). 아트는 `assets/sprites/props/<테마>/`, 참조는 테마별 아틀라스
+  `assets/atlas/props/<테마>/`. 밀도 손잡이는 `PropField.DENSITY`(30%), 장애물 비율은 `SOLID_SHARE`(30%).
 
 ### B-7. 배경 / 타일 🟡 바닥 타일 3종 적용 완료
 - [x] 테마 3종 바닥 타일 배선: `Ground._TILE_TEX`(grass=교외 · stone=도심 · frozen=연구소) → 월드 고정 타일링. (desert 는 기존 절차적 폴백)
