@@ -67,7 +67,8 @@ func delete_save() -> void:
 		DirAccess.remove_absolute(SAVE_PATH)
 
 
-## 웨이브 클리어/상점 종료/무기 획득 시점에 호출 — player 의 현재 체력·무기를 기록.
+## 체크포인트 저장 — player 의 현재 체력·무기를 기록.
+## 호출 시점: 주기 자동저장(20초) · 무기 획득 · 앱 백그라운드 전환.
 func save_game(player: Node) -> void:
 	var data := {
 		# 캐릭터/테마 — 이어하기가 "저장 당시의 그 판"을 그대로 재현하려면 반드시 필요하다.

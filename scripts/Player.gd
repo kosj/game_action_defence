@@ -57,12 +57,14 @@ var _trait_key: String = ""
 var _still_time: float = 0.0    # 정지 지속 시간(사냥꾼 치명타 램프)
 var _kill_heal_accum: int = 0   # 처치 누적(베테랑 전투 회복)
 
-# 주기적 자동저장: 웨이브 클리어/상점 체크포인트 사이에 종료해도 점수·골드·진행이
-# 유실되지 않도록 일정 간격으로 현재 상태를 저장한다(_notification 으로 백그라운드/종료 시에도).
+# 주기적 자동저장: 어느 시점에 종료해도 점수·골드·진행이 유실되지 않도록 일정 간격으로
+# 현재 상태를 저장한다(_notification 으로 백그라운드/종료 시에도).
+# 예전에는 웨이브 클리어·상점 종료라는 체크포인트가 따로 있었으나 둘 다 사라졌다(P0-2·P0-3) —
+# 지금 런 저장을 받치는 것은 이 주기 저장과 백그라운드 전환뿐이다.
 var _autosave_accum: float = 0.0
 # 웹에서 user:// 저장은 IndexedDB 동기화라 JSON 직렬화보다 훨씬 비싸고 간헐적 히칭을 만든다.
-# 웨이브 클리어·상점 종료·앱 백그라운드 전환에서 이미 체크포인트 저장을 하므로, 주기 저장은
-# 안전망 역할만 하면 된다 — 4초는 웹 기준으로 과했다(유실 위험은 거의 그대로, 히칭만 1/5).
+# 앱 백그라운드 전환에서도 저장하므로 주기 저장은 안전망 역할만 하면 된다 —
+# 4초는 웹 기준으로 과했다(유실 위험은 거의 그대로, 히칭만 1/5).
 const AUTOSAVE_INTERVAL := 20.0
 var _base_move_speed: float
 var _base_attack_cooldown: float
@@ -109,9 +111,7 @@ func _ready() -> void:
 	health = max_health   # 보너스 최대 체력까지 가득 채운 상태로 시작
 	_hurt_timer = GameData.balance.start_invuln   # 시작 무적 (프리워밍·첫 좀비 도착 전 보호)
 	Events.update_player_health(health, max_health)
-	Events.shop_closed.connect(apply_upgrades)
 	Events.inventory_changed.connect(apply_upgrades)   # 상자 보상 등 어떤 경로로 무기를 얻어도 즉시 모듈 부착
-	Events.shop_closed.connect(_autosave)
 	Events.screen_shake_requested.connect(_on_screen_shake)
 	var _char: CharacterData = CharacterManager.selected()
 	_trait_key = _char.trait_key if _char != null else ""
@@ -519,7 +519,8 @@ func revive() -> void:
 	Events.player_revived.emit()
 
 
-## 상점에서 업그레이드 구매 후 또는 웨이브 시작 시 호출.
+## 강화 카운터(Events.upgrade_*)를 실제 스탯에 반영한다.
+## 호출처: 런 시작 · 레벨업 카드 선택(LevelUpPanel) · 인벤토리 변경(상자 보상 등).
 func apply_upgrades() -> void:
 	move_speed = _base_move_speed + 30.0 * Events.upgrade_speed
 	_recompute_combat_stats()
@@ -591,7 +592,7 @@ func _update_lightning() -> void:
 		_lightning = null
 
 
-## 상점의 회복 아이템 구매 시 호출.
+## 체력을 가득 채운다. 지금 호출처는 최대 체력 강화(+1 하트) 시점뿐이다.
 func heal_full() -> void:
 	health = max_health
 	Events.update_player_health(health, max_health)

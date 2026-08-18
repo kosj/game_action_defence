@@ -181,7 +181,8 @@ UI에서 손실 WebP보다 아티팩트가 크므로 **실기기에서 눈으로
 | B10 | **HUD 오버레이 alpha=0 시 `visible=false`**: FlashOverlay/LowHpOverlay가 투명한 채 상시 풀스크린 블렌딩(프레임당 ~184만 px fill-rate 낭비). 씬 기본값도 `visible=false`로. Vignette는 실제 텍스처가 있는 의도된 연출이라 유지 | `HUD.tscn`, `HUD.gd` | ✅ 완료 |
 | B11 | **HP바 트윈 kill 누락**: `_update_hp_bar`가 이전 트윈을 kill하지 않아 연속 피격 시 트윈이 누적되고 바가 튐(성능+시각 버그) | `HUD.gd` | ✅ 완료 |
 | B12 | 엔진 설정: `max_physics_steps_per_frame=4`(death spiral 방지) 적용. **`physics_ticks_per_second=30`은 적용하지 않았다** | `project.godot` | 🟡 일부만 적용 |
-| B13 | `AUTOSAVE_INTERVAL` 4→20초: 웹에선 저장이 IndexedDB 동기화라 히칭 유발. 체크포인트 저장(웨이브/상점/백그라운드 전환)이 이미 있어 손실 위험 없음 | `Player.gd` | ✅ 완료 |
+| B13 | `AUTOSAVE_INTERVAL` 4→20초: 웹에선 저장이 IndexedDB 동기화라 히칭 유발 | `Player.gd` | ✅ 완료 |
+| | ↑ 당시 근거였던 "웨이브/상점 체크포인트 저장"은 둘 다 사라졌다(P0-2·P0-3). 지금 런 저장을 받치는 것은 이 20초 주기와 백그라운드 전환뿐이고, 퀘스트·도전과제는 보스 처치(`milestone_reached`)에서 따로 내려간다 | | |
 
 **B12에서 물리 틱 30Hz를 적용하지 않은 이유:** 좀비·총알·플레이어가 전부 `_physics_process`에서
 이동하는데 이 프로젝트는 `config/features="4.1"`이라 **2D 물리 보간이 없다**. 틱을 30으로 낮추면
@@ -214,7 +215,8 @@ UI에서 손실 WebP보다 아티팩트가 크므로 **실기기에서 눈으로
 - 부메랑 투사체 풀링 (`BoomerangProj.gd`) — 2초에 1~2개라 영향 미미
 - B5 잔여 무기(ProjectileWeapon·Tesla·HolyWater·MeleeArc·Ultimate·Drone)의 전수 스캔.
   전부 저빈도(발사·착탄 시점)라 300마리 기준으로도 비용이 작다
-- StyleBox 정적 캐시: `UIStyle`의 disabled/focus 싱글턴화, `UIListRow` 상태별 3종 캐시, 메뉴 리스트 행 재사용(참조 구현: `ShopPanel._refresh_buttons()`)
+- StyleBox 정적 캐시: `UIStyle`의 disabled/focus 싱글턴화, `UIListRow` 상태별 3종 캐시, 메뉴 리스트 행 재사용
+  (참조 구현이던 `ShopPanel._refresh_buttons()` 는 상점 폐기로 사라졌다 — HANDOFF P0-3. `UIListRow` 를 참고할 것)
 - HUD 로드아웃 슬롯 전체 재생성 → 변경분만 갱신 (`HUD.gd:748-763`)
 - 좀비 사망 플레이어 조회: 게임오버 시 좀비 320마리가 각자 매 프레임 그룹 조회 → `player_died` 구독 (`Zombie.gd:127-129`)
 - 폰트 크기 19종 → 인접 값 통합(글리프 아틀라스/래스터화 히칭 감소)

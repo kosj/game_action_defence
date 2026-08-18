@@ -50,7 +50,7 @@ func _process(delta: float) -> void:
 
 
 func _ready() -> void:
-	layer = 11   # 상점(10)보다 위. 실제로는 상점과 동시에 뜨지 않는다(상점=웨이브 간, 레벨업=전투 중).
+	layer = 11   # HUD(10)보다 위 — 카드 선택 중에는 이 패널이 화면을 덮는다.
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS   # 트리를 멈춰도 이 UI 는 동작해야 한다
 	Events.level_up.connect(_on_level_up)
@@ -324,7 +324,7 @@ func _close_evo() -> void:
 func _apply_and_advance() -> void:
 	var player := get_tree().get_first_node_in_group("player")
 	if is_instance_valid(player) and player.has_method("apply_upgrades"):
-		player.apply_upgrades()   # shop_closed 를 쓰지 않는다(그건 새 웨이브를 시작시킨다)
+		player.apply_upgrades()   # 강화 카운터 → 실제 스탯 반영(인게임 상점은 2026-08 폐기, P0-3)
 	_consume_and_advance()
 
 

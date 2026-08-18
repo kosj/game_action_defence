@@ -1,7 +1,7 @@
 extends Node
 ## 보상형 광고 매니저 (Autoload 싱글톤: "AdManager").
 ##
-## 광고 SDK 없이도 동작하는 "골격"이다. 호출부(HUD·상점)는 SDK 유무를 전혀 모른 채
+## 광고 SDK 없이도 동작하는 "골격"이다. 호출부(HUD)는 SDK 유무를 전혀 모른 채
 ## show_rewarded() 를 부르고 rewarded_granted 시그널로만 보상을 받는다.
 ## 실제 SDK(AdMob / AppLovin MAX / Unity LevelPlay)는 _show_real_rewarded() 자리에 끼우고
 ## USE_STUB 를 false 로 바꾸면 호출부 수정 없이 그대로 동작한다.
@@ -11,7 +11,8 @@ extends Node
 ##   if AdManager.is_rewarded_ready():
 ##       AdManager.show_rewarded("revive")
 
-## 보상형 영상 시청 완료 → 보상 지급. placement 로 호출 맥락 구분("revive","shop_gold" 등).
+## 보상형 영상 시청 완료 → 보상 지급. placement 로 호출 맥락을 구분한다.
+## 현재 쓰는 값은 "revive" 하나뿐 — 상점 골드("shop_gold")는 인게임 상점과 함께 폐기됐다(P0-3).
 signal rewarded_granted(placement: String)
 ## 광고가 보상 없이 닫힘(중도 종료) 또는 노출 실패.
 signal rewarded_dismissed(placement: String)
@@ -83,7 +84,7 @@ func show_rewarded(placement: String) -> void:
 
 # ───────────────────────── 실제 SDK 연동 지점 ─────────────────────────
 # 실 SDK 연동은 아래 _admob_* 4개 메서드에만 존재한다(SETUP_ADS.md 의 스니펫으로 채운다).
-# 이 함수들은 그 위의 얇은 어댑터라, 호출부(HUD·상점)와 공통 종료 처리(_grant/_dismiss)는
+# 이 함수들은 그 위의 얇은 어댑터라, 호출부(HUD)와 공통 종료 처리(_grant/_dismiss)는
 # SDK 유무를 전혀 몰라도 된다.
 
 func _real_rewarded_ready() -> bool:
@@ -186,7 +187,7 @@ func _ensure_overlay() -> void:
 	if _layer != null:
 		return
 	_layer = CanvasLayer.new()
-	_layer.layer = 100   # 상점(10)·HUD 보다 위
+	_layer.layer = 100   # HUD(10)·레벨업(11) 보다 위
 	_layer.visible = false
 	_layer.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(_layer)

@@ -14,7 +14,7 @@
 | P2 | **좌하단 로드아웃이 텍스트 리스트**(아이콘24px+이름+레벨 세로 나열). 후반엔 16줄+ 로 화면 좌측 1/3을 덮어 전투 시야를 가리고, 항목마다 다른 원색 텍스트라 난잡함 | `_build_loadout` / `_add_loadout_lines` |
 | P3 | **상단바(TopBg 132px)가 크고 밋밋함**: 단색 반투명 패널, 요소(골드/HP/레벨/처치/시간)가 좌·중·우로 흩어져 묶임(grouping)이 없음 | `HUD.tscn` TopBg, `_UIStyle.bottom_bar` |
 | P4 | **Lv 라벨과 XP바가 분리**: 최상단 5px 라인과 중앙 `Lv.46` 라벨이 시각적으로 연결 안 됨 | `_build_xp_bar` |
-| P5 | **게이지가 StyleBoxFlat 단색**: HP/보스/XP 모두 플랫 사각형+둥근 모서리뿐. 메뉴·상점은 이미 VARCO 나인패치(강철+골드)로 리치한데 HUD만 프로토타입 톤 | `_style_bars` vs `UIStyle.panel/button_box` |
+| P5 | **게이지가 StyleBoxFlat 단색**: HP/보스/XP 모두 플랫 사각형+둥근 모서리뿐. 메뉴는 이미 VARCO 나인패치(강철+골드)로 리치한데 HUD만 프로토타입 톤 | `_style_bars` vs `UIStyle.panel/button_box` |
 | P6 | **일시정지 버튼이 미완성 느낌**: 회색 사각 플레이트에 코드로 그린 막대 2개, 위치도 상단바 밖(y150)에 어정쩡하게 떠 있음 | `_build_pause_menu` |
 | P7 | **언어 혼용**: `2852 처치`(Locale) 옆에 `SURVIVE 30:00 → CLEAR`, `!! SWARM`, `OVERTIME`, `PAUSED` 등 영어 하드코딩 | `_build_goal_hint`, `_on_swarm_incoming`, `_on_run_progress`, `_build_pause_menu` |
 | P8 | **고정 픽셀 레이아웃**: HP바 204px, 라벨 오프셋 하드코딩 → 해상도/세이프에어리어(노치) 대응 취약 | `HUD.tscn` 오프셋들, `HP_BAR_W` 상수 |

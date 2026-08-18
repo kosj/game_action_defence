@@ -72,7 +72,7 @@ var _theme_gold_label: Label
 
 
 func _ready() -> void:
-	Events.pause_release_all()   # 게임오버/상점에서 정지된 채 메뉴로 돌아와도 메뉴가 멈추지 않도록
+	Events.pause_release_all()   # 게임오버/레벨업에서 정지된 채 메뉴로 돌아와도 메뉴가 멈추지 않도록
 	Engine.time_scale = 1.0     # 히트스톱 등으로 배속이 낮게 남아 "멈춘 듯" 보이는 것 방지(복귀 시 정상화)
 	# 타이틀에서 오면 같은 트랙이라 이어 재생, 게임에서 돌아오면 크로스페이드로 전환된다.
 	SoundManager.play_music("title")

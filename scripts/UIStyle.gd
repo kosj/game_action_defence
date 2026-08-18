@@ -1,6 +1,6 @@
 class_name UIStyle
 extends RefCounted
-## 공용 UI 스타일 팩토리 — 코드로 생성/구성되는 UI 전반(HUD, 상점)에서 재사용.
+## 공용 UI 스타일 팩토리 — 코드로 생성/구성되는 UI 전반(HUD·메뉴·레벨업)에서 재사용.
 
 # VARCO 생성 나인패치 패널 프레임(강철+골드 베벨 테두리). 320px 소스, 테두리 분할 40px.
 const _PANEL_FRAME_TEX := preload("res://assets/ui/frames/panel_frame.png")

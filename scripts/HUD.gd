@@ -984,7 +984,8 @@ func _on_revive_pressed() -> void:
 	AdManager.show_rewarded("revive")
 
 
-## 보상형 시청 완료 콜백. 부활 placement 만 처리(상점 보상은 ShopPanel 이 처리).
+## 보상형 시청 완료 콜백. 지금 쓰는 placement 는 부활 하나뿐이다
+## (인게임 상점은 2026-08 폐기 — P0-3).
 func _on_rewarded_granted(placement: String) -> void:
 	if placement != "revive" or _revive_used:
 		return
@@ -1364,7 +1365,7 @@ func _refresh_cheat_ui() -> void:
 
 
 func _on_pause_pressed() -> void:
-	if get_tree().paused:   # 레벨업/상점 등 다른 정지 중이면 무시
+	if get_tree().paused:   # 레벨업/보물상자 등 다른 정지 중이면 무시
 		return
 	if _pause_time:
 		var m := int(Events.elapsed_time) / 60

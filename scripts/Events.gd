@@ -65,7 +65,6 @@ signal wave_progress_changed(killed: int, total: int)
 signal run_progress(elapsed: float, clear: float)   # 시간 기반 진행(HUD 클리어 진행바)
 signal run_cleared                                  # 30분 생존 = 클리어 달성(1회)
 signal zombie_killed
-signal shop_closed
 signal weapon_equipped(stats: Dictionary)
 signal score_changed(score: int)
 signal high_score_changed(high_score: int)
@@ -529,7 +528,7 @@ func reset() -> void:
 
 
 # ── 일시정지 소유권 레지스트리 + 워치독 ─────────────────────────────────────────
-## 여러 모달(레벨업/보물상자/상점/게임오버/일시정지 메뉴)이 각자 get_tree().paused 를 켜고 끄면,
+## 여러 모달(레벨업/보물상자/게임오버/일시정지 메뉴)이 각자 get_tree().paused 를 켜고 끄면,
 ## 어느 하나가 해제를 빠뜨렸을 때 "화면엔 아무것도 없는데 게임만 멈춘" 상태로 영구히 갇힌다
 ## (장시간 웹 플레이 중 보고된 프리즈 증상). 그래서 정지는 여기서만 소유권 기반으로 관리한다.
 ##  · pause_push(owner) / pause_pop(owner) — 살아있는 소유자가 하나라도 있으면 정지, 비면 자동 해제.

@@ -14,7 +14,7 @@
 | 시간 | `Events.elapsed_time` 이 난이도·보스·엘리트를 전부 구동. 세이브에 포함(이어하기 복원됨). `Cheats.time_skip` 도 이 값을 움직인다 |
 | 난이도 시계 | `clear_seconds=1800`(30분 클리어), `boss_seconds=600`, `elite_seconds=300`, `tier_seconds=60` |
 | 월드 렌더 | `Main`(Node2D, 캔버스 레이어 0) → Background(z=-3) / Ground(z=-2) / PropField(z=-1) / 유닛(0) / FX(1~3) / DamageNumber(60) |
-| UI | HUD·LevelUpPanel·ShopPanel·SceneFade 는 전부 **CanvasLayer** → 월드 틴트가 닿지 않는다 |
+| UI | HUD·LevelUpPanel·SceneFade 는 전부 **CanvasLayer** → 월드 틴트가 닿지 않는다 |
 
 `CanvasModulate` 는 캔버스 레이어 0(=월드)만 곱연산으로 물들인다. 그래서 화면 전체 오버레이 없이
 월드만 정확히 물들이고 HUD 는 원색을 유지할 수 있다(실촬 확인함).

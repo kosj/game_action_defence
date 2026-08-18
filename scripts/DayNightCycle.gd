@@ -10,7 +10,7 @@ extends Node2D
 ## 오고, 보스를 잡는 동안 해가 뜬다. 주기가 보스 주기와 같으므로 t=0 도 같은 위상이다:
 ## 게임은 한밤에 시작해 40초 안에 일출로 밝아진다(초반 5초는 스폰 유예라 가독성 부담이 없다).
 ##
-## 색은 CanvasModulate 로 곱한다. HUD/LevelUpPanel/ShopPanel/SceneFade 는 전부 CanvasLayer 라
+## 색은 CanvasModulate 로 곱한다. HUD/LevelUpPanel/SceneFade 는 전부 CanvasLayer 라
 ## 이 곱연산이 닿지 않는다 — 월드만 물들고 UI 는 원색을 유지한다.
 
 ## 순환 키프레임 [u, 곱연산 색]. u=0.00 과 u=1.00 이 같은 색이어야 순환 이음매가 튀지 않는다.
