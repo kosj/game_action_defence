@@ -10,13 +10,20 @@ extends Node2D
 ##  - solid=true 프롭은 플레이어의 이동을 막는다(원형 디펜트레이션). 좀비는 통과(성능 — 220마리
 ##    상대 충돌은 비용이 크므로 제외). 플레이어를 "방해하는" 지형 요소로 기능한다.
 
-const CELL := 260.0                       # 배치 격자(셀당 최대 1개)
-const DENSITY := 30                       # 셀당 프롭 확률(해시 %100 < 이 값)
-## 놓인 프롭 중 장애물(solid)이 차지하는 비율(%). 카탈로그를 균등 추첨하면 테마마다 장애물
+const CELL := 260.0                       # 배치 격자
+## 셀 추첨: 먼저 모티프(연출 군집), 빗나가면 단독 프롭. 균일 단독 배치(구 DENSITY 30%)는
+## 프롭끼리 아무 상관관계가 없어 "뿌려진" 것으로 읽혔다 — 정렬된 군집이 "배치된" 것으로 읽힌다.
+## 군집 셀은 프롭 3~4개를 그리므로 셀 점유율은 낮춰도 화면의 체감 밀도는 이전과 비슷하다.
+const MOTIF_DENSITY := 8                  # 셀당 모티프 확률(%) — 군집 하나가 셀 하나를 쓴다
+const SCATTER_DENSITY := 14               # 모티프가 빗나간 셀의 단독 프롭 확률(%)
+## 단독 프롭 중 장애물(solid)이 차지하는 비율(%). 카탈로그를 균등 추첨하면 테마마다 장애물
 ## 밀도가 제각각이 된다 — 연구소는 4종 중 3종이 solid 라 75%, 교외는 5종 중 2종이라 40%다.
 ## 장애물이 많으면 물량 게임의 도주로가 막혀 난이도가 테마 구성에 따라 멋대로 튄다. 장애물과
-## 장식을 따로 뽑아 이 상수 하나로 비율을 고정한다(셀 기준 실효 밀도 = DENSITY × SOLID_SHARE).
+## 장식을 따로 뽑아 이 상수 하나로 비율을 고정한다. 모티프의 장애물 수는 테이블에 박혀 있어
+## 테마 간 편차가 없고, 전체 장애물 밀도는 검증 스크립트가 실측한다.
 const SOLID_SHARE := 30
+## 시작 지점 주변(이 셀 반경 안)은 장애물 금지 — 스폰 직후 장애물에 밀려나며 시작하지 않게.
+const SAFE_CELLS := 1
 ## 바닥(TILE_DARKEN 0.55)과 톤을 맞추기 위한 감광. 프롭 아트 자체에도 채도 -20% + 웜 틴트를
 ## 베이크해 두었고, 여기서 한 번 더 어둡게 깔아 3D 렌더 프롭이 페인팅 배경 위로 과하게 튀지 않게 한다.
 const DARKEN := Color(0.70, 0.68, 0.66)
@@ -42,7 +49,7 @@ const _CATALOG := {
 	"fence":     {"file": "prop_fence.png",     "theme": "suburb", "w": 72.0,  "solid": true,  "rfrac": 0.32},
 	"mailbox":   {"file": "prop_mailbox.png",   "theme": "suburb", "w": 40.0,  "solid": false, "rfrac": 0.40},
 	"bush":      {"file": "prop_bush.png",      "theme": "suburb", "w": 62.0,  "solid": false, "rfrac": 0.40},
-	"forsale":   {"file": "prop_forsale.png",   "theme": "suburb", "w": 54.0,  "solid": false, "rfrac": 0.40},
+	"forsale":   {"file": "prop_forsale.png",   "theme": "suburb", "w": 54.0,  "solid": false, "rfrac": 0.40, "noflip": true},   # 글자가 있는 팻말 — 반전하면 거울 글씨가 된다
 	"hydrant":   {"file": "prop_hydrant.png",   "theme": "suburb", "w": 34.0,  "solid": true,  "rfrac": 0.42},
 	# 도심 — wreck_car 는 BurningCar 기믹(도심 전용)도 같은 시트를 쓴다.
 	"wreck_car": {"file": "prop_wreck_car.png", "theme": "city",   "w": 120.0, "solid": true,  "rfrac": 0.42},
@@ -58,12 +65,72 @@ const _CATALOG := {
 	"console":   {"file": "prop_console.png",   "theme": "lab",    "w": 70.0,  "solid": false, "rfrac": 0.40},
 }
 
+## 테마별 모티프 — "누가 배치한" 것으로 읽히는 프롭 군집. 오프셋은 셀 중심 기준 px.
+## 규칙(검증 스크립트가 실측 확인):
+##  ① 군집 전체가 자기 셀 안(오프셋 ±95 + 지터 ±20)에 들어온다 — 충돌 판정이 3×3 셀 조회로
+##     끝나려면 군집이 이웃 셀 너머까지 뻗으면 안 된다.
+##  ② solid 끼리는 중심 거리 ≥ r1+r2+2×PLAYER_R+8 — 사이에 플레이어가 지나갈 틈을 보장해
+##     군집이 함정이 되지 않는다(solid 는 크기 지터 없이 고정 배율이라 이 간격이 흔들리지 않는다).
+##  ③ 일렬 모티프는 군집 단위로 플립을 공유한다 — 정렬이 곧 "사람이 놓은 것"의 신호다.
+const _MOTIFS := {
+	"suburb": [
+		# 앞마당 — 울타리 3장 일렬 + 우체통(테마의 solid 예산을 여기 몰아준다)
+		[{"k": "fence", "o": Vector2(-84, 0)}, {"k": "fence", "o": Vector2(0, 0)},
+		 {"k": "fence", "o": Vector2(84, 0)}, {"k": "mailbox", "o": Vector2(58, -62)}],
+		# 매물로 나온 집터 — 울타리 + FOR SALE 팻말 + 덤불
+		[{"k": "fence", "o": Vector2(-40, 28)}, {"k": "forsale", "o": Vector2(30, -48)},
+		 {"k": "bush", "o": Vector2(80, 40)}],
+		# 길모퉁이 정원 — 덤불 3개 + 소화전
+		[{"k": "bush", "o": Vector2(-72, -42)}, {"k": "bush", "o": Vector2(-18, 50)},
+		 {"k": "bush", "o": Vector2(52, -22)}, {"k": "hydrant", "o": Vector2(86, 54)}],
+		# 집 앞 잔디 — 장애물 0(테마 평균 solid 를 모티프당 1.0 으로 묶는 완충재)
+		[{"k": "bush", "o": Vector2(-60, -30)}, {"k": "bush", "o": Vector2(40, 45)},
+		 {"k": "mailbox", "o": Vector2(78, -55)}, {"k": "forsale", "o": Vector2(-15, 12)}],
+		# 산울타리 — 덤불 3개 느슨한 줄
+		[{"k": "bush", "o": Vector2(-70, 20)}, {"k": "bush", "o": Vector2(0, -30)},
+		 {"k": "bush", "o": Vector2(70, 25)}],
+	],
+	"city": [
+		# 검문소 — 바리케이드 2장 일렬 + 드럼통
+		[{"k": "barrier", "o": Vector2(-72, 6)}, {"k": "barrier", "o": Vector2(72, 6)},
+		 {"k": "barrel", "o": Vector2(0, -56)}],
+		# 사고 현장 — 폐차 + 잔해 + 드럼통
+		[{"k": "wreck_car", "o": Vector2(-44, 16)}, {"k": "rubble", "o": Vector2(62, -40)},
+		 {"k": "barrel", "o": Vector2(86, 46)}],
+		# 방어선 잔해 — 탱크 + 잔해
+		[{"k": "tank", "o": Vector2(0, -8)}, {"k": "rubble", "o": Vector2(-84, 56)},
+		 {"k": "barrel", "o": Vector2(84, 52)}],
+		# 뒷골목 — 쓰레기통 + 드럼통 + 잔해
+		[{"k": "dumpster", "o": Vector2(-58, 8)}, {"k": "barrel", "o": Vector2(12, -48)},
+		 {"k": "rubble", "o": Vector2(72, 52)}],
+		# 파편 지대 — 장애물 0 완충재
+		[{"k": "rubble", "o": Vector2(-65, -35)}, {"k": "rubble", "o": Vector2(55, 30)},
+		 {"k": "barrel", "o": Vector2(-20, 55)}, {"k": "barrel", "o": Vector2(80, -50)}],
+	],
+	"lab": [
+		# 서버 열 — 서버·콘솔·서버 정렬(서버 간격은 통행 간격 실측에 맞춰 116px)
+		[{"k": "server", "o": Vector2(-58, 0)}, {"k": "console", "o": Vector2(0, 0)},
+		 {"k": "server", "o": Vector2(58, 0)}],
+		# 격리 포드 구역 — 포드 + 콘솔 2대
+		[{"k": "pod", "o": Vector2(-62, -18)}, {"k": "console", "o": Vector2(15, 48)},
+		 {"k": "console", "o": Vector2(80, -30)}],
+		# 약품 저장소 — 드럼 + 콘솔 2대
+		[{"k": "drum", "o": Vector2(-64, 30)}, {"k": "console", "o": Vector2(10, -45)},
+		 {"k": "console", "o": Vector2(78, 35)}],
+		# 관제 열 — 장애물 0 완충재, 콘솔 3대 정렬
+		[{"k": "console", "o": Vector2(-80, 0)}, {"k": "console", "o": Vector2(0, 0)},
+		 {"k": "console", "o": Vector2(80, 0)}],
+	],
+}
+
 var _player: Node2D = null
 var _last := Vector2(INF, INF)
 var _props: Array = []       # 이 테마에서 쓸 프롭 [{tex, w, solid, rfrac}]
 ## 추첨은 두 통에서 따로 한다(SOLID_SHARE 참고). _props 는 "쓸 프롭이 있는가" 판정용으로 남긴다.
 var _solid_props: Array = []
 var _soft_props: Array = []
+var _by_key: Dictionary = {}   # 프롭 키 → 로드된 엔트리(모티프 구성용)
+var _motifs: Array = []        # 이 테마에서 실제로 쓸 수 있는 모티프
 var _has_solid: bool = false
 ## 플레이어 주변 3×3 셀의 장애물 프롭 캐시 — 셀을 넘을 때만 갱신한다.
 var _sep_cell := Vector2i(0x7fffffff, 0x7fffffff)
@@ -88,13 +155,24 @@ func _ready() -> void:
 		var tex = load(path)
 		if not (tex is Texture2D):
 			continue
-		var entry := {"tex": tex, "w": meta["w"], "solid": meta["solid"], "rfrac": meta["rfrac"]}
+		var entry := {"tex": tex, "w": meta["w"], "solid": meta["solid"], "rfrac": meta["rfrac"],
+				"noflip": bool(meta.get("noflip", false))}
 		_props.append(entry)
+		_by_key[k] = entry
 		if bool(meta["solid"]):
 			_solid_props.append(entry)
 			_has_solid = true
 		else:
 			_soft_props.append(entry)
+	# 구성 프롭이 전부 로드된 모티프만 쓴다 — 아트가 빠진 모티프는 통째로 제외(반쪽 군집 방지).
+	for m in _MOTIFS.get(t.id, []):
+		var complete := true
+		for ch in m:
+			if not _by_key.has(ch["k"]):
+				complete = false
+				break
+		if complete:
+			_motifs.append(m)
 
 
 func _process(_delta: float) -> void:
@@ -129,9 +207,9 @@ func _physics_process(_delta: float) -> void:
 		_sep_solid.clear()
 		for cx in range(pc.x - 1, pc.x + 2):
 			for cy in range(pc.y - 1, pc.y + 2):
-				var cand := _cell_prop(cx, cy)
-				if not cand.is_empty() and bool(cand["solid"]):
-					_sep_solid.append(cand)
+				for cand in _cell_props(cx, cy):
+					if bool(cand["solid"]):
+						_sep_solid.append(cand)
 	# 보스 격리 구역이 열려 있으면 경계선을 물고 있는 장애물은 이번 프레임 판정에서 뺀다.
 	# 프롭은 플레이어를 바깥으로, 경계는 안쪽으로 민다 — 그 사이에 끼면 매 프레임 서로 밀어
 	# 제자리에서 떨리며 감전 피해(BossArena._shock)만 계속 받는다. 게다가 BossArena 는 런타임에
@@ -181,23 +259,54 @@ func _pick(h: int) -> Dictionary:
 	return _soft_props[i % _soft_props.size()]
 
 
-## 셀에 프롭이 있으면 그 배치 정보를 반환({} 이면 없음). _draw 와 충돌이 공유(동일 배치 보장).
-func _cell_prop(cx: int, cy: int) -> Dictionary:
+## 셀의 프롭 배치 목록(빈 배열이면 없음). _draw 와 충돌이 공유한다(동일 배치 보장).
+## 모티프 셀은 군집(3~4개), 단독 셀은 1개를 돌려준다. 순수 함수 — 셀 좌표 해시로만 결정된다.
+func _cell_props(cx: int, cy: int) -> Array:
 	var h := _hash(cx, cy)
-	if h % 100 >= DENSITY:
-		return {}
-	var meta: Dictionary = _pick(h)
+	var roll := h % 100
+	var out: Array = []
+	# 시작 지점 주변 셀은 장애물 금지(스폰 보호) — 모티프는 건너뛰고 단독도 장식만 놓는다.
+	var safe: bool = absi(cx) <= SAFE_CELLS and absi(cy) <= SAFE_CELLS
+	if roll < MOTIF_DENSITY:
+		if safe or _motifs.is_empty():
+			return out
+		var m: Array = _motifs[(h / 100) % _motifs.size()]
+		var flip := ((h / 3) & 1) == 1
+		# 군집 전체를 셀 중심 근처에 두고 통째로 지터 — 개별 지터를 주면 정렬이 무너진다.
+		var base := Vector2((float(cx) + 0.5) * CELL + float((h / 11) % 41) - 20.0,
+				(float(cy) + 0.5) * CELL + float((h / 17) % 41) - 20.0)
+		for i in m.size():
+			var ch: Dictionary = m[i]
+			var meta: Dictionary = _by_key[ch["k"]]
+			var off: Vector2 = ch["o"]
+			if flip:
+				off.x = -off.x
+			# solid 는 배율 고정 — 모티프의 solid 간 통행 간격이 지터로 흔들리면 안 된다.
+			var jitter := 1.0 if bool(meta["solid"]) else 0.9 + 0.25 * float((h / (23 + i * 7)) % 100) / 100.0
+			out.append(_make(meta, base + off, flip and not bool(meta["noflip"]), jitter))
+		return out
+	if roll < MOTIF_DENSITY + SCATTER_DENSITY:
+		if safe and _soft_props.is_empty():
+			return out
+		var meta2: Dictionary = _soft_props[(h / 100) % _soft_props.size()] if safe else _pick(h)
+		var cell_i := int(CELL)
+		var pos := Vector2(float(cx) * CELL + float((h / 11) % cell_i),
+				float(cy) * CELL + float((h / 17) % cell_i))
+		out.append(_make(meta2, pos, ((h / 3) & 1) == 1 and not bool(meta2["noflip"]),
+				0.8 + 0.5 * float((h / 7) % 100) / 100.0))
+	return out
+
+
+## 배치 정보 한 건을 만든다(그리기 + 충돌 공용).
+func _make(meta: Dictionary, pos: Vector2, flip: bool, scale_mult: float) -> Dictionary:
 	var tex: Texture2D = meta["tex"]
 	var ts := tex.get_size()
-	var sc: float = (float(meta["w"]) / maxf(ts.x, ts.y)) * (0.8 + 0.5 * float((h / 7) % 100) / 100.0)
+	var sc: float = (float(meta["w"]) / maxf(ts.x, ts.y)) * scale_mult
 	var w := ts.x * sc
 	var hgt := ts.y * sc
-	var cell_i := int(CELL)
-	var px := float(cx) * CELL + float((h / 11) % cell_i)
-	var py := float(cy) * CELL + float((h / 17) % cell_i)
 	return {
-		"pos": Vector2(px, py), "tex": tex, "w": w, "h": hgt,
-		"flip": ((h / 3) & 1) == 1, "solid": bool(meta["solid"]),
+		"pos": pos, "tex": tex, "w": w, "h": hgt,
+		"flip": flip, "solid": bool(meta["solid"]),
 		"radius": float(meta["rfrac"]) * minf(w, hgt),
 	}
 
@@ -217,21 +326,27 @@ func _draw() -> void:
 	var y1 := int(ceil((c.y + vp.y * 0.5 + margin) / CELL))
 	for cx in range(x0, x1):
 		for cy in range(y0, y1):
-			var pr := _cell_prop(cx, cy)
-			if pr.is_empty():
-				continue
-			var tex: Texture2D = pr["tex"]
-			var w: float = pr["w"]
-			var hgt: float = pr["h"]
-			var pos: Vector2 = pr["pos"]
-			# 발밑 접지 그림자를 먼저(아래에) 깐다.
-			var sw := w * SHADOW_W
-			var sh := sw * SHADOW_H
-			draw_texture_rect(_SHADOW_TEX,
-				Rect2(pos.x - sw * 0.5, pos.y + hgt * 0.42 - sh * 0.5, sw, sh), false, SHADOW_COL)
-			if pr["flip"]:
-				draw_set_transform(pos, 0.0, Vector2(-1.0, 1.0))
-				draw_texture_rect(tex, Rect2(-w * 0.5, -hgt * 0.5, w, hgt), false, DARKEN)
-			else:
-				draw_texture_rect(tex, Rect2(pos.x - w * 0.5, pos.y - hgt * 0.5, w, hgt), false, DARKEN)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+			for pr in _cell_props(cx, cy):
+				_draw_prop(pr)
+
+
+func _draw_prop(pr: Dictionary) -> void:
+	var tex: Texture2D = pr["tex"]
+	var w: float = pr["w"]
+	var hgt: float = pr["h"]
+	var pos: Vector2 = pr["pos"]
+	# 발밑 접지 그림자를 먼저(아래에) 깐다.
+	var sw := w * SHADOW_W
+	var sh := sw * SHADOW_H
+	draw_texture_rect(_SHADOW_TEX,
+		Rect2(pos.x - sw * 0.5, pos.y + hgt * 0.42 - sh * 0.5, sw, sh), false, SHADOW_COL)
+	if pr["flip"]:
+		draw_set_transform(pos, 0.0, Vector2(-1.0, 1.0))
+		draw_texture_rect(tex, Rect2(-w * 0.5, -hgt * 0.5, w, hgt), false, DARKEN)
+		# 반전 변환을 즉시 되돌린다. 걸어둔 채 다음 프롭으로 넘어가면 이후의 그림자와
+		# 비반전 프롭이 전부 이 프롭 기준 거울 좌표로 그려져 화면 밖으로 사라진다 —
+		# 스크롤로 그리기 범위가 바뀔 때마다 "반전 뒤에 오는" 프롭 집합이 바뀌므로,
+		# 프롭이 위치에 따라 나타났다 사라졌다 하는 깜박임으로 보였다.
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	else:
+		draw_texture_rect(tex, Rect2(pos.x - w * 0.5, pos.y - hgt * 0.5, w, hgt), false, DARKEN)
