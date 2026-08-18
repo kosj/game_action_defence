@@ -48,7 +48,7 @@
 | P1-1 미배치 보스 리소스 삭제 | B | ✅ (defee2e) | claude/b-lane-boss-cleanup | 2026-08-18 |
 | P1-2 프롭 활성화 | B | ✅ (b1ed9ab) | claude/b-lane-pending-item-dix8eg | 2026-08-18 |
 | P1-3 가스통 고아 코드 삭제 | B | ✅ (2e76857) | claude/b-lane-gascan-cleanup | 2026-08-18 |
-| P1-4 이벤트 예고 UI | E | ⚪ 대기 | — | — |
+| P1-4 이벤트 예고 UI | E | 🔵 진행중 | claude/e-lane-event-forecast | 2026-08-18 |
 | P1-5 후반 이속 밸런스 | F | ⚪ 대기 | — | — |
 | P1-9 텔레메트리(로컬 수집) | F | ✅ (17df85c) | claude/f-lane-telemetry | 2026-08-18 |
 | P1-10 텔레메트리 원격 수집 | — | 🟡 결정대기 | — | — |
