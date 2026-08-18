@@ -59,7 +59,7 @@
 | P2-2 메뉴 플레이트 3종 | D | ⚪ 대기 | — | — |
 | P2-3 로케일 누락 | D | ⚪ 대기 | — | — |
 | P2-4 잠금/체크 아이콘 | D | ⚪ 대기 | — | — |
-| P2-6 데드 API 정리 | C | 🔵 진행중 | claude/c-lane-dead-api | 2026-08-18 |
+| P2-6 데드 API 정리 | C | ✅ (이 PR) | claude/c-lane-dead-api | 2026-08-18 |
 | P2-7 MudField 고아 코드 삭제 | B | ✅ (5d1778c) | claude/b-lane-mudfield-cleanup | 2026-08-18 |
 | P3-1~6 문서 정합성 | — | ⚪ 대기 | 각 항목 PR 에 동봉 | — |
 
@@ -568,9 +568,36 @@ city 는 기믹 4종, lab 은 3종. 즉 **무료·기본 선택 아레나에만 
 `Events.wave_pressure_mult()` · `wave_speed_pressure()` · `diff_spawn_mult()` · `diff_total_mult()` ·
 `difficulty_name()` — **호출처 0건**. `current_wave` 는 항상 1 인데 `SaveManager.gd:81,135` 가
 저장·복원하고 있다.
-**작업** — 삭제. 남겨야 한다면 `## DEPRECATED` 주석으로 이유를 명시한다.
-(다음 작업자가 `wave_pressure_mult` 를 보고 "무한 스케일링이 있다"고 오인한다 — 실제 스케일링은
-`ZombieSpawner._hp_mult()` 의 2차 곡선이다.)
+**작업 ✅ 완료 (2026-08-18)** — 전부 삭제했다. `DEPRECATED` 로 남길 이유가 있는 것은 없었다.
+
+**지정분** — `wave_pressure_mult` · `wave_speed_pressure` · `diff_spawn_mult` · `diff_total_mult` ·
+`difficulty_name` + 이들만 쓰던 상수 `_PRESSURE_PER_WAVE` · `_PRESSURE_SPEED_CAP` · `_MODE_SPAWN` ·
+`_MODE_TOTAL`. `current_wave` 는 상태·리셋·`SaveManager` 저장/복원까지 함께 걷어냈다
+(구 세이브의 키는 `.get()` 폴백이 사라진 자리에서 그냥 읽히지 않는다 — 마이그레이션 불필요).
+
+**추가로 찾은 잔재**
+- `wave_progress_changed` — 발신·구독 모두 0건. 삭제.
+- `wave_kill_progress` / `wave_kill_total` — 리셋에서만 0 으로 되돌리던 상태. 삭제.
+- 로케일 `hud_wave_fmt` · `go_wave_kills_fmt` — 호출처 0건. 후자는 게임오버에 *항상 1인 웨이브
+  번호*를 찍을 뻔한 문구였다.
+- **`wave_changed` 는 죽은 게 아니라 거짓말을 하고 있었다** — 이름은 웨이브인데 실어 나르는 값은
+  `Events.total_kills` 다. 삭제 대신 **`kills_changed(total: int)` 로 개명**했다.
+
+**HUD 이름 정리(P0-2 에서 넘긴 것)** — `WaveLabel` → `KillsLabel`(실제로 킬 카운터다),
+`WaveClearBg`/`WaveClearLabel` → `BannerBg`/`BannerLabel`(30분 클리어와 보스 마일스톤이 함께 쓰는
+범용 배너다). 씬 노드 개명은 `@onready` 경로가 **조용히** 어긋나므로 아래 검사를 함께 넣었다.
+
+**남긴 것** — `SoundManager` 의 `"wave_clear"` 키와 `assets/audio/sfx_wave_clear.ogg`.
+오디오를 개명하면 `tools/import_sfx.py` 매핑과 임포트 산출물까지 함께 갈아야 해서, 이름이 낡았다는
+사실을 주석으로 남기는 편이 싸다. 지금 이 스팅어는 보스 처치 마일스톤에 쓰인다.
+
+**검증** — `verify_quest_tracks.gd`(C 레인 잔재 검사)에 15종 추가: 죽은 시그널·메서드·상태 부재 ·
+`kills_changed` 존재 · `SaveManager` 가 `current_wave` 를 다루지 않음 ·
+**`HUD.tscn` 을 실제로 인스턴스화해 개명한 노드 3종이 `@onready` 로 잡히는지**.
+마지막은 노드 이름을 되돌려 실패하는 것을 확인했다. `CLAUDE.md` §3 전체 + `check_text_fit.py` 통과.
+
+`CLAUDE.md` §5 의 "데드 API 가 남아 있다" 함정 항목을 **"이 게임에 웨이브는 없다"** 로 다시 썼다 —
+난이도 곡선의 실제 위치와, 런을 구간 짓는 개념이 보스 마일스톤이라는 것을 명시한다.
 
 ## P2-7. `MudField` 가 가스통과 똑같은 고아 코드다 (P1-3 작업 중 발견)
 **근거** — `scripts/MudField.gd`(38줄)를 참조하는 곳은 `GimmickSpawner.gd:8` 의 preload 한 줄뿐이고,

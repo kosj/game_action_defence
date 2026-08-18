@@ -54,14 +54,15 @@ signal gold_changed(total: int)
 signal player_health_changed(health: int, max_health: int)
 signal player_died
 signal player_revived            # 보상형 광고 시청으로 사망 직후 부활
-signal wave_changed(wave: int)
+## 누적 처치 수 변경 — HUD 상단 카운터. 웨이브제 시절 이름(wave_changed)으로 킬 수를
+## 실어 나르던 것을 실제 의미로 고쳤다(P2-6). 이 게임에 웨이브는 없다.
+signal kills_changed(total: int)
 signal elapsed_changed(seconds: float)
 ## 런 안의 마일스톤 도달 — 지금은 **보스 처치**가 유일한 마일스톤이다(600초 주기).
 ## 웨이브제에서 시간 기반 디렉터로 갈아타면서 wave_complete 는 발신자가 사라져 죽어 있었고,
 ## 그 바람에 퀘스트·도전과제의 주기 저장이 통째로 멈춰 있었다(P0-2). 이름을 실제 개념에 맞춘다.
 ## index 는 그 판의 보스 회차(1부터).
 signal milestone_reached(index: int)
-signal wave_progress_changed(killed: int, total: int)
 signal run_progress(elapsed: float, clear: float)   # 시간 기반 진행(HUD 클리어 진행바)
 signal run_cleared                                  # 30분 생존 = 클리어 달성(1회)
 signal zombie_killed
@@ -99,7 +100,6 @@ var total_kills: int = 0
 var did_clear: bool = false   # 이번 런에서 30분 클리어를 달성했는가
 var player_health: int = 0
 var player_max_health: int = 0
-var current_wave: int = 1
 var elapsed_time: float = 0.0
 
 ## 이번 런의 환경 시드 — 날씨 스케줄이 (이 값 + 슬롯 인덱스)만으로 결정된다.
@@ -108,8 +108,6 @@ var env_seed: int = 0
 
 # 현재 보스의 표시 이름(타입) — HUD 체력바 라벨용. 보스가 setup() 에서 채우고 boss_spawned 직후 읽힌다.
 var boss_display_name: String = "BOSS"
-var wave_kill_progress: int = 0
-var wave_kill_total: int = 0
 
 # 골드 자동 줍기(자석) 버프 활성 여부 — Gold 이 매 프레임 참조하는 일시 상태(저장 안 함).
 var gold_magnet_active: bool = false
@@ -206,37 +204,21 @@ func add_xp(amount: int) -> void:
 var difficulty: int = 0
 const DIFFICULTY_NAMES: Array = ["Standard"]
 
-# 단일 모드 밸런스 배수(고정). 하드/헬 없이 접근성 있는 중간 곡선 — 후반 압박은 wave_pressure 로.
+# 단일 모드 밸런스 배수(고정). 하드/헬 없이 접근성 있는 중간 곡선.
 const _MODE_ENEMY_HP := 0.95
 const _MODE_ENEMY_SPEED := 0.98
-const _MODE_SPAWN := 1.02
 const _MODE_BOSS_HP := 1.00
-const _MODE_TOTAL := 0.95
 const _MODE_SCORE := 1.00
-
-## 무한 스케일링: 테이블이 끝나는 6웨이브 이후 매 웨이브 +12% 체력(복리).
-## 업그레이드가 만렙에 도달해도 언젠가는 반드시 한계가 오도록 하는 점수 러시 장치.
-const _PRESSURE_PER_WAVE := 1.12
-const _PRESSURE_SPEED_CAP := 1.30   # 이속은 최대 +30% 까지만(반응 불가능해지지 않게)
 
 
 func diff_enemy_hp_mult() -> float:    return _MODE_ENEMY_HP
 func diff_enemy_speed_mult() -> float: return _MODE_ENEMY_SPEED
-func diff_spawn_mult() -> float:       return _MODE_SPAWN
 func diff_boss_hp_mult() -> float:     return _MODE_BOSS_HP
-func diff_total_mult() -> float:       return _MODE_TOTAL
 func diff_score_mult() -> float:       return _MODE_SCORE
-func difficulty_name() -> String:      return "Standard"
 
-
-## 6웨이브 이후 적 체력에 곱하는 복리 압박 배수(보스 포함).
-func wave_pressure_mult(wave: int) -> float:
-	return pow(_PRESSURE_PER_WAVE, maxi(wave - 6, 0))
-
-
-## 6웨이브 이후 적 이속 압박 배수 — 매 웨이브 +1.5%, 상한 +30%.
-func wave_speed_pressure(wave: int) -> float:
-	return minf(1.0 + 0.015 * maxi(wave - 6, 0), _PRESSURE_SPEED_CAP)
+## 후반 스케일링을 여기서 찾지 말 것 — 웨이브 기반 압박 배수(wave_pressure_mult 등)는
+## 호출처가 0건인 채 남아 "무한 스케일링이 있다"는 오해만 만들어서 2026-08 에 삭제했다(P2-6).
+## **실제 난이도 곡선은 `ZombieSpawner._hp_mult()` 의 2차 곡선과 `data/difficulty.tres` 다.**
 
 # 업그레이드 레벨 (0 = 미구매)
 var upgrade_speed: int = 0
@@ -479,11 +461,8 @@ func reset() -> void:
 	did_clear = false
 	player_health = 0
 	player_max_health = 0
-	current_wave = 1
 	elapsed_time = 0.0
 	env_seed = randi()   # 런마다 새 날씨 타임라인
-	wave_kill_progress = 0
-	wave_kill_total = 0
 	gold_magnet_active = false
 	score = 0
 	_prev_high = high_score   # 이번 판이 깨야 할 기준점 = 현재 최고점 (high_score 는 유지)

@@ -29,7 +29,9 @@ const _SOUNDS: Dictionary = {
 	"bomber_fuse": "res://assets/audio/sfx_bomber_fuse.ogg", # 자폭 좀비 점화(0.55초 도망 경고)
 	"bomber_blast":"res://assets/audio/sfx_bomber_blast.ogg",# 자폭 좀비 폭발
 	"evolve":      "res://assets/audio/sfx_evolve.ogg",      # 무기 진화 팡파르
-	"wave_clear":  "res://assets/audio/sfx_wave_clear.ogg",  # 웨이브 클리어 스팅어
+	# 마일스톤(보스 처치) 스팅어. 파일명은 웨이브 시절 그대로다 — 오디오 에셋을 개명하면
+	# import_sfx.py 매핑과 임포트 산출물까지 함께 갈아야 해서 이름만 남겨 둔다(P2-6).
+	"wave_clear":  "res://assets/audio/sfx_wave_clear.ogg",
 	"revive":      "res://assets/audio/sfx_revive.ogg",      # 무료 부활(재기) 차임
 	"swing":       "res://assets/audio/sfx_swing.ogg",       # 근접 무기 휘두르기 휙
 	"spit":        "res://assets/audio/sfx_spit.ogg",        # 스피터 좀비 산성 발사

@@ -181,8 +181,12 @@ Events.pause_pop(self)                # 닫을 때
   시그널을 직접 `emit` 하면 잠금을 우회하게 된다 — `verify_cheat_gate.gd` 가 이걸 검사한다.
   ⚠️ 산출물에서 `AUTO-PLAY` 같은 문자열을 grep 하는 방식으로는 확인할 수 없다. Godot 이 `.gd` 를
   `.gdc` 로 토큰화해 내보내 스크립트 리터럴이 pck 에서 평문으로 잡히지 않는다(수정 전 빌드에서도 0건).
-- `Events` 에 웨이브 시대의 **데드 API** 가 남아 있다(`wave_pressure_mult` 등, `HANDOFF.md` P2-6).
-  실제 난이도 곡선은 `ZombieSpawner._hp_mult()` 의 2차 곡선이다 — 여기에 속지 말 것.
+- **이 게임에 "웨이브"는 없다.** 시간 기반 디렉터로 갈아탄 뒤 남아 있던 웨이브 시대 API
+  (`wave_pressure_mult`·`current_wave`·`wave_progress_changed` 등)는 전부 삭제했다(P2-6).
+  난이도 곡선은 `ZombieSpawner._hp_mult()` 의 2차 곡선과 `data/difficulty.tres` 두 곳뿐이다.
+  런 안의 구간을 나누는 개념은 **보스 처치 마일스톤**(`Events.milestone_reached`, 600초 주기)이고,
+  HUD 상단 우측 카운터는 웨이브가 아니라 누적 처치 수다(`Events.kills_changed`).
+  `verify_quest_tracks.gd` 가 이 잔재들이 돌아오지 않는지 검사한다.
 
 ---
 

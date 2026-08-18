@@ -13,7 +13,7 @@ const _PerfOverlay := preload("res://scripts/PerfOverlay.gd")
 @onready var hp_label: Label = $HpBar/HpLabel
 @onready var weapon_label: Label = $WeaponLabel
 @onready var buff_label: Label = $BuffLabel
-@onready var wave_label: Label = $WaveLabel
+@onready var kills_label: Label = $KillsLabel
 @onready var time_label: Label = $TimeLabel
 @onready var score_label: Label = $ScoreLabel
 @onready var high_score_label: Label = $HighScoreLabel
@@ -23,8 +23,9 @@ const _PerfOverlay := preload("res://scripts/PerfOverlay.gd")
 @onready var boss_bg: Panel = $BossBar/BarBg
 @onready var boss_fill: Panel = $BossBar/BarFill
 @onready var boss_name_label: Label = $BossBar/BossName
-@onready var wave_clear_bg: Panel = $WaveClearBg
-@onready var wave_clear_label: Label = $WaveClearLabel
+## 화면 중앙 대형 배너 — 30분 클리어와 보스 처치 마일스톤이 함께 쓴다.
+@onready var banner_bg: Panel = $BannerBg
+@onready var banner_label: Label = $BannerLabel
 @onready var game_over_panel: Panel = $GameOverPanel
 @onready var game_over_label: Label = $GameOverPanel/Margin/VBoxContainer/GameOverLabel
 @onready var stats_label: Label = $GameOverPanel/Margin/VBoxContainer/StatsLabel
@@ -64,7 +65,7 @@ var _blur_rect: ColorRect = null
 # 게임오버 통계 위젯(아이콘 그리드) — 코드로 생성해 텍스트 라벨을 대체.
 var _go_medal: UIIcon = null
 var _go_record: Label = null
-var _go_vals: Dictionary = {}   # "score"/"best"/"wave"/"kills"/"time" -> Label
+var _go_vals: Dictionary = {}   # "score"/"best"/"kills"/"time" -> Label
 
 # 스웜 경고 배너 — 코드로 생성. 무리/엘리트 팩 등장 직전 화면 중앙 상단에 붉게 번쩍.
 var _swarm_banner: Label = null
@@ -110,7 +111,7 @@ func _ready() -> void:
 		top_bg.add_theme_stylebox_override("panel", bar_box)
 	else:
 		top_bg.add_theme_stylebox_override("panel", _UIStyle.bottom_bar(Color(0.05, 0.06, 0.09, 0.62)))
-	wave_clear_bg.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.30, 0.14, 0.92), Color(1.0, 0.85, 0.2), 26, 3))
+	banner_bg.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.30, 0.14, 0.92), Color(1.0, 0.85, 0.2), 26, 3))
 	game_over_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.05, 0.06, 0.96), Color(0.85, 0.25, 0.22), 22, 3))
 	_UIStyle.apply_button_style(restart_button, Color(0.55, 0.16, 0.16), Color(0.95, 0.35, 0.3))
 	_UIStyle.apply_button_style(main_menu_button, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
@@ -119,7 +120,7 @@ func _ready() -> void:
 	# clip_text: 이들은 앵커로 폭이 고정돼 있어 늘어날 수 없다. 번역이나 수치가 예상보다
 	# 길어져도 글자가 전장 위로 새지 않도록 위젯 안에서 잘라낸다(현재는 전부 여유가 있다 —
 	# tools/check_text_fit.py 로 검증). 안전장치이지 상시 동작하는 기능이 아니다.
-	for lbl in [gold_label, score_label, wave_label, time_label, high_score_label, hp_label,
+	for lbl in [gold_label, score_label, kills_label, time_label, high_score_label, hp_label,
 			weapon_label, buff_label, boss_name_label]:
 		UITheme.outline_label(lbl)
 		lbl.clip_text = true
@@ -138,14 +139,14 @@ func _ready() -> void:
 	_build_blur_overlay()
 	_build_pause_menu()
 	_apply_safe_area()
-	UITheme.heading(wave_clear_label)
+	UITheme.heading(banner_label)
 	UITheme.heading($GameOverPanel/Margin/VBoxContainer/GameOverLabel)
 	call_deferred("_init_pivots")
 
 	Events.gold_changed.connect(_on_gold_changed)
 	Events.player_health_changed.connect(_on_player_health_changed)
 	Events.player_died.connect(_on_player_died)
-	Events.wave_changed.connect(_on_wave_changed)
+	Events.kills_changed.connect(_on_kills_changed)
 	Events.run_progress.connect(_on_run_progress)
 	Events.run_cleared.connect(_on_run_cleared)
 	Events.milestone_reached.connect(_on_milestone_reached)
@@ -170,7 +171,7 @@ func _ready() -> void:
 	_on_gold_changed(Events.total_gold)
 	if Events.player_max_health > 0:
 		_on_player_health_changed(Events.player_health, Events.player_max_health)
-	_on_wave_changed(Events.total_kills)
+	_on_kills_changed(Events.total_kills)
 	_on_run_progress(Events.elapsed_time, GameData.difficulty.clear_seconds)
 	_on_score_changed(Events.score)
 	_on_high_score_changed(Events.high_score)
@@ -183,8 +184,8 @@ func _init_pivots() -> void:
 	gold_label.pivot_offset = gold_label.size * 0.5
 	score_label.pivot_offset = score_label.size * 0.5
 	weapon_label.pivot_offset = weapon_label.size * 0.5
-	wave_clear_bg.pivot_offset = wave_clear_bg.size * 0.5
-	wave_clear_label.pivot_offset = wave_clear_label.size * 0.5
+	banner_bg.pivot_offset = banner_bg.size * 0.5
+	banner_label.pivot_offset = banner_label.size * 0.5
 	game_over_panel.pivot_offset = game_over_panel.size * 0.5
 
 
@@ -582,9 +583,9 @@ func _on_gold_magnet_changed(active: bool, time_left: float) -> void:
 		_magnet_tween.tween_callback(func(): buff_label.visible = false)
 
 
-## 엔들리스 — "웨이브" 대신 누적 처치 수를 표시한다(신호는 wave_changed 를 재사용).
-func _on_wave_changed(kills: int) -> void:
-	wave_label.text = Locale.t("hud_kills_fmt") % kills
+## 엔들리스 — 상단 우측에 누적 처치 수를 표시한다(웨이브 개념은 없다).
+func _on_kills_changed(kills: int) -> void:
+	kills_label.text = Locale.t("hud_kills_fmt") % kills
 
 
 ## 메인 타이머 — 클리어(30분)까지의 "남은 시간" 카운트다운 하나만 보여준다(경과·진행률 라벨 통합).
@@ -607,26 +608,26 @@ func _on_run_progress(elapsed: float, clear: float) -> void:
 func _on_run_cleared() -> void:
 	if SoundManager.has_stream("victory"):
 		SoundManager.play_ui("victory", 0.02, 1.0)   # 30분 클리어 징글(파일 있을 때만)
-	wave_clear_label.text = Locale.t("run_cleared")
-	wave_clear_label.visible = true
-	wave_clear_bg.visible = true
-	wave_clear_label.modulate.a = 1.0
-	wave_clear_bg.modulate.a = 1.0
-	wave_clear_label.scale = Vector2(0.7, 0.7)
-	wave_clear_bg.scale = Vector2(0.7, 0.7)
+	banner_label.text = Locale.t("run_cleared")
+	banner_label.visible = true
+	banner_bg.visible = true
+	banner_label.modulate.a = 1.0
+	banner_bg.modulate.a = 1.0
+	banner_label.scale = Vector2(0.7, 0.7)
+	banner_bg.scale = Vector2(0.7, 0.7)
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(wave_clear_label, "scale", Vector2.ONE, 0.30).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(wave_clear_bg, "scale", Vector2.ONE, 0.30).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(banner_label, "scale", Vector2.ONE, 0.30).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(banner_bg, "scale", Vector2.ONE, 0.30).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.set_parallel(false)
 	tw.tween_interval(2.2)
 	tw.set_parallel(true)
-	tw.tween_property(wave_clear_label, "modulate:a", 0.0, 0.6)
-	tw.tween_property(wave_clear_bg, "modulate:a", 0.0, 0.6)
+	tw.tween_property(banner_label, "modulate:a", 0.0, 0.6)
+	tw.tween_property(banner_bg, "modulate:a", 0.0, 0.6)
 	tw.set_parallel(false)
 	tw.tween_callback(func():
-		wave_clear_label.visible = false
-		wave_clear_bg.visible = false)
+		banner_label.visible = false
+		banner_bg.visible = false)
 	Events.shake(8.0)
 
 
@@ -907,32 +908,31 @@ func _build_goal_hint() -> void:
 
 
 ## 마일스톤(보스 처치) 배너 — 예전 웨이브 클리어 연출을 그대로 재활용한다.
-## 발신자가 없어 72줄 연출과 sfx_wave_clear.ogg 가 통째로 도달 불가였다(P0-2).
-## 배너 노드 이름(wave_clear_*)은 클리어 연출과 공유하는 범용 배너라 그대로 둔다 — 이름 정리는 P2-6.
+## 발신자가 없어 72줄 연출과 스팅어가 통째로 도달 불가였다(P0-2).
 func _on_milestone_reached(index: int) -> void:
 	if SoundManager.has_stream("wave_clear"):
 		SoundManager.play_ui("wave_clear", 0.02, 1.0)   # 마일스톤 스팅어(파일 있을 때만)
-	wave_clear_label.text = Locale.t("boss_cleared") % index
-	wave_clear_label.visible = true
-	wave_clear_bg.visible = true
-	wave_clear_label.modulate.a = 1.0
-	wave_clear_bg.modulate.a = 1.0
-	wave_clear_label.scale = Vector2(0.7, 0.7)
-	wave_clear_bg.scale = Vector2(0.7, 0.7)
+	banner_label.text = Locale.t("boss_cleared") % index
+	banner_label.visible = true
+	banner_bg.visible = true
+	banner_label.modulate.a = 1.0
+	banner_bg.modulate.a = 1.0
+	banner_label.scale = Vector2(0.7, 0.7)
+	banner_bg.scale = Vector2(0.7, 0.7)
 
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(wave_clear_label, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(wave_clear_bg, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(banner_label, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(banner_bg, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.set_parallel(false)
 	tw.tween_interval(1.3)
 	tw.set_parallel(true)
-	tw.tween_property(wave_clear_label, "modulate:a", 0.0, 0.5)
-	tw.tween_property(wave_clear_bg, "modulate:a", 0.0, 0.5)
+	tw.tween_property(banner_label, "modulate:a", 0.0, 0.5)
+	tw.tween_property(banner_bg, "modulate:a", 0.0, 0.5)
 	tw.set_parallel(false)
 	tw.tween_callback(func():
-		wave_clear_label.visible = false
-		wave_clear_bg.visible = false)
+		banner_label.visible = false
+		banner_bg.visible = false)
 
 
 ## 게임오버 패널 최상단에 "광고 보고 부활" 버튼을 코드로 생성(보상형 광고 유도).
@@ -1009,7 +1009,7 @@ func _on_rewarded_granted(placement: String) -> void:
 func _build_hud_icons() -> void:
 	score_label.visible = false
 	high_score_label.visible = false
-	_right_stat_icon("skull",  wave_label,       Color(0.95, 0.6, 0.6))
+	_right_stat_icon("skull",  kills_label,       Color(0.95, 0.6, 0.6))
 	_right_stat_icon("clock",  time_label,       Color(0.82, 0.86, 0.95))
 
 
@@ -1400,7 +1400,7 @@ func _apply_safe_area() -> void:
 	top_bg.offset_bottom += inset   # 바 배경은 노치 뒤까지 채우고, 내용만 아래로 민다
 	# 뱃지 모드에선 라벨이 뱃지의 풀렉트 자식이라 뱃지 쪽을 옮긴다.
 	var lv_node: Control = _level_badge if _level_badge else _level_label
-	for c in [get_node("CoinIcon"), gold_label, hp_bar, wave_label, time_label,
+	for c in [get_node("CoinIcon"), gold_label, hp_bar, kills_label, time_label,
 			lv_node, _xp_bg, _pause_btn, _auto_tag, boss_bar, weapon_label, buff_label] + _stat_icons:
 		if c is Control:
 			c.offset_top += inset
