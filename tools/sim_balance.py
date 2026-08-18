@@ -33,11 +33,15 @@ import tempfile
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 USERDATA = os.path.expanduser("~/.local/share/godot/app_userdata/Zombie Buster")
 
-# 교전 이탈(kiting) 판별 — 오토플레이 AI 가 좀비 반발에만 반응해 계속 도망치면,
-# 죽지도 않고 죽이지도 않는 판이 나온다(실측: 10분간 처치 18, 좀비 175마리 누적).
-# 사람의 플레이가 아니므로 중앙값에 섞으면 측정이 통째로 왜곡된다 — 분리해서 보고한다.
-# 정상 교전 판은 분당 100~160 처치, 이탈 판은 2~20 이라 경계가 뚜렷하다.
+# 교전 이탈(도주 루프) 판별 — 오토플레이가 무리에게서 계속 도망치면 총구가 무리 반대쪽을
+# 향해(사이드뷰 자동사격) 죽지도 죽이지도 않는 판이 된다. 사람의 플레이가 아니므로
+# 중앙값에 섞으면 측정이 통째로 왜곡된다 — 분리해서 보고한다.
+# 정상 교전 판은 분당 110~155 처치, 도주 판은 2~20 이라 경계가 뚜렷하다.
+#
+# 초반 구간은 스폰이 적어 분당 처치가 원래 낮다 — 일찍 죽은 판에 이 규칙을 적용하면
+# 도주로 오분류된다(실제로 그렇게 새어 판정이 뒤집힌 적이 있다). 그래서 하한 시간을 둔다.
 KILLS_PER_MIN_FLOOR = 40.0
+ENGAGE_MIN_MINUTES = 4.0
 
 # 판정 기준 — BALANCE.md §판정 기준과 같은 값이어야 한다. 바꿀 땐 둘 다 바꾼다.
 TARGETS = {
@@ -70,8 +74,11 @@ def run_one(godot, seed, character, theme, maxmin):
 
 
 def is_engaged(r):
-    """교전한 판인가 — 분당 처치 수로 오토플레이의 도망 루프를 걸러낸다."""
+    """교전한 판인가 — 분당 처치 수로 오토플레이의 도주 루프를 걸러낸다.
+    일찍 죽은 판은 스폰이 적은 구간만 살았으므로 이 규칙의 대상이 아니다(그대로 집계한다)."""
     mins = max(r["survived_s"] / 60.0, 0.1)
+    if mins < ENGAGE_MIN_MINUTES:
+        return True
     return (r["kills"] / mins) >= KILLS_PER_MIN_FLOOR
 
 
