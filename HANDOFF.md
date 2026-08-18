@@ -60,7 +60,7 @@
 | P2-2 메뉴 플레이트 3종 | D | ⚪ 대기 | — | — |
 | P2-3 로케일 누락 | D | ⚪ 대기 | — | — |
 | P2-4 잠금/체크 아이콘 | D | ⚪ 대기 | — | — |
-| P2-6 데드 API 정리 | C | ✅ (이 PR) | claude/c-lane-dead-api | 2026-08-18 |
+| P2-6 데드 API 정리 | C | ✅ (3056dc7) | claude/c-lane-dead-api | 2026-08-18 |
 | P2-7 MudField 고아 코드 삭제 | B | ✅ (5d1778c) | claude/b-lane-mudfield-cleanup | 2026-08-18 |
 | P3-1~6 문서 정합성 | — | ⚪ 대기 | 각 항목 PR 에 동봉 | — |
 
