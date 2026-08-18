@@ -44,7 +44,7 @@
 | P2-5 CI 회귀 게이트 + PR 트리거 | A | ✅ (9bd1100) | claude/game-designer-task-review-wvhkiq | 2026-08-18 |
 | P0-1 치트 게이팅 | A | ✅ (db7bb29) | claude/a-lane-cheat-gate | 2026-08-18 |
 | P0-2 마일스톤 저장 + 퀘스트 트랙 교체 | C | ✅ (784e6c9) | claude/c-lane-milestone-save | 2026-08-18 |
-| P0-3 ShopPanel 폐기 | C | 🔵 진행중 | claude/c-lane-shop-removal | 2026-08-18 |
+| P0-3 ShopPanel 폐기 | C | ✅ (이 PR) | claude/c-lane-shop-removal | 2026-08-18 |
 | P1-1 미배치 보스 리소스 삭제 | B | ✅ (defee2e) | claude/b-lane-boss-cleanup | 2026-08-18 |
 | P1-2 프롭 활성화 | B | ✅ (b1ed9ab) | claude/b-lane-pending-item-dix8eg | 2026-08-18 |
 | P1-3 가스통 고아 코드 삭제 | B | ✅ (2e76857) | claude/b-lane-gascan-cleanup | 2026-08-18 |
@@ -222,7 +222,41 @@ E 레인(P1-4)과 충돌한다. `Events.wave_changed`·`wave_progress_changed` �
 주의: `apply_upgrades()` 자체는 남긴다 — `LevelUpPanel.gd:325` 가 직접 호출하는 살아있는 경로다.
 같은 PR 에서 `BALANCE.md` 의 "상점 비용 곡선" 서술도 걷어낸다(P3-1 과 겹치는 부분만).
 
-**수용 기준** — 선택한 방향이 코드와 문서 양쪽에 반영되어, `shop` 검색 결과가 일관된다.
+**수용 기준** — 선택한 방향이 코드와 문서 양쪽에 반영되어, `shop` 검색 결과가 일관된다. ✅
+
+**완료 (2026-08-18)** — 지정된 삭제 대상 외에 **함께 죽은 것들이 더 있었다.**
+
+지정분: `scripts/ShopPanel.gd`(392줄) · `scenes/ShopPanel.tscn` · `Events.shop_closed` ·
+`Player` 구독 2곳. `apply_upgrades()` 는 `LevelUpPanel` 이 직접 부르는 살아있는 경로라 유지.
+
+**추가로 발견한 고아**
+- **로케일 31키** — `sec_*` 4종 + `upg_*` 27종은 전부 `ShopPanel` 이 `Locale.t("upg_%s_name" % id)`
+  로 동적 조합해 쓰던 것이고, 다른 호출처가 0건이다(`LevelUpPanel` 은 `ItemDB` 의 이름을 쓴다).
+  삭제로 **표시 글자가 453자 → 392자**가 됐다. CJK 폰트 서브셋에 실리는 글리프가 그만큼 준다.
+- `AdManager` 의 `"shop_gold"` placement — 이제 쓰는 값은 `"revive"` 하나뿐.
+- `SETUP_ADS.md` 가 **삭제된 `scripts/ShopPanel.gd` 를 "관련 코드 위치"로 안내**하고 있었다.
+
+**주석 15곳** — `Player`·`SaveManager`·`WeaponDB`·`LevelUpPanel`·`AdManager`·`SoundManager`·
+`Events`·`HUD`·`MainMenu`·`UIStyle`·`UITheme`·`MetaUpgradeDB`·`GameData` 가 상점을 *현존하는
+화면*으로 서술하고 있었다. 이 항목의 목적이 "다음 작업자가 상점이 있다고 오인하는 것"을 막는
+것이므로 전부 현행 기준으로 고쳤다(전부 한 줄짜리 주석 수정). 특히 `Player`·`SaveManager` 의
+"웨이브 클리어/상점 체크포인트 저장" 서술은 P0-2·P0-3 으로 **둘 다 사라져 사실과 달랐다**.
+
+**문서 7종** — `SETUP_ADS`·`POPUP_UI_PLAN`·`OPTIMIZATION_PLAN`·`GAMEFEEL`·`MENU_UI_PLAN`·
+`POLISH_PLAN`·`HUD_IMPROVEMENT_PLAN`. `BALANCE.md` 의 상점 비용 곡선 서술은 **P1-6 재작성에서
+이미 해소**돼 있어 손댈 것이 없었다(P0-3 지시가 P1-6 보다 먼저 쓰였다).
+`VS_SYSTEM`·`ICON_PROMPTS` 는 그대로 뒀다 — 전자는 상점 폐기를 *결정 기록*으로 서술해 이미
+일관되고, 후자는 아트 프롬프트 기록이다.
+
+**검증** — `verify_quest_tracks.gd`(C 레인 사문 검사)에 묘비 4종 추가:
+`Events.shop_closed` 부재 · `ShopPanel.gd`/`.tscn` 부재 · **상점 전용 로케일 키(`shop_`/`upg_`/`sec_`)
+부재**(남으면 안 쓰는 CJK 글리프가 폰트 서브셋에 계속 실려 웹 초기 로딩에 얹힌다).
+`CLAUDE.md` §3 전체 + `check_text_fit.py` 통과.
+
+**하지 않은 것** — 폰트 재서브셋. 실행하면 240KB → 230KB(-10KB)인데, 12MB pck 대비 0.08%를
+얻자고 폰트 바이너리 2개를 diff 에 넣는 것은 이 PR 의 가독성을 크게 해친다. 글자가 **줄어든**
+경우라 `CLAUDE.md` 의 재서브셋 규칙(늘었을 때)에도 해당하지 않는다. 다음에 글자가 늘어
+재서브셋할 때 자연히 회수된다.
 
 ---
 

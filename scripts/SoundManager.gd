@@ -115,7 +115,7 @@ var _music_ducked: bool = false      # 사망 연출로 볼륨을 낮춘 상태
 
 
 func _ready() -> void:
-	# 상점/게임오버에서 트리를 일시정지해도 음악(과 그 페이드 트윈)은 계속 흘러야 한다.
+	# 레벨업/게임오버에서 트리를 일시정지해도 음악(과 그 페이드 트윈)은 계속 흘러야 한다.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	muted = _read_setting()
 	for key in _SOUNDS:
@@ -190,7 +190,7 @@ func play_ui(sound: String, pitch_vary: float = 0.1, base_pitch: float = 1.0) ->
 
 
 ## base_pitch: 무기 특성별 기준 음높이(1.0=원음). pitch_vary: 매 발 랜덤 변주(반복 단조로움 방지).
-## 게임이 멈춰 있는 동안(레벨업/상점/일시정지 등) 전투 효과음은 재생하지 않는다 — UI 피드백은
+## 게임이 멈춰 있는 동안(레벨업/보물상자/일시정지 등) 전투 효과음은 재생하지 않는다 — UI 피드백은
 ## play_ui() 를 통해서만 통과한다.
 func play(sound: String, pitch_vary: float = 0.1, base_pitch: float = 1.0, ui: bool = false) -> void:
 	if muted:

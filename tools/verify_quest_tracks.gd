@@ -138,9 +138,22 @@ func _process(_delta: float) -> bool:
 	_ok("생존 잔여 분(frac)도 복원된다", absf(qm._survive_frac - 0.25) < 0.001,
 		"%f" % qm._survive_frac)
 
-	print("── 죽은 시그널이 되살아나지 않았는가 ─────────────")
+	print("── 죽은 시그널·사문이 되살아나지 않았는가 ────────")
 	_ok("Events 에 wave_complete 가 없다", not events.has_signal("wave_complete"))
 	_ok("Events 에 milestone_reached 가 있다", events.has_signal("milestone_reached"))
+	# 인게임 상점 폐기(P0-3). 되살리려면 폐기 결정부터 뒤집어야 한다 — 조용히 돌아오지 않게 못박는다.
+	_ok("Events 에 shop_closed 가 없다", not events.has_signal("shop_closed"))
+	_ok("ShopPanel.gd 가 없다", not ResourceLoader.exists("res://scripts/ShopPanel.gd"))
+	_ok("ShopPanel.tscn 이 없다", not ResourceLoader.exists("res://scenes/ShopPanel.tscn"))
+	# 상점 전용이던 로케일 블록(sec_* · upg_*)도 함께 사라졌다. 남으면 안 쓰는 CJK 글리프가
+	# 폰트 서브셋에 계속 실려 웹 초기 로딩에 그대로 얹힌다.
+	var locale := root.get_node("Locale")
+	var stale := ""
+	for k in locale.STRINGS:
+		var key := String(k)
+		if key.begins_with("shop_") or key.begins_with("upg_") or key.begins_with("sec_"):
+			stale += key + " "
+	_ok("상점 전용 로케일 키가 남아 있지 않다", stale == "", stale)
 
 	print("──────────────────────────────────────────────────")
 	print("실패 %d건" % _fails)

@@ -218,7 +218,7 @@ static func outline_label(label: Label, size: int = 5, col: Color = Color(0.0, 0
 	label.add_theme_color_override("font_outline_color", col)
 
 
-## 세로 그라데이션 배경(TextureRect, 전체 앵커). 메뉴/상점 등 단색 배경 대체용.
+## 세로 그라데이션 배경(TextureRect, 전체 앵커). 메뉴/팝업 등 단색 배경 대체용.
 static func make_gradient_bg(top: Color, bottom: Color) -> TextureRect:
 	var g := Gradient.new()
 	g.set_color(0, top)
