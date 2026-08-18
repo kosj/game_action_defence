@@ -194,7 +194,8 @@ def main():
         with open(a.csv, "w", newline="") as fh:
             w = csv.writer(fh)
             w.writerow(["character", "persona", "seed", "survived_s", "died", "cleared", "level",
-                        "kills", "hits", "first_hit_s", "boss_kills", "peak_zombies",
+                        "kills", "hits", "first_hit_s", "boss_kills", "boss_fight_s",
+                        "boss_hp_left_pct", "player_hp_at_boss", "peak_zombies",
                         "hp_mult_at_end", "weapons", "passives"])
             for r in all_rows:
                 if "error" in r:
@@ -202,7 +203,10 @@ def main():
                 w.writerow([r["character"], r.get("persona", "random"), r["seed"],
                             r["survived_s"], r["died"],
                             r["cleared"], r["level"], r["kills"], r["hits"],
-                            r["first_hit_s"], r["boss_kills"], r["peak_zombies"],
+                            r["first_hit_s"], r["boss_kills"],
+                            " ".join("%.1f" % f for f in r.get("boss_fight_s", [])),
+                            r.get("boss_hp_left_pct", -1), r.get("player_hp_at_boss", -1),
+                            r["peak_zombies"],
                             r["hp_mult_at_end"],
                             " ".join("%s:%d" % kv for kv in sorted(r["weapons"].items())),
                             " ".join("%s:%d" % kv for kv in sorted(r["passives"].items()))])
