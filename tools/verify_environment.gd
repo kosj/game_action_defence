@@ -1,5 +1,5 @@
 extends SceneTree
-## 환경(시간 경과 + 날씨) 검증.
+## 환경(시간 경과 + 날씨 + 프롭) 검증.
 ##   godot --headless --path . --fixed-fps 60 --script res://tools/verify_environment.gd
 ## 종료 코드 = 실패 개수.
 ##
@@ -53,6 +53,10 @@ func _process(_delta: float) -> bool:
 	_test_single_emitter(weather, events, game_data)
 	_test_continue_reproduces(weather, weather_script, events, game_data)
 	_test_weather_cheat(weather, day, events, game_data, root.get_node("Cheats"))
+
+	print("── 프롭 ─────────────────────────────────────────")
+	_test_prop_keys(game_data)
+	_test_prop_field(game_data, root.get_node("ThemeManager"))
 
 	weather.queue_free()
 	day.queue_free()
@@ -408,3 +412,155 @@ func _test_weather_cheat(weather, day, events, game_data, cheats) -> void:
 		"기대 '%s' 실측 '%s'" % [on_key, weather._key])
 	_ok("날씨 ON 복귀 → 배너 재개", toasts[0] > 0, "%d회" % toasts[0])
 	events.weather_changed.disconnect(counter)
+
+
+## ── 프롭 ─────────────────────────────────────────────────────────────────
+
+## 아레나 안에서 프롭 필드를 대신 조종할 스텁 — 실제 BossArena 는 플레이어·사운드·FX 를 끌고
+## 오므로, 여기서는 PropField 가 보는 계약(그룹 "boss_arena" + current_radius())만 흉내낸다.
+class _StubArena extends Node2D:
+	var r: float = 440.0
+	func current_radius() -> float:
+		return r
+
+
+## 프롭 데이터가 실제로 화면에 닿는가 — 세 테마 전부 prop_keys 가 차 있고, 그 키가 카탈로그에
+## 있으며, 대응 아틀라스 파일이 존재하는가. PropField 는 없는 키·없는 파일을 **조용히** 건너뛰기
+## 때문에(오류 없음), 오타 하나면 그 프롭만 말없이 사라진다 — 그래서 여기서 막는다.
+func _test_prop_keys(game_data) -> void:
+	var catalog: Dictionary = (load("res://scripts/PropField.gd") as GDScript).get("_CATALOG")
+	var prop_dir: String = (load("res://scripts/PropField.gd") as GDScript).get("PROP_DIR")
+	var empty := ""
+	var bad := ""
+	var missing := ""
+	var wrong_theme := ""
+	for th in game_data.themes:
+		if th == null:
+			continue
+		if th.prop_keys.is_empty():
+			empty += "%s " % th.id
+			continue
+		for k in th.prop_keys:
+			if not catalog.has(k):
+				bad += "%s:%s " % [th.id, k]
+				continue
+			var meta: Dictionary = catalog[k]
+			# 프롭 아틀라스는 테마별로 나뉘어 있다 — 다른 테마 폴더의 프롭을 참조하면 그 판에서
+			# 안 쓰는 시트가 통째로 VRAM 에 올라간다(테마별 분리의 목적이 무의미해진다).
+			if String(meta["theme"]) != String(th.id):
+				wrong_theme += "%s:%s(=%s) " % [th.id, k, meta["theme"]]
+			var path: String = "%s%s/%s" % [prop_dir, meta["theme"],
+				String(meta["file"]).replace(".png", ".tres")]
+			if not ResourceLoader.exists(path):
+				missing += "%s:%s " % [th.id, k]
+	_ok("모든 테마에 prop_keys 가 채워져 있음", empty == "", empty)
+	_ok("카탈로그에 없는 prop 키 없음", bad == "", bad)
+	_ok("prop 키의 소속 테마가 일치", wrong_theme == "", wrong_theme)
+	_ok("prop 아틀라스 파일 전부 존재", missing == "", missing)
+
+
+## PropField 를 테마별로 실제로 띄워, ① 프롭이 필드에 놓이는가 ② 장애물 비율이 상한 안인가
+## ③ 장애물이 플레이어를 막는가 ④ 보스 격리 구역 경계에 낀 장애물이 플레이어를 가두지 않는가.
+func _test_prop_field(game_data, theme_mgr) -> void:
+	var pf_script: GDScript = load("res://scripts/PropField.gd")
+	var cell: float = pf_script.get("CELL")
+	var density: int = pf_script.get("DENSITY")
+	var solid_share: int = pf_script.get("SOLID_SHARE")
+	var player_r: float = pf_script.get("PLAYER_R")
+	_ok("장애물 비율 상한 1/3 이하", solid_share <= 33, "SOLID_SHARE=%d" % solid_share)
+
+	for th in game_data.themes:
+		if th == null:
+			continue
+		# 해금 게이트를 우회해 그 테마를 선택시킨다(도심 400골드·연구소 도전과제).
+		# _save() 를 부르지 않으므로 user:// 에 남지 않는다.
+		theme_mgr._bought[th.id] = true
+		theme_mgr._selected_id = th.id
+		var pf = pf_script.new()
+		root.add_child(pf)
+		pf.set_process(false)
+		pf.set_physics_process(false)
+
+		_ok("[%s] 프롭이 로드됨" % th.id, pf._props.size() == th.prop_keys.size(),
+			"%d/%d" % [pf._props.size(), th.prop_keys.size()])
+
+		# 넓은 구역을 훑어 실제 배치 분포를 본다(배치는 월드 해시라 결과가 결정적이다).
+		var total := 0
+		var solid := 0
+		var cells := 0
+		var first_solid := {}
+		for cx in range(-60, 60):
+			for cy in range(-60, 60):
+				cells += 1
+				var pr: Dictionary = pf._cell_prop(cx, cy)
+				if pr.is_empty():
+					continue
+				total += 1
+				if bool(pr["solid"]):
+					solid += 1
+					if first_solid.is_empty():
+						first_solid = pr
+		var fill := float(total) / float(cells) * 100.0
+		_ok("[%s] 프롭이 필드에 놓임(밀도 %.1f%%)" % [th.id, fill],
+			absf(fill - float(density)) <= 4.0, "기대 %d%% ±4" % density)
+		var share := float(solid) / maxf(1.0, float(total)) * 100.0
+		_ok("[%s] 장애물 비율 %.1f%% ≤ 1/3" % [th.id, share], share <= 33.4,
+			"장애물 %d / 프롭 %d" % [solid, total])
+
+		if first_solid.is_empty():
+			_ok("[%s] 장애물 프롭 존재" % th.id, false, "표본에 solid 없음")
+			pf.queue_free()
+			continue
+
+		# ── 충돌: 스텁 플레이어를 장애물 안에 놓고 밀려나는지 본다 ──
+		# 노드 정리는 queue_free() 가 아니라 free() 로 한다 — 이 검증은 전부 한 프레임 안에서
+		# 돌기 때문에, 지연 해제하면 앞 테마의 스텁 아레나가 그룹에 남아 다음 테마를 오염시킨다.
+		var stub := Node2D.new()
+		stub.add_to_group("player")
+		root.add_child(stub)
+		pf._player = stub
+		var ppos: Vector2 = first_solid["pos"]
+		var rad: float = first_solid["radius"]
+		var mind: float = rad + player_r
+		var dir := Vector2.RIGHT
+
+		# ① 아레나 없음 — 평소대로 표면 밖으로 밀려난다.
+		pf._sep_cell = Vector2i(0x7fffffff, 0x7fffffff)
+		stub.global_position = ppos + dir * (mind - 8.0)
+		pf._physics_process(1.0 / 60.0)
+		_ok("[%s] 장애물이 플레이어를 막는다" % th.id,
+			stub.global_position.distance_to(ppos) >= mind - 0.5,
+			"%.1f < %.1f" % [stub.global_position.distance_to(ppos), mind])
+
+		# ② 아레나 안쪽에 온전히 들어온 장애물 — 계속 막아야 한다(가드가 전부를 꺼서는 안 된다).
+		var arena := _StubArena.new()
+		root.add_child(arena)
+		arena.add_to_group("boss_arena")
+		arena.global_position = ppos
+		arena.r = mind + 200.0
+		pf._sep_cell = Vector2i(0x7fffffff, 0x7fffffff)
+		stub.global_position = ppos + dir * (mind - 8.0)
+		pf._physics_process(1.0 / 60.0)
+		_ok("[%s] 아레나 안쪽 장애물은 계속 막는다" % th.id,
+			stub.global_position.distance_to(ppos) >= mind - 0.5,
+			"%.1f < %.1f" % [stub.global_position.distance_to(ppos), mind])
+
+		# ③ 끼임 자리 — 장애물의 바깥면이 경계를 넘도록 아레나를 놓고, 플레이어를 "경계 안쪽이며
+		#    동시에 장애물 안"인 지점(경계에서 4px 안)에 세운다. 프롭은 바깥으로, 경계는 안쪽으로
+		#    밀어 제자리에서 떨며 감전 피해만 쌓이는 자리다. 프롭 쪽이 양보해야 한다.
+		arena.r = 440.0
+		arena.global_position = ppos - dir * (arena.r - rad * 0.5)
+		pf._sep_cell = Vector2i(0x7fffffff, 0x7fffffff)
+		stub.global_position = arena.global_position + dir * (arena.r - 4.0)
+		# 이 배치가 실제로 "낀" 상태인지부터 확인한다 — 아니면 아래 판정이 공회전한다.
+		_ok("[%s] 끼임 시나리오 성립(경계 안 + 장애물 안)" % th.id,
+			stub.global_position.distance_to(ppos) < mind,
+			"프롭거리 %.1f ≥ %.1f" % [stub.global_position.distance_to(ppos), mind])
+		pf._physics_process(1.0 / 60.0)
+		var out: float = stub.global_position.distance_to(arena.global_position)
+		_ok("[%s] 경계에 걸친 장애물이 플레이어를 경계 밖으로 밀지 않음" % th.id,
+			out <= arena.r + 0.5, "%.1f > %.1f" % [out, arena.r])
+
+		arena.free()
+		stub.free()
+		pf.free()

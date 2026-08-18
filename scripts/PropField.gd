@@ -12,6 +12,11 @@ extends Node2D
 
 const CELL := 260.0                       # 배치 격자(셀당 최대 1개)
 const DENSITY := 30                       # 셀당 프롭 확률(해시 %100 < 이 값)
+## 놓인 프롭 중 장애물(solid)이 차지하는 비율(%). 카탈로그를 균등 추첨하면 테마마다 장애물
+## 밀도가 제각각이 된다 — 연구소는 4종 중 3종이 solid 라 75%, 교외는 5종 중 2종이라 40%다.
+## 장애물이 많으면 물량 게임의 도주로가 막혀 난이도가 테마 구성에 따라 멋대로 튄다. 장애물과
+## 장식을 따로 뽑아 이 상수 하나로 비율을 고정한다(셀 기준 실효 밀도 = DENSITY × SOLID_SHARE).
+const SOLID_SHARE := 30
 ## 바닥(TILE_DARKEN 0.55)과 톤을 맞추기 위한 감광. 프롭 아트 자체에도 채도 -20% + 웜 틴트를
 ## 베이크해 두었고, 여기서 한 번 더 어둡게 깔아 3D 렌더 프롭이 페인팅 배경 위로 과하게 튀지 않게 한다.
 const DARKEN := Color(0.70, 0.68, 0.66)
@@ -56,6 +61,9 @@ const _CATALOG := {
 var _player: Node2D = null
 var _last := Vector2(INF, INF)
 var _props: Array = []       # 이 테마에서 쓸 프롭 [{tex, w, solid, rfrac}]
+## 추첨은 두 통에서 따로 한다(SOLID_SHARE 참고). _props 는 "쓸 프롭이 있는가" 판정용으로 남긴다.
+var _solid_props: Array = []
+var _soft_props: Array = []
 var _has_solid: bool = false
 ## 플레이어 주변 3×3 셀의 장애물 프롭 캐시 — 셀을 넘을 때만 갱신한다.
 var _sep_cell := Vector2i(0x7fffffff, 0x7fffffff)
@@ -80,9 +88,13 @@ func _ready() -> void:
 		var tex = load(path)
 		if not (tex is Texture2D):
 			continue
-		_props.append({"tex": tex, "w": meta["w"], "solid": meta["solid"], "rfrac": meta["rfrac"]})
+		var entry := {"tex": tex, "w": meta["w"], "solid": meta["solid"], "rfrac": meta["rfrac"]}
+		_props.append(entry)
 		if bool(meta["solid"]):
+			_solid_props.append(entry)
 			_has_solid = true
+		else:
+			_soft_props.append(entry)
 
 
 func _process(_delta: float) -> void:
@@ -120,9 +132,25 @@ func _physics_process(_delta: float) -> void:
 				var cand := _cell_prop(cx, cy)
 				if not cand.is_empty() and bool(cand["solid"]):
 					_sep_solid.append(cand)
+	# 보스 격리 구역이 열려 있으면 경계선을 물고 있는 장애물은 이번 프레임 판정에서 뺀다.
+	# 프롭은 플레이어를 바깥으로, 경계는 안쪽으로 민다 — 그 사이에 끼면 매 프레임 서로 밀어
+	# 제자리에서 떨리며 감전 피해(BossArena._shock)만 계속 받는다. 게다가 BossArena 는 런타임에
+	# 씬 끝에 붙어 이 노드보다 늦게 처리되므로 경계가 항상 이겨 빠져나갈 수도 없다.
+	# 프롭 배치는 월드 해시로 고정이라 아레나(플레이어 위치에 전개)를 피해 놓을 수 없으니,
+	# 겹치는 쪽 프롭이 양보한다. 아레나 안쪽에 온전히 들어온 장애물은 평소대로 막는다.
+	var arena_c := Vector2.ZERO
+	var arena_r := -1.0
+	var arena := get_tree().get_first_node_in_group("boss_arena")
+	if is_instance_valid(arena) and arena is Node2D and arena.has_method("current_radius"):
+		arena_c = (arena as Node2D).global_position
+		arena_r = arena.current_radius()
 	for pr in _sep_solid:
-		var d: Vector2 = pp - pr["pos"]
-		var mind: float = pr["radius"] + PLAYER_R
+		var ppos: Vector2 = pr["pos"]
+		var rad: float = pr["radius"]
+		if arena_r > 0.0 and arena_c.distance_to(ppos) + rad + PLAYER_R > arena_r:
+			continue   # 프롭 바깥면이 경계를 넘는다 — 끼임 방지를 위해 통과시킨다
+		var d: Vector2 = pp - ppos
+		var mind: float = rad + PLAYER_R
 		var dl := d.length()
 		if dl < mind and dl > 0.001:
 			pp += (d / dl) * (mind - dl)   # 표면 밖으로 밀어냄
@@ -138,12 +166,27 @@ func _hash(cx: int, cy: int) -> int:
 	return ((cx * 73856093) ^ (cy * 19349663)) & 0x7fffffff
 
 
+## 이 셀에 놓을 프롭 한 종을 고른다 — 장애물/장식을 SOLID_SHARE 비율로 나눠 뽑는다.
+func _pick(h: int) -> Dictionary:
+	var i := h / 100
+	if _solid_props.is_empty():
+		return _soft_props[i % _soft_props.size()]
+	if _soft_props.is_empty():
+		return _solid_props[i % _solid_props.size()]
+	# h 의 다른 자릿수를 그대로 쓰면 종류 추첨(h/100)과 상관이 생겨 특정 종만 장애물로 몰린다.
+	# 곱셈 해시로 한 번 더 섞어 독립적인 비트를 얻는다.
+	var r := ((h * 2654435761) >> 7) & 0x7fffffff
+	if r % 100 < SOLID_SHARE:
+		return _solid_props[i % _solid_props.size()]
+	return _soft_props[i % _soft_props.size()]
+
+
 ## 셀에 프롭이 있으면 그 배치 정보를 반환({} 이면 없음). _draw 와 충돌이 공유(동일 배치 보장).
 func _cell_prop(cx: int, cy: int) -> Dictionary:
 	var h := _hash(cx, cy)
 	if h % 100 >= DENSITY:
 		return {}
-	var meta: Dictionary = _props[(h / 100) % _props.size()]
+	var meta: Dictionary = _pick(h)
 	var tex: Texture2D = meta["tex"]
 	var ts := tex.get_size()
 	var sc: float = (float(meta["w"]) / maxf(ts.x, ts.y)) * (0.8 + 0.5 * float((h / 7) % 100) / 100.0)
