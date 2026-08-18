@@ -47,7 +47,7 @@
 | P0-3 ShopPanel 폐기 | C | ⚪ 대기 | — | — |
 | P1-1 미배치 보스 리소스 삭제 | B | ⚪ 대기 | — | — |
 | P1-2 프롭 활성화 | B | ✅ (b1ed9ab) | claude/b-lane-pending-item-dix8eg | 2026-08-18 |
-| P1-3 가스통 고아 코드 삭제 | B | 🔵 진행중 | claude/b-lane-gascan-cleanup | 2026-08-18 |
+| P1-3 가스통 고아 코드 삭제 | B | ✅ (이 PR) | claude/b-lane-gascan-cleanup | 2026-08-18 |
 | P1-4 이벤트 예고 UI | E | ⚪ 대기 | — | — |
 | P1-5 후반 이속 밸런스 | F | ⚪ 대기 | — | — |
 | P2-1 공통 팝업 셸 | D | ⚪ 대기 | — | — |
@@ -55,6 +55,7 @@
 | P2-3 로케일 누락 | D | ⚪ 대기 | — | — |
 | P2-4 잠금/체크 아이콘 | D | ⚪ 대기 | — | — |
 | P2-6 데드 API 정리 | C | ⚪ 대기 | — | — |
+| P2-7 MudField 고아 코드 | B | ⚪ 대기 | — | — |
 | P3-1~6 문서 정합성 | — | ⚪ 대기 | 각 항목 PR 에 동봉 | — |
 
 **결정 대기 항목은 전부 해소됐다(2026-08-18).** 아래 §2 결정 로그 참고 — 이제 모든 항목이 바로 착수 가능하다.
@@ -286,8 +287,21 @@ city 는 기믹 4종, lab 은 3종. 즉 **무료·기본 선택 아레나에만 
 **수용 기준** — `grep -rn "GasCan\|gas_can" scripts/ data/ tools/` 결과가 0건이고,
 세 아레나 모두 기존과 동일하게 동작한다(교외는 기믹 없음 유지).
 
-**검증** — `godot --headless --path . --import` 무오류 + 교외 아레나 런타임 진입 무오류 +
-`python3 tools/check_gdscript.py`.
+**완료 (2026-08-18)** — `scripts/GasCan.gd` 삭제 · `GimmickSpawner._CLASSES` 의 `gas_can` 항목 삭제.
+전용 아트는 없었다(절차적 `_draw`), 쓰던 사운드 `boom` 은 무기·보스 등 20곳이 공유하므로 남긴다.
+주석은 `gen_theme_data.gd`(교외 블록)·`GimmickSpawner.gd` 헤더·`MASTER_PLAN.md` 6-B 세 곳에
+"되살리지 말 것"으로 남겼다.
+
+수용 기준의 grep 은 **살아 있는 참조 0건**으로 읽는다 — 위 "함께 할 것"이 요구한 묘비 주석 자체가
+`가스통(GasCan)` 이라는 문자열을 포함하므로 문자 그대로의 0건과는 양립할 수 없다. 남은 2건은
+`GimmickSpawner.gd:6` 과 `gen_theme_data.gd:26` 의 그 주석뿐이고, 코드 참조는 없다.
+
+**검증** — `CLAUDE.md` §3 전체 통과. `verify_environment.gd` 에 기믹 검사 3종을 추가했다 —
+① 교외 기믹 0종 유지(`#180` 원칙이 말없이 뒤집히는 것을 막는다) ② 모든 테마의 기믹 키가
+`GimmickSpawner._CLASSES` 에 실재(죽은 키 방지) ③ `gas_can` 이 클래스 표·스크립트 양쪽에서 사라짐(부활 방지).
+
+**작업 중 발견** — 같은 "교외" 블록의 `mud_field` 도 참조하는 테마가 없는 **동일한 고아**다.
+한 항목 = 한 PR 규약에 따라 이 PR 에서는 손대지 않고 **P2-7** 로 큐에 올렸다.
 
 ---
 
@@ -390,6 +404,14 @@ city 는 기믹 4종, lab 은 3종. 즉 **무료·기본 선택 아레나에만 
 (다음 작업자가 `wave_pressure_mult` 를 보고 "무한 스케일링이 있다"고 오인한다 — 실제 스케일링은
 `ZombieSpawner._hp_mult()` 의 2차 곡선이다.)
 
+## P2-7. `MudField` 가 가스통과 똑같은 고아 코드다 (P1-3 작업 중 발견)
+**근거** — `scripts/MudField.gd`(38줄)를 참조하는 곳은 `GimmickSpawner.gd:8` 의 preload 한 줄뿐이고,
+그 키(`mud_field`)를 `gimmick_keys` 에 담은 테마가 **없다**(교외는 기믹 미배치, 도심·연구소는 각자 목록).
+즉 P1-3 의 가스통과 같은 이유로 실행되지 않는다. 교외용으로 만들어졌는데 `#180` 결정으로 갈 곳이 없어졌다.
+**작업 [결정 필요]** — (a) P1-3 과 같은 판단으로 삭제, 또는 (b) 도심/연구소 기믹 목록에 편입.
+진흙 감속은 테마색이 옅어 (a) 삭제가 일관적이지만, P1-3 결정이 "가스통"만 명시했으므로 확인을 받는다.
+**수용 기준** — `grep -rn "MudField\|mud_field"` 결과가 결정과 일관된다.
+
 ---
 
 # P3 — 문서 정합성 (**작업 착수 전 반드시 읽을 것**)
@@ -415,7 +437,7 @@ city 는 기믹 4종, lab 은 3종. 즉 **무료·기본 선택 아레나에만 
 | 레인 | 순서 | 독점하는 파일 |
 |---|---|---|
 | **A 인프라** | P2-5 → P0-1 | `.github/workflows/`, `HUD.gd`(치트 블록) |
-| **B 데이터** | P1-2 → P1-3 → P1-1 | `data/themes.tres`, `tools/gen_theme_data.gd`, `ZombieSpawner.gd` |
+| **B 데이터** | P1-2 → P1-3 → P1-1 → P2-7 | `data/themes.tres`, `tools/gen_theme_data.gd`, `ZombieSpawner.gd` |
 | **C 시스템** | P0-2 → P0-3 → P2-6 | `Events.gd`, `QuestManager.gd`, `SaveManager.gd` |
 | **D UI** | P2-1 → P2-3 → P2-2 → P2-4 | `MainMenu.gd`, `UIStyle.gd`, `Locale.gd` |
 | **E HUD** | P1-4 | `HUD.gd`(진행바·배너) — **A 의 P0-1 과 같은 파일이라 A 완료 후 시작** |
@@ -426,7 +448,7 @@ city 는 기믹 4종, lab 은 3종. 즉 **무료·기본 선택 아레나에만 
 P2-5 (CI 게이트)  ← 가장 먼저. 안전망 없이 병렬로 커밋하면 회귀 추적이 불가능하다.
    ├─ A: P0-1 ─────────────┐
    │                       └─ E: P1-4   (HUD.gd 충돌 회피)
-   ├─ B: P1-2 → P1-3 → P1-1
+   ├─ B: P1-2 → P1-3 → P1-1 → P2-7
    ├─ C: P0-2 → P0-3 → P2-6
    ├─ D: P2-1 → P2-3 → P2-2 → P2-4
    └─ F: P1-5

@@ -54,6 +54,9 @@ func _process(_delta: float) -> bool:
 	_test_continue_reproduces(weather, weather_script, events, game_data)
 	_test_weather_cheat(weather, day, events, game_data, root.get_node("Cheats"))
 
+	print("── 기믹 ─────────────────────────────────────────")
+	_test_gimmick_keys(game_data)
+
 	print("── 프롭 ─────────────────────────────────────────")
 	_test_prop_keys(game_data)
 	_test_prop_field(game_data, root.get_node("ThemeManager"))
@@ -564,3 +567,34 @@ func _test_prop_field(game_data, theme_mgr) -> void:
 		arena.free()
 		stub.free()
 		pf.free()
+
+
+## ── 기믹 ─────────────────────────────────────────────────────────────────
+
+## 기믹 배선이 데이터와 코드 양쪽에서 일관한가.
+##  ① 교외(입문)는 기믹 0종 — `#180` 의 의도된 결정이다. 여기가 깨지면 원칙이 말없이 뒤집힌 것이다.
+##  ② 테마가 든 기믹 키는 전부 `GimmickSpawner._CLASSES` 에 실재해야 한다. 없는 키는 `_ready` 에서
+##     조용히 걸러져(오류 없음) 그 기믹만 영영 안 뜬다.
+##  ③ 삭제한 가스통(P1-3)이 되살아나지 않았는가 — 클래스 표와 스크립트 파일 양쪽을 본다.
+func _test_gimmick_keys(game_data) -> void:
+	var classes: Dictionary = (load("res://scripts/GimmickSpawner.gd") as GDScript).get("_CLASSES")
+
+	var suburb_n := -1
+	var unknown := ""
+	for th in game_data.themes:
+		if th == null:
+			continue
+		# GimmickSpawner._ready 와 같은 폴백 규칙(gimmick_keys 우선, 비면 단일 gimmick_key).
+		var keys: PackedStringArray = th.gimmick_keys
+		if keys.is_empty() and th.gimmick_key != "":
+			keys = PackedStringArray([th.gimmick_key])
+		if String(th.id) == "suburb":
+			suburb_n = keys.size()
+		for k in keys:
+			if not classes.has(k):
+				unknown += "%s:%s " % [th.id, k]
+	_ok("교외(입문)는 기믹 0종 유지 (#180)", suburb_n == 0, "실측 %d종" % suburb_n)
+	_ok("모든 테마의 기믹 키가 GimmickSpawner 에 실재", unknown == "", unknown)
+
+	_ok("삭제된 gas_can 이 클래스 표에 없음", not classes.has("gas_can"))
+	_ok("삭제된 GasCan.gd 가 없음", not ResourceLoader.exists("res://scripts/GasCan.gd"))
