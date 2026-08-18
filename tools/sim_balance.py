@@ -51,14 +51,14 @@ TARGETS = {
 }
 
 
-def run_one(godot, seed, character, theme, maxmin):
+def run_one(godot, seed, character, theme, maxmin, persona="random"):
     """한 판 실행 → 결과 dict. 판마다 user:// 를 격리해 진행 상태가 새지 않게 한다."""
     env = dict(os.environ)
     tmp_home = tempfile.mkdtemp(prefix="simbal_")
     env["HOME"] = tmp_home                      # Godot 의 user:// 뿌리를 옮긴다
     cmd = [godot, "--headless", "--path", ROOT, "--fixed-fps", "60",
            "--script", "res://tools/sim_balance.gd", "--",
-           "seed=%d" % seed, "character=%s" % character,
+           "seed=%d" % seed, "character=%s" % character, "persona=%s" % persona,
            "theme=%s" % theme, "maxmin=%g" % maxmin]
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=1800, env=env)
@@ -149,6 +149,10 @@ def main():
     ap.add_argument("--theme", default="suburb")
     ap.add_argument("--maxmin", type=float, default=30.0)
     ap.add_argument("--seed-start", type=int, default=1000)
+    ap.add_argument("--persona", default="random", choices=["random", "greedy"],
+                    help="random=하한선(무작위 카드) · greedy=상한 근사(진화 지향)")
+    ap.add_argument("--both-personas", action="store_true",
+                    help="random 과 greedy 를 같은 시드로 비교")
     ap.add_argument("--all-characters", action="store_true",
                     help="veteran/hunter/engineer 를 같은 시드 집합으로 비교")
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) - 1))
@@ -160,39 +164,43 @@ def main():
         sys.exit("godot 실행 파일을 찾을 수 없다. GODOT 환경변수로 경로를 지정하라.")
 
     chars = ["veteran", "hunter", "engineer"] if a.all_characters else [a.character]
+    personas = ["random", "greedy"] if a.both_personas else [a.persona]
     seeds = [a.seed_start + i for i in range(a.runs)]
-    print("밸런스 측정 — %d판 × %s · 테마 %s · 최대 %g분 · 병렬 %d"
-          % (a.runs, "/".join(chars), a.theme, a.maxmin, a.jobs))
-    print("(오토플레이는 레벨업 카드를 무작위로 고른다 — 이 수치는 하한선이다)\n")
+    print("밸런스 측정 — %d판 × %s × %s · 테마 %s · 최대 %g분 · 병렬 %d"
+          % (a.runs, "/".join(chars), "/".join(personas), a.theme, a.maxmin, a.jobs))
+    print("(random=하한선 · greedy=상한 근사. 자세한 해석은 BALANCE.md)\n")
 
     all_rows, summaries = [], []
+    keys = [(c, pn) for c in chars for pn in personas]
     with cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
-        futs = {ex.submit(run_one, godot, s, c, a.theme, a.maxmin): (c, s)
-                for c in chars for s in seeds}
-        rows_by_char = {c: [] for c in chars}
+        futs = {ex.submit(run_one, godot, s, c, a.theme, a.maxmin, pn): (c, pn)
+                for (c, pn) in keys for s in seeds}
+        rows_by_key = {k: [] for k in keys}
         for f in cf.as_completed(futs):
-            c, _ = futs[f]
+            k = futs[f]
             r = f.result()
-            r["_character"] = c
-            rows_by_char[c].append(r)
+            r["_character"] = k[0]
+            rows_by_key[k].append(r)
             all_rows.append(r)
-    for c in chars:
-        summaries.append(summarize(rows_by_char[c], c))
+    for k in keys:
+        label = k[0] if len(personas) == 1 else "%s/%s" % k
+        summaries.append(summarize(rows_by_key[k], label))
 
-    if len(chars) == 1:
+    if len(keys) == 1:
         verdict(summaries[0])
 
     if a.csv:
         import csv
         with open(a.csv, "w", newline="") as fh:
             w = csv.writer(fh)
-            w.writerow(["character", "seed", "survived_s", "died", "cleared", "level",
+            w.writerow(["character", "persona", "seed", "survived_s", "died", "cleared", "level",
                         "kills", "hits", "first_hit_s", "boss_kills", "peak_zombies",
                         "hp_mult_at_end", "weapons", "passives"])
             for r in all_rows:
                 if "error" in r:
                     continue
-                w.writerow([r["character"], r["seed"], r["survived_s"], r["died"],
+                w.writerow([r["character"], r.get("persona", "random"), r["seed"],
+                            r["survived_s"], r["died"],
                             r["cleared"], r["level"], r["kills"], r["hits"],
                             r["first_hit_s"], r["boss_kills"], r["peak_zombies"],
                             r["hp_mult_at_end"],
