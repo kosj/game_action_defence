@@ -65,6 +65,7 @@ func begin_run() -> void:
 	_samples = []
 	_next_sample = SAMPLE_INTERVAL
 	_partial_accum = 0.0
+	Cheats.used_this_run = false   # 치트 사용 여부는 판 단위로 센다
 
 
 func _process(delta: float) -> void:
@@ -125,6 +126,8 @@ func _snapshot(outcome: String) -> Dictionary:
 		"source": "human",
 		"persona": "human",
 		"outcome": outcome,                 # "died" | "abandoned"
+		# 치트가 발동한 판은 사람 데이터가 아니다 — analyze_telemetry.py 가 기본 제외한다.
+		"cheated": Cheats.used_this_run,
 		"version": Events.VERSION,
 		"build": Events.build_sha(),
 		"character": (c.id if c != null else ""),

@@ -28,6 +28,11 @@ var enabled: bool = true
 
 var autoplay: bool = false
 
+## 이 판에서 치트가 **실제로 발동했는가.** 텔레메트리가 이 값을 기록에 남기고, 분석 도구가
+## 기본으로 제외한다 — 치트로 만든 판이 사람 데이터에 섞이면 그 데이터는 쓸 수 없다.
+## 게이트가 잠긴 빌드에서는 발동 자체가 없으므로 항상 false 다.
+var used_this_run: bool = false
+
 ## 오토플레이의 레벨업 카드 선택 방식(빌드 페르소나).
 ##  · "random" — 무작위. 빌드 운을 배제한 **하한선** 측정용(기본값, 기존 동작).
 ##  · "greedy" — 진화 완성을 향해 고르는 **상한 근사**. 사람이 빌드를 짜는 방식에 가깝다.
@@ -91,18 +96,21 @@ func autoplay_active() -> bool:
 func request_time_skip(seconds: float) -> void:
 	if not enabled:
 		return
+	used_this_run = true
 	time_skip.emit(seconds)
 
 
 func request_spawn_fill() -> void:
 	if not enabled:
 		return
+	used_this_run = true
 	spawn_fill.emit()
 
 
 func request_spawn_boss() -> void:
 	if not enabled:
 		return
+	used_this_run = true
 	spawn_boss.emit()
 
 

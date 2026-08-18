@@ -19,6 +19,8 @@ var _options_dim: ColorRect
 var _options_panel: PanelContainer
 var _options_title: Label
 var _close_btn: Button
+var _log_btn: Button = null
+var _log_hint: Label = null
 var _diff_buttons: Array = []
 var _lang_buttons: Array = []   # [{ "btn": Button, "lang": String }]
 
@@ -324,6 +326,25 @@ func _build_options_panel() -> void:
 
 	vb.add_child(HSeparator.new())
 
+	# 플레이 기록 내보내기 — 출시 전 밸런스 검증용. 릴리스 빌드에서도 보인다(치트와 무관).
+	# 웹은 user:// 가 IndexedDB 라 파일로 뺄 방법이 없어 클립보드가 유일한 경로다.
+	# 기록은 이 기기에만 있고 전송되지 않는다 — 힌트 문구로 그 사실을 명시한다.
+	_log_btn = Button.new()
+	_log_btn.custom_minimum_size = Vector2(0, 50)
+	_log_btn.add_theme_font_size_override("font_size", 18)
+	_UIStyle.apply_button_style(_log_btn, Color(0.16, 0.18, 0.26), Color(0.5, 0.6, 0.8))
+	_log_btn.pressed.connect(_on_copy_log_pressed)
+	vb.add_child(_log_btn)
+
+	_log_hint = Label.new()
+	_log_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_log_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_log_hint.add_theme_font_size_override("font_size", 13)
+	_log_hint.add_theme_color_override("font_color", UITheme.TEXT_DIM)
+	vb.add_child(_log_hint)
+
+	vb.add_child(HSeparator.new())
+
 	_close_btn = Button.new()
 	_close_btn.custom_minimum_size = Vector2(0, 56)
 	_close_btn.add_theme_font_size_override("font_size", 22)
@@ -333,8 +354,20 @@ func _build_options_panel() -> void:
 
 
 func _on_options_pressed() -> void:
+	_refresh_log_button()   # 판 수가 늘었을 수 있으니 열 때마다 갱신
 	_options_dim.visible = true
 	_options_panel.visible = true
+
+
+func _refresh_log_button() -> void:
+	if is_instance_valid(_log_btn):
+		_log_btn.text = Locale.t("opt_copy_log") % Telemetry.record_count()
+		_log_btn.disabled = Telemetry.record_count() == 0
+
+
+func _on_copy_log_pressed() -> void:
+	DisplayServer.clipboard_set(Telemetry.export_text())
+	_log_btn.text = Locale.t("opt_copy_log_done")
 
 
 func _on_close_options() -> void:
@@ -1451,6 +1484,8 @@ func _apply_language() -> void:
 	_sound_title.text = Locale.t("menu_sound")
 	_options_btn.text = Locale.t("menu_options")
 	_options_title.text = Locale.t("menu_options")
+	_log_hint.text = Locale.t("opt_log_hint")
+	_refresh_log_button()
 	_close_btn.text = Locale.t("menu_close")
 	_rank_btn.text = Locale.t("menu_ranking")
 	_rank_title.text = Locale.t("rank_title")

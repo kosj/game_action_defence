@@ -13,6 +13,7 @@ extends Node
 ##   T5 기록 상한(MAX_RECORDS)을 넘지 않는다
 ##   T6 개인 식별 정보를 담지 않는다
 ##   T7 enabled=false 면 아무것도 남기지 않는다
+##   T8 치트를 쓴 판은 cheated=true 로 표시된다(사람 데이터와 섞이지 않게)
 
 var _ok := 0
 var _total := 0
@@ -102,6 +103,27 @@ func _ready() -> void:
 	Events.player_died.emit()
 	_check("T7 enabled=false 면 미수집", Telemetry.record_count() == 0)
 	Telemetry.enabled = true
+	Telemetry.clear_records()
+
+	# ── T8 치트 판 표시 ────────────────────────────────────────────
+	Telemetry.enabled = true
+	Telemetry.clear_records()
+	Events.reset()
+	Telemetry.begin_run()
+	var was := Cheats.enabled
+	Cheats.enabled = true
+	Cheats.request_spawn_boss()          # 게이트가 열린 상태에서 실제 발동
+	Events.player_died.emit()
+	var r3: Dictionary = JSON.parse_string(Telemetry.load_records_raw()[0])
+	Telemetry.clear_records()
+	Events.reset()
+	Telemetry.begin_run()                 # 새 판 — 플래그가 초기화돼야 한다
+	Events.player_died.emit()
+	var r4: Dictionary = JSON.parse_string(Telemetry.load_records_raw()[0])
+	Cheats.enabled = was
+	_check("T8 치트 판만 cheated=true",
+		bool(r3.get("cheated", false)) and not bool(r4.get("cheated", true)),
+		"치트판=%s 다음판=%s" % [r3.get("cheated"), r4.get("cheated")])
 	Telemetry.clear_records()
 
 	print("RESULT ok=%d/%d" % [_ok, _total])

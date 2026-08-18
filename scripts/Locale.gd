@@ -71,6 +71,12 @@ const STRINGS: Dictionary = {
 	"rewards_empty":     {"en": "No rewards waiting", "ko": "받을 보상이 없습니다", "ja": "受け取る報酬はありません"},
 
 	# ── 팝업 제목/문구 (전부 하드코딩 영어·한국어였다) ────────────────────
+	"opt_copy_log":      {"en": "COPY PLAY LOG (%d)", "ko": "플레이 기록 복사 (%d)",
+		"ja": "プレイ記録をコピー (%d)"},
+	"opt_copy_log_done": {"en": "COPIED", "ko": "복사했습니다", "ja": "コピーしました"},
+	"opt_log_hint":      {"en": "Runs saved on this device. Nothing is sent anywhere.",
+		"ko": "이 기기에만 저장된 플레이 기록입니다. 어디로도 전송되지 않습니다.",
+		"ja": "この端末にのみ保存されます。どこにも送信されません。"},
 	"popup_power":       {"en": "PERMANENT UPGRADES", "ko": "영구 강화", "ja": "パワーアップ"},
 	"popup_character":   {"en": "CHOOSE YOUR SURVIVOR", "ko": "생존자 선택", "ja": "サバイバー"},
 	"popup_achievements":{"en": "ACHIEVEMENTS", "ko": "도전과제", "ja": "アチーブメント"},
