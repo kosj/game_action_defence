@@ -50,7 +50,7 @@
 | P1-3 가스통 고아 코드 삭제 | B | ✅ (2e76857) | claude/b-lane-gascan-cleanup | 2026-08-18 |
 | P1-4 이벤트 예고 UI | E | ⚪ 대기 | — | — |
 | P1-5 후반 이속 밸런스 | F | ⚪ 대기 | — | — |
-| P1-6 밸런스 측정 하네스 + BALANCE 재작성 | F | ✅ (이 PR) | claude/f-lane-balance-harness | 2026-08-18 |
+| P1-6 밸런스 측정 하네스 + BALANCE 재작성 | F | ✅ (ee17767) | claude/f-lane-balance-harness | 2026-08-18 |
 | P1-7 첫 보스 난이도 계단 | F | ⚪ 대기 | — | — |
 | P2-8 오토플레이 교전 이탈 수정 | F | ⚪ 대기 | — | — |
 | P2-1 공통 팝업 셸 | D | ⚪ 대기 | — | — |
