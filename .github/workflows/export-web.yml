@@ -78,6 +78,7 @@ jobs:
           godot --headless --path . res://scenes/ContinueSaveTest.tscn
           godot --headless --path . res://scenes/FxLeakTest.tscn
           godot --headless --path . res://scenes/PauseWatchdogTest.tscn
+          godot --headless --path . res://scenes/TelemetryTest.tscn
 
       # 시뮬레이션형 검증은 프레임 수에 의존하므로 --fixed-fps 60 을 반드시 준다
       # (없으면 헤드리스가 가변 프레임으로 돌아 타이밍 판정이 흔들린다).

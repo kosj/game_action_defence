@@ -1294,6 +1294,10 @@ func _build_pause_menu() -> void:
 		_cheat_day_btn = _make_cheat_button("DAY/NIGHT: ON", func(): Cheats.toggle_daynight())
 		# 비·눈·모래바람과 번개를 통째로 끈다(=상시 맑음). 스케줄은 계속 돌아 다시 켜면 이어진다.
 		_cheat_weather_btn = _make_cheat_button("WEATHER: ON", func(): Cheats.toggle_weather())
+		# 이 기기에 쌓인 플레이 기록을 클립보드로 빼낸다 — 웹에서는 user:// 가 IndexedDB 라
+		# 파일로 꺼낼 방법이 없다. tools/analyze_telemetry.py 에 그대로 붙여넣어 분석한다.
+		_cheat_tele_btn = _make_cheat_button("COPY TELEMETRY", _on_cheat_copy_telemetry)
+		_refresh_telemetry_label()
 		Cheats.changed.connect(_refresh_cheat_ui)
 		_refresh_cheat_ui()   # 씬 재진입 시 이미 켜져 있던 토글이 라벨에 반영되도록 초기 1회 갱신
 
@@ -1334,6 +1338,9 @@ func _build_perf_overlay() -> void:
 	_perf_overlay.visible = Cheats.perf_overlay
 
 
+var _cheat_tele_btn: Button = null
+
+
 func _make_cheat_button(text: String, on_pressed: Callable) -> Button:
 	var b := Button.new()
 	b.text = text
@@ -1343,6 +1350,16 @@ func _make_cheat_button(text: String, on_pressed: Callable) -> Button:
 	b.pressed.connect(on_pressed)
 	_cheat_box.add_child(b)
 	return b
+
+
+func _on_cheat_copy_telemetry() -> void:
+	DisplayServer.clipboard_set(Telemetry.export_text())
+	_refresh_telemetry_label()
+
+
+func _refresh_telemetry_label() -> void:
+	if is_instance_valid(_cheat_tele_btn):
+		_cheat_tele_btn.text = "COPY TELEMETRY (%d)" % Telemetry.record_count()
 
 
 func _on_cheat_autoplay() -> void:

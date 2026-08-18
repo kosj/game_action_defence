@@ -1,0 +1,108 @@
+extends Node
+## 텔레메트리 수집 회귀 테스트.
+##
+## 실행:
+##   godot --headless --path . res://scenes/TelemetryTest.tscn
+## 마지막 줄의 "RESULT ok=<통과>/<전체>" 가 전부 통과가 아니면 회귀다.
+##
+## 검사 항목
+##   T1 판이 끝나면 기록 1줄이 남는다
+##   T2 기록이 sim_balance 와 같은 키를 갖는다(같은 도구로 비교하기 위한 계약)
+##   T3 피격 수와 첫 피격 시각이 실제 피해를 따라간다
+##   T4 보스 조우·처치·전투 시간이 기록된다
+##   T5 기록 상한(MAX_RECORDS)을 넘지 않는다
+##   T6 개인 식별 정보를 담지 않는다
+##   T7 enabled=false 면 아무것도 남기지 않는다
+
+var _ok := 0
+var _total := 0
+
+# sim_balance.gd 의 SIMRESULT 와 공유해야 하는 키 — 하나라도 빠지면 분석 도구가 깨진다.
+const SHARED_KEYS := ["character", "theme", "survived_s", "died", "cleared", "level",
+	"kills", "hits", "first_hit_s", "boss_spawns", "boss_kills", "boss_fight_s",
+	"weapons", "passives", "samples"]
+# 있으면 안 되는 것 — 개인정보 수집으로 넘어가는 경계다.
+const FORBIDDEN_KEYS := ["user_id", "device_id", "ip", "email", "uuid", "session_id", "name"]
+
+
+func _check(label: String, cond: bool, detail: String = "") -> void:
+	_total += 1
+	if cond:
+		_ok += 1
+		print("  ok   %s" % label)
+	else:
+		print("  FAIL %s%s" % [label, ("  — " + detail) if detail != "" else ""])
+
+
+func _ready() -> void:
+	Telemetry.clear_records()
+	Telemetry.enabled = true
+
+	# ── T1/T2/T3 기본 수집 ──────────────────────────────────────────
+	Events.reset()
+	Telemetry.begin_run()
+	Events.elapsed_time = 42.0
+	Events.total_kills = 130
+	Events.update_player_health(10, 10)
+	Events.update_player_health(7, 10)    # 피격 1
+	Events.elapsed_time = 61.0
+	Events.update_player_health(4, 10)    # 피격 2
+	Events.player_died.emit()
+
+	var raw := Telemetry.load_records_raw()
+	_check("T1 판 종료 시 기록 1줄", raw.size() == 1, "실제 %d" % raw.size())
+	var rec: Dictionary = JSON.parse_string(raw[0]) if raw.size() > 0 else {}
+	var missing: Array = []
+	for k in SHARED_KEYS:
+		if not rec.has(k):
+			missing.append(k)
+	_check("T2 sim_balance 와 같은 키", missing.is_empty(), "빠진 키 %s" % str(missing))
+	_check("T3 피격 2회 · 첫 피격 42초",
+		int(rec.get("hits", 0)) == 2 and abs(float(rec.get("first_hit_s", -1)) - 42.0) < 0.01,
+		"hits=%s first=%s" % [rec.get("hits"), rec.get("first_hit_s")])
+
+	# ── T4 보스 ────────────────────────────────────────────────────
+	Telemetry.clear_records()
+	Events.reset()
+	Telemetry.begin_run()
+	Events.elapsed_time = 600.0
+	Events.boss_spawned.emit(500)
+	Events.elapsed_time = 630.0
+	Events.boss_died.emit()
+	Events.player_died.emit()
+	var r2: Dictionary = JSON.parse_string(Telemetry.load_records_raw()[0])
+	_check("T4 보스 조우 1 · 처치 1 · 전투 30초",
+		int(r2.get("boss_spawns", 0)) == 1 and int(r2.get("boss_kills", 0)) == 1
+			and r2.get("boss_fight_s", []).size() == 1
+			and abs(float(r2["boss_fight_s"][0]) - 30.0) < 0.01,
+		str(r2.get("boss_fight_s")))
+
+	# ── T5 상한 ────────────────────────────────────────────────────
+	Telemetry.clear_records()
+	for i in range(Telemetry.MAX_RECORDS + 12):
+		Events.reset()
+		Telemetry.begin_run()
+		Events.player_died.emit()
+	_check("T5 기록 상한 유지", Telemetry.record_count() == Telemetry.MAX_RECORDS,
+		"실제 %d" % Telemetry.record_count())
+
+	# ── T6 개인정보 미수집 ─────────────────────────────────────────
+	var text := Telemetry.export_text().to_lower()
+	var leaked: Array = []
+	for k in FORBIDDEN_KEYS:
+		if text.find('"%s"' % k) >= 0:
+			leaked.append(k)
+	_check("T6 개인 식별 정보 없음", leaked.is_empty(), "발견 %s" % str(leaked))
+
+	# ── T7 끄면 안 남는다 ──────────────────────────────────────────
+	Telemetry.clear_records()
+	Telemetry.enabled = false
+	Events.reset()
+	Telemetry.begin_run()
+	Events.player_died.emit()
+	_check("T7 enabled=false 면 미수집", Telemetry.record_count() == 0)
+	Telemetry.enabled = true
+	Telemetry.clear_records()
+
+	print("RESULT ok=%d/%d" % [_ok, _total])
+	get_tree().quit(0 if _ok == _total else 1)
