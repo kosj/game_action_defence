@@ -3,6 +3,10 @@ name: Export Web (Godot 4)
 on:
   push:
     branches: [main]
+  # 병렬 세션이 각자 브랜치로 작업하므로, 회귀는 머지 전에 잡아야 한다.
+  # (예전에는 main 푸시에서만 돌아서 "머지된 뒤에야 깨진 걸 아는" 구조였다.)
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -63,6 +67,28 @@ jobs:
       - name: Check texture atlas
         run: godot --headless --script res://tools/check_atlas.gd
 
+      # 회귀 테스트 — 씬 4종은 get_tree().quit(0/1), verify_*.gd 는 quit(실패건수) 로
+      # 성패를 종료 코드에 담는다. 따라서 실행 줄만 있으면 CI 게이트가 된다(로그 파싱 불필요).
+      # 셸이 dash 라 pipefail 을 못 쓰므로, 파이프 없이 한 줄씩 그대로 실행한다.
+      # 로컬에서 같은 목록을 돌리는 방법은 CLAUDE.md §3 참고.
+      - name: Regression tests (scenes)
+        run: |
+          set -e
+          godot --headless --path . res://scenes/ContactSeparationTest.tscn
+          godot --headless --path . res://scenes/ContinueSaveTest.tscn
+          godot --headless --path . res://scenes/FxLeakTest.tscn
+          godot --headless --path . res://scenes/PauseWatchdogTest.tscn
+
+      # 시뮬레이션형 검증은 프레임 수에 의존하므로 --fixed-fps 60 을 반드시 준다
+      # (없으면 헤드리스가 가변 프레임으로 돌아 타이밍 판정이 흔들린다).
+      - name: Regression tests (verify scripts)
+        run: |
+          set -e
+          godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_arena.gd
+          godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_heal.gd
+          godot --headless --path . --fixed-fps 60 --script res://tools/verify_environment.gd
+          godot --headless --path . --script res://tools/verify_character_sheets.gd
+
       - name: Export to Web
         run: |
           mkdir -p build/web
@@ -91,6 +117,8 @@ jobs:
   deploy:
     name: Deploy to external Pages repo
     needs: build
+    # PR 검증 실행에서는 배포하지 않는다 — main 에 실제로 머지된 것만 라이브로 나간다.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     # 배포는 Godot 컨테이너가 아닌 "호스트 러너"에서 수행한다. godot-ci 이미지에는 ssh-agent
     # (openssh-client)가 없어 peaceiris 의 SSH 배포가 'ssh-agent ENOENT' 로 실패하기 때문.
     # ubuntu-latest 호스트에는 ssh-agent·git 이 기본 포함돼 있다.
