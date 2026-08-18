@@ -51,8 +51,9 @@
 | P1-4 이벤트 예고 UI | E | ⚪ 대기 | — | — |
 | P1-5 후반 이속 밸런스 | F | ⚪ 대기 | — | — |
 | P1-6 밸런스 측정 하네스 + BALANCE 재작성 | F | ✅ (ee17767) | claude/f-lane-balance-harness | 2026-08-18 |
+| P1-8 탐욕형 빌드 페르소나 | F | 🔵 진행중 | claude/f-lane-greedy-persona | 2026-08-18 |
 | P1-7 첫 보스 난이도 계단 | F | ⚪ 대기 | — | — |
-| P2-8 오토플레이 교전 이탈 수정 | F | ✅ (이 PR) | claude/f-lane-autoplay-engage | 2026-08-18 |
+| P2-8 오토플레이 교전 이탈 수정 | F | ✅ (8b3dcb4) | claude/f-lane-autoplay-engage | 2026-08-18 |
 | P2-1 공통 팝업 셸 | D | ⚪ 대기 | — | — |
 | P2-2 메뉴 플레이트 3종 | D | ⚪ 대기 | — | — |
 | P2-3 로케일 누락 | D | ⚪ 대기 | — | — |
