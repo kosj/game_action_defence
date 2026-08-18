@@ -1,0 +1,171 @@
+# CLAUDE.md — 이 레포에서 일하는 규칙
+
+Godot 4.3 · 모바일 세로 WebGL(720×1280, `gl_compatibility`) 탑다운 액션 디펜스.
+**여러 세션이 병렬로 작업한다.** 세션끼리는 대화할 수 없고, 이 레포가 유일한 공유 메모리다.
+아래는 "몰라서 사고가 났던 것"만 모았다. 게임 구조 설명은 `README.md`, 남은 작업은 `HANDOFF.md`.
+
+---
+
+## 1. 협업 규약 (다른 세션과 겹치지 않기)
+
+1. **작업 단위 = `HANDOFF.md` 한 항목 = 브랜치 1개 = PR 1개.** 여러 항목을 한 PR에 묶지 않는다.
+2. **착수 선언이 먼저다.** 코드를 건드리기 전에 `HANDOFF.md` §1 점유 표에서 해당 항목을
+   `🔵 진행중` + 브랜치명으로 바꿔 **main 에 먼저 푸시**한다. 이걸 빠뜨리면 다른 세션이 같은 항목을 집는다.
+3. **브랜치는 항상 `main` 에서 분기한다.** 다른 세션의 브랜치 위에 쌓지 않는다(머지 순서에 종속된다).
+4. 시작 전 `git fetch origin main && git log --oneline origin/main -10` 으로 그 사이 머지된 것을 확인한다.
+5. 완료 시 같은 PR 안에서 ① 점유 표를 `✅ (sha)` 로 ② 관련 계획 문서(`BALANCE.md` 등)를 갱신한다.
+   **문서 갱신을 별도 PR로 미루지 않는다** — 그렇게 해서 지금 문서 6개가 낡았다(`HANDOFF.md` P3).
+
+### 동시에 건드리면 반드시 충돌하는 파일
+| 파일 | 규모 | 겹치는 작업 |
+|---|---|---|
+| `scripts/MainMenu.gd` | 1521줄 | 팝업/버튼/로케일 계열 전부 |
+| `scripts/HUD.gd` | 1405줄 | 치트 게이팅·이벤트 예고·게이지 |
+| `data/themes.tres` | — | 보스 배분·프롭·기믹 전부 (생성기 경유, §2 참고) |
+
+이 셋을 건드리는 작업은 **직렬화한다**. 레인 배치는 `HANDOFF.md` 부록 참고.
+
+---
+
+## 2. 절대 규칙 (어기면 조용히 깨진다)
+
+### `data/**.tres` 를 손으로 고치지 않는다
+전부 `tools/gen_*.gd` 생성기의 산출물이다. **생성기를 고치고 재생성한다.**
+`.tres` 를 직접 편집하면 다음 생성기 실행 때 말없이 덮어써진다.
+
+| 데이터 | 생성기 |
+|---|---|
+| `data/item_catalog.tres` (무기 28·패시브 10·진화 12) | `tools/gen_item_catalog.gd` |
+| `data/themes.tres` | `tools/gen_theme_data.gd` |
+| `data/character_db.tres` | `tools/gen_character_data.gd` |
+| `data/zombies.tres` + `data/zombies/*` | `tools/gen_zombie_data.gd` |
+| `data/meta_upgrades.tres` + `data/meta/*` | `tools/gen_meta_data.gd` |
+| `data/achievements.tres` | `tools/gen_achievement_data.gd` |
+| `data/difficulty.tres` | `tools/gen_difficulty_data.gd` |
+
+```sh
+godot --headless --path . --script res://tools/gen_theme_data.gd
+```
+
+예외: `data/balance.tres`(BalanceData)는 **손으로 조정하는 밸런스 테이블**이다(생성기 없음).
+전투 수치를 코드에 새로 하드코딩하지 말고 여기에 필드를 추가한다.
+
+### 화면에 나오는 문자열은 전부 `Locale` 키로
+지원 언어 **en/ko/ja 3종**(`Locale.SUPPORTED`). 폰트는 "실제로 쓰는 글자만" 남긴 서브셋이라,
+키 없이 하드코딩하면 **없는 글자가 두부(□)로 뜬다.** 특히 일본어 신규 한자를 조심한다.
+문자열 추가 후 반드시:
+```sh
+godot --headless --path . --script res://tools/check_font_coverage.gd   # CI 게이트와 동일
+python3 tools/subset_fonts.py                                           # 글자가 늘었으면 재서브셋
+```
+
+### 새 스프라이트는 아틀라스에 넣는다
+좀비·보스·투사체·FX·그림자는 아틀라스 한 장으로 묶여 있고, 코드는 `res://assets/atlas/*.tres`
+(AtlasTexture)를 참조한다. **PNG 를 직접 참조하면 그 스프라이트만 배칭이 끊긴다 —
+눈에는 안 보이고 프레임만 떨어진다.**
+```sh
+python3 tools/build_atlas.py                                  # 아틀라스 재생성
+godot --headless --path . --script res://tools/check_atlas.gd # CI 게이트와 동일
+```
+프롭은 **테마별로 분리된 아틀라스**다(`assets/atlas/props/<테마>/`) — 한 판에 한 테마만 뜨므로
+합치면 안 쓰는 두 테마가 VRAM 에 상주한다. 절차 상세는 `ASSET_PIPELINE.md`.
+
+### 유닛 스프라이트 규약
+배경 투명 · 타이트 크롭 · **높이 120px** · 사이드뷰 오른쪽 향함.
+```sh
+python3 tools/make_icon.py -o assets/sprites/boss_x.png --height 120 --black-halo raw/x.png
+```
+`--black-halo` 는 월드에 놓이는 유닛 공통(흰 프린지를 검정 외곽선으로). 세로가 아닌 `--max`
+(긴 변)를 쓰면 가로로 긴 네발 보스만 혼자 작아진다.
+
+### 사운드는 `tools/import_sfx.py` 를 거친다
+라우드니스(RMS -16dBFS)·선행 무음 제거·페이드가 일괄 적용된다. 개별 세기는 파일이 아니라
+`SoundManager._VOLUMES` 에서 조정한다.
+
+---
+
+## 3. 커밋 전 검증 (CI 와 동일 — 여기서 통과시키면 CI 도 통과한다)
+
+```sh
+python3 tools/check_gdscript.py                                            # 엔진 없이 문법 점검(빠름)
+godot --headless --path . --import                                         # 임포트/파싱
+godot --headless --path . --script res://tools/check_font_coverage.gd
+godot --headless --path . --script res://tools/check_atlas.gd
+
+# 회귀 테스트 — 전부 종료 코드로 성패를 알린다(0=통과)
+godot --headless --path . res://scenes/ContactSeparationTest.tscn
+godot --headless --path . res://scenes/ContinueSaveTest.tscn
+godot --headless --path . res://scenes/FxLeakTest.tscn
+godot --headless --path . res://scenes/PauseWatchdogTest.tscn
+godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_arena.gd
+godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_heal.gd
+godot --headless --path . --fixed-fps 60 --script res://tools/verify_environment.gd
+godot --headless --path . --script res://tools/verify_character_sheets.gd
+```
+
+UI 를 건드렸으면 추가로 `python3 tools/check_text_fit.py` (en/ko/ja 폭 초과 검사).
+
+**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 8종이 이 프로젝트의 안전망 전부다.
+
+---
+
+## 4. 아키텍처에서 반드시 알아야 할 것
+
+### 오브젝트 풀 (`Pool` autoload)
+`queue_free()` 대신 `Pool.release(n)`, 생성은 `Pool.acquire(SCENE, parent)`.
+풀 대상 스크립트 규약:
+- `on_spawn()` — 재사용 시 상태 초기화(체력/타이머/플래그). **필수.**
+- `on_despawn()` — 반납 직전 정리(그룹 해제 등). 선택.
+- `_ready()` — 시그널 연결 같은 **1회성** 셋업만. 재사용 시 다시 불리지 않는다.
+
+### 일시정지는 `Events` 가 소유권으로 관리한다
+모달이 각자 `get_tree().paused` 를 만지면, 하나가 해제를 빠뜨렸을 때 **화면엔 아무것도 없는데
+게임만 멈춘 상태로 영구히 갇힌다**(실제 발생한 웹 프리즈). 반드시:
+```gdscript
+Events.pause_push(self, "level_up")   # 모달 열 때
+Events.pause_pop(self)                # 닫을 때
+```
+워치독이 유령 소유자와 남은 히트스톱 배속을 자동 복구한다(`PauseWatchdogTest.tscn` 이 이걸 지킨다).
+
+### 좀비 질의는 공유 버퍼다 — 보관하지 말 것
+`Events.zombies_near(pos)` / `zombies_in_radius(pos, r)` 의 반환값은 **재사용 버퍼**다.
+즉시 순회용이며, 같은 함수를 순회 도중 다시 호출하면 내용이 덮인다.
+풀 반납된 좀비는 인스턴스가 유효한 채 그룹만 빠지므로 호출부에서
+`is_instance_valid(z) and z.is_in_group("zombies")` 확인이 계속 필요하다.
+
+### 이펙트는 `Events.fx_layer()` 아래에 붙인다
+`Main` 은 y_sort 라 이펙트가 유닛 사이에 끼면 배칭이 계속 끊긴다. FX 전용 레이어(y_sort 꺼짐)로 뺀다.
+
+### 보스 노드의 루트를 트윈하지 않는다
+루트 `CharacterBody2D` 의 scale/position 을 트윈하면 `move_and_slide` 가 깨져 보스가 얼어붙는다.
+**Body 스프라이트만** 애니메이트한다.
+
+### 물리 레이어
+`1=player · 2=zombies · 3=bullets · 4=gold`
+
+### 오토로드 17개
+`Events`(이벤트 버스+런 상태+일시정지) `Pool` `GameData`(.tres 로더) `SoundManager` `SaveManager`
+`MetaManager` `RewardInbox` `CharacterManager` `AchievementManager` `QuestManager` `ThemeManager`
+`RankingManager` `AdManager` `Locale` `UITheme` `Cheats` `SceneFade`
+
+---
+
+## 5. 알려진 함정
+
+- **웹 pck 상한 15MB** (CI 게이트). 현재 약 12MB. 에셋을 늘릴 땐 압축 설정을 같이 본다.
+- **렌더러는 `gl_compatibility` 고정.** 다른 렌더러 전용 기능(2D 라이트/SDF 등)을 쓰면 웹에서 깨진다.
+- **export 제외 필터는 하위 폴더까지 삼킨다** — 실제로 바닥 타일이 웹 빌드에서 통째로 사라진 적이 있다(`1137951`).
+- **치트가 릴리스 빌드에 노출돼 있다**(`HANDOFF.md` P0-1). 랭킹/과제 데이터를 다루는 작업을 한다면
+  이 항목이 먼저 처리됐는지 확인한다.
+- `Events` 에 웨이브 시대의 **데드 API** 가 남아 있다(`wave_pressure_mult` 등, `HANDOFF.md` P2-6).
+  실제 난이도 곡선은 `ZombieSpawner._hp_mult()` 의 2차 곡선이다 — 여기에 속지 말 것.
+
+---
+
+## 6. 커밋 / PR
+
+- 커밋 제목은 `타입(범위): 요약` (예: `feat(env):`, `fix(build):`, `perf(atlas):`, `docs:`).
+  한국어·영어 모두 쓰이지만 **한 커밋 안에서는 하나로** 통일한다.
+- 본문에 **왜** 고쳤는지를 남긴다. 이 레포의 주석·커밋 문화가 그렇고, 다음 세션이 읽는 유일한 맥락이다.
+- PR 은 squash merge. `main` 직접 푸시 금지(문서 점유 표 갱신은 예외).
+- 모델명·세션 식별자를 커밋 메시지·코드 주석·PR 본문에 넣지 않는다.
