@@ -52,6 +52,7 @@
 | P1-5 후반 이속 밸런스 | F | ⚪ 대기 | — | — |
 | P1-9 텔레메트리(로컬 수집) | F | ✅ (17df85c) | claude/f-lane-telemetry | 2026-08-18 |
 | P1-10 텔레메트리 원격 수집 | — | 🟡 결정대기 | — | — |
+| P1-11 기록 내보내기 상시 노출 + 치트 판 표시 | F | 🔵 진행중 | claude/f-lane-telemetry-export | 2026-08-18 |
 | P1-6 밸런스 측정 하네스 + BALANCE 재작성 | F | ✅ (ee17767) | claude/f-lane-balance-harness | 2026-08-18 |
 | P1-8 탐욕형 빌드 페르소나 | F | ✅ (61f5405) | claude/f-lane-greedy-persona | 2026-08-18 |
 | P1-7 첫 보스 난이도 계단 | F | ✅ (77dcefc) | claude/f-lane-boss-step | 2026-08-18 |
