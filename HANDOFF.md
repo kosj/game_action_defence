@@ -45,7 +45,7 @@
 | P0-1 치트 게이팅 | A | ⚪ 대기 | — | — |
 | P0-2 마일스톤 저장 + 퀘스트 트랙 교체 | C | ⚪ 대기 | — | — |
 | P0-3 ShopPanel 폐기 | C | ⚪ 대기 | — | — |
-| P1-1 미배치 보스 리소스 삭제 | B | ⚪ 대기 | — | — |
+| P1-1 미배치 보스 리소스 삭제 | B | 🔵 진행중 | claude/b-lane-boss-cleanup | 2026-08-18 |
 | P1-2 프롭 활성화 | B | ✅ (b1ed9ab) | claude/b-lane-pending-item-dix8eg | 2026-08-18 |
 | P1-3 가스통 고아 코드 삭제 | B | ✅ (2e76857) | claude/b-lane-gascan-cleanup | 2026-08-18 |
 | P1-4 이벤트 예고 UI | E | ⚪ 대기 | — | — |
