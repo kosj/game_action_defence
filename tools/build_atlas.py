@@ -52,6 +52,7 @@ OUT_DIR = "assets/atlas"
 OUT_SUBDIR = {
     "gameplay": "",
     "ui": "ui",
+    "menu": "menu",
     "props_suburb": "props/suburb",
     "props_city": "props/city",
     "props_lab": "props/lab",
@@ -79,12 +80,18 @@ ATLASES: dict[str, list[str]] = {
         # 그려지므로 이쪽 아틀라스에도 넣어야 배칭이 끊기지 않는다(UI 쪽에도 아이콘으로 남는다).
         "assets/ui/icons/weapon_sawblade.png",
     ],
-    # UI — HUD/메뉴는 CanvasLayer 라 유닛 스트림과 섞이지 않지만, 아이콘 49장이 로드아웃·상점·
-    # 레벨업 카드에서 줄줄이 그려지며 텍스처가 매번 바뀐다. 별도 아틀라스로 묶는다.
+    # UI — 아이콘 49장이 HUD·레벨업 카드·상점에서 줄줄이 그려지며 텍스처가 매번 바뀐다.
+    # 인게임에서도 쓰므로 이 시트는 상주한다.
     #  · frames/·hud/ 는 StyleBoxTexture 나인패치 + 무손실 고정이라 제외(ASSET_PIPELINE.md 3절)
     #  · assets/ui 루트의 배경/로고/비네트는 한 번에 한 장만 뜨는 큰 그림이라 이득이 없다
     "ui": [
         "assets/ui/icons/*.png",
+    ],
+    # 메뉴 — 캐릭터 초상화와 테마 썸네일. **메인메뉴에서만** 쓴다(MainMenu.gd 두 곳에서 동적
+    # load, preload/씬 고정 참조 없음). ui 시트에 같이 있으면 원본이 커서 시트 한 변을 2048 로
+    # 밀어올리고, 그 16MB 가 게임 내내 VRAM 에 상주한다. 갈라 두면 메뉴 씬이 해제될 때 같이
+    # 내려가고 인게임에는 작은 ui 시트만 남는다.
+    "menu": [
         "assets/ui/portraits/*.png",
         "assets/ui/thumbs/*.png",
     ],

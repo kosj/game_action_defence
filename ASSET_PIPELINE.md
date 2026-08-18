@@ -21,19 +21,35 @@ shadow.png → zombie_walker.png → shadow.png → zombie_brute.png → ...
 이 되어 **아이템마다 배치가 끊긴다**. 좀비 300마리면 그것만으로 약 600 드로우 콜이었다.
 그래서 이 스프라이트들은 아틀라스(`assets/atlas/gameplay.png`) 한 장으로 묶여 있다.
 
-### 아틀라스는 5장이다 — 넣을 곳을 먼저 고른다
+### 아틀라스는 6장이다 — 넣을 곳을 먼저 고른다
 
 | 아틀라스 | 원본 위치 | `.tres` 위치 | 언제 로드되나 |
 |---|---|---|---|
 | `gameplay` | `assets/sprites/{,fx/,turret/}*.png` | `assets/atlas/*.tres` | 항상 |
-| `ui` | `assets/ui/{icons,portraits,thumbs}/*.png` | `assets/atlas/ui/*.tres` | 항상 |
+| `ui` | `assets/ui/icons/*.png` | `assets/atlas/ui/*.tres` | 항상 |
+| `menu` | `assets/ui/{portraits,thumbs}/*.png` | `assets/atlas/menu/*.tres` | **메인메뉴에서만** |
 | `props/suburb` | `assets/sprites/props/suburb/*.png` | `assets/atlas/props/suburb/*.tres` | **그 테마를 고른 판에서만** |
 | `props/city` | `assets/sprites/props/city/*.png` | `assets/atlas/props/city/*.tres` | 〃 |
 | `props/lab` | `assets/sprites/props/lab/*.png` | `assets/atlas/props/lab/*.tres` | 〃 |
 
-프롭을 테마별로 나눈 이유는 배칭이 아니라 **VRAM** 이다. 한 판에서 뜨는 테마는 하나뿐인데
-한 장에 합치면 안 쓰는 두 테마의 프롭까지 항상 올라간다. `PropField` 는 선택 테마의 폴더만
-`load()` 하므로 나머지 두 장은 아예 열리지 않는다.
+오른쪽 칸이 이 표의 요점이다. **배칭 때문에 나누는 게 아니라 VRAM 때문에 나눈다.**
+
+- 프롭: 한 판에서 뜨는 테마는 하나뿐인데 한 장에 합치면 안 쓰는 두 테마까지 늘 올라간다.
+  `PropField` 는 선택 테마의 폴더만 `load()` 하므로 나머지 두 장은 아예 열리지 않는다.
+- 메뉴: 초상화 3장 + 테마 썸네일 3장은 원본이 커서(357~512px) 이것들만으로 `ui` 시트 면적의
+  60% 를 먹고 한 변을 2048 로 밀어올렸다 — 그 16MB 가 게임 내내 상주했다. 갈라 두니
+  `ui` 가 1024×1024(4MB)로 내려갔다.
+
+**"항상" 이 아닌 칸에 넣으려면 조건이 있다** — 그 시트를 물고 있는 참조가 전부 끊겨야 실제로
+해제된다. 셋 다 만족해야 한다.
+
+1. `preload`(= `const`) 로 잡지 않는다. `preload` 는 스크립트가 로드되는 순간 영구히 물린다
+2. `.tscn`/`.tres` 의 `ext_resource` 로 고정하지 않는다 — 씬이 살아 있는 한 같이 산다
+3. 그 화면을 벗어날 때 씬이 실제로 해제된다(`change_scene_to_file` 등)
+
+셋 중 하나라도 어기면 폴더만 갈라지고 VRAM 은 그대로다. 검증은 실측이 확실하다 —
+인게임 씬·아이콘을 전부 `load()` 한 뒤 `ResourceLoader.has_cached("res://assets/atlas/menu.png")`
+가 `false` 인지 본다(실제로 이 방법으로 확인했다).
 
 > **새 프롭을 추가할 때는 폴더 = 테마 id** 다(`suburb`/`city`/`lab` — `ThemeData.id`).
 > 세 곳이 같은 이름을 쓴다: `assets/sprites/props/<테마>/`, `build_atlas.py` 의
@@ -52,7 +68,8 @@ python3 tools/build_atlas.py
 # 3) 참조는 PNG 가 아니라 생성된 AtlasTexture 를 가리킨다
 #      X  res://assets/sprites/zombie_new.png
 #      O  res://assets/atlas/zombie_new.tres              (게임플레이)
-#      O  res://assets/atlas/ui/weapon_new.tres           (UI)
+#      O  res://assets/atlas/ui/weapon_new.tres           (인게임 UI 아이콘)
+#      O  res://assets/atlas/menu/portrait_new.tres       (메뉴 전용)
 #      O  res://assets/atlas/props/city/prop_new.tres     (도심 프롭)
 ```
 

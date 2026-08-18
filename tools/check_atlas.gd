@@ -17,6 +17,8 @@ extends SceneTree
 const ATLAS_DIRS := [
 	"res://assets/atlas",
 	"res://assets/atlas/ui",
+	# 초상화·테마 썸네일은 메인메뉴에서만 쓴다 — 갈라 둬야 인게임 VRAM 에 안 남는다.
+	"res://assets/atlas/menu",
 	# 프롭은 테마별로 나뉘어 있다 — 한 판에 한 테마만 로드된다(ASSET_PIPELINE.md 1절).
 	"res://assets/atlas/props/suburb",
 	"res://assets/atlas/props/city",

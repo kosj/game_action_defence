@@ -541,7 +541,7 @@ func _build_character_panel() -> void:
 		# 캐릭터 썸네일 — 전용 초상화(assets/ui/portraits/portrait_<id>.png)가 있으면 우선 사용,
 		# 없으면 인게임 스프라이트. 잠금 상태는 _refresh_character 가 실루엣처럼 어둡게 한다.
 		var thumb: TextureRect = null
-		var tex_path := "res://assets/atlas/ui/portrait_%s.tres" % c.id   # UI 아틀라스
+		var tex_path := "res://assets/atlas/menu/portrait_%s.tres" % c.id   # 메뉴 아틀라스(인게임 미상주)
 		if not ResourceLoader.exists(tex_path):
 			tex_path = c.sprite_path
 		if tex_path != "" and ResourceLoader.exists(tex_path):
@@ -1186,7 +1186,7 @@ func _build_theme_panel() -> void:
 		# 와이드 썸네일 — 카드 가로를 꽉 채우고 남는 세로를 모두 차지. 원본(4:3)은
 		# 가운데를 잘라 배너처럼 보여준다(COVERED).
 		var thumb: TextureRect = null
-		var tex_path := "res://assets/atlas/ui/theme_%s.tres" % t.id   # UI 아틀라스
+		var tex_path := "res://assets/atlas/menu/theme_%s.tres" % t.id   # 메뉴 아틀라스(인게임 미상주)
 		if ResourceLoader.exists(tex_path):
 			thumb = TextureRect.new()
 			thumb.texture = load(tex_path)
