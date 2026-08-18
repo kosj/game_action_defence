@@ -43,7 +43,7 @@
 |---|---|---|---|---|
 | P2-5 CI 회귀 게이트 + PR 트리거 | A | ✅ (9bd1100) | claude/game-designer-task-review-wvhkiq | 2026-08-18 |
 | P0-1 치트 게이팅 | A | ✅ (db7bb29) | claude/a-lane-cheat-gate | 2026-08-18 |
-| P0-2 마일스톤 저장 + 퀘스트 트랙 교체 | C | 🔵 진행중 | claude/c-lane-milestone-save | 2026-08-18 |
+| P0-2 마일스톤 저장 + 퀘스트 트랙 교체 | C | ✅ (이 PR) | claude/c-lane-milestone-save | 2026-08-18 |
 | P0-3 ShopPanel 폐기 | C | ⚪ 대기 | — | — |
 | P1-1 미배치 보스 리소스 삭제 | B | ✅ (defee2e) | claude/b-lane-boss-cleanup | 2026-08-18 |
 | P1-2 프롭 활성화 | B | ✅ (b1ed9ab) | claude/b-lane-pending-item-dix8eg | 2026-08-18 |
@@ -171,10 +171,35 @@ Godot 이 `.gd` 를 `.gdc` 로 토큰화해 내보내므로 스크립트 안의 
    돌고 있어(`Player.gd:227~230`) 중복이다. 이 항목에서 실제로 고쳐지는 건 **퀘스트·도전과제 저장**이다.
 
 **수용 기준** — 메뉴 퀘스트 패널의 3개 트랙이 전부 실제로 진행되고, 런 도중 강제 종료 후
-재진입해도 퀘스트/과제 진행이 남아 있다.
+재진입해도 퀘스트/과제 진행이 남아 있다. ✅
 
-**검증** — `godot --headless --path . res://scenes/ContinueSaveTest.tscn` 회귀 통과 +
-런 중 `QuestManager.active_quests()` 프로브로 3트랙 current 증가 확인.
+**완료 (2026-08-18)** — 결정된 4가지를 그대로 이행했다.
+1. `Events.wave_complete` → **`milestone_reached(index: int)`** 개명, `ZombieSpawner._on_boss_died`
+   에서 `_boss_count` 와 함께 emit. 구독자 5곳(HUD·QuestManager·AchievementManager·Player·ShopPanel)
+   전부 이관.
+2. `waves` 트랙 → **`survive`(누적 생존 분)**. `Survivor` / 목표 15분 / `goal_mul` 1.6 /
+   보상 80 · `reward_mul` 1.5. 15분은 한 판(30분 클리어)의 절반이라 첫 티어가 한 세션 안에 닿는다.
+   `elapsed_changed` 는 *그 판의* 경과 시간이라 **증가분만 적산**한다 — 값을 그대로 더하면 판마다
+   폭증하고, 이어하기로 900초부터 시작하면 그 900초를 새로 세게 된다. 1분 미만 잔여(`frac`)도
+   저장에 넣어 판 사이에 이어진다. 구 `waves` 키는 `_load` 가 `TRACKS` 기준으로만 읽어 자동 무시.
+3. `HUD._on_wave_complete`(72줄 연출) + `sfx_wave_clear.ogg` 를 보스 처치 배너로 재활용.
+   로케일 `wave_clear_fmt` → **`boss_cleared`**(en/ko/ja). 기존 글자만 써서 재서브셋 불필요.
+4. `Player.gd` 의 웨이브 훅 제거 — 체크포인트 저장은 `AUTOSAVE_INTERVAL`(20초) 주기와 중복이었다.
+
+**곁가지 한 줄** — `MainMenu._quest_icon` 의 `"waves" → flag` 를 `"survive" → clock` 으로 바꿨다.
+`MainMenu.gd` 는 D 레인 독점 파일이지만, 안 고치면 새 트랙이 폴백 아이콘으로 떠 이 PR 이 만든
+결함이 된다. 3줄 · 함수 하나이므로 충돌 위험이 낮다고 판단했다.
+
+**검증** — `tools/verify_quest_tracks.gd` 신설(CI 회귀 목록 추가, `CLAUDE.md` §3 10종으로 갱신).
+세 트랙이 각자의 신호로 오르는지 · 생존 적산이 증가분 기준인지(판 되감김 포함) ·
+**`ZombieSpawner._on_boss_died` 가 실제로 마일스톤을 쏘는지**(P0-2 의 원인이 "선언만 있고 발신자가
+없는 시그널"이었으므로 발신자를 직접 부른다) · 마일스톤에서 퀘스트·도전과제가 디스크로 내려가는지 ·
+구 `waves` 키가 남은 세이브를 읽어도 깨지지 않는지. 주기 저장 연결과 보스 emit 을 각각 지워
+검사가 3건 실패하는 것을 확인했다. `CLAUDE.md` §3 전체 + `check_text_fit.py` 통과.
+
+**P2-6 에 넘기는 것** — HUD 배너 노드 이름 `wave_clear_bg`/`wave_clear_label` 은 그대로 뒀다.
+클리어 연출(`run_cleared`)과 공유하는 범용 배너라 이름만 낡은 것이고, `HUD.tscn` 을 건드리면
+E 레인(P1-4)과 충돌한다. `Events.wave_changed`·`wave_progress_changed` 도 P2-6 소관이다.
 
 ---
 

@@ -16,7 +16,7 @@ func _ready() -> void:
 	Events.boss_died.connect(func(): _add("boss_kills", 1))
 	Events.elapsed_changed.connect(func(sec: float): _set_max("best_time", int(sec)))
 	Events.level_up.connect(func(lvl: int): _set_max("best_level", lvl))
-	Events.wave_complete.connect(func(_w: int): _flush())   # 주기 저장 — 런 중 강제 종료(웹 탭 닫힘) 대비
+	Events.milestone_reached.connect(func(_i: int): _flush())   # 주기 저장 — 런 중 강제 종료(웹 탭 닫힘) 대비
 	Events.player_died.connect(_flush)
 
 

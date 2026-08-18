@@ -421,6 +421,9 @@ func _on_boss_summon(count: int) -> void:
 
 func _on_boss_died() -> void:
 	_boss_alive = false   # 엔들리스 — 승리 없이 계속 진행, 다음 마일스톤에 새 보스.
+	# 이 게임에 남은 유일한 자연스러운 마일스톤이다. 퀘스트·도전과제가 이 시점에 진행분을
+	# 디스크로 내린다 — 웹에서 탭을 닫으면 그 판의 진행이 통째로 날아가던 문제를 막는다(P0-2).
+	Events.milestone_reached.emit(_boss_count)
 
 
 func _pick_type(weights: Array) -> Dictionary:

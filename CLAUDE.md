@@ -119,11 +119,12 @@ godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_heal.g
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_environment.gd
 godot --headless --path . --script res://tools/verify_character_sheets.gd
 godot --headless --path . --script res://tools/verify_cheat_gate.gd
+godot --headless --path . --script res://tools/verify_quest_tracks.gd
 ```
 
 UI 를 건드렸으면 추가로 `python3 tools/check_text_fit.py` (en/ko/ja 폭 초과 검사).
 
-**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 9종이 이 프로젝트의 안전망 전부다.
+**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 10종이 이 프로젝트의 안전망 전부다.
 
 ---
 

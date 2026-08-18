@@ -56,7 +56,11 @@ signal player_died
 signal player_revived            # 보상형 광고 시청으로 사망 직후 부활
 signal wave_changed(wave: int)
 signal elapsed_changed(seconds: float)
-signal wave_complete(wave: int)
+## 런 안의 마일스톤 도달 — 지금은 **보스 처치**가 유일한 마일스톤이다(600초 주기).
+## 웨이브제에서 시간 기반 디렉터로 갈아타면서 wave_complete 는 발신자가 사라져 죽어 있었고,
+## 그 바람에 퀘스트·도전과제의 주기 저장이 통째로 멈춰 있었다(P0-2). 이름을 실제 개념에 맞춘다.
+## index 는 그 판의 보스 회차(1부터).
+signal milestone_reached(index: int)
 signal wave_progress_changed(killed: int, total: int)
 signal run_progress(elapsed: float, clear: float)   # 시간 기반 진행(HUD 클리어 진행바)
 signal run_cleared                                  # 30분 생존 = 클리어 달성(1회)

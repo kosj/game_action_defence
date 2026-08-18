@@ -113,7 +113,6 @@ func _ready() -> void:
 	Events.inventory_changed.connect(apply_upgrades)   # 상자 보상 등 어떤 경로로 무기를 얻어도 즉시 모듈 부착
 	Events.shop_closed.connect(_autosave)
 	Events.screen_shake_requested.connect(_on_screen_shake)
-	Events.wave_complete.connect(func(_wave: int): _autosave())
 	var _char: CharacterData = CharacterManager.selected()
 	_trait_key = _char.trait_key if _char != null else ""
 	Events.zombie_killed.connect(_on_kill_for_trait)   # 베테랑 전투 회복
