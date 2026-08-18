@@ -114,6 +114,7 @@ godot --headless --path . res://scenes/ContactSeparationTest.tscn
 godot --headless --path . res://scenes/ContinueSaveTest.tscn
 godot --headless --path . res://scenes/FxLeakTest.tscn
 godot --headless --path . res://scenes/PauseWatchdogTest.tscn
+godot --headless --path . res://scenes/TelemetryTest.tscn
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_arena.gd
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_heal.gd
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_environment.gd
@@ -162,10 +163,10 @@ Events.pause_pop(self)                # 닫을 때
 ### 물리 레이어
 `1=player · 2=zombies · 3=bullets · 4=gold`
 
-### 오토로드 17개
+### 오토로드 18개
 `Events`(이벤트 버스+런 상태+일시정지) `Pool` `GameData`(.tres 로더) `SoundManager` `SaveManager`
 `MetaManager` `RewardInbox` `CharacterManager` `AchievementManager` `QuestManager` `ThemeManager`
-`RankingManager` `AdManager` `Locale` `UITheme` `Cheats` `SceneFade`
+`RankingManager` `AdManager` `Locale` `UITheme` `Cheats` `SceneFade` `Telemetry`(로컬 플레이 기록)
 
 ---
 

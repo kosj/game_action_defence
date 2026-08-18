@@ -10,6 +10,7 @@ const ITEM_PICKUP := preload("res://scenes/ItemPickup.tscn")
 
 
 func _ready() -> void:
+	Telemetry.begin_run()       # 이 판의 기록 시작(기기 안에만 남는다 — Telemetry.gd 참고)
 	Events.pause_release_all()  # 게임 씬 진입 시 이전 판의 정지 소유권이 남아있지 않도록 보장
 	Engine.time_scale = 1.0     # 이전 판의 히트스톱 배속이 남아 새 판이 느리게/멈춘 듯 시작하지 않도록
 	_clean_slate()              # 이전 판의 잔존 엔티티/풀/정적 상태 정리(새 판·이어하기·다시하기 공통)
