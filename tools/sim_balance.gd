@@ -39,6 +39,11 @@ var _last_hp: int = -1
 var _boss_spawn_t: float = -1.0
 var _boss_fights: Array = []
 var _boss_kills: int = 0
+## 보스전 진단 — 사망 시 보스 체력이 얼마나 남았나. 이게 밸런스 질문을 둘로 가른다:
+## 많이 남았으면 **화력 부족**, 거의 안 남았으면 **생존력 부족**이다.
+var _boss_hp: int = -1
+var _boss_hp_max: int = -1
+var _hp_at_boss: int = -1
 var _peak_z: int = 0
 var _samples: Array = []
 var _next_sample: float = SAMPLE_INTERVAL
@@ -86,6 +91,7 @@ func _setup() -> void:
 	_events.player_health_changed.connect(_on_hp)
 	_events.boss_spawned.connect(_on_boss_spawned)
 	_events.boss_died.connect(_on_boss_died)
+	_events.boss_health_changed.connect(func(h: int, mx: int): _boss_hp = h; _boss_hp_max = mx)
 	_events.run_cleared.connect(func(): _cleared = true)
 
 	# MainMenu._start_new_game 과 같은 순서 — Main.gd 는 Events 가 이미 준비됐다고 전제한다.
@@ -142,8 +148,11 @@ func _on_hp(health: int, _mx: int) -> void:
 	_last_hp = health
 
 
-func _on_boss_spawned(_mx: int) -> void:
+func _on_boss_spawned(mx: int) -> void:
 	_boss_spawn_t = float(_events.elapsed_time)
+	_boss_hp = mx
+	_boss_hp_max = mx
+	_hp_at_boss = int(_events.player_health)
 
 
 func _on_boss_died() -> void:
@@ -183,6 +192,10 @@ func _finish(el: float) -> void:
 		"boss_spawns": _boss_fights.size() + (1 if _boss_spawn_t >= 0.0 else 0),
 		"boss_kills": _boss_kills,
 		"boss_fight_s": _boss_fights,
+		"boss_hp_left_pct": (int(round(100.0 * float(_boss_hp) / float(_boss_hp_max)))
+			if _boss_hp_max > 0 else -1),
+		"player_hp_at_boss": _hp_at_boss,
+		"survived_after_boss_s": (snappedf(el - _boss_spawn_t, 0.1) if _boss_spawn_t >= 0.0 else -1.0),
 		"weapons": _events.weapons,
 		"passives": _events.passives,
 		"peak_zombies": _peak_z,
