@@ -148,7 +148,7 @@ func _ready() -> void:
 	Events.wave_changed.connect(_on_wave_changed)
 	Events.run_progress.connect(_on_run_progress)
 	Events.run_cleared.connect(_on_run_cleared)
-	Events.wave_complete.connect(_on_wave_complete)
+	Events.milestone_reached.connect(_on_milestone_reached)
 	Events.weapon_equipped.connect(_on_weapon_equipped)
 	Events.weapon_timer_changed.connect(_on_weapon_timer_changed)
 	Events.gold_magnet_changed.connect(_on_gold_magnet_changed)
@@ -906,10 +906,13 @@ func _build_goal_hint() -> void:
 	tw.tween_callback(func(): _goal_label.visible = false)
 
 
-func _on_wave_complete(wave: int) -> void:
+## 마일스톤(보스 처치) 배너 — 예전 웨이브 클리어 연출을 그대로 재활용한다.
+## 발신자가 없어 72줄 연출과 sfx_wave_clear.ogg 가 통째로 도달 불가였다(P0-2).
+## 배너 노드 이름(wave_clear_*)은 클리어 연출과 공유하는 범용 배너라 그대로 둔다 — 이름 정리는 P2-6.
+func _on_milestone_reached(index: int) -> void:
 	if SoundManager.has_stream("wave_clear"):
-		SoundManager.play_ui("wave_clear", 0.02, 1.0)   # 웨이브 클리어 스팅어(파일 있을 때만)
-	wave_clear_label.text = Locale.t("wave_clear_fmt") % wave
+		SoundManager.play_ui("wave_clear", 0.02, 1.0)   # 마일스톤 스팅어(파일 있을 때만)
+	wave_clear_label.text = Locale.t("boss_cleared") % index
 	wave_clear_label.visible = true
 	wave_clear_bg.visible = true
 	wave_clear_label.modulate.a = 1.0

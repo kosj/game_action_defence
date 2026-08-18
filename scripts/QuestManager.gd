@@ -1,6 +1,6 @@
 extends Node
 ## 끝없는 과제(퀘스트) 시스템 (Autoload "QuestManager").
-## 여러 트랙(처치/보스/웨이브)마다 "현재 과제"가 하나씩 있고, 달성하면 즉시 메타 골드 보상을 주고
+## 여러 트랙(처치/보스/생존)마다 "현재 과제"가 하나씩 있고, 달성하면 즉시 메타 골드 보상을 주고
 ## 다음 티어 과제를 자동 생성한다 — 목표치도, 보상도 티어마다 커진다(끝없이 반복·성장).
 ## 진행/티어는 user://quests.save 에 보존. 완료 시 Events.quest_completed 로 HUD 토스트 알림.
 
@@ -13,13 +13,21 @@ const TRACKS := [
 		"base_goal": 120, "goal_mul": 1.65, "base_reward": 60,  "reward_mul": 1.5},
 	{"id": "bosses", "metric": "bosses", "title": "Boss Breaker",  "verb": "Defeat", "unit": "bosses",
 		"base_goal": 2,   "goal_mul": 1.8,  "base_reward": 120, "reward_mul": 1.6},
-	{"id": "waves",  "metric": "waves",  "title": "Wave Rider",    "verb": "Clear",  "unit": "waves",
-		"base_goal": 8,   "goal_mul": 1.6,  "base_reward": 80,  "reward_mul": 1.5},
+	## 웨이브 개념이 사라진 뒤로 구 "waves" 트랙은 영구히 0/8 이었다 — 메뉴에 *절대 진행되지 않는
+	## 항목*이 상시 떠 있어 유저 눈에는 버그로 보였다(P0-2). 누적 생존 분으로 교체한다.
+	## 보스 처치 수(Boss Breaker)와 측정 대상이 겹치지 않는 지표를 고른 것이 이 교체의 요점이다.
+	## 목표 15분은 한 판(30분 클리어)의 절반 — 첫 티어를 한 세션 안에 닿게 잡았다.
+	{"id": "survive", "metric": "survive", "title": "Survivor", "verb": "Survive", "unit": "minutes",
+		"base_goal": 15,  "goal_mul": 1.6,  "base_reward": 80,  "reward_mul": 1.5},
 ]
 
 var _tier: Dictionary = {}      # track id -> 현재 티어(0-based, 완료한 과제 수)
 var _count: Dictionary = {}     # track id -> 현재 과제 진행 카운터(완료 시 목표만큼 차감)
 var _dirty: bool = false
+## 생존 트랙 적산용. elapsed_changed 는 "이 판의 경과 시간"이라 판마다 0 으로 돌아간다 —
+## 값이 아니라 **증가분**을 더해야 누적이 된다.
+var _last_elapsed: float = -1.0   # 직전에 본 런 경과 시간(-1 = 아직 기준점 없음)
+var _survive_frac: float = 0.0    # 1분에 못 미친 잔여 분. 저장에 포함해 판 사이에도 이어진다
 
 
 func _ready() -> void:
@@ -29,9 +37,27 @@ func _ready() -> void:
 	_load()
 	Events.zombie_killed.connect(func(): _advance("kills", 1))
 	Events.boss_died.connect(func(): _advance("bosses", 1))
-	Events.wave_complete.connect(func(_w: int): _advance("waves", 1))
-	Events.wave_complete.connect(func(_w: int): _flush())   # 주기 저장 — 런 중 강제 종료(웹 탭 닫힘) 대비
+	Events.elapsed_changed.connect(_on_elapsed)
+	# 주기 저장 — 런 중 강제 종료(웹 탭 닫힘) 대비. 이 연결이 P0-2 의 핵심이다:
+	# 예전에는 발신자가 없는 wave_complete 에 물려 있어 저장 시점이 player_died 하나뿐이었고,
+	# 모바일 웹에서 흔한 "탭 닫기"로 끝내면 그 판의 퀘스트 진행이 통째로 사라졌다.
+	Events.milestone_reached.connect(func(_i: int): _flush())
 	Events.player_died.connect(_flush)
+
+
+## 누적 생존 분 적산. 판이 바뀌면(경과 시간이 뒤로 감) 기준점만 다시 잡고 넘어간다 —
+## 이어하기로 900초부터 시작하는 경우에도 그 900초를 새로 세지 않는다.
+func _on_elapsed(sec: float) -> void:
+	if _last_elapsed < 0.0 or sec < _last_elapsed:
+		_last_elapsed = sec
+		return
+	_survive_frac += (sec - _last_elapsed) / 60.0
+	_last_elapsed = sec
+	var whole := int(floor(_survive_frac))
+	if whole <= 0:
+		return
+	_survive_frac -= float(whole)
+	_advance("survive", whole)
 
 
 ## 티어별 목표치 / 보상(공식). 티어가 오를수록 둘 다 커진다.
@@ -83,7 +109,7 @@ func active_quests() -> Array:
 		var tier: int = int(_tier[id])
 		var goal := _goal(t, tier)
 		out.append({
-			"id": id,   # UI 가 종류별 아이콘을 고르는 데 쓴다(kills/bosses/waves)
+			"id": id,   # UI 가 종류별 아이콘을 고르는 데 쓴다(kills/bosses/survive)
 			"title": "%s %s" % [t["title"], _roman(tier + 1)],
 			"desc": "%s %d %s" % [t["verb"], goal, t["unit"]],
 			"current": mini(int(_count[id]), goal),
@@ -109,7 +135,7 @@ func _save() -> void:
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f == null:
 		return
-	f.store_string(JSON.stringify({"tier": _tier, "count": _count}))
+	f.store_string(JSON.stringify({"tier": _tier, "count": _count, "frac": _survive_frac}))
 	f.close()
 	_dirty = false
 
@@ -126,6 +152,8 @@ func _load() -> void:
 		return
 	var tier = parsed.get("tier", {})
 	var count = parsed.get("count", {})
+	_survive_frac = float(parsed.get("frac", 0.0))
+	# 구 "waves" 키는 TRACKS 에 없으므로 아래 루프가 그냥 지나친다 — 마이그레이션 불필요.
 	for t in TRACKS:
 		var id: String = t["id"]
 		if typeof(tier) == TYPE_DICTIONARY and tier.has(id):

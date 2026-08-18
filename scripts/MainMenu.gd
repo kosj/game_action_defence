@@ -1056,12 +1056,12 @@ func _refresh_quests() -> void:
 		}))
 
 
-## 과제 종류별 아이콘 — 좀비 처치/보스 격파/웨이브 클리어.
+## 과제 종류별 아이콘 — 좀비 처치/보스 격파/생존 시간.
 func _quest_icon(id: String) -> String:
 	match id:
-		"bosses": return "sword"
-		"waves":  return "flag"
-		_:        return "skull"
+		"bosses":  return "sword"
+		"survive": return "clock"
+		_:         return "skull"
 
 
 func _on_quests_pressed() -> void:
