@@ -12,7 +12,6 @@ const BULLET := preload("res://scenes/Bullet.tscn")
 const _OrbClass := preload("res://scripts/Orb.gd")
 const _LightningClass := preload("res://scripts/Lightning.gd")
 const _GarlicClass := preload("res://scripts/GarlicAura.gd")
-const _HolyClass := preload("res://scripts/HolyWater.gd")
 # 데이터 구동 무기 모듈: WeaponData.module 문자열 → 모듈 스크립트. 새 모듈 무기는
 # 여기에 한 줄 + 카탈로그(.tres) 항목만 추가하면 Player 가 자동으로 생성/유지한다.
 const _MODULE_CLASSES := {
@@ -71,7 +70,6 @@ var _base_max_health: int
 var _orbs: Array = []
 var _lightning: Node2D = null
 var _garlic: Node2D = null
-var _holy: Node2D = null
 var _weapon_modules: Dictionary = {}   # weapon_id -> 모듈 노드(데이터 구동 무기: 발사체/화염/장판/지뢰)
 var current_weapon: Dictionary = _WeaponDB.default_weapon()
 
@@ -533,25 +531,19 @@ func apply_upgrades() -> void:
 		Events.update_player_health(health, max_health)
 	_update_orbs()
 	_update_lightning()
-	_update_singleton_weapon("garlic")
-	_update_singleton_weapon("holy")
+	_update_garlic()
 	_update_weapon_modules()
 
 
-## 단일 인스턴스 무기(마늘·성수 등) 보유 여부에 맞춰 노드를 생성/해제.
-func _update_singleton_weapon(id: String) -> void:
-	var owned: bool = (Events.upgrade_garlic > 0) if id == "garlic" else (Events.upgrade_holy > 0)
-	var node: Node2D = _garlic if id == "garlic" else _holy
-	if owned and node == null:
-		node = (_GarlicClass.new() if id == "garlic" else _HolyClass.new())
-		add_child(node)
-	elif not owned and node != null:
-		node.queue_free()
-		node = null
-	if id == "garlic":
-		_garlic = node
-	else:
-		_holy = node
+## 마늘 오라 — 단일 인스턴스 무기라 보유 여부에 맞춰 노드를 생성/해제한다.
+func _update_garlic() -> void:
+	var owned: bool = Events.upgrade_garlic > 0
+	if owned and _garlic == null:
+		_garlic = _GarlicClass.new()
+		add_child(_garlic)
+	elif not owned and _garlic != null:
+		_garlic.queue_free()
+		_garlic = null
 
 
 ## 데이터 구동 무기 모듈(module!="") — 보유한 것만 모듈 노드로 생성/유지.

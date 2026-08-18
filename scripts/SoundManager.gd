@@ -32,7 +32,6 @@ const _SOUNDS: Dictionary = {
 	"wave_clear":  "res://assets/audio/sfx_wave_clear.ogg",  # 웨이브 클리어 스팅어
 	"revive":      "res://assets/audio/sfx_revive.ogg",      # 무료 부활(재기) 차임
 	"swing":       "res://assets/audio/sfx_swing.ogg",       # 근접 무기 휘두르기 휙
-	"holy_splash": "res://assets/audio/sfx_holy_splash.ogg", # 성수 착탄(유리 깨짐+물)
 	"spit":        "res://assets/audio/sfx_spit.ogg",        # 스피터 좀비 산성 발사
 }
 
@@ -67,7 +66,6 @@ const _VOLUMES: Dictionary = {
 	"swing":       -13.0,   # 초당 여러 번 — 배경으로 깔리는 정도
 	# 유리 깨짐은 트랜지언트가 강해 파일이 세트 기준(RMS -16dB)보다 3.3dB 낮게 인코딩됐다
 	# (피크 상한에 먼저 걸림). 그만큼 올리되, 트랜지언트는 RMS보다 크게 들리므로 절반만 보정.
-	"holy_splash":  -7.0,
 	"spit":        -14.0,   # 다수 스피터가 동시 발사 — 아주 작게
 }
 
@@ -101,7 +99,6 @@ const _MIN_INTERVAL := {
 	"spit": 130,           # 스피터 다수가 동시 발사해도 산발적으로만
 	"bomber_fuse": 200,    # 여러 마리가 동시 점화해도 경고음은 하나로
 	"bomber_blast": 70,
-	"holy_splash": 160,
 }
 const _COMBO_WINDOW := 380   # ms — 이 안에 연속되면 콤보로 보고 음을 살짝 올린다(마리오 동전 느낌)
 

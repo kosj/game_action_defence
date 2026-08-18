@@ -149,15 +149,6 @@ compatible, no music, no voice, no silence at the beginning.
 
 Fires roughly once per second all run long — keep it minimal and free of character.
 
-### `sfx_holy_splash.ogg` — holy water lands (0.6-0.9s)
-
-```
-A glass vial shattering on the ground and holy water splashing out: bright glass
-shards with a soft magical shimmer over the splash, wet and crisp, dry and
-tight. Clean 2D game sound effect, no music, no voice, no silence at the
-beginning.
-```
-
 ### `sfx_spit.ogg` — spitter zombie fires (0.4s)
 
 ```
@@ -205,7 +196,7 @@ Checklist before committing a file:
 2. **Same loudness across the set** — normalize as above.
 3. **No hard cut at the end** — let the tail decay, adding a 60-100ms fade-out if needed.
 4. **In-game check** — audible over the BGM, not confusable with `boom` or `laser`, and
-   the repeating sounds (`swing`, `spit`, `holy_splash`, `bomber_fuse`) still
+   the repeating sounds (`swing`, `spit`, `bomber_fuse`) still
    feel fine after several minutes of play.
 
 ## Plan B — build the arrow storm from single arrows

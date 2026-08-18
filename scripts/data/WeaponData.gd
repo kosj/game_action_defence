@@ -11,7 +11,7 @@ extends Resource
 @export var evolved: bool = false         # 진화 무기(카드로 안 뜸, 진화로만 획득)
 @export var icon: Texture2D               # 레벨업 카드·로드아웃 아이콘(없으면 색상 폴백)
 
-## 동작 모듈. ""=기존 코드가 처리(gun/orb/lightning/garlic/holy).
+## 동작 모듈. ""=기존 코드가 처리(gun/orb/lightning/garlic).
 ## "projectile"=ProjectileWeapon 모듈이 아래 파라미터로 자동 조준 발사.
 @export var module: String = ""
 @export_group("Projectile Module")
