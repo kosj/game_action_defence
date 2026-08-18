@@ -44,7 +44,7 @@ func _process(delta: float) -> void:
 	var cards := _card_box.get_children()
 	if cards.is_empty():
 		return
-	var btn := cards[randi() % cards.size()] as Button
+	var btn := Cheats.auto_pick(cards)   # 페르소나(무작위/탐욕)에 따라 고른다
 	if btn != null:
 		btn.pressed.emit()
 
@@ -248,6 +248,7 @@ func _make_item_card(a: Dictionary) -> Button:
 	_UIStyle.apply_button_style(btn, Color(col.r * 0.28, col.g * 0.28, col.b * 0.28, 1.0), col)
 	_set_card_icon(btn, item.get("icon"))
 	btn.pressed.connect(_on_pick.bind(String(item["id"])))
+	btn.set_meta("pick_id", String(item["id"]))   # 오토플레이 빌드 페르소나가 읽는다
 	return btn
 
 
@@ -260,6 +261,7 @@ func _make_evolve_card(rule: Dictionary) -> Button:
 	btn.add_theme_color_override("font_color", gold)
 	_set_card_icon(btn, into.get("icon"))
 	btn.pressed.connect(_on_evolve.bind(String(rule["base"]), String(rule["into"])))
+	btn.set_meta("pick_id", "evolve:" + String(rule["into"]))
 	return btn
 
 

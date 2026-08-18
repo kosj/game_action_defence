@@ -27,6 +27,13 @@ signal spawn_boss
 var enabled: bool = true
 
 var autoplay: bool = false
+
+## 오토플레이의 레벨업 카드 선택 방식(빌드 페르소나).
+##  · "random" — 무작위. 빌드 운을 배제한 **하한선** 측정용(기본값, 기존 동작).
+##  · "greedy" — 진화 완성을 향해 고르는 **상한 근사**. 사람이 빌드를 짜는 방식에 가깝다.
+## 밸런스 측정은 두 값을 모두 재야 의미가 있다 — 하한만 보면 "너무 어렵다"로,
+## 상한만 보면 "너무 쉽다"로 결론이 기운다. `tools/sim_balance.py --persona` 로 고른다.
+var autoplay_persona: String = "random"
 ## 성능 디버그 오버레이(HUD 좌상단) 표시 여부. HUD 의 PerfOverlay 노드가 이 값을 따른다.
 ## 실기기에서 프레임 시간·드로우 콜·FX 상한을 눈으로 확인하기 위한 것 — 헤드리스 측정으로는
 ## 렌더 경로 비용이 드러나지 않아 실측 수단이 필요하다.
@@ -43,6 +50,11 @@ const _AVOID_R := 200.0    # 이 안의 좀비로부터 도망(너무 크면 겁
 const _BOSS_R := 360.0     # 보스는 더 멀리서부터 피한다
 const _ENGAGE_R := 300.0   # 최근접 적이 이보다 멀면 접근 — 무기 사거리 안에 적을 유지(카이팅)
 const _GEM_R := 480.0      # 젬 수집 감지 반경
+## 상자(보물/진화/무기) 감지 반경. 젬보다 멀리서부터, 더 강하게 끌린다 —
+## 상자는 드물고 값이 크다(진화 발동·무료 레벨업·골드). 특히 **진화는 상자 개봉으로만** 열리므로
+## 이걸 안 주우면 이 게임의 가장 큰 파워 스파이크가 통째로 빠진다.
+## 습득 반경이 34px 로 좁아 "지나가다 우연히"로는 거의 안 잡힌다 — 일부러 가야 한다.
+const _CHEST_R := 620.0
 const _ARENA_MARGIN := 150.0   # 보스 격리 구역 경계에서 이 거리 안이면 안쪽으로 되돌린다
 
 ## 무리에 쫓길 때의 도주 루프 방지 — 사이드뷰 자동사격은 "이동 중인 좌우 방향"으로만 나간다
@@ -156,6 +168,19 @@ func auto_move_dir(p: Node2D) -> Vector2:
 	# 교전 거리 유지: 주변이 안전한데 최근접 적이 멀면 다가간다 — 자동 조준 무기가 계속 사격한다.
 	if danger < 0.5 and nearest != null and nearest_d > _ENGAGE_R:
 		out += (nearest.global_position - pos).normalized() * 0.8
+	# 상자를 최우선으로 주우러 간다(젬보다 앞). 포위 중에는 무리하지 않는다.
+	if danger < 1.4:
+		var chest: Node2D = null
+		var chest_d := _CHEST_R * _CHEST_R
+		for c in p.get_tree().get_nodes_in_group("item_pickups"):
+			if not is_instance_valid(c):
+				continue
+			var cd := pos.distance_squared_to((c as Node2D).global_position)
+			if cd < chest_d:
+				chest_d = cd
+				chest = c
+		if chest != null:
+			out += (chest.global_position - pos).normalized() * (1.5 - danger * 0.5)
 	# 위협이 약할 때만 젬을 주우러 간다 — 수집 욕심에 포위당하지 않도록 위협도로 끌림을 줄인다.
 	if danger < 0.9:
 		var best: Node2D = null
@@ -181,3 +206,61 @@ func auto_move_dir(p: Node2D) -> Vector2:
 	if out.length() < 0.06:
 		return Vector2.ZERO
 	return out.normalized()
+
+
+# ── 오토플레이 빌드 선택 ────────────────────────────────────────────────
+## 레벨업 카드 중 하나를 고른다(LevelUpPanel 이 호출). 카드에는 `pick_id` 메타가 실려 있다.
+## 진화 카드는 `pick_id` 가 "evolve:<into>" 형태다.
+func auto_pick(cards: Array) -> Button:
+	if cards.is_empty():
+		return null
+	if autoplay_persona != "greedy":
+		return cards[randi() % cards.size()] as Button
+	var best: Button = null
+	var best_s := -INF
+	for c in cards:
+		var btn := c as Button
+		if btn == null:
+			continue
+		var sc := _pick_score(String(btn.get_meta("pick_id", "")))
+		if sc > best_s:
+			best_s = sc
+			best = btn
+	return best if best != null else cards[0] as Button
+
+
+## 탐욕형 점수. 뱀서식 빌드의 통념을 그대로 옮겼다 —
+## ① 진화가 가장 큰 파워 스파이크다 ② 폭보다 집중(적은 무기를 높은 레벨로)
+## ③ 궁극기는 놓치지 않는다. 정교한 최적해가 아니라 "사람이 대충 이렇게 고른다"의 근사다.
+func _pick_score(id: String) -> float:
+	if id == "":
+		return 0.0
+	if id.begins_with("evolve:"):
+		return 10000.0            # 진화가 떴으면 무조건 집는다
+	# 궁극기는 **획득 1회**만 최우선이다. 이미 가진 뒤에도 같은 점수를 주면 레벨을 전부
+	# 여기에 쏟아붓는다(실측에서 ult_quake:6 이 나왔다) — 보유 후엔 일반 무기처럼 다룬다.
+	if id.begins_with("ult_") and not Events.weapons.has(id):
+		return 5000.0
+	var m := ItemDB.meta(id)
+	if m.is_empty():
+		return 0.0
+	var is_w := ItemDB.is_weapon(id)
+	var lv: int = int((Events.weapons if is_w else Events.passives).get(id, 0))
+	var score := 0.0
+	# ① 진화 조건에 직접 기여하는가 — 짝이 이미 갖춰진 쪽을 먼저 채운다.
+	for e in ItemDB.evolutions():
+		if Events.weapons.has(e["into"]):
+			continue              # 이미 진화함
+		if String(e["base"]) == id and int(Events.passives.get(e["passive"], 0)) >= 1:
+			score += 900.0 + lv * 60.0        # 만렙에 가까울수록 급하다
+		elif String(e["passive"]) == id and int(Events.weapons.get(e["base"], 0)) >= 1:
+			score += 700.0
+	# ② 집중 — 이미 가진 것을 올리는 쪽이 새 슬롯을 여는 것보다 낫다. 진화 조건이 만렙이라
+	# 레벨이 오를수록 더 급해진다(가속 가중). 슬롯을 넓게 벌리면 아무것도 만렙이 안 된다.
+	if lv > 0:
+		score += 300.0 + lv * lv * 18.0
+	else:
+		score += 60.0
+	# ③ 무기가 먼저다(피해가 없으면 아무것도 안 된다). 무기를 3개 모은 뒤엔 패시브를 올린다.
+	score += (60.0 if is_w else 0.0) if Events.weapons.size() < 3 else (0.0 if is_w else 60.0)
+	return score

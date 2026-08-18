@@ -3,7 +3,7 @@ extends SceneTree
 ##
 ## 실행(한 판):
 ##   godot --headless --path . --fixed-fps 60 --script res://tools/sim_balance.gd -- \
-##       character=veteran theme=suburb maxmin=30 seed=1
+##       character=veteran theme=suburb maxmin=30 seed=1 persona=greedy
 ##
 ## 여러 판 반복·집계·판정은 `tools/sim_balance.py` 가 한다 — 이 스크립트는 한 판만 본다.
 ## 판을 프로세스마다 새로 띄우는 이유: 오토로드(메타 골드·과제·퀘스트)와 오브젝트 풀이
@@ -14,10 +14,10 @@ extends SceneTree
 ##   장판·설치물·연쇄의 실효 DPS 가 좀비 밀집도에 따라 몇 배씩 달라진다 — 수식으로는 안 잡힌다.
 ##   그래서 추정하지 않고 측정한다.
 ##
-## ⚠️ 이 측정치는 "하한선"이다
-##   오토플레이는 레벨업 카드를 **무작위로** 고른다(`LevelUpPanel`). 이 게임 파워의 대부분이
-##   빌드 품질에서 나오는데 그걸 운에 맡긴 값이다. 절대값을 "이 게임의 난이도"로 읽지 말고,
-##   **조정 전/후 비교**와 **캐릭터·테마 간 상대 비교**에 쓴다.
+## ⚠️ 페르소나에 따라 의미가 다르다
+##   persona=random(기본) — 레벨업 카드를 무작위로 고른다 = **하한선**(빌드 운을 배제).
+##   persona=greedy       — 진화 완성을 향해 고른다 = **상한 근사**(사람이 짜는 방식에 가깝다).
+##   둘 다 재야 의미가 있다. 하한만 보면 "너무 어렵다", 상한만 보면 "너무 쉽다"로 기운다.
 
 const MAIN_SCENE := "res://scenes/Main.tscn"
 const SAMPLE_INTERVAL := 60.0     # 분당 스냅샷
@@ -95,7 +95,9 @@ func _setup() -> void:
 	_main = load(MAIN_SCENE).instantiate()
 	root.add_child(_main)
 	current_scene = _main   # SceneTree 의 속성이다(root 는 Window). Events.fx_layer() 가 이걸 본다
-	root.get_node("Cheats").autoplay = true
+	var cheats := root.get_node("Cheats")
+	cheats.autoplay_persona = String(_args.get("persona", "random"))
+	cheats.autoplay = true
 
 
 ## 캐릭터/테마 선택. 해금 게이트(구매·도전과제)는 측정 목적상 우회한다 —
@@ -166,6 +168,7 @@ func _finish(el: float) -> void:
 	var cm := root.get_node("CharacterManager")
 	var tm := root.get_node("ThemeManager")
 	print("SIMRESULT " + JSON.stringify({
+		"persona": String(_args.get("persona", "random")),
 		"character": cm.selected_id(),
 		"theme": tm.selected_id(),
 		"seed": int(_args.get("seed", "0")),
