@@ -113,7 +113,12 @@ func _ready() -> void:
 
 
 ## 치트: 경과 시간 점프 — 난이도 시계를 앞으로 당기고 보스/엘리트 예약 시각을 재정렬한다.
+## 세 핸들러 모두 게이트를 한 번 더 본다(P0-1). Cheats.request_* 가 이미 막고 있지만, 신호를
+## 직접 쏘는 우회 경로를 가정한 방어선이다 — 여기서 통과시키면 난이도 시계·보스 회차·킬 수가
+## 그대로 점수와 랭킹에 들어간다.
 func _on_time_skip(seconds: float) -> void:
+	if not Cheats.enabled:
+		return
 	_elapsed += seconds
 	Events.elapsed_time = _elapsed
 	_boss_count = int(_elapsed / _diff.boss_seconds)
@@ -127,6 +132,8 @@ func _on_time_skip(seconds: float) -> void:
 ## 동시 1마리 규칙은 그대로라 이미 보스가 있으면 무시하고, 예약된 다음 마일스톤은 지금부터
 ## 다시 센다(치트로 부른 직후 정규 보스가 겹쳐 나오지 않게).
 func _on_spawn_boss_cheat() -> void:
+	if not Cheats.enabled:
+		return
 	if _boss_alive or _game_over or not is_instance_valid(player):
 		return
 	_next_boss_at = _elapsed + _diff.boss_seconds
@@ -136,7 +143,7 @@ func _on_spawn_boss_cheat() -> void:
 ## 치트: 좀비를 현재 동시 출현 상한(_max_z)까지 채운다 — 대량 전투/성능 확인용.
 ## 스폰 큐로 분산 생성되므로 수백 마리도 프레임 스파이크 없이 순차 등장한다.
 func _on_spawn_fill() -> void:
-	if not is_instance_valid(player):
+	if not Cheats.enabled or not is_instance_valid(player):
 		return
 	var room := _max_z() - _effective_alive()
 	for i in range(room):

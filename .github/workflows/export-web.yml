@@ -88,6 +88,7 @@ jobs:
           godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_heal.gd
           godot --headless --path . --fixed-fps 60 --script res://tools/verify_environment.gd
           godot --headless --path . --script res://tools/verify_character_sheets.gd
+          godot --headless --path . --script res://tools/verify_cheat_gate.gd
 
       - name: Export to Web
         run: |

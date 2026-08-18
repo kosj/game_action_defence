@@ -10,6 +10,22 @@ signal spawn_fill                  # 좀비를 현재 동시 출현 상한까지
 ## 10분씩 기다리지 않고 확인하기 위한 것. 누를 때마다 회차가 올라가 강화 곡선도 같이 볼 수 있다.
 signal spawn_boss
 
+## ── 릴리스 차단 게이트 ────────────────────────────────────────────────────
+## 치트는 점수·랭킹(RankingManager)·도전과제(레벨 20/40·생존 시간)·퀘스트 티어·메타 골드
+## 경제를 전부 오염시킨다. 특히 autoplay 는 방치 파밍을 허용해 리더보드를 무의미하게 만든다.
+## 그래서 배포 빌드에서는 존재 자체를 없앤다.
+##
+## 판정: 에디터·디버그 빌드는 항상 켜짐. 릴리스 export 는 프리셋의 custom_features 에
+## "cheats" 를 넣은 빌드에서만 켜진다 — export_presets.cfg 의 Web 프리셋은 빈 값이라 기본 차단.
+##
+## 왜 UI 를 감추는 것으로 끝내지 않는가: 버튼만 없애면 신호를 직접 쏘는 경로가 남는다.
+## 상태(autoplay_active)·발신(request_*)·수신(ZombieSpawner 핸들러) 세 곳에 같은 게이트를 건다.
+##
+## 값을 변수로 들고 있는 이유는 **회귀 테스트 때문**이다 — 헤드리스는 항상 디버그 빌드라
+## "치트가 꺼진 릴리스 빌드"를 달리 재현할 방법이 없다. tools/verify_cheat_gate.gd 가
+## 이 값을 내려 잠긴 쪽 동작을 확인한다. 실제 빌드에서는 _ready 의 판정이 그대로 유지된다.
+var enabled: bool = true
+
 var autoplay: bool = false
 ## 성능 디버그 오버레이(HUD 좌상단) 표시 여부. HUD 의 PerfOverlay 노드가 이 값을 따른다.
 ## 실기기에서 프레임 시간·드로우 콜·FX 상한을 눈으로 확인하기 위한 것 — 헤드리스 측정으로는
@@ -32,7 +48,39 @@ const _ARENA_MARGIN := 150.0   # 보스 격리 구역 경계에서 이 거리 �
 const _Gem := preload("res://scripts/Gold.gd")
 
 
+func _ready() -> void:
+	enabled = OS.is_debug_build() or OS.has_feature("cheats")
+
+
+## 자동플레이가 실제로 동작해야 하는가. **소비처는 autoplay 대신 반드시 이 함수를 본다** —
+## 상태 변수를 직접 읽으면 게이트를 우회하게 된다(Player·LevelUpPanel·HUD 가 호출한다).
+func autoplay_active() -> bool:
+	return autoplay and enabled
+
+
+## ── 신호 발신 — 잠긴 빌드에서는 아무 일도 일어나지 않는다 ────────────────────
+## HUD 버튼은 이 함수들을 부른다. 시그널을 직접 emit 하지 않는 이유가 곧 게이트다.
+func request_time_skip(seconds: float) -> void:
+	if not enabled:
+		return
+	time_skip.emit(seconds)
+
+
+func request_spawn_fill() -> void:
+	if not enabled:
+		return
+	spawn_fill.emit()
+
+
+func request_spawn_boss() -> void:
+	if not enabled:
+		return
+	spawn_boss.emit()
+
+
 func toggle_autoplay() -> void:
+	if not enabled:
+		return
 	autoplay = not autoplay
 	changed.emit()
 

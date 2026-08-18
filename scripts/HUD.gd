@@ -1257,35 +1257,41 @@ func _build_pause_menu() -> void:
 	vb.add_child(menu)
 
 	# ── 치트 하위 메뉴(접이식) — 자동플레이/시간 점프/골드/레벨업 ─────────────
-	var cheats := Button.new()
-	cheats.text = "CHEATS"
-	cheats.custom_minimum_size = Vector2(0, 48)
-	cheats.add_theme_font_size_override("font_size", 19)
-	_UIStyle.apply_button_style(cheats, Color(0.26, 0.16, 0.30), Color(0.7, 0.5, 0.85))
-	vb.add_child(cheats)
+	# 배포 빌드에는 만들지 않는다. 여기 있는 것들이 점수·랭킹·도전과제·퀘스트·메타 골드를
+	# 전부 오염시키기 때문이다(P0-1). 판정은 Cheats.enabled 한 곳에 모여 있다 —
+	# 에디터·디버그 빌드는 그대로, 릴리스 export 는 custom_features 에 "cheats" 가 있을 때만.
+	# 노드를 아예 만들지 않으므로 아래 _cheat_* 참조는 전부 null 로 남는다(_refresh_cheat_ui 가
+	# 필드마다 null 을 확인하고 넘어간다 — 잠긴 빌드에서 그 경로가 실제로 도는 자리다).
+	if Cheats.enabled:
+		var cheats := Button.new()
+		cheats.text = "CHEATS"
+		cheats.custom_minimum_size = Vector2(0, 48)
+		cheats.add_theme_font_size_override("font_size", 19)
+		_UIStyle.apply_button_style(cheats, Color(0.26, 0.16, 0.30), Color(0.7, 0.5, 0.85))
+		vb.add_child(cheats)
 
-	_cheat_box = VBoxContainer.new()
-	_cheat_box.add_theme_constant_override("separation", 8)
-	_cheat_box.visible = false
-	vb.add_child(_cheat_box)
-	cheats.pressed.connect(func():
-		_cheat_box.visible = not _cheat_box.visible
-		call_deferred("_fit_pause_scroll"))   # 펼침/접힘 후 바뀐 높이로 다시 맞춘다
+		_cheat_box = VBoxContainer.new()
+		_cheat_box.add_theme_constant_override("separation", 8)
+		_cheat_box.visible = false
+		vb.add_child(_cheat_box)
+		cheats.pressed.connect(func():
+			_cheat_box.visible = not _cheat_box.visible
+			call_deferred("_fit_pause_scroll"))   # 펼침/접힘 후 바뀐 높이로 다시 맞춘다
 
-	_cheat_auto_btn = _make_cheat_button("AUTO-PLAY: OFF", _on_cheat_autoplay)
-	_make_cheat_button("TIME +5 MIN", func(): Cheats.time_skip.emit(300.0))
-	_make_cheat_button("SPAWN TO CAP", func(): Cheats.spawn_fill.emit())
-	# 보스전을 10분씩 기다리지 않고 확인 — 누를 때마다 회차가 올라 강화 곡선도 같이 볼 수 있다.
-	_make_cheat_button("SPAWN BOSS", func(): Cheats.spawn_boss.emit())
-	_make_cheat_button("GOLD +500", func(): Events.add_gold(500))
-	_make_cheat_button("LEVEL UP +1", func(): Events.bonus_level())
-	_cheat_perf_btn = _make_cheat_button("PERF HUD: OFF", func(): Cheats.toggle_perf_overlay())
-	# 낮/밤 시간 틴트를 통째로 끈다(날씨는 유지) — 밤 구간에서 화면이 어두워 확인이 어려울 때.
-	_cheat_day_btn = _make_cheat_button("DAY/NIGHT: ON", func(): Cheats.toggle_daynight())
-	# 비·눈·모래바람과 번개를 통째로 끈다(=상시 맑음). 스케줄은 계속 돌아 다시 켜면 이어진다.
-	_cheat_weather_btn = _make_cheat_button("WEATHER: ON", func(): Cheats.toggle_weather())
-	Cheats.changed.connect(_refresh_cheat_ui)
-	_refresh_cheat_ui()   # 씬 재진입 시 이미 켜져 있던 토글이 라벨에 반영되도록 초기 1회 갱신
+		_cheat_auto_btn = _make_cheat_button("AUTO-PLAY: OFF", _on_cheat_autoplay)
+		_make_cheat_button("TIME +5 MIN", func(): Cheats.request_time_skip(300.0))
+		_make_cheat_button("SPAWN TO CAP", func(): Cheats.request_spawn_fill())
+		# 보스전을 10분씩 기다리지 않고 확인 — 누를 때마다 회차가 올라 강화 곡선도 같이 볼 수 있다.
+		_make_cheat_button("SPAWN BOSS", func(): Cheats.request_spawn_boss())
+		_make_cheat_button("GOLD +500", func(): Events.add_gold(500))
+		_make_cheat_button("LEVEL UP +1", func(): Events.bonus_level())
+		_cheat_perf_btn = _make_cheat_button("PERF HUD: OFF", func(): Cheats.toggle_perf_overlay())
+		# 낮/밤 시간 틴트를 통째로 끈다(날씨는 유지) — 밤 구간에서 화면이 어두워 확인이 어려울 때.
+		_cheat_day_btn = _make_cheat_button("DAY/NIGHT: ON", func(): Cheats.toggle_daynight())
+		# 비·눈·모래바람과 번개를 통째로 끈다(=상시 맑음). 스케줄은 계속 돌아 다시 켜면 이어진다.
+		_cheat_weather_btn = _make_cheat_button("WEATHER: ON", func(): Cheats.toggle_weather())
+		Cheats.changed.connect(_refresh_cheat_ui)
+		_refresh_cheat_ui()   # 씬 재진입 시 이미 켜져 있던 토글이 라벨에 반영되도록 초기 1회 갱신
 
 	# 자동플레이 동작 중 표시 — 일시정지 버튼 아래 작은 태그.
 	_auto_tag = Label.new()
@@ -1341,9 +1347,9 @@ func _on_cheat_autoplay() -> void:
 
 func _refresh_cheat_ui() -> void:
 	if _cheat_auto_btn:
-		_cheat_auto_btn.text = "AUTO-PLAY: ON" if Cheats.autoplay else "AUTO-PLAY: OFF"
+		_cheat_auto_btn.text = "AUTO-PLAY: ON" if Cheats.autoplay_active() else "AUTO-PLAY: OFF"
 	if _auto_tag:
-		_auto_tag.visible = Cheats.autoplay
+		_auto_tag.visible = Cheats.autoplay_active()
 	if _cheat_perf_btn:
 		_cheat_perf_btn.text = "PERF HUD: ON" if Cheats.perf_overlay else "PERF HUD: OFF"
 	if _perf_overlay:

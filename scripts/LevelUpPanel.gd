@@ -34,7 +34,7 @@ func _process(delta: float) -> void:
 			_advance_or_close()
 		return
 	_stuck_t = 0.0
-	if not (_showing and Cheats.autoplay):
+	if not (_showing and Cheats.autoplay_active()):
 		_auto_t = 0.0
 		return
 	_auto_t += delta

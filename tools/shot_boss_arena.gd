@@ -31,7 +31,8 @@ func _process(_d: float) -> bool:
 	_t += DT
 	if not _spawned and _t > 0.8:
 		_spawned = true
-		root.get_node("Cheats").spawn_boss.emit()
+		# 시그널을 직접 쏘지 않는다 — 게이트를 지나는 진입점을 쓴다(P0-1, Cheats.gd 참고).
+		root.get_node("Cheats").request_spawn_boss()
 	if not _spawned:
 		return false
 
