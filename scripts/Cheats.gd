@@ -29,6 +29,22 @@ const _ENGAGE_R := 300.0   # 최근접 적이 이보다 멀면 접근 — 무기
 const _GEM_R := 480.0      # 젬 수집 감지 반경
 const _ARENA_MARGIN := 150.0   # 보스 격리 구역 경계에서 이 거리 안이면 안쪽으로 되돌린다
 
+## 무리에 쫓길 때의 도주 루프 방지 — 사이드뷰 자동사격은 "이동 중인 좌우 방향"으로만 나간다
+## (Player._update_facing/_handle_attack). 그래서 무리에게서 수평으로 계속 도망치면 총구가
+## 무리 반대쪽을 향해 한 발도 맞지 않고, 죽지도 죽이지도 않는 판이 된다 — 밸런스 측정에서
+## "10분 생존 · 처치 17 · 좀비 158마리 누적" 같은 판이 반복 관측됐다(측정 판의 20~40%).
+##
+## 위험이 이 임계를 넘을 때만(=쫓기는 중) 가로를 조준축으로 되돌린다. 위험이 낮을 때는
+## 기존 동작(교전 거리 유지 + 젬 수집)이 정상 작동하므로 건드리지 않는다 —
+## 저위험 구간에 조준 유지를 걸었더니 무리로 걸어들어가 2~3분에 죽었다(실측).
+const _AIM_DANGER := 1.2       # 이 위험도 이상이면 가로를 조준축으로 쓴다(포위 상황)
+const _AIM_BAND := 150.0       # 위험이 낮아도 최근접 적이 이 밖~사거리 안이면 조준축으로 쓴다.
+                               # 무리가 뒤로 처지면 danger 가 낮아 조준 유지가 안 걸리는데,
+                               # 그 상태가 바로 "총구를 등지고 계속 달리는" 도주 루프다.
+const _REPEL_X_DAMP := 0.4     # 그때 반발의 가로 성분 감쇠(총구가 돌아가지 않게)
+const _AIM_PULL := 0.7         # 최근접 적 쪽으로 유지하는 가로 성분
+const _AIM_MIN_D := 70.0       # 이보다 붙으면 조준 유지를 끈다(접촉 피해를 자초하지 않게)
+
 const _Gem := preload("res://scripts/Gold.gd")
 
 
@@ -83,7 +99,12 @@ func auto_move_dir(p: Node2D) -> Vector2:
 			var w2 := (1.0 - dl2 / _BOSS_R) * 2.5
 			repel += (d2 / dl2) * w2
 			danger += w2
-	var out := repel * 1.4
+	# 쫓기는 중(danger 높음)에만 가로를 조준축으로 쓴다 — 세로로 비키면서 무리를 총구에 둔다.
+	var aiming: bool = nearest != null and nearest_d > _AIM_MIN_D \
+			and (danger >= _AIM_DANGER or (nearest_d > _AIM_BAND and nearest_d < _ENGAGE_R))
+	var out := (Vector2(repel.x * _REPEL_X_DAMP, repel.y) if aiming else repel) * 1.4
+	if aiming:
+		out.x += signf(nearest.global_position.x - pos.x) * _AIM_PULL
 	# 교전 거리 유지: 주변이 안전한데 최근접 적이 멀면 다가간다 — 자동 조준 무기가 계속 사격한다.
 	if danger < 0.5 and nearest != null and nearest_d > _ENGAGE_R:
 		out += (nearest.global_position - pos).normalized() * 0.8
