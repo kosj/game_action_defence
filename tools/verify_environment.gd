@@ -463,14 +463,17 @@ func _test_prop_keys(game_data) -> void:
 
 
 ## PropField 를 테마별로 실제로 띄워, ① 프롭이 필드에 놓이는가 ② 장애물 비율이 상한 안인가
-## ③ 장애물이 플레이어를 막는가 ④ 보스 격리 구역 경계에 낀 장애물이 플레이어를 가두지 않는가.
+## ③ 장애물이 플레이어를 막는가 ④ 보스 격리 구역 경계에 낀 장애물이 플레이어를 가두지 않는가
+## ⑤ 모티프 군집이 실제로 등장하고, 군집 내 장애물 사이에 통행 간격이 있는가
+## ⑥ 시작 지점 주변 셀에는 장애물이 없는가(스폰 보호).
 func _test_prop_field(game_data, theme_mgr) -> void:
 	var pf_script: GDScript = load("res://scripts/PropField.gd")
 	var cell: float = pf_script.get("CELL")
-	var density: int = pf_script.get("DENSITY")
+	var density: int = int(pf_script.get("MOTIF_DENSITY")) + int(pf_script.get("SCATTER_DENSITY"))
 	var solid_share: int = pf_script.get("SOLID_SHARE")
 	var player_r: float = pf_script.get("PLAYER_R")
-	_ok("장애물 비율 상한 1/3 이하", solid_share <= 33, "SOLID_SHARE=%d" % solid_share)
+	var safe_cells: int = pf_script.get("SAFE_CELLS")
+	_ok("단독 프롭 장애물 비율 상한 1/3 이하", solid_share <= 33, "SOLID_SHARE=%d" % solid_share)
 
 	for th in game_data.themes:
 		if th == null:
@@ -490,25 +493,58 @@ func _test_prop_field(game_data, theme_mgr) -> void:
 		# 넓은 구역을 훑어 실제 배치 분포를 본다(배치는 월드 해시라 결과가 결정적이다).
 		var total := 0
 		var solid := 0
+		var occupied := 0
+		var clusters := 0
 		var cells := 0
+		var spawn_solid := 0
 		var first_solid := {}
 		for cx in range(-60, 60):
 			for cy in range(-60, 60):
 				cells += 1
-				var pr: Dictionary = pf._cell_prop(cx, cy)
-				if pr.is_empty():
+				var prs: Array = pf._cell_props(cx, cy)
+				if prs.is_empty():
 					continue
-				total += 1
-				if bool(pr["solid"]):
-					solid += 1
-					if first_solid.is_empty():
-						first_solid = pr
-		var fill := float(total) / float(cells) * 100.0
-		_ok("[%s] 프롭이 필드에 놓임(밀도 %.1f%%)" % [th.id, fill],
+				occupied += 1
+				if prs.size() >= 2:
+					clusters += 1
+				for pr in prs:
+					total += 1
+					if bool(pr["solid"]):
+						solid += 1
+						if absi(cx) <= safe_cells and absi(cy) <= safe_cells:
+							spawn_solid += 1
+						if first_solid.is_empty():
+							first_solid = pr
+		var fill := float(occupied) / float(cells) * 100.0
+		_ok("[%s] 프롭이 필드에 놓임(셀 점유 %.1f%%)" % [th.id, fill],
 			absf(fill - float(density)) <= 4.0, "기대 %d%% ±4" % density)
 		var share := float(solid) / maxf(1.0, float(total)) * 100.0
 		_ok("[%s] 장애물 비율 %.1f%% ≤ 1/3" % [th.id, share], share <= 33.4,
 			"장애물 %d / 프롭 %d" % [solid, total])
+		# 모티프가 실제로 나온다 — 배선을 잊으면(테이블 오타·아트 누락) 군집 없이 단독만 남는데,
+		# PropField 는 조용히 건너뛰므로 여기서만 잡힌다.
+		_ok("[%s] 모티프 군집이 등장함" % th.id, clusters > 0, "군집 셀 0개")
+		_ok("[%s] 시작 지점 주변에 장애물 없음" % th.id, spawn_solid == 0,
+			"스폰 보호 구역에 solid %d개" % spawn_solid)
+
+		# 모티프 안의 solid 끼리는 플레이어(지름 2×PLAYER_R)가 지나갈 틈이 있어야 한다 —
+		# 오프셋 표는 손으로 쓰므로, 실제 텍스처 크기로 계산한 반경으로 실측 확인한다.
+		var gap_bad := ""
+		for mi in pf._motifs.size():
+			var m: Array = pf._motifs[mi]
+			var solids: Array = []
+			for ch in m:
+				var meta: Dictionary = pf._by_key[ch["k"]]
+				if bool(meta["solid"]):
+					solids.append(pf._make(meta, ch["o"], false, 1.0))
+			for i in solids.size():
+				for j in range(i + 1, solids.size()):
+					var need: float = float(solids[i]["radius"]) + float(solids[j]["radius"]) \
+							+ 2.0 * player_r + 8.0
+					var got: float = (solids[i]["pos"] as Vector2).distance_to(solids[j]["pos"])
+					if got < need:
+						gap_bad += "모티프%d(%.0f<%.0f) " % [mi, got, need]
+		_ok("[%s] 모티프 solid 간 통행 간격 보장" % th.id, gap_bad == "", gap_bad)
 
 		if first_solid.is_empty():
 			_ok("[%s] 장애물 프롭 존재" % th.id, false, "표본에 solid 없음")
