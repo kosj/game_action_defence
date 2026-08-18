@@ -63,7 +63,11 @@ signal elapsed_changed(seconds: float)
 ## 그 바람에 퀘스트·도전과제의 주기 저장이 통째로 멈춰 있었다(P0-2). 이름을 실제 개념에 맞춘다.
 ## index 는 그 판의 보스 회차(1부터).
 signal milestone_reached(index: int)
-signal run_progress(elapsed: float, clear: float)   # 시간 기반 진행(HUD 클리어 진행바)
+signal run_progress(elapsed: float, clear: float)   # 시간 기반 진행(HUD 타이머·타임라인 바)
+## 다음 마일스톤 예정 시각(런 경과 초). HUD 타임라인 바의 눈금과 카운트다운 배너가 이 값을 따른다.
+## **스포너가 소유한 값을 그대로 흘린다** — 보스는 전투 중이면 미뤄지고 치트(TIME +5 MIN)로도
+## 밀리므로, HUD 가 주기 상수로 따로 계산하면 반드시 어긋난다(P1-4).
+signal forecast_changed(next_boss: float, next_elite: float)
 signal run_cleared                                  # 30분 생존 = 클리어 달성(1회)
 signal zombie_killed
 signal weapon_equipped(stats: Dictionary)
