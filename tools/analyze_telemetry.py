@@ -55,11 +55,20 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("path", help="telemetry.jsonl")
     ap.add_argument("--compare", help="sim_balance --csv 산출물과 나란히 비교")
+    ap.add_argument("--include-cheated", action="store_true",
+                    help="치트를 쓴 판도 포함(기본은 제외 — 사람 데이터가 아니다)")
     a = ap.parse_args()
 
     rows = load(a.path)
     if not rows:
         sys.exit("기록이 없다.")
+    # 치트가 발동한 판은 사람 플레이가 아니다 — 섞으면 이 데이터의 존재 이유가 사라진다.
+    cheated = [r for r in rows if r.get("cheated")]
+    if cheated and not a.include_cheated:
+        rows = [r for r in rows if not r.get("cheated")]
+        print("치트를 쓴 %d판을 제외했다 (--include-cheated 로 포함)\n" % len(cheated))
+    if not rows:
+        sys.exit("치트를 제외하니 남는 기록이 없다.")
     died = [r for r in rows if r.get("outcome") == "died"]
     quit_ = [r for r in rows if r.get("outcome") == "abandoned"]
     surv = sorted(r["survived_s"] / 60.0 for r in rows)
