@@ -45,7 +45,7 @@
 | P0-1 치트 게이팅 | A | ⚪ 대기 | — | — |
 | P0-2 마일스톤 저장 + 퀘스트 트랙 교체 | C | ⚪ 대기 | — | — |
 | P0-3 ShopPanel 폐기 | C | ⚪ 대기 | — | — |
-| P1-1 미배치 보스 리소스 삭제 | B | 🔵 진행중 | claude/b-lane-boss-cleanup | 2026-08-18 |
+| P1-1 미배치 보스 리소스 삭제 | B | ✅ (이 PR) | claude/b-lane-boss-cleanup | 2026-08-18 |
 | P1-2 프롭 활성화 | B | ✅ (b1ed9ab) | claude/b-lane-pending-item-dix8eg | 2026-08-18 |
 | P1-3 가스통 고아 코드 삭제 | B | ✅ (2e76857) | claude/b-lane-gascan-cleanup | 2026-08-18 |
 | P1-4 이벤트 예고 UI | E | ⚪ 대기 | — | — |
@@ -210,11 +210,26 @@
 
 **수용 기준** — 세 아레나 각각에서 보스가 정상 등장·전투·처치되고(아트 폴백 없이),
 `grep -rn "BOSS_TYPES\|BOSS_SEQUENCE\|_behave_gunner\|_BOSS_TEX" scripts/` 결과가 0건이며,
-아틀라스 재생성 후 게임플레이 시트가 줄어든다.
+아틀라스 재생성 후 게임플레이 시트가 줄어든다. ✅
+게임플레이 시트 **859KB → 767KB**(-92KB). grep 은 앞선 항목들과 같이 **살아 있는 참조 0건**으로
+읽는다 — 남은 2건은 왜 지웠는지 설명하는 묘비 주석뿐이다(`Boss.gd:130` · `ZombieSpawner.gd:15`).
 
-**검증** — 테마 3종을 각각 선택해 치트 `SPAWN BOSS` 로 보스 등장·스프라이트·페이즈 전환 확인 +
-`godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_arena.gd`(sprite 필수 검사 추가분 포함) +
-`godot --headless --path . --script res://tools/check_atlas.gd`.
+**계획에 없던 참조 1건** — `scenes/Boss.tscn` 이 `boss_brute.tres` 를 Body 기본 텍스처로 물고 있어,
+아트를 지우자 **씬 파싱이 깨졌다**(HANDOFF 삭제 목록에 없던 항목). 텍스처는 이제 전부 `setup()` 이
+데이터에서 넣으므로 씬의 기본 텍스처 참조를 제거했다.
+
+**함께 정리한 것** — `verify_boss_heal.gd` 의 아키타입 스윕에서 `gunner` 를 뺐다(그대로 두면
+melee 폴백을 gunner 라는 이름으로 두 번 재게 된다). 같은 파일의 `setup()` 호출에도 sprite 를 넣었다.
+
+**검증** — 수동 확인(치트 `SPAWN BOSS` ×3) 대신 `verify_boss_arena.gd` 에 검사를 넣어 CI 가 대신 본다:
+① `THEME_BOSSES` 가 비어 있지 않음 ② 모든 테마의 `boss_key` 가 정의에 실재(어긋나면 그 아레나에
+보스가 안 뜬다) ③ 세 보스의 `sprite` 가 존재하는 `Texture2D`
+④ **실제로 세워 `Body.texture` 가 붙는지** — 데이터가 맞는 것과 보스가 보이는 것은 다르다.
+sprite 를 비워 ③이 실제로 실패하는 것을 확인했다. `CLAUDE.md` §3 전체 통과.
+
+**남은 정리(범위 밖)** — `BalanceData.boss_bullet_damage`("거너 탄 1발 피해")가 이번 삭제로
+쓰이지 않게 됐다. 이 항목이 *"삭제 범위는 아래로 한정한다"* 고 못박았고 `balance.tres` 는 손으로
+관리하는 밸런스 테이블이라 건드리지 않았다. 지우려면 별도 항목으로 잡을 것.
 
 ---
 
@@ -436,7 +451,7 @@ city 는 기믹 4종, lab 은 3종. 즉 **무료·기본 선택 아레나에만 
 |---|---|---|---|
 | P3-1 | `BALANCE.md` | **문서 전체가 폐기된 시스템 기준.** Easy/Normal/Hard 난이도 3종(현재 단일 모드), 웨이브별 킬 목표(현재 시간 기반), **상점 비용 곡선을 "밸런스의 중심 손잡이"로 서술**(상점은 P0-3 사문). | 전면 재작성. 새 중심 손잡이는 `difficulty.tres`(hp_per_min·hp_accel_per_min2·speed_cap·max_z_cap)와 `balance.tres` |
 | P3-2 | `GOALS.md` | "난이도별 목표 웨이브 8/10/12 · STAGE CLEAR · 클리어 배지" 전제. 실제는 **단일 모드 30분 생존 클리어 + 오버타임**. 단, **미구현으로 남은 P0 3건(목표 배너·보스 예고·목표 대비 피드백)은 여전히 유효** → P1-4 로 승계 | 현행 기준 재작성, 유효 항목은 P1-4 참조로 정리 |
-| P3-3 | `BOSS_PLAN.md` §9 | "W5 브루트 · W10 거너 · W15 서머너…" 웨이브 표기. 실제는 **600초 주기 + 테마 보스가 전부 덮어씀**(P1-1) | 등장 규칙을 P1-1 결정 후 갱신. `[ ] P5 밸런스 패스`는 계속 열린 항목 |
+| P3-3 | `BOSS_PLAN.md` §9 | ~~"W5 브루트 · W10 거너…" 웨이브 표기~~ → **P1-1 PR 에서 갱신 완료** (문서 머리에 현행 상태 배너 + §9 현행 등장 규칙 + 삭제된 로스터/테이블 표시). `[ ] P5 밸런스 패스`는 계속 열린 항목 | 남은 것 없음 — P5 는 실플레이 후 밸런스 작업 |
 | P3-4 | `POLISH_PLAN.md` | "좀비 11종 스프라이트 🔴 미착수" · "초상 썸네일 미착수" 로 적혀 있으나 **실제로는 존재**(`assets/sprites/zombie_*.png` 11종, `assets/ui/portraits` 3종, `assets/ui/thumbs` 3종, `chest_*.png`). "프롭 배치 안 됨"은 P1-2 에서 해소돼 이 문서에 반영됨 | 나머지 완료 항목 체크가 남아 있다 |
 | P3-5 | `ROADMAP.md` | 4번이 "진행 중"이나 아틀라스·바닥 타일은 완료(커밋 `5bbea14`,`bc6650a`). 실제로 남은 건 `AnimatedSprite2D` 뿐이고, 그마저 `Zombie._animate_walk`(절차적 sin 보행)로 **대체 결정**된 상태 | 완료 반영 + 절차적 애니메이션을 대체안으로 명시 |
 | P3-6 | `README.md` | 씬 구조·좀비 6종·튜닝 포인트가 **초기 프로토타입 기준**. 현재는 좀비 11종·무기 28·오토로드 17개 | 현행 구조로 갱신(신규 기여자의 첫 진입점이다) |
