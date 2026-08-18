@@ -119,7 +119,6 @@ const STRINGS: Dictionary = {
 	# (게임 HUD 에서 가타카나 외래어 표기는 일본어로도 자연스럽다)
 	"weather_rain":    {"en": "RAIN",       "ko": "비",         "ja": "レイン"},
 	"weather_snow":    {"en": "SNOW",       "ko": "눈",         "ja": "スノー"},
-	"weather_fog":     {"en": "FOG",        "ko": "안개",       "ja": "フォグ"},
 	"weather_dust":    {"en": "DUST STORM", "ko": "모래바람",   "ja": "サンドストーム"},
 	"weather_clear":   {"en": "CLEARING",   "ko": "날이 갠다",  "ja": "はれてきた"},
 

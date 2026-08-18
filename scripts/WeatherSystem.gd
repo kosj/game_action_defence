@@ -14,7 +14,7 @@ extends Node2D
 const SLOT := 75.0        # 날씨 슬롯 길이(초) — 이 경계에서만 날씨가 바뀐다
 const FADE := 5.0         # 슬롯 경계 페이드 인/아웃(갑자기 비가 켜지지 않게)
 const CLEAR_WEIGHT := 34  # '맑음' 가중치(%). 나머지 66% 를 테마 날씨가 균등 분배한다
-const HAZE_MARGIN := 240.0   # 안개/섬광 판이 화면 밖까지 덮는 여유(카메라 흔들림 대비)
+const HAZE_MARGIN := 240.0   # 뿌연 판/섬광이 화면 밖까지 덮는 여유(카메라 흔들림 대비)
 
 ## 번개(비 전용) — 간헐적 섬광 + 천둥.
 const BOLT_MIN := 7.0
@@ -24,12 +24,11 @@ const BOLT_DECAY := 3.0   # 초당 감쇠
 
 ## 날씨 정의.
 ##   tint     = 시간 틴트에 곱할 색(어둡게/따뜻하게)
-##   haze     = 화면 전체를 덮는 옅은 판의 알파 — 시야가 뿌예지는 날씨(안개·모래바람·눈)에만
+##   haze     = 화면 전체를 덮는 옅은 판의 알파 — 시야가 뿌예지는 날씨(모래바람·눈)에만
 ##   haze_col = 그 판의 색조. 모래바람은 따뜻한 황토빛이라야 '먼지'로 읽힌다
 const _DEF: Dictionary = {
 	"rain": {"tint": Color(0.80, 0.84, 0.92), "haze": 0.00, "haze_col": Color(1.00, 1.00, 1.00), "bolt": true},
 	"snow": {"tint": Color(0.92, 0.95, 1.00), "haze": 0.06, "haze_col": Color(1.00, 1.00, 1.00), "bolt": false},
-	"fog":  {"tint": Color(0.90, 0.91, 0.94), "haze": 0.14, "haze_col": Color(1.00, 1.00, 1.00), "bolt": false},
 	"dust": {"tint": Color(1.00, 0.88, 0.70), "haze": 0.12, "haze_col": Color(1.00, 0.80, 0.52), "bolt": false},
 }
 
@@ -71,7 +70,7 @@ func _ready() -> void:
 	_build_emitter()
 	_build_splash()
 	# 치트 토글은 일시정지 메뉴에서 눌린다 — 그때는 _process 가 멈춰 있어 신호로 즉시 반영해야
-	# 패널을 닫기 전에 비/안개가 사라진 것을 볼 수 있다.
+	# 패널을 닫기 전에 비/눈이 사라진 것을 볼 수 있다.
 	Cheats.changed.connect(_on_cheats_changed)
 
 
@@ -112,7 +111,9 @@ func weather_for_slot(slot: int) -> String:
 		var pick := _roll(i)
 		# 같은 날씨가 두 슬롯 연속 이어지지 않게 1회 재롤. 맑음은 예외로 둔다 — 연속으로 맑은 건
 		# 자연스럽고, 재롤 결과에 맑음을 섞으면 전체 맑음 비율이 CLEAR_WEIGHT 에서 밀린다.
-		if pick != "" and i > 0 and pick == String(_seq[i - 1]):
+		# 테마 날씨가 1종뿐이면 재롤 자체를 건너뛴다. 피할 다른 날씨가 없어 맑음으로 넘길 수밖에
+		# 없는데, 그러면 맑음 비율이 34%에서 크게 밀린다 — 비가 두 슬롯 이어지는 편이 낫다.
+		if pick != "" and i > 0 and _keys.size() >= 2 and pick == String(_seq[i - 1]):
 			pick = _reroll(i, String(_seq[i - 1]))
 		_seq.append(pick)
 	return String(_seq[slot])
@@ -128,7 +129,7 @@ func _roll(slot: int) -> String:
 
 
 ## 직전 날씨를 뺀 나머지 중에서 다시 뽑는다 — 맑음을 섞지 않으므로 맑음 비율이 그대로 보존된다.
-## 테마 날씨가 1종뿐이면 피할 곳이 없어 맑음으로 넘긴다(현재 모든 테마는 2종 이상).
+## 호출부가 날씨 2종 이상일 때만 부르므로 alts 가 비는 일은 없지만, 방어적으로 맑음을 돌려준다.
 func _reroll(slot: int, prev: String) -> String:
 	var alts: PackedStringArray = PackedStringArray()
 	for k in _keys:
@@ -155,7 +156,7 @@ func _process(delta: float) -> void:
 	if s != _slot:
 		_slot = s
 		_switch(weather_for_slot(s))
-	# 치트(CHEATS > WEATHER)로 날씨를 끄면 세기를 0 으로 눌러 입자·안개 판·틴트·번개가 한꺼번에
+	# 치트(CHEATS > WEATHER)로 날씨를 끄면 세기를 0 으로 눌러 입자·뿌연 판·틴트·번개가 한꺼번에
 	# 사라진다(=상시 맑음). 슬롯 스케줄과 _key 는 그대로 굴러가므로 결정론·이어하기가 유지되고,
 	# 다시 켜면 그 시점에 원래 와야 할 날씨가 이어진다.
 	var strength := strength_at(elapsed) if (_key != "" and Cheats.weather) else 0.0
@@ -211,7 +212,7 @@ func _switch(key: String) -> void:
 
 func _build_emitter() -> void:
 	var p := CPUParticles2D.new()
-	p.z_index = 1               # 부모(54) 기준 상대 → 실효 55. 안개 판(54)보다 앞
+	p.z_index = 1               # 부모(54) 기준 상대 → 실효 55. 뿌연 판(54)보다 앞
 	p.local_coords = false      # 방출된 입자는 월드에 남는다(이동해도 끌려다니지 않음)
 	p.emitting = false
 	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
@@ -267,9 +268,8 @@ func _configure(key: String) -> void:
 	var vp := get_viewport().get_visible_rect().size
 	# 방출 사각형이 화면보다 지나치게 크면 입자 대부분이 화면 밖에 있어, 같은 개수를 쓰고도
 	# 눈에 보이는 밀도가 절반 이하로 떨어진다. 화면의 1.24배까지만 잡아(가장자리 12% 여유)
-	# 예산은 그대로 두고 체감 밀도를 올린다. 안개만 예외 — 덩어리가 256~512px 라 여유가 더 필요.
-	var ext := 0.85 if key == "fog" else 0.62
-	_emitter.emission_rect_extents = Vector2(vp.x * ext, vp.y * ext)
+	# 예산은 그대로 두고 체감 밀도를 올린다.
+	_emitter.emission_rect_extents = Vector2(vp.x * 0.62, vp.y * 0.62)
 	_emitter.gravity = Vector2.ZERO
 	_emitter.angular_velocity_min = 0.0
 	_emitter.angular_velocity_max = 0.0
@@ -312,20 +312,6 @@ func _configure(key: String) -> void:
 			_emitter.color = Color(0.95, 0.98, 1.00, 0.85)
 			_emitter.angular_velocity_min = -25.0
 			_emitter.angular_velocity_max = 25.0
-		"fog":
-			# 큰 반투명 덩어리는 오버드로가 비싸다 — 개수를 크게 줄이고 알파를 낮춰
-			# 화면 대비 오버드로를 2배 안쪽으로 묶는다(모바일 WebGL 필레이트 예산).
-			_emitter.texture = _soft_tex
-			_emitter.amount = 12
-			_emitter.lifetime = 14.0
-			_emitter.preprocess = 8.0
-			_emitter.direction = Vector2(1.0, 0.0)
-			_emitter.spread = 20.0
-			_emitter.initial_velocity_min = 12.0
-			_emitter.initial_velocity_max = 30.0
-			_emitter.scale_amount_min = 8.0
-			_emitter.scale_amount_max = 16.0
-			_emitter.color = Color(0.80, 0.84, 0.90, 0.10)
 		"dust":
 			_emitter.texture = _soft_tex
 			_emitter.amount = 90
@@ -375,7 +361,7 @@ func _make_ring() -> Texture2D:
 	return t
 
 
-## 눈·안개·먼지용 소프트 라운드 점(32×32 radial).
+## 눈·먼지용 소프트 라운드 점(32×32 radial).
 func _make_soft() -> Texture2D:
 	var g := Gradient.new()
 	g.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
@@ -390,7 +376,7 @@ func _make_soft() -> Texture2D:
 	return t
 
 
-## ── 안개 판 / 번개 섬광 ──────────────────────────────────────────────────
+## ── 뿌연 판 / 번개 섬광 ──────────────────────────────────────────────────
 ## 판 자체는 고정 색으로 한 번만 그리고, 세기는 self_modulate.a 로 조절한다 —
 ## 매 프레임 재발행(queue_redraw)하지 않기 위해서다. self_modulate 는 자식(파티클)에 번지지 않는다.
 

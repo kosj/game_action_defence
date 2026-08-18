@@ -43,6 +43,7 @@ func _process(_delta: float) -> bool:
 
 	print("── 날씨 ─────────────────────────────────────────")
 	_test_theme_data(game_data)
+	_test_fog_removed(weather_script, game_data)
 	var weather = weather_script.new()
 	root.add_child(weather)
 	weather.set_process(false)
@@ -176,7 +177,7 @@ func _test_cheat_toggle(day, cheats) -> void:
 ## ── 날씨 ─────────────────────────────────────────────────────────────────
 
 func _test_theme_data(game_data) -> void:
-	var known := ["rain", "snow", "fog", "dust"]
+	var known := ["rain", "snow", "dust"]
 	var all_ok := true
 	var detail := ""
 	for th in game_data.themes:
@@ -190,6 +191,21 @@ func _test_theme_data(game_data) -> void:
 				all_ok = false
 				detail += "%s:%s=미정의 " % [th.id, k]
 	_ok("모든 테마에 유효한 weather_keys", all_ok, detail)
+
+
+## 삭제된 날씨(fog)가 정의·테마 어디에도 남아 있지 않은가 — 데이터와 코드가 따로 놀면
+## 테마에만 남은 키가 조용히 "맑음"으로 떨어져 슬롯 하나가 통째로 비어 버린다.
+func _test_fog_removed(weather_script: GDScript, game_data) -> void:
+	var defs: Dictionary = weather_script._DEF
+	_ok("fog 정의 삭제됨", not defs.has("fog"))
+	var left := ""
+	for th in game_data.themes:
+		if th == null:
+			continue
+		for k in th.weather_keys:
+			if not defs.has(k):
+				left += "%s:%s " % [th.id, k]
+	_ok("정의에 없는 날씨 키를 쓰는 테마 없음", left == "", left)
 
 
 ## 슬롯 봉투: 경계에서 0, 중앙에서 1, 항상 [0,1].
@@ -211,7 +227,7 @@ func _test_schedule_envelope(weather) -> void:
 
 ## 같은 시드 → 같은 시퀀스, 다른 시드 → 다른 시퀀스.
 func _test_determinism(weather, weather_script: GDScript, events) -> void:
-	weather._keys = PackedStringArray(["rain", "dust", "fog"])
+	weather._keys = PackedStringArray(["rain", "dust", "snow"])
 	events.env_seed = 123456789
 	var first: Array = []
 	for s in range(300):
@@ -225,7 +241,7 @@ func _test_determinism(weather, weather_script: GDScript, events) -> void:
 	var other = weather_script.new()
 	root.add_child(other)
 	other.set_process(false)
-	other._keys = PackedStringArray(["rain", "dust", "fog"])
+	other._keys = PackedStringArray(["rain", "dust", "snow"])
 	var fresh: Array = []
 	for s in range(300):
 		fresh.append(other.weather_for_slot(s))
@@ -265,7 +281,12 @@ func _test_distribution(weather, events, game_data) -> void:
 				missing += String(k) + " "
 		_ok("[%s] 모든 날씨가 등장" % th.id, missing == "", "미등장: " + missing)
 		# 테마 날씨가 2종 이상이면 재롤이 항상 다른 날씨를 고르므로 연속 반복은 0이어야 한다.
-		_ok("[%s] 같은 날씨 연속 반복 없음" % th.id, repeats == 0, "%d/%d" % [repeats, n])
+		# 1종뿐인 테마는 피할 곳이 없어 반복을 허용한다 — 재롤로 맑음을 끼우면 위의 맑음 비율이
+		# 무너지기 때문이다. 반복이 "실제로" 일어나는지까지 확인해야 규칙이 살아 있음을 알 수 있다.
+		if th.weather_keys.size() >= 2:
+			_ok("[%s] 같은 날씨 연속 반복 없음" % th.id, repeats == 0, "%d/%d" % [repeats, n])
+		else:
+			_ok("[%s] 날씨 1종 테마는 연속 반복 허용" % th.id, repeats > 0, "%d/%d" % [repeats, n])
 
 
 ## 실제로 시간을 흘려도 이미터가 예산을 넘지 않는가.
@@ -334,7 +355,7 @@ func _test_continue_reproduces(weather, weather_script: GDScript, events, game_d
 	fresh.queue_free()
 
 
-## 치트(CHEATS > WEATHER)로 날씨를 끄면 입자·안개 판·날씨 틴트·전환 배너가 전부 멈춰야 한다.
+## 치트(CHEATS > WEATHER)로 날씨를 끄면 입자·뿌연 판·날씨 틴트·전환 배너가 전부 멈춰야 한다.
 ## 단 슬롯 스케줄은 계속 굴러야 한다 — 결정론과 이어하기를 치트가 깨면 안 된다.
 func _test_weather_cheat(weather, day, events, game_data, cheats) -> void:
 	var th = game_data.themes[1] if game_data.themes.size() > 1 else game_data.themes[0]
@@ -359,7 +380,7 @@ func _test_weather_cheat(weather, day, events, game_data, cheats) -> void:
 	_ok("날씨 OFF → 이미터 정지·투명",
 		not weather._emitter.emitting and weather._emitter.modulate.a < EPS)
 	_ok("날씨 OFF → 파문 정지", not weather._splash.emitting)
-	_ok("날씨 OFF → 안개 판 투명", weather.self_modulate.a < EPS)
+	_ok("날씨 OFF → 뿌연 판 투명", weather.self_modulate.a < EPS)
 	_ok("날씨 OFF → 날씨 틴트 없음(무보정)", day._weather_tint.is_equal_approx(Color.WHITE),
 		"실측 %s" % str(day._weather_tint))
 

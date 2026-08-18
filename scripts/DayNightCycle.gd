@@ -47,7 +47,7 @@ const NIGHT_TO := 0.68
 const FIREFLY := Color(1.0, 0.85, 0.45)
 
 ## 치트(CHEATS > DAY/NIGHT)로 시간 처리를 껐을 때 쓰는 고정 시간 틴트 — 한낮(무보정).
-## 날씨 틴트는 계속 곱한다. 치트가 끄는 것은 "시간"뿐이라 비/안개는 그대로 보여야 한다.
+## 날씨 틴트는 계속 곱한다. 치트가 끄는 것은 "시간"뿐이라 비/눈은 그대로 보여야 한다.
 const CHEAT_OFF_TINT := Color.WHITE
 
 var _mod: CanvasModulate = null
