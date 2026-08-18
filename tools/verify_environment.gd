@@ -575,7 +575,10 @@ func _test_prop_field(game_data, theme_mgr) -> void:
 ##  ① 교외(입문)는 기믹 0종 — `#180` 의 의도된 결정이다. 여기가 깨지면 원칙이 말없이 뒤집힌 것이다.
 ##  ② 테마가 든 기믹 키는 전부 `GimmickSpawner._CLASSES` 에 실재해야 한다. 없는 키는 `_ready` 에서
 ##     조용히 걸러져(오류 없음) 그 기믹만 영영 안 뜬다.
-##  ③ 삭제한 가스통(P1-3)이 되살아나지 않았는가 — 클래스 표와 스크립트 파일 양쪽을 본다.
+##  ③ 삭제한 교외 기믹(가스통 P1-3 · 진창 P2-7)이 되살아나지 않았는가 — 클래스 표와
+##     스크립트 파일 양쪽을 본다.
+##  ④ 클래스 표에 고아가 새로 생기지 않았는가 — 어느 테마도 담지 않은 키는 실행되지 않는
+##     코드다(가스통·진창이 정확히 그래서 삭제됐다). 이 검사가 그 부채의 재발을 막는다.
 func _test_gimmick_keys(game_data) -> void:
 	var classes: Dictionary = (load("res://scripts/GimmickSpawner.gd") as GDScript).get("_CLASSES")
 
@@ -596,5 +599,25 @@ func _test_gimmick_keys(game_data) -> void:
 	_ok("교외(입문)는 기믹 0종 유지 (#180)", suburb_n == 0, "실측 %d종" % suburb_n)
 	_ok("모든 테마의 기믹 키가 GimmickSpawner 에 실재", unknown == "", unknown)
 
-	_ok("삭제된 gas_can 이 클래스 표에 없음", not classes.has("gas_can"))
-	_ok("삭제된 GasCan.gd 가 없음", not ResourceLoader.exists("res://scripts/GasCan.gd"))
+	# 삭제한 교외 기믹의 묘비 — 키 / 스크립트 파일 어느 쪽으로도 돌아오지 않아야 한다.
+	for dead in [["gas_can", "GasCan"], ["mud_field", "MudField"]]:
+		_ok("삭제된 %s 이(가) 클래스 표에 없음" % dead[0], not classes.has(dead[0]))
+		_ok("삭제된 %s.gd 가 없음" % dead[1],
+			not ResourceLoader.exists("res://scripts/%s.gd" % dead[1]))
+
+	# 어느 테마도 담지 않은 클래스 키 = 실행되지 않는 코드. 새 기믹을 만들고 테마에 배선하는
+	# 것을 잊으면 여기서 걸린다(만들어 놓고 잊는 것이 이 레포의 실제 실패 양상이었다).
+	var used := {}
+	for th in game_data.themes:
+		if th == null:
+			continue
+		var ks: PackedStringArray = th.gimmick_keys
+		if ks.is_empty() and th.gimmick_key != "":
+			ks = PackedStringArray([th.gimmick_key])
+		for k in ks:
+			used[k] = true
+	var orphans := ""
+	for k in classes:
+		if not used.has(k):
+			orphans += "%s " % k
+	_ok("클래스 표에 고아 기믹 없음", orphans == "", orphans)
