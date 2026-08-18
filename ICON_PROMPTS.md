@@ -37,7 +37,6 @@ ground, human hands, cropped, cut off
 | orb | two orbiting steel throwing blades / spinning saw-blade orbs | cyan |
 | lightning | a crackling forked lightning bolt, energy sparks | violet |
 | garlic | a glowing garlic bulb radiating a soft aura ring | teal-green |
-| holy | a holy water vial/flask with a small cross, radiant glow | light blue |
 | shotgun | a pump-action combat shotgun, side profile | orange |
 | machinegun | a compact submachine gun, side profile | yellow-green |
 | crossbow | a crossbow with a loaded bolt, side profile | steel blue |
@@ -70,7 +69,7 @@ more menacing and ornate, premium epic upgrade
 | railgun (gun) · gatling (machinegun) · ballista (crossbow) | 총기 → 강화판 |
 | dragonsbreath (shotgun) · inferno (flamethrower) · napalm (molotov) | 화염 강화판 |
 | sawstorm (orb) · thunderstorm (lightning) · stormcoil (tesla) | 회전/전기 강화판 |
-| sanctuary (garlic) · crucifix (holy) · claymore (mine) | 오라/폭발 강화판 |
+| sanctuary (garlic) · claymore (mine) | 오라/폭발 강화판 |
 
 ---
 

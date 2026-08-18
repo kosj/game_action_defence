@@ -72,7 +72,6 @@ func _initialize() -> void:
 		_w("orb",       "Orb Shield", "Orbiting blades",            C_ORB,   8, false),
 		_w("lightning", "Lightning",  "Strikes nearby foes",        C_LIGHT, 8, false),
 		_w("garlic",    "Garlic Aura","Damages foes around you",    C_ORB,   8, false),
-		_w("holy",      "Holy Water", "Blasts random nearby spots", C_LIGHT, 8, false),
 		# 신규 발사체 무기(Phase 2-C 배치 1) — 자동 조준, 각자 독립 발사.
 		_wm("shotgun",    "Shotgun",     "Wide spread + strong knockback", Color(1.00, 0.55, 0.15), [0.85, 5, 0.50, 0, 240.0, 620.0, 1, 1, 0.85], "", 0.0, 1.6, 38.0),
 		_wm("machinegun", "Machine Gun", "Very fast, low damage",          Color(0.80, 0.95, 0.25), [0.16, 1, 0.12, 0, 0.0,   760.0, 1, 1, 0.60], "", 0.0, 3.0, 55.0),
@@ -95,7 +94,6 @@ func _initialize() -> void:
 		_w("sawstorm",     "Saw Storm",    "Evolved Orb Shield",  C_ORB,   5, true),
 		_w("thunderstorm", "Thunderstorm", "Evolved Lightning",   C_LIGHT, 5, true),
 		_w("sanctuary",    "Sanctuary",    "Evolved Garlic Aura", C_ORB,   5, true),
-		_w("crucifix",     "Crucifix",     "Evolved Holy Water",  C_LIGHT, 5, true),
 		# 신규 무기 진화체(Phase 3-B). 모듈 무기라 강화 파라미터만 다른 새 WeaponData — recompute 오버라이드 불필요.
 		_evo(_wm("dragonsbreath", "Dragon's Breath", "Evolved Shotgun",     Color(1.00, 0.40, 0.10), [0.75, 8, 0.60, 1, 300.0, 660.0, 2, 2, 0.95], "", 0.0, 1.6, 38.0)),
 		_evo(_wm("gatling",       "Gatling Gun",     "Evolved Machine Gun", Color(0.90, 0.95, 0.20), [0.10, 2, 0.14, 1, 0.0,   820.0, 1, 2, 0.65], "", 0.0, 3.2, 55.0)),
@@ -127,7 +125,6 @@ func _initialize() -> void:
 		_e("orb",       "swift", "sawstorm"),
 		_e("lightning", "crit",  "thunderstorm"),
 		_e("garlic",    "armor", "sanctuary"),
-		_e("holy",      "haste", "crucifix"),
 		_e("shotgun",    "gunpowder", "dragonsbreath"),
 		_e("machinegun", "ammo_belt", "gatling"),
 		_e("crossbow",   "crit",      "ballista"),

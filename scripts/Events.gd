@@ -253,7 +253,6 @@ var upgrade_crit: int = 0              # 크리티컬 확률 (+8%/레벨, 데미
 var upgrade_area: int = 0              # 광역/오라 무기 효과 반경 (+8%/레벨) — 패시브 '배터리'
 var upgrade_greed: int = 0             # 인게임 골드/경험치 획득 (+8%/레벨) — 패시브 '토끼발'
 var upgrade_garlic: int = 0            # 마늘 오라 무기 레벨(0=미보유)
-var upgrade_holy: int = 0              # 성수 무기 레벨(0=미보유)
 
 # 캐릭터 조건부 트레잇(Phase 4-B) — Player 가 매 프레임 갱신하는 동적 상태.
 var trait_damage_mult: float = 1.0    # 나가는 피해 배수(베테랑 저체력↑ 등) — 좀비/보스가 피격 시 곱함
@@ -507,7 +506,6 @@ func reset() -> void:
 	upgrade_regen = 0
 	upgrade_crit = 0
 	upgrade_garlic = 0
-	upgrade_holy = 0
 	# 시작 인벤토리 — 기본 자동총(gun) + 선택 캐릭터의 시작 무기/시그니처 패시브.
 	weapons = {"gun": 1}
 	passives = {}

@@ -95,8 +95,7 @@ static func recompute(weapons: Dictionary, passives: Dictionary) -> void:
 	Events.upgrade_lightning_count = (1 + int(l / 2)) if l > 0 else 0
 	Events.upgrade_lightning_damage = int(l / 2)
 
-	Events.upgrade_garlic = int(weapons.get("garlic", 0))   # 마늘/성수는 레벨을 그대로 무기가 읽는다
-	Events.upgrade_holy = int(weapons.get("holy", 0))
+	Events.upgrade_garlic = int(weapons.get("garlic", 0))   # 마늘은 레벨을 그대로 무기가 읽는다
 
 	# 진화 무기 — 원본을 대체하며 강화된 수치로 덮어쓴다(원본은 인벤토리에서 제거됨).
 	if weapons.has("railgun"):
@@ -114,8 +113,6 @@ static func recompute(weapons: Dictionary, passives: Dictionary) -> void:
 		Events.upgrade_lightning_damage = 4 + th
 	if weapons.has("sanctuary"):
 		Events.upgrade_garlic = 9 + int(weapons["sanctuary"])
-	if weapons.has("crucifix"):
-		Events.upgrade_holy = 9 + int(weapons["crucifix"])
 
 	# 패시브 효과 — 데이터 구동(PassiveData.effect/per_level). effect 별로 per_level×레벨을 합산.
 	var acc: Dictionary = {}

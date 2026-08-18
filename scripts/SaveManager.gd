@@ -156,8 +156,8 @@ func apply_to_events(data: Dictionary) -> void:
 	# 인벤토리 복원(뱀서식 슬롯). 신버전 세이브면 인벤토리로 upgrade_* 를 정합 재계산한다.
 	# (JSON 은 dict 값을 float 로 파싱하므로 int 로 변환해 보관.)
 	if data.has("weapons"):
-		Events.weapons = _to_int_dict(data.get("weapons", {}))
-		Events.passives = _to_int_dict(data.get("passives", {}))
+		Events.weapons = _known_only(_to_int_dict(data.get("weapons", {})))
+		Events.passives = _known_only(_to_int_dict(data.get("passives", {})))
 		if Events.weapons.is_empty():
 			Events.weapons = {"gun": 1}
 		ItemDB.recompute(Events.weapons, Events.passives)
@@ -182,6 +182,16 @@ func _restore_selection(data: Dictionary) -> void:
 	if tid != "" and tid != ThemeManager.selected_id() and not ThemeManager.select(tid):
 		push_warning("[SaveManager] 저장된 아레나 '%s' 를 선택할 수 없어 '%s' 로 이어간다"
 			% [tid, ThemeManager.selected_id()])
+
+
+## 카탈로그에서 사라진 아이템 id 를 걷어낸다(예: 삭제된 성수/십자가).
+## 남겨두면 HUD 에는 안 보이는데 슬롯만 차지해, 새 무기를 못 받는 유령 칸이 된다.
+func _known_only(src: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for k in src:
+		if not ItemDB.meta(String(k)).is_empty():
+			out[k] = src[k]
+	return out
 
 
 ## JSON 이 숫자를 float 로 파싱하므로 인벤토리 dict 의 값(아이템 레벨)을 int 로 변환한다.

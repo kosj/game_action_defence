@@ -38,10 +38,14 @@ static func burst(parent: Node, pos: Vector2, color: Color, size_mul: float = 1.
 	parent.add_child(p)
 	p.finished.connect(p.queue_free)
 	# 숨겨져 finished 가 오지 않는 경우까지 확실히 정리(정지·배속과 무관한 실시간 타이머).
+	# 노드가 아니라 instance_id 를 캡처한다 — 객체를 캡처하면 finished 로 먼저 해제됐을 때
+	# 타이머가 깨진 참조를 들고 있어 "Lambda capture was freed" 에러가 매번 찍힌다.
+	var pid := p.get_instance_id()
 	var t := p.get_tree().create_timer(p.lifetime + 0.5, true, false, true)
 	t.timeout.connect(func() -> void:
-		if is_instance_valid(p):
-			p.queue_free())
+		var n: Object = instance_from_id(pid)
+		if n != null:
+			(n as Node).queue_free())
 	SoundManager.play_ui("gold", 0.08, 1.3 + randf() * 0.3)
 
 

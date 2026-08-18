@@ -45,10 +45,6 @@ PLAN = {
     "swing":        {"src": "7eb5bfaf-bat_whoosh.mp4",       "cut": (0.085, 0.44), "fade": 0.03},
     # 0.5s 이후는 늘어지는 잔향 — 프롬프트의 dry/tight 의도대로 잘라낸다.
     "spit":         {"src": "08119b58-acid_spit.mp4",        "cut": (0.0, 0.55),  "fade": 0.08},
-    # 5kHz 이상에 에너지의 58% 가 몰려 쨍하게 들렸다 — 고역을 깎아 유리의 정체성은
-    # 남기되(0.8~3kHz 몸통) 귀를 찌르는 성분만 덜어낸다.
-    "holy_splash":  {"src": "f683826c-vial_shatter.mp4",     "cut": (0.0, 0.90),  "fade": 0.10,
-                     "shelf": (2200.0, -13.0)},
     # 1.0~2.2s 가 정점, 이후 완만한 감쇠 — 감쇠 구간에서 페이드해 자연스럽게 마무리.
     "revive":       {"src": "6eef21e5-heroic_chime.mp4",     "cut": (0.0, 2.45),  "fade": 0.30},
     "wave_clear":   {"src": "dfe8faad-achievement_tone.mp4", "cut": (0.0, 1.60),  "fade": 0.25},
