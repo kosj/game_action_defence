@@ -163,6 +163,16 @@ func _ablate() -> void:
 			for z in get_nodes_in_group("zombies"):
 				if z is CanvasItem:
 					z.visible = false
+		"gemmod":
+			# 젬의 등급 틴트만 흰색으로 — 규칙 A 비용을 그리는 내용을 안 바꾸고 잰다.
+			for g in _gems():
+				var b = g.get_node_or_null("Body")
+				if b != null and b.modulate != Color.WHITE:
+					b.modulate = Color.WHITE
+		"gems":
+			for g in _gems():
+				if g is CanvasItem:
+					g.visible = false
 		"fxlayer":
 			var fx = _main.get_node_or_null("FXLayer")
 			if fx != null and fx is CanvasItem:
@@ -174,6 +184,16 @@ func _ablate() -> void:
 ## ⚠️ **CanvasLayer 는 CanvasItem 이 아니다.** HUD 가 CanvasLayer 라 예전에는 `c is CanvasItem`
 ## 필터에 안 걸려 계속 그려졌고, "좀비 격리 37 드로우 콜" 의 대부분이 실은 HUD 였다.
 ## only=nothing 으로 재면 그 바닥값이 얼마인지 바로 보인다.
+## 젬은 그룹에 안 들어가므로 스크립트 경로로 찾는다.
+func _gems() -> Array:
+	var out: Array = []
+	for c in _main.get_children():
+		var s = c.get_script()
+		if s != null and String(s.resource_path).ends_with("Gold.gd"):
+			out.append(c)
+	return out
+
+
 func _isolate() -> void:
 	var zombie_mode := _only.begins_with("zombies")
 	for c in _main.get_children():
@@ -264,9 +284,19 @@ func _setup() -> void:
 		root.get_node("Cheats").time_skip.emit(skip)
 	# 무기를 여러 개 붙여 실제 난전의 FX/투사체 부하를 재현한다 — 기본 총 한 자루로는
 	# 장판·설치물·연쇄가 안 돌아 그리기 부하가 과소평가된다.
-	if _only == "":
-		for i in int(_args.get("levels", "20")):
-			_events.bonus_level()
+	# give=a,b,c 로 특정 무기를 강제로 들린다 — 무기 비주얼의 드로우 콜 비용을 재려면
+	# 그 무기를 실제로 보유해야 한다(레벨업은 무작위라 원하는 무기가 안 나온다).
+	var give := String(_args.get("give", ""))
+	if give != "":
+		for id in give.split(","):
+			if id != "":
+				for _lv in int(_args.get("givelv", "8")):
+					_events.grant_item(id)
+
+	# 레벨업은 격리에서도 적용한다 — 안 그러면 시작 무기 하나뿐이라 Player/FXLayer 격리가
+	# 실제 난전의 무기 비주얼 부하를 전혀 반영하지 못한다(실제로 4 draw 로 나왔다).
+	for i in int(_args.get("levels", "20")):
+		_events.bonus_level()
 
 	match _off:
 		"ground":   _hide("Ground")
