@@ -116,18 +116,34 @@ def main() -> None:
         ("메뉴 · 2차 버튼", 320 - BTN_PAD, 24, True, loc("menu_continue")),
         ("메뉴 · 3차 버튼", 284 - 56 - 18, 19, True,
          [t for k in ("menu_achievements", "menu_quests", "menu_rewards",
-                      "menu_ranking", "menu_powerup", "menu_options") for t in loc(k)]),
+                      "menu_ranking", "menu_powerup", "menu_options",
+                      "menu_codex") for t in loc(k)]),
         ("메뉴 · 버전 라벨", 320, 14, False, lit("v1.0.0 · 8f52771 · 2026-08-13 09:45 UTC")),
 
         # ── 공통 팝업 셸 UIPopup (전체화면 720 - 화면여백 24 - 프레임 36 - 안쪽여백 44 = 616) ──
         # 셸이 8개 팝업의 제목/힌트/닫기를 한곳에서 만든다 — 여기가 넘치면 여덟 개가 같이 넘친다.
         ("팝업 셸 · 제목", 616, 26, True,
          [t for k in ("popup_quests", "popup_achievements", "popup_rewards", "popup_power",
-                      "popup_character", "popup_arena", "menu_options", "rank_title")
+                      "popup_character", "popup_arena", "menu_options", "rank_title",
+                      "menu_codex")
           for t in loc(k)]),
         ("팝업 셸 · 힌트", 440, 14, False,
-         loc("quest_hint") + loc("rewards_hint"), "word"),
+         loc("quest_hint") + loc("rewards_hint") + loc("codex_hint"), "word"),
         ("팝업 셸 · 닫기", 616 - BTN_PAD, 22, True, loc("menu_close")),
+
+        # ── 도감 (칸 폭 148 · 4열. 절 제목은 번역되고, 칸 이름은 카탈로그 display 다) ──
+        ("도감 · 진행도", 616, 20, False, loc("codex_progress", (60, 60))),
+        ("도감 · 절 제목", 616, 17, True,
+         [(l, "%s   60/60" % t) for k in ("codex_sec_weapon", "codex_sec_evolution",
+                                          "codex_sec_passive", "codex_sec_zombie",
+                                          "codex_sec_boss", "codex_sec_survivor",
+                                          "codex_sec_arena") for l, t in loc(k)]),
+        ("도감 · 칸 이름", 148, 12, False,
+         res_strings("data/item_catalog.tres", "display")
+         + res_strings("data/character_db.tres", "display")
+         + res_strings("data/themes.tres", "display")
+         + lit("PRIME MUTATION") + lit("MUTANT HOUND") + lit("THE WRECKER")
+         + lit("Longneck") + lit("Screamer")),
 
         # ── 팝업 리스트 행 (전체화면 팝업: 720-24-36-48=612, 슬롯 44 + 간격 11 + 여백 22) ──
         ("팝업 행 · 제목", 612 - 22 - 44 - 11 - 90, 18, False,
@@ -273,6 +289,7 @@ COVERED_BY = {
     "LevelUpPanel.gd": ("레벨업",),
     "UIListRow.gd": ("팝업 행",),
     "UIPopup.gd": ("팝업 셸",),
+    "CodexPanel.gd": ("도감",),
     "TitleScreen.gd": ("타이틀",),
     "AdManager.gd": ("광고",),
     "HUD.tscn": ("HUD", "게임오버"),

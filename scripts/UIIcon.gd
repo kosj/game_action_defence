@@ -7,7 +7,7 @@ class_name UIIcon
 @export var color: Color = Color.WHITE
 
 const _KINDS := ["coin", "star", "flag", "clock", "trophy", "skull", "heart", "bolt", "sword", "orb", "gear",
-	"lock", "check"]
+	"lock", "check", "book"]
 
 ## 전용 아트가 있는 종류는 절차적 드로잉 대신 텍스처를 그린다(색 modulate 없이 원색 사용).
 ## 파일이 있는 것만 배선 — 나머지는 아래 _draw 의 벡터 드로잉으로 폴백.
@@ -55,6 +55,7 @@ func _draw() -> void:
 		"gear":   _gear(c, r)
 		"lock":   _lock(c, r)
 		"check":  _check(c, r)
+		"book":   _book(c, r)
 		_:        draw_circle(c, r * 0.7, color)
 
 
@@ -173,3 +174,18 @@ func _check(c: Vector2, r: float) -> void:
 	])
 	draw_polyline(pts, Color(0, 0, 0, 0.85), maxf(r * 0.52, 3.0), true)
 	draw_polyline(pts, color, maxf(r * 0.30, 2.0), true)
+
+
+## 책 — 도감(Codex) 메뉴 표식. 펼친 책은 24px 에서 뭉개지므로 **덮인 책**으로 그린다:
+## 표지 한 장 + 왼쪽의 두꺼운 책등 + 오른쪽 면의 얇은 책배(페이지 단면).
+## 책등을 어둡게 깔아야 작은 크기에서도 "판때기"가 아니라 책으로 읽힌다.
+func _book(c: Vector2, r: float) -> void:
+	var w := r * 1.44
+	var h := r * 1.66
+	var cover := Rect2(c.x - w * 0.5, c.y - h * 0.5, w, h)
+	draw_rect(cover, color, true)
+	# 책등(왼쪽) — 표지보다 어둡게. 두께는 표지 폭의 약 1/4.
+	draw_rect(Rect2(cover.position, Vector2(w * 0.26, h)), color.darkened(0.45), true)
+	# 책배(오른쪽) — 페이지 단면을 밝은 얇은 띠로.
+	draw_rect(Rect2(cover.position + Vector2(w * 0.86, h * 0.06), Vector2(w * 0.14, h * 0.88)),
+		color.lightened(0.55), true)

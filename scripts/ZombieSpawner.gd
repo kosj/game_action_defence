@@ -64,6 +64,7 @@ func _build_types() -> void:
 	ZOMBIE_TYPES.clear()
 	for zd in GameData.zombie_list:
 		ZOMBIE_TYPES.append({
+			"id": zd.id,   # 도감 기록용 — 처치한 종을 Zombie 가 알아야 한다(CodexManager)
 			"speed": zd.speed, "max_health": zd.max_health, "modulate": zd.modulate,
 			"score": zd.score, "scale": zd.scale, "contact": zd.contact,
 			"behavior": zd.behavior, "texture": zd.texture,
@@ -356,7 +357,9 @@ func _spawn_swarm() -> void:
 func _theme_boss() -> Dictionary:
 	var t: ThemeData = ThemeManager.selected()
 	if t != null and THEME_BOSSES.has(t.boss_key):
-		return THEME_BOSSES[t.boss_key]
+		# 도감에 어느 보스를 잡았는지 남기려면 키가 필요하다 — 정의에 얹어 돌려준다
+		# (merged 는 새 dict 를 만들므로 const 원본은 그대로다).
+		return (THEME_BOSSES[t.boss_key] as Dictionary).merged({"key": t.boss_key})
 	return {}
 
 
@@ -393,6 +396,7 @@ func _spawn_boss() -> void:
 		"proj_color": bt["proj"],
 		"name": bt["name"],
 		"sprite": bt.get("sprite", ""),   # 테마 보스 전용 아트(없으면 아키타입 기본)
+		"key": bt.get("key", ""),         # 도감 기록용 보스 키
 	}
 	boss.setup(stats)
 

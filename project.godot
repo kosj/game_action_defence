@@ -40,6 +40,7 @@ UITheme="*res://scripts/UITheme.gd"
 Cheats="*res://scripts/Cheats.gd"
 Telemetry="*res://scripts/Telemetry.gd"
 SceneFade="*res://scripts/SceneFade.gd"
+CodexManager="*res://scripts/CodexManager.gd"
 
 [gui]
 

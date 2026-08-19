@@ -52,7 +52,7 @@ CI 대기 중인 것과 구분되지 않는다.
 
 | 데이터 | 생성기 |
 |---|---|
-| `data/item_catalog.tres` (무기 28·패시브 10·진화 12) | `tools/gen_item_catalog.gd` |
+| `data/item_catalog.tres` (무기 30 = 기본 16 + 진화 11 + 궁극기 3 · 패시브 10) | `tools/gen_item_catalog.gd` |
 | `data/themes.tres` | `tools/gen_theme_data.gd` |
 | `data/character_db.tres` | `tools/gen_character_data.gd` |
 | `data/zombies.tres` + `data/zombies/*` | `tools/gen_zombie_data.gd` |
@@ -73,6 +73,10 @@ godot --headless --path . --script res://tools/gen_theme_data.gd
 ⚠️ 서브셋 이전 원본은 git 히스토리에만 있고(`subset_fonts.py` 문서 참고), **이 저장소는 얕은
 클론으로 시작하므로 `git fetch --unshallow` 를 먼저 해야 그 커밋이 보인다.** 그 원본조차 1.2MB
 부분 서브셋이라 없는 글자가 있다(`김`·`化` 등) — 없으면 그 글자를 피해 문구를 바꾸는 편이 빠르다.
+
+⚠️ **`tools/font_known_absent.txt` 에 있는 글자는 쓰면 안 된다.** 원본에도 없는 글자 목록이라
+커버리지 검사가 **건너뛴다** — 즉 그 글자를 쓰면 CI 는 통과하는데 화면에는 두부(□)가 뜬다.
+현재 일본어 문자열이 이 함정을 23자 밟고 있다(`HANDOFF.md` P1-17).
 
 문자열 추가 후 반드시:
 ```sh
@@ -125,6 +129,7 @@ godot --headless --path . res://scenes/ContinueSaveTest.tscn
 godot --headless --path . res://scenes/FxLeakTest.tscn
 godot --headless --path . res://scenes/PauseWatchdogTest.tscn
 godot --headless --path . res://scenes/TelemetryTest.tscn
+godot --headless --path . res://scenes/CodexTest.tscn
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_arena.gd
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_heal.gd
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_environment.gd
@@ -137,7 +142,7 @@ godot --headless --path . --script res://tools/verify_ui_icons.gd
 
 UI 를 건드렸으면 추가로 `python3 tools/check_text_fit.py` (en/ko/ja 폭 초과 검사).
 
-**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 13종이 이 프로젝트의 안전망 전부다.
+**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 14종이 이 프로젝트의 안전망 전부다.
 
 비주얼을 건드렸으면 **실렌더 스크린샷**으로 확인한다 — 헤드리스는 `_draw` 를 부르고 오류도 안 내지만,
 그려진 것이 다른 레이어에 덮였는지·좌표가 화면 밖인지는 알려주지 않는다.
@@ -179,10 +184,11 @@ Events.pause_pop(self)                # 닫을 때
 ### 물리 레이어
 `1=player · 2=zombies · 3=bullets · 4=gold`
 
-### 오토로드 18개
+### 오토로드 19개
 `Events`(이벤트 버스+런 상태+일시정지) `Pool` `GameData`(.tres 로더) `SoundManager` `SaveManager`
 `MetaManager` `RewardInbox` `CharacterManager` `AchievementManager` `QuestManager` `ThemeManager`
 `RankingManager` `AdManager` `Locale` `UITheme` `Cheats` `SceneFade` `Telemetry`(로컬 플레이 기록)
+`CodexManager`(도감 발견 기록)
 
 ---
 

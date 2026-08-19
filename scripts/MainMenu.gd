@@ -4,6 +4,7 @@ extends CanvasLayer
 
 const _UIPopup := preload("res://scripts/UIPopup.gd")
 const _UIStyle := preload("res://scripts/UIStyle.gd")
+const _CodexPanel := preload("res://scripts/CodexPanel.gd")
 const _IntroStory := preload("res://scripts/IntroStory.gd")
 
 ## 난이도 인덱스 → Locale 키
@@ -16,6 +17,10 @@ var _lang_title: Label
 var _sound_title: Label
 var _sound_btn: Button
 var _options_btn: Button
+var _codex_btn: Button
+## 도감은 **처음 열 때 만든다.** 좀비·보스 아이콘이 게임플레이 아틀라스(767KB)에 있어
+## 메뉴 진입 시점에 조립하면 도감을 열지 않는 사람까지 그 페이지를 올리게 된다.
+var _codex: RefCounted = null
 var _options_dim: ColorRect
 var _options_panel: PanelContainer
 var _options_title: Label
@@ -203,6 +208,10 @@ func _build_ui() -> void:
 	_rank_btn = _make_menu_btn("star", UITheme.MENU_ICON_REWARD)
 	_rank_btn.pressed.connect(_on_ranking_pressed)
 	box.add_child(_rank_btn)
+
+	_codex_btn = _make_menu_btn("book", UITheme.MENU_ICON_CODEX)
+	_codex_btn.pressed.connect(_on_codex_pressed)
+	box.add_child(_codex_btn)
 
 	_power_btn = _make_menu_btn("bolt", UITheme.MENU_ICON_POWER)
 	_power_btn.pressed.connect(_on_power_pressed)
@@ -397,6 +406,23 @@ func _build_power_panel() -> void:
 			btn.add_child(tr)
 			_UIStyle.set_button_content_margin_left(btn, 86)
 		_power_rows.append({"btn": btn, "u": u})
+
+
+## 도감 열기. 첫 호출에서만 패널을 만든다(위 _codex 주석 참고).
+func _on_codex_pressed() -> void:
+	if _codex == null:
+		_codex = _CodexPanel.new()
+		_codex.build(self, _on_codex_close)
+	_codex.refresh()
+	_codex.dim.visible = true
+	_codex.panel.visible = true
+
+
+func _on_codex_close() -> void:
+	if _codex == null:
+		return
+	_codex.dim.visible = false
+	_codex.panel.visible = false
 
 
 func _on_power_pressed() -> void:
@@ -1115,6 +1141,9 @@ func _apply_language() -> void:
 	_ach_btn.text = Locale.t("menu_achievements")
 	_quest_btn.text = Locale.t("menu_quests")
 	_power_btn.text = Locale.t("menu_powerup")
+	_codex_btn.text = Locale.t("menu_codex")
+	if _codex != null:
+		_codex.apply_language()
 	_refresh_rewards_badge()   # 보상 버튼 라벨도 로케일에서 가져온다
 	_lang_title.text = Locale.t("menu_language")
 	_sound_title.text = Locale.t("menu_sound")

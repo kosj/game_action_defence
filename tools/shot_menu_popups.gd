@@ -24,6 +24,7 @@ const PANELS := [
 	["_on_power_pressed", "power", "_on_power_close"],
 	["_on_character_pressed", "character", "_on_character_close"],
 	["_on_theme_pressed", "theme", "_on_theme_close"],
+	["_on_codex_pressed", "codex", "_on_codex_close"],
 ]
 
 var _t := 0.0
