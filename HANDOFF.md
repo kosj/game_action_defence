@@ -42,6 +42,7 @@
 | 항목 | 레인 | 상태 | 담당 브랜치 | 갱신일 |
 |---|---|---|---|---|
 | P2-5 CI 회귀 게이트 + PR 트리거 | A | ✅ (9bd1100) | claude/game-designer-task-review-wvhkiq | 2026-08-18 |
+| P0-4 라이브 프리즈 — 진단 계측 | A | 🔵 진행중 | claude/a-lane-freeze-diag | 2026-08-19 |
 | P0-1 치트 게이팅 | A | ✅ (db7bb29) | claude/a-lane-cheat-gate | 2026-08-18 |
 | P0-2 마일스톤 저장 + 퀘스트 트랙 교체 | C | ✅ (784e6c9) | claude/c-lane-milestone-save | 2026-08-18 |
 | P0-3 ShopPanel 폐기 | C | ✅ (097438b) | claude/c-lane-shop-removal | 2026-08-18 |
