@@ -20,13 +20,18 @@ extends Node
 ## 원격 전송은 백엔드·개인정보처리방침·동의 절차가 정해진 뒤 별도 작업으로 붙인다
 ## (`LAUNCH_CHECKLIST.md` D·E).
 
+const _Gem := preload("res://scripts/Gold.gd")
+
 const PATH := "user://telemetry.jsonl"
 const PARTIAL_PATH := "user://telemetry_partial.json"
 const MAX_RECORDS := 300        # 이 개수를 넘으면 오래된 것부터 버린다(무한 증가 방지)
-## 진행 중 스냅샷 주기 — 중도 종료를 잡는 유일한 수단이다. 이 주기만큼 실제 플레이 시간을
-## 과소보고하므로(실측에서 확인), 60 → 30 으로 줄여 오차를 절반으로 낮춘다.
+## 진행 중 스냅샷 주기. 두 가지를 동시에 한다 —
+##  ① 중도 종료 지점 기록(이 주기만큼 실제 플레이 시간을 과소보고한다)
+##  ② **프리즈 직전 상태 보존**(P0-4). 라이브 빌드에서 7분경 게임이 멈춘 사례가 나왔는데,
+##     레벨업 카드도 없이 멈췄다 — 즉 일시정지 워치독조차 못 도는 상태(무한 루프/크래시)다.
+##     멈춘 뒤에는 아무것도 기록할 수 없으므로, 멈추기 직전 상태를 촘촘히 남기는 수밖에 없다.
 ## tools/analyze_telemetry.py 의 PARTIAL_SNAPSHOT_S 와 같은 값이어야 한다.
-const PARTIAL_INTERVAL := 30.0
+const PARTIAL_INTERVAL := 10.0
 const SAMPLE_INTERVAL := 60.0   # 분당 스냅샷
 
 var enabled: bool = true
@@ -52,9 +57,19 @@ var _samples: Array = []
 var _next_sample: float = SAMPLE_INTERVAL
 var _partial_accum: float = 0.0
 
+# ── 프리즈 진단 (P0-4) ───────────────────────────────────────────────
+## 스냅샷 구간 안에서 관측된 최악의 프레임 시간(ms). 성능 붕괴(느려짐)와 로직 정지(멈춤)를
+## 가른다 — 붕괴라면 이 값이 먼저 치솟고, 정지라면 정상값을 유지하다 기록이 끊긴다.
+var _frame_ms_max: float = 0.0
+## 일시정지 워치독이 무엇을 몇 번 복구했나. 프리즈 직전에 반복 발동했다면 그게 단서다.
+var _watchdog_log: Array = []
+
 
 func _ready() -> void:
 	Events.player_died.connect(_on_run_end.bind("died"))
+	Events.pause_watchdog_fired.connect(func(reason: String, detail: String):
+		if _watchdog_log.size() < 20:      # 무한 증가 방지 — 앞쪽 20건이면 원인 파악에 충분하다
+			_watchdog_log.append("%s@%.0fs %s" % [reason, Events.elapsed_time, detail]))
 	Events.run_cleared.connect(func(): _cleared = true)
 	Events.player_health_changed.connect(_on_hp)
 	Events.boss_spawned.connect(_on_boss_spawned)
@@ -77,12 +92,15 @@ func begin_run() -> void:
 	_samples = []
 	_next_sample = SAMPLE_INTERVAL
 	_partial_accum = 0.0
+	_frame_ms_max = 0.0
+	_watchdog_log = []
 	Cheats.used_this_run = false   # 치트 사용 여부는 판 단위로 센다
 
 
 func _process(delta: float) -> void:
 	if not _active:
 		return
+	_frame_ms_max = maxf(_frame_ms_max, delta * 1000.0)
 	var el := float(Events.elapsed_time)
 	if el >= _next_sample:
 		_samples.append({"min": int(round(_next_sample / 60.0)), "kills": Events.total_kills,
@@ -94,6 +112,7 @@ func _process(delta: float) -> void:
 	if _partial_accum >= PARTIAL_INTERVAL:
 		_partial_accum = 0.0
 		_write_json(PARTIAL_PATH, _snapshot("abandoned"))
+		_frame_ms_max = 0.0   # 구간마다 새로 잰다 — 마지막 구간의 값이 프리즈 직전 상태다
 
 
 func _on_hp(health: int, _mx: int) -> void:
@@ -161,6 +180,27 @@ func _snapshot(outcome: String) -> Dictionary:
 		"weapons": Events.weapons.duplicate(),
 		"passives": Events.passives.duplicate(),
 		"samples": _samples,
+		"diag": _diag(),
+	}
+
+
+## 프리즈 직전 상태 (P0-4). 멈춘 뒤에는 기록할 수 없으니 매 스냅샷마다 현재 상태를 남긴다.
+## 이 값들이 프리즈 원인을 세 갈래로 가른다:
+##   · frame_ms_max 가 치솟음 → 성능 붕괴(개체·이펙트 폭증). 개체 수를 함께 본다.
+##   · paused=true + pause_owners 가 남아 있음 → 모달이 정지를 쥔 채 갇힘.
+##   · 전부 정상인데 기록이 끊김 → 무한 루프/크래시. 워치독조차 못 돈 것이다.
+func _diag() -> Dictionary:
+	var tree := get_tree()
+	return {
+		"fps": int(Engine.get_frames_per_second()),
+		"frame_ms_max": snappedf(_frame_ms_max, 0.1),
+		"time_scale": snappedf(Engine.time_scale, 0.001),
+		"paused": (tree.paused if tree != null else false),
+		"pause_owners": Array(Events.pause_owner_tags()),
+		"watchdog": _watchdog_log.duplicate(),
+		"zombies": (tree.get_nodes_in_group("zombies").size() if tree != null else -1),
+		"pickups": (tree.get_nodes_in_group("item_pickups").size() if tree != null else -1),
+		"gems": _Gem.live_gems().size(),
 	}
 
 
