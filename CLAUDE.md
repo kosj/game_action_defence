@@ -147,6 +147,15 @@ godot --headless --path . --script res://tools/verify_event_forecast.gd
 godot --headless --path . --script res://tools/verify_ui_icons.gd
 ```
 
+⚠️ **`main` 을 새로 받은 직후에는 `--import` 를 먼저(가능하면 두 번) 돌린다.**
+다른 세션이 추가한 PNG·폰트가 로컬 `.godot` 캐시에 없으면 그 리소스를 preload 하는 스크립트가
+컴파일에 실패하고, **회귀 테스트가 코드와 무관하게 무더기로 거짓 실패한다.**
+실제로 이 함정에 두 번 걸려 멀쩡한 커밋을 범인으로 지목할 뻔했다 — 테스트가 갑자기 여러 개
+깨지면 코드보다 캐시를 먼저 의심할 것.
+```sh
+godot --headless --path . --import && godot --headless --path . --import
+```
+
 UI 를 건드렸으면 추가로 `python3 tools/check_text_fit.py` (en/ko/ja 폭 초과 검사).
 
 **기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 15종이 이 프로젝트의 안전망 전부다.

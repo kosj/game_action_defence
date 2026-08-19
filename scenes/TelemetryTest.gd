@@ -16,6 +16,7 @@ extends Node
 ##   T8 치트를 쓴 판은 cheated=true 로 표시된다(사람 데이터와 섞이지 않게)
 ##   T9 이어하기로 시작한 판은 resumed=true 로 표시된다(수치가 재개 이후만 세어지므로)
 ##   T10 프리즈 진단(diag)이 기록되고 워치독 발동이 남는다 — 멈춘 뒤엔 못 남기므로 이게 유일한 단서다
+##   T11 분당 샘플에 메모리·노드 수가 실린다(누수 추이 판별용)
 
 var _ok := 0
 var _total := 0
@@ -155,7 +156,7 @@ func _ready() -> void:
 	var r7: Dictionary = JSON.parse_string(Telemetry.load_records_raw()[0])
 	var dg: Dictionary = r7.get("diag", {})
 	var need := ["fps", "frame_ms_max", "time_scale", "paused", "pause_owners",
-		"watchdog", "zombies", "pickups", "gems"]
+		"watchdog", "zombies", "pickups", "gems", "mem_mb", "nodes"]
 	var miss: Array = []
 	for k in need:
 		if not dg.has(k):
@@ -163,6 +164,21 @@ func _ready() -> void:
 	_check("T10 진단 필드 + 워치독 기록",
 		miss.is_empty() and dg.get("watchdog", []).size() == 1,
 		"빠진 필드 %s · 워치독 %s" % [str(miss), str(dg.get("watchdog"))])
+	Telemetry.clear_records()
+
+	# ── T11 분당 샘플의 메모리·노드 ────────────────────────────────
+	Telemetry.clear_records()
+	Events.reset()
+	Telemetry.begin_run()
+	Events.elapsed_time = 65.0
+	Telemetry._process(0.016)          # 분당 샘플 1개 적재
+	Events.player_died.emit()
+	var r8: Dictionary = JSON.parse_string(Telemetry.load_records_raw()[0])
+	var sm: Array = r8.get("samples", [])
+	_check("T11 분당 샘플에 메모리·노드",
+		sm.size() >= 1 and sm[0].has("mem") and sm[0].has("nodes")
+			and float(sm[0]["mem"]) > 0.0,
+		str(sm[0]) if sm.size() > 0 else "샘플 없음")
 	Telemetry.clear_records()
 
 	print("RESULT ok=%d/%d" % [_ok, _total])

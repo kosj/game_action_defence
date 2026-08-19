@@ -147,8 +147,24 @@ def main():
         if not flags:
             flags.append("지표 정상 — 기록이 그냥 끊겼다(무한 루프/크래시 의심)")
         print("\n중도 종료 %.1f분 시점의 상태" % (r["survived_s"] / 60.0))
-        print("  좀비 %s · 픽업 %s · 젬 %s · fps %s"
-              % (d.get("zombies"), d.get("pickups"), d.get("gems"), d.get("fps")))
+        print("  좀비 %s · 픽업 %s · 젬 %s · fps %s · 메모리 %sMB · 노드 %s"
+              % (d.get("zombies"), d.get("pickups"), d.get("gems"), d.get("fps"),
+                 d.get("mem_mb", "?"), d.get("nodes", "?")))
+        # 누수 판정 — 분당 샘플의 메모리·노드 추이를 본다. 마지막 값만으로는 알 수 없다.
+        mem = [(x["min"], x["mem"], x.get("nodes")) for x in r.get("samples", []) if "mem" in x]
+        if len(mem) >= 3:
+            first, last = mem[0], mem[-1]
+            dm = last[1] - first[1]
+            dn = (last[2] or 0) - (first[2] or 0)
+            print("  메모리 %.1f → %.1fMB (%+.1f) · 노드 %s → %s (%+d) · %d분간"
+                  % (first[1], last[1], dm, first[2], last[2], dn, last[0] - first[0]))
+            span = max(last[0] - first[0], 1)
+            if dm / span > 1.0:
+                print("  → 분당 %.1fMB 증가 — **누수 의심**" % (dm / span))
+            elif dn / span > 50:
+                print("  → 분당 노드 %+d — 씬 트리 누수 의심" % (dn / span))
+            else:
+                print("  → 메모리·노드 안정 — 누수 아님")
         for f in flags:
             print("  → %s" % f)
         for w in (d.get("watchdog") or [])[:5]:

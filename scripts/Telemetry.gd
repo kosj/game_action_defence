@@ -103,8 +103,11 @@ func _process(delta: float) -> void:
 	_frame_ms_max = maxf(_frame_ms_max, delta * 1000.0)
 	var el := float(Events.elapsed_time)
 	if el >= _next_sample:
+		# 메모리·노드 수를 분당으로 함께 남긴다 — 크래시가 누수 때문이라면 이 곡선이 곧 증거다.
+		# 진단(diag)은 마지막 시점만 알려주므로 "늘고 있었나"를 못 본다. 추이가 있어야 판별된다.
 		_samples.append({"min": int(round(_next_sample / 60.0)), "kills": Events.total_kills,
-			"level": Events.level, "hp": Events.player_health})
+			"level": Events.level, "hp": Events.player_health,
+			"mem": _mem_mb(), "nodes": _node_count()})
 		_next_sample += SAMPLE_INTERVAL
 	# 진행 중 스냅샷 — 웹 탭을 닫거나 앱을 죽이면 완료 기록이 남지 않는다.
 	# 그 판이야말로 "어디서 그만뒀는지"라 오히려 더 중요하다.
@@ -201,7 +204,20 @@ func _diag() -> Dictionary:
 		"zombies": (tree.get_nodes_in_group("zombies").size() if tree != null else -1),
 		"pickups": (tree.get_nodes_in_group("item_pickups").size() if tree != null else -1),
 		"gems": _Gem.live_gems().size(),
+		"mem_mb": _mem_mb(),
+		"nodes": _node_count(),
 	}
+
+
+## 정적 메모리(MB). 웹 빌드의 크래시는 대개 힙 고갈이라, 이 값이 우상향하면 누수다.
+func _mem_mb() -> float:
+	return snappedf(Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, 0.1)
+
+
+## 살아있는 노드 수. 메모리와 함께 보면 "무엇이" 새는지 좁혀진다 —
+## 노드가 늘면 씬 트리 누수, 메모리만 늘면 리소스·배열 누수다.
+func _node_count() -> int:
+	return int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
 
 
 ## 지난 실행에서 끝맺지 못한 판(웹 탭 닫힘·앱 강제 종료)을 '이탈' 기록으로 올린다.
