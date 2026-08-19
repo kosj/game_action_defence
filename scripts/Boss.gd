@@ -160,7 +160,8 @@ func setup(stats: Dictionary) -> void:
 	_heal_cd = HEAL_FIRST_DELAY
 	_heal_t = 0.0
 	_heal_taken = 0
-	_heal_left = maxi(0, _bal.boss_heal_charges) if _bal != null else 0
+	# 위협 등급이 시전 횟수를 더한다(P1-12). 등급 1 은 +0 이라 기존과 같다.
+	_heal_left = maxi(0, _bal.boss_heal_charges + ThreatManager.boss_heal_charges_add()) if _bal != null else 0
 	_flash = 0.0
 	body.modulate = _base_color
 	# HUD 가 체력바 위에 표시할 보스 이름(타입). 시그널 시그니처 변경 없이 Events 에 실어 보낸다.

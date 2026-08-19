@@ -208,7 +208,12 @@ def build(root: pathlib.Path) -> int:
     # 요청했지만 원본에 없어 담지 못한 문자를 기록해 둔다 — check() 가 이걸 제외해야
     # "원래부터 없던 글자" 때문에 CI 가 영구히 실패하지 않는다.
     have = font_charset(root / FONTS[0])
-    absent = sorted(c for c in want if c not in have and c.isprintable())
+    # 기존 목록과 **합집합**으로 유지한다. 이 파일은 "원본 폰트에 무엇이 없는가"라는 사실의
+    # 기록이지, "지금 쓰는 글자 중 없는 것"의 목록이 아니다. 지웠다가는 문구를 고쳐 그 글자를
+    # 안 쓰게 되는 순간 경고가 같이 사라져, 다음 사람이 같은 글자를 다시 쓴다(P1-17 이
+    # 그 함정이었다 — 23자를 걷어낸 직후 목록에서도 사라질 뻔했다).
+    absent = sorted(set(_known_absent(root))
+                    | {c for c in want if c not in have and c.isprintable()})
     (root / KNOWN_ABSENT).write_text(
         "# 원본 Noto Sans CJK 서브셋에도 없던 문자 — tools/subset_fonts.py 가 자동 생성한다.\n"
         "# **이 글자들은 쓰면 안 된다.** 되살릴 방법이 없어 화면에 두부(□)로 뜬다.\n"

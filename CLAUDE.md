@@ -59,6 +59,7 @@ CI 대기 중인 것과 구분되지 않는다.
 | `data/meta_upgrades.tres` + `data/meta/*` | `tools/gen_meta_data.gd` |
 | `data/achievements.tres` | `tools/gen_achievement_data.gd` |
 | `data/difficulty.tres` | `tools/gen_difficulty_data.gd` |
+| `data/threat_ranks.tres` (위협 등급 20) | `tools/gen_threat_data.gd` |
 
 ```sh
 godot --headless --path . --script res://tools/gen_theme_data.gd
@@ -135,6 +136,7 @@ godot --headless --path . res://scenes/FxLeakTest.tscn
 godot --headless --path . res://scenes/PauseWatchdogTest.tscn
 godot --headless --path . res://scenes/TelemetryTest.tscn
 godot --headless --path . res://scenes/CodexTest.tscn
+godot --headless --path . res://scenes/ThreatTest.tscn
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_arena.gd
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_heal.gd
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_environment.gd
@@ -147,7 +149,7 @@ godot --headless --path . --script res://tools/verify_ui_icons.gd
 
 UI 를 건드렸으면 추가로 `python3 tools/check_text_fit.py` (en/ko/ja 폭 초과 검사).
 
-**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 14종이 이 프로젝트의 안전망 전부다.
+**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 15종이 이 프로젝트의 안전망 전부다.
 
 비주얼을 건드렸으면 **실렌더 스크린샷**으로 확인한다 — 헤드리스는 `_draw` 를 부르고 오류도 안 내지만,
 그려진 것이 다른 레이어에 덮였는지·좌표가 화면 밖인지는 알려주지 않는다.
@@ -189,11 +191,11 @@ Events.pause_pop(self)                # 닫을 때
 ### 물리 레이어
 `1=player · 2=zombies · 3=bullets · 4=gold`
 
-### 오토로드 19개
+### 오토로드 20개
 `Events`(이벤트 버스+런 상태+일시정지) `Pool` `GameData`(.tres 로더) `SoundManager` `SaveManager`
 `MetaManager` `RewardInbox` `CharacterManager` `AchievementManager` `QuestManager` `ThemeManager`
 `RankingManager` `AdManager` `Locale` `UITheme` `Cheats` `SceneFade` `Telemetry`(로컬 플레이 기록)
-`CodexManager`(도감 발견 기록)
+`CodexManager`(도감 발견 기록) `ThreatManager`(위협 등급)
 
 ---
 

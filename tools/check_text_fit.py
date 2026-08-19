@@ -125,7 +125,7 @@ def main() -> None:
         ("팝업 셸 · 제목", 616, 26, True,
          [t for k in ("popup_quests", "popup_achievements", "popup_rewards", "popup_power",
                       "popup_character", "popup_arena", "menu_options", "rank_title",
-                      "menu_codex")
+                      "menu_codex", "popup_threat")
           for t in loc(k)]),
         ("팝업 셸 · 힌트", 440, 14, False,
          loc("quest_hint") + loc("rewards_hint") + loc("codex_hint"), "word"),
@@ -144,6 +144,19 @@ def main() -> None:
          + res_strings("data/themes.tres", "display")
          + lit("PRIME MUTATION") + lit("MUTANT HOUND") + lit("THE WRECKER")
          + lit("Longneck") + lit("Screamer")),
+
+        # ── 위협 등급 (행 폭 616 - 좌우 여백 28 = 588. 규칙 줄이 가장 길다) ──
+        ("위협 · 팝업 제목", 616, 26, True, loc("popup_threat")),
+        ("위협 · 힌트", 440, 14, False, loc("threat_hint"), "word"),
+        ("위협 · 등급 이름", 300, 19, True, loc("threat_rank_fmt", 20)),
+        ("위협 · 규칙 줄", 588, 14, False,
+         [(l, t % "-100%") for k in ("threat_rule_enemy_hp", "threat_rule_enemy_speed",
+                                     "threat_rule_boss_hp", "threat_rule_boss_heal",
+                                     "threat_rule_chest", "threat_rule_elite",
+                                     "threat_rule_start_hp") for l, t in loc(k)]
+         + loc("threat_base")),
+        ("위협 · 기록", 200, 14, False, [(l, t % "99:59") for l, t in loc("threat_best_fmt")]),
+        ("HUD · 위협 뱃지", 240, 13, False, loc("threat_badge_fmt", 20)),
 
         # ── 팝업 리스트 행 (전체화면 팝업: 720-24-36-48=612, 슬롯 44 + 간격 11 + 여백 22) ──
         ("팝업 행 · 제목", 612 - 22 - 44 - 11 - 90, 18, False,
@@ -290,6 +303,7 @@ COVERED_BY = {
     "UIListRow.gd": ("팝업 행",),
     "UIPopup.gd": ("팝업 셸",),
     "CodexPanel.gd": ("도감",),
+    "ThreatPanel.gd": ("위협",),
     "TitleScreen.gd": ("타이틀",),
     "AdManager.gd": ("광고",),
     "HUD.tscn": ("HUD", "게임오버"),

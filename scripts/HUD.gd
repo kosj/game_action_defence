@@ -142,6 +142,7 @@ func _ready() -> void:
 	_build_revive_button()
 	_build_hud_icons()
 	_build_xp_bar()
+	_build_threat_badge()
 	_build_swarm_banner()
 	_build_timeline()
 	_build_perf_overlay()
@@ -696,6 +697,26 @@ func _build_fog() -> void:
 	fog.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(fog)
 	move_child(fog, 0)   # 최하단으로 — 월드 위, 모든 HUD 위젯 아래
+
+
+## 위협 등급 표시(P1-12) — 레벨 뱃지 바로 아래, 상단바 중앙.
+## **등급 1 에서는 만들지 않는다.** 등급을 아직 해금하지 못한 사람에게 "R1" 은 아무 정보가
+## 아니고, 상단바만 붐빈다 — 사다리를 오르기 시작한 사람에게만 보이면 된다.
+func _build_threat_badge() -> void:
+	if ThreatManager.selected_rank() <= 1:
+		return
+	var lbl := Label.new()
+	lbl.text = Locale.t("threat_badge_fmt") % ThreatManager.selected_rank()
+	lbl.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	lbl.offset_top = 72.0
+	lbl.offset_bottom = 92.0
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_color_override("font_color", UITheme.SEC_THREAT_TXT)
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	lbl.add_theme_constant_override("outline_size", 3)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(lbl)
 
 
 ## 경험치 바 — 화면 최상단 엣지(전 너비) + 상단바 중앙의 알약형 레벨 뱃지.

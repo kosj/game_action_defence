@@ -99,6 +99,9 @@ func _ready() -> void:
 	_fit_shadow()
 	_base_move_speed = move_speed
 	_base_attack_cooldown = attack_cooldown
+	# 위협 등급의 "시작 체력 -N"(P1-12). 기본값을 낮춘 뒤 이걸 기준으로 강화가 쌓인다 —
+	# apply_upgrades 는 최대 체력을 올리기만 하므로 여기서 미리 깎지 않으면 반영되지 않는다.
+	max_health = maxi(1, max_health + ThreatManager.start_health_add())
 	_base_max_health = max_health
 	contact_cooldown = GameData.balance.contact_cooldown   # 밸런스 테이블(res://data/balance.tres)
 	Events.player_body_radius = contact_radius   # 좀비가 겹침 해소에 쓰는 값 — 접촉 판정과 동일

@@ -103,7 +103,7 @@ func _ready() -> void:
 	# 이어하기 대비: 경과 시간 기준으로 다음 보스·엘리트 시점, 보스 회차, 클리어 여부를 정렬한다.
 	_boss_count = int(_elapsed / _diff.boss_seconds)
 	_next_boss_at = float(_boss_count + 1) * _diff.boss_seconds
-	_next_elite_at = (floor(_elapsed / _diff.elite_seconds) + 1.0) * _diff.elite_seconds
+	_next_elite_at = (floor(_elapsed / _elite_seconds()) + 1.0) * _elite_seconds()
 	_cleared = Events.did_clear
 	_swarm_cd = randf_range(_bal.swarm_interval_min, _bal.swarm_interval_max)
 	Cheats.time_skip.connect(_on_time_skip)
@@ -132,7 +132,7 @@ func _on_time_skip(seconds: float) -> void:
 	Events.elapsed_time = _elapsed
 	_boss_count = int(_elapsed / _diff.boss_seconds)
 	_next_boss_at = float(_boss_count + 1) * _diff.boss_seconds
-	_next_elite_at = (floor(_elapsed / _diff.elite_seconds) + 1.0) * _diff.elite_seconds
+	_next_elite_at = (floor(_elapsed / _elite_seconds()) + 1.0) * _elite_seconds()
 	Events.elapsed_changed.emit(_elapsed)
 	Events.run_progress.emit(_elapsed, _diff.clear_seconds)
 	_emit_forecast()
@@ -166,6 +166,11 @@ func _on_spawn_fill() -> void:
 
 
 # ── 난이도 곡선(경과 시간 기준) ──────────────────────────────────────
+## 엘리트 팩 주기 — 위협 등급이 짧게 만든다(P1-12). 등급 1 은 1.0 배라 기존과 같다.
+func _elite_seconds() -> float:
+	return maxf(30.0, _diff.elite_seconds * ThreatManager.elite_interval_mult())
+
+
 func _tier() -> int:
 	return clampi(int(_elapsed / _diff.tier_seconds), 0, WEIGHTS.size() - 1)
 
@@ -224,7 +229,7 @@ func _process(delta: float) -> void:
 
 	# 엘리트 팩 — _diff.elite_seconds 마다 강제 엘리트 스웜(보스전 중엔 미룬다).
 	if _elapsed >= _next_elite_at:
-		_next_elite_at += _diff.elite_seconds
+		_next_elite_at += _elite_seconds()
 		if not _boss_alive and _swarm_tel <= 0.0:
 			_trigger_swarm(true)
 			Events.elite_pack.emit()   # 진화 보물상자 드롭 트리거
