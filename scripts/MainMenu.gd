@@ -163,7 +163,9 @@ func _build_ui() -> void:
 	_new_game_btn = Button.new()
 	_new_game_btn.custom_minimum_size = Vector2(320, 78)
 	_new_game_btn.add_theme_font_size_override("font_size", 27)
-	_UIStyle.apply_button_style(_new_game_btn, UITheme.BTN_BG, UITheme.MENU_PRIMARY)
+	# 1차 CTA — 색을 구워 넣은 핏빛 판(P2-2). 틴트 방식은 리벳·하이라이트까지 붉히지만
+	# 이 판은 리벳이 강철, 하이라이트가 크림으로 남아 "빨간 금속"으로 읽힌다.
+	_UIStyle.apply_button_style(_new_game_btn, UITheme.BTN_BG, UITheme.MENU_PRIMARY, 16, "blood")
 	_new_game_btn.add_theme_color_override("font_color", UITheme.LOGO_CREAM)
 	_new_game_btn.add_theme_color_override("font_hover_color", Color.WHITE)
 	_new_game_btn.pressed.connect(_on_new_game_pressed)
@@ -667,7 +669,8 @@ func _make_menu_btn(icon_kind: String, icon_col: Color) -> Button:
 	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	b.add_theme_font_size_override("font_size", 19)
 	b.alignment = HORIZONTAL_ALIGNMENT_LEFT   # 아이콘 오른쪽에서 좌측 정렬
-	_UIStyle.apply_button_style(b, UITheme.BTN_BG, UITheme.MENU_TERTIARY)
+	# 3차 보조 6개 — 어두운 판으로 한 덩어리로 가라앉힌다. 구분은 좌측 아이콘이 담당한다.
+	_UIStyle.apply_button_style(b, UITheme.BTN_BG, UITheme.MENU_TERTIARY, 16, "dark")
 	_UIStyle.set_button_content_margin_left(b, 56)   # 아이콘 자리 확보
 	var ic := UIIcon.make(icon_kind, 24, icon_col)
 	ic.anchor_top = 0.5

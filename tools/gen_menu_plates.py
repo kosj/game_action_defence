@@ -5,9 +5,20 @@
 채도 높은 색으로 틴트하면 필연적으로 사탕/플라스틱 색이 나왔다. 좀비물 금속이 되려면
 바탕이 어둡고 채도가 낮아야 한다.
 
-여기서는 **중간 밝기의 무채색 금속판** 하나만 만든다. UIStyle 이 modulate 로 색을 입히므로
-(최종색 = 플레이트 × accent), 바탕이 중간 톤이면 어떤 accent 를 줘도 금속처럼 보인다.
-판을 여러 장 만들지 않아 상점/레벨업 등 다른 화면도 자동으로 같은 톤을 얻는다.
+**무채색 한 장 + modulate** 로 시작했고 그것으로 대부분의 버튼은 해결된다 — 최종색이
+플레이트 x accent 라 바탕이 중간 톤이면 어떤 accent 를 줘도 금속처럼 보이고, 판을 하나만
+두면 레벨업/HUD 등 apply_button_style 을 쓰는 모든 화면이 함께 통일된다.
+
+그런데 **modulate 는 픽셀 전체를 곱한다.** 채도 높은 accent(1차 CTA 의 핏빛)를 주면 몸통만이
+아니라 **리벳과 상단 스페큘러까지 같이 물든다** — 강철 하드웨어가 빨간 플라스틱 못처럼 보이고
+크림색이어야 할 하이라이트가 붉어진다(실렌더 확인, HANDOFF P2-2). 한 장의 modulate 로는
+부위를 가릴 수 없으니 구조상 고칠 수 없다.
+
+그래서 **재질이 곧 메시지인 자리**에는 색을 구워 넣은 판을 따로 쓴다(MENU_UI_PLAN Phase 2):
+
+    steel  기본 - 무채색. 지금까지처럼 accent 로 틴트해 쓰는 판(확인=초록/위험=빨강 구분 유지)
+    blood  1차 CTA 전용 - 몸통만 핏빛이고 **리벳은 강철, 하이라이트는 크림**으로 남는다
+    dark   3차/비활성 - 채도와 밝기를 더 낮춘 판. 보조 버튼 6개가 한 덩어리로 가라앉는다
 
 나인패치 계약: 256x96, 사방 마진 14 (리벳과 모서리가 마진 안에 들어온다)
 
@@ -24,7 +35,33 @@ W, H = 256, 96
 RADIUS = 11
 MARGIN = 14          # 나인패치 마진(UIStyle._BTN_PLATE_MARGIN 과 일치해야 함)
 
-OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "ui", "frames", "btn_plate_metal.png")
+FRAMES = os.path.join(os.path.dirname(__file__), "..", "assets", "ui", "frames")
+
+# 판별 색 사양. body = 몸통 세로 그라데이션(위->아래), hl = 상단 스페큘러, bevel = 테두리 베벨.
+# 리벳은 세 판 모두 강철색으로 고정한다 - 하드웨어는 도색되지 않는다는 것이 이 판의 논리다.
+PLATES = {
+    "steel": {
+        "bevel": ((196, 198, 204), (58, 58, 62)),
+        "body": ((170, 172, 176), (112, 113, 118)),
+        "hl": ((226, 228, 232), (188, 190, 195)),
+        "shadow": ((88, 89, 93), (66, 67, 70)),
+    },
+    # 1차 CTA - 로고의 핏빛. 몸통만 붉고 하이라이트는 크림으로 남겨 "빨간 금속"이 되게 한다
+    # (전체를 붉히면 빨간 플라스틱이 된다).
+    "blood": {
+        "bevel": ((196, 120, 116), (62, 26, 26)),
+        "body": ((150, 34, 34), (86, 18, 20)),
+        "hl": ((242, 214, 206), (206, 150, 142)),
+        "shadow": ((62, 18, 20), (44, 13, 15)),
+    },
+    # 3차/비활성 - 채도 0 에 밝기를 더 낮춘다. 6개가 배경처럼 한 덩어리로 읽혀야 한다.
+    "dark": {
+        "bevel": ((120, 121, 126), (38, 38, 41)),
+        "body": ((92, 93, 97), (58, 59, 62)),
+        "hl": ((138, 139, 144), (112, 113, 117)),
+        "shadow": ((48, 48, 51), (36, 36, 38)),
+    },
+}
 
 
 def shape_mask(box, radius: float) -> Image.Image:
@@ -77,40 +114,46 @@ def rivet(d: ImageDraw.ImageDraw, cx: float, cy: float, r: float) -> None:
               fill=(212, 212, 216, 255))
 
 
-def main() -> None:
+def build(spec: dict, seed: int) -> Image.Image:
     img = Image.new("RGBA", (W * SS, H * SS), (0, 0, 0, 0))
 
     # 1) 바깥 어두운 외곽선
     vgrad_fill(img, shape_mask((0, 0, W, H), RADIUS), (16, 16, 18), (10, 10, 12))
-    # 2) 베벨 — 위는 밝고 아래는 어둡게(입체감)
-    vgrad_fill(img, shape_mask((1.5, 1.5, W - 1.5, H - 1.5), RADIUS - 1), (196, 198, 204), (58, 58, 62))
-    # 3) 본체 — 중간 밝기 무채색 금속(틴트가 얹힐 바탕). 위→아래로 완만하게 어두워진다.
+    # 2) 베벨 - 위는 밝고 아래는 어둡게(입체감)
+    vgrad_fill(img, shape_mask((1.5, 1.5, W - 1.5, H - 1.5), RADIUS - 1), *spec["bevel"])
+    # 3) 본체 - 위->아래로 완만하게 어두워진다.
     body_box = (3.5, 4.0, W - 3.5, H - 4.5)
     body = shape_mask(body_box, RADIUS - 3)
-    vgrad_fill(img, body, (170, 172, 176), (112, 113, 118))
-    brushed(img, body, alpha=16, seed=11)
-    scratches(img, body)
+    vgrad_fill(img, body, *spec["body"])
+    brushed(img, body, alpha=16, seed=seed)
+    scratches(img, body, seed=seed + 40)
 
     d = ImageDraw.Draw(img)
-    # 4) 상단 스페큘러 하이라이트 — 얇게 한 줄만(넓은 광택 띠는 플라스틱으로 보인다)
+    # 4) 상단 스페큘러 하이라이트 - 얇게 한 줄만(넓은 광택 띠는 플라스틱으로 보인다)
     hl = shape_mask((5.0, 5.0, W - 5.0, 9.0), 3)
-    vgrad_fill(img, hl, (226, 228, 232), (188, 190, 195))
+    vgrad_fill(img, hl, *spec["hl"])
     # 5) 하단 내부 그림자
     sh = shape_mask((4.5, H - 12.0, W - 4.5, H - 5.0), 4)
-    vgrad_fill(img, sh, (88, 89, 93), (66, 67, 70))
+    vgrad_fill(img, sh, *spec["shadow"])
 
-    # 6) 모서리 리벳 4개 — 나인패치 마진(14) 안쪽이라 늘려도 위치가 유지된다
+    # 6) 모서리 리벳 4개 - 나인패치 마진(14) 안쪽이라 늘려도 위치가 유지된다.
+    #    세 판 모두 강철색이다: 하드웨어는 도색되지 않는다(modulate 방식이 못 하던 것).
     for cx in (8.5, W - 8.5):
         for cy in (8.5, H - 8.5):
             rivet(d, cx, cy, 2.6)
 
-    out = img.resize((W, H), Image.LANCZOS)
-    os.makedirs(os.path.dirname(OUT), exist_ok=True)
-    out.save(OUT)
+    return img.resize((W, H), Image.LANCZOS)
 
-    a = np.asarray(out.convert("L"), dtype=float)
-    print("wrote", os.path.relpath(OUT), f"{W}x{H} 나인패치 마진 {MARGIN}")
-    print(f"  평균 밝기 {a.mean():.0f} (기존 button_plate.png 는 227 — 이 값이 낮아야 금속으로 보인다)")
+
+def main() -> None:
+    os.makedirs(FRAMES, exist_ok=True)
+    for i, (name, spec) in enumerate(PLATES.items()):
+        out_path = os.path.join(FRAMES, "btn_plate_%s.png" % name)
+        out = build(spec, seed=11 + i * 7)
+        out.save(out_path)
+        a = np.asarray(out.convert("L"), dtype=float)
+        print("wrote", os.path.relpath(out_path), f"{W}x{H} margin {MARGIN}  mean {a.mean():.0f}")
+    print("(button_plate.png 는 평균 227 - 이 값이 낮아야 금속으로 보인다)")
 
 
 if __name__ == "__main__":

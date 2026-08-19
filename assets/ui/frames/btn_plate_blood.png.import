@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bqt2x4qb13rp6"
-path="res://.godot/imported/btn_plate_metal.png-2749152c1edbc5bac10241feb2d6f546.ctex"
+uid="uid://c7w2rnhr4wb84"
+path="res://.godot/imported/btn_plate_blood.png-418e182745bf461169c5af9534d5a182.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/frames/btn_plate_metal.png"
-dest_files=["res://.godot/imported/btn_plate_metal.png-2749152c1edbc5bac10241feb2d6f546.ctex"]
+source_file="res://assets/ui/frames/btn_plate_blood.png"
+dest_files=["res://.godot/imported/btn_plate_blood.png-418e182745bf461169c5af9534d5a182.ctex"]
 
 [params]
 

@@ -58,7 +58,7 @@
 | P1-7 첫 보스 난이도 계단 | F | ✅ (77dcefc) | claude/f-lane-boss-step | 2026-08-18 |
 | P2-8 오토플레이 교전 이탈 수정 | F | ✅ (8b3dcb4) | claude/f-lane-autoplay-engage | 2026-08-18 |
 | P2-1 공통 팝업 셸 | D | ✅ (a6a4e7e) | claude/d-lane-ui-popup | 2026-08-18 |
-| P2-2 메뉴 플레이트 3종 | D | 🔵 진행중 | claude/d-lane-menu-plates | 2026-08-18 |
+| P2-2 메뉴 플레이트 3종 | D | ✅ (이 PR) | claude/d-lane-menu-plates | 2026-08-18 |
 | P2-3 로케일 누락 | D | ✅ (e7a546b) | claude/d-lane-locale | 2026-08-18 |
 | P2-4 잠금/체크 아이콘 | D | ✅ (22c67f2) | claude/d-lane-lock-check-icon | 2026-08-18 |
 | P2-6 데드 API 정리 | C | ✅ (3056dc7) | claude/c-lane-dead-api | 2026-08-18 |
@@ -686,8 +686,40 @@ CJK 글자를 개별 단위로 세도록 고쳤다 — 이 검사를 쓰는 다�
 **근거** — `MENU_UI_PLAN.md` Phase 2 는 `btn_plate_steel/blood/dark` 3종을 요구하는데
 `assets/ui/frames/` 에는 `btn_plate_metal.png` 1종뿐이고 `UIStyle.gd:14` 가 그것만 preload 한다.
 → 1차 CTA(새 게임)를 색이 아닌 **재질**로 구분하는 계획이 반쪽이다.
-**작업** — `tools/gen_menu_plates.py` 를 3종 산출로 확장 + `UIStyle.plate(kind)` 헬퍼 추가.
-`apply_button_style` 시그니처는 유지(상점·레벨업 회귀 방지).
+**작업 ✅ 완료 (2026-08-18)**
+
+**착수 전 근거 재확인에서 항목의 전제를 한 번 의심했다.** `gen_menu_plates.py` 의 docstring 이
+*"판을 여러 장 만들지 않는다"* 고 명시하고 있었고, 구현 커밋(`ee7637f`)도 계획서보다 **나중에**
+그 방식을 택했다고 적혀 있다 — 즉 계획서가 낡은 쪽으로 보였다. 3단 위계도 이미 구현돼 있었다.
+
+**실렌더가 판정을 뒤집었다.** 1차 CTA 를 확대해 보니 **리벳이 빨갛고 상단 스페큘러도 붉었다.**
+`modulate` 는 픽셀 전체를 곱하므로 몸통뿐 아니라 강철 하드웨어와 크림 하이라이트까지 물든다 —
+같은 화면의 Continue(무채색)와 나란히 놓으면 차이가 분명하다. **한 장의 modulate 로는 부위를
+가릴 수 없어 구조상 못 고친다.** 항목이 옳았고, 문서가 아니라 픽셀이 결정했다.
+
+- `tools/gen_menu_plates.py` 를 **3종 산출**로 확장(`steel`/`blood`/`dark`). 색 사양을 `PLATES`
+  딕셔너리로 빼고 `build(spec, seed)` 로 공통화했다. **리벳은 세 판 모두 강철색** — 하드웨어는
+  도색되지 않는다는 것이 이 판의 논리다.
+- `UIStyle.plate(kind)` 추가. `button_box`·`apply_button_style` 에 `kind` 를 **뒤에 붙인 선택
+  인자**로 넣어 기존 호출부 20여 곳을 한 줄도 고치지 않았다(계획이 요구한 시그니처 유지).
+  `blood`/`dark` 는 색이 이미 구워져 있으므로 accent 로 다시 틴트하지 않고 밝기만 조절한다.
+- 메뉴 배선: 1차 CTA → `blood`, 3차 보조 6개 → `dark`. 비활성 상태는 종류와 무관하게 `dark`
+  판으로 — "지금 누를 수 없다"가 재질로 읽힌다.
+- 중복이 된 `btn_plate_metal.png` 삭제(`steel` 과 동일 사양). 플레이트 3종 합계 14KB.
+
+**검증** — `CLAUDE.md` §3 전체 + `check_text_fit.py` 통과. 실렌더로 메뉴 전체·CTA 확대·
+레벨업·옵션 팝업을 확인했다: CTA 의 리벳이 강철로 돌아왔고, `kind` 를 넘기지 않는 다른 화면
+(레벨업 카드·팝업 버튼)은 이전과 동일하다.
+
+**⚠️ 새 텍스처가 손실 압축으로 임포트됐다** — Godot 이 새 PNG 를 처음 임포트할 때 전역 기본값
+(`compress/mode=1`, 손실)을 쓴다. `assets/ui/frames/` 는 **나인패치라 무손실이 규약**이고
+(`.gitignore` 가 이 폴더의 `.import` 만 예외로 추적하는 이유가 그것이다 — 늘어나는 테두리에서
+손실 아티팩트가 띠로 보인다), 기존 판들은 전부 `mode=0` 이었다. 새 판 3종을 `mode=0` ·
+`lossy_quality=1.0` 으로 고쳐 재임포트했다. **`assets/ui/frames/` 나 `assets/ui/hud/` 에 텍스처를
+추가하면 `.import` 의 `compress/mode` 를 반드시 확인할 것** — `git add` 는 조용히 통과한다.
+
+**메모** — 에셋을 지우거나 `.godot/imported/` 를 건드린 직후 첫 `--import` 는 캐시 잔재로 오류를
+낸다(5건·11건 겪음). 두 번째 실행에서 사라진다 — 한 번만 돌리고 실패로 판단하지 말 것.
 
 ## P2-3. 로케일 누락 — 인게임 최다 노출 문구가 영어 하드코딩
 | 위치 | 문자열 | 비고 |
