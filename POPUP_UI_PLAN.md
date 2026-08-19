@@ -84,7 +84,10 @@
 | 1-4 | 퀘스트·도전과제·보상함 적용 | `MainMenu.gd` | 세 패널의 행 생성을 `UIListRow` 로 교체. 보상은 코인 아이콘 + 숫자로 |
 | 1-5 | 상태 표현 | `UIListRow.gd` | 진행 중(기본) / 완료-수령대기(금색 테두리 + 체크) / 수령 완료(딤). 아레나 카드의 선택/잠금 문법과 맞춘다 |
 
-### Phase 2 — 공통 팝업 셸
+### Phase 2 — 공통 팝업 셸  ✅ **완료 (2026-08-18, HANDOFF P2-1)**
+> `scripts/UIPopup.gd` 신설 + 팝업 8종 전부 이관. `MainMenu.gd` 1556 → 1155줄.
+> dim 8→0 · PanelContainer 8→0 · MarginContainer 9→1 · HSeparator 11→3 · dim 입력 핸들러 6→0.
+
 
 | # | 작업 | 파일 | 내용 |
 |---|---|---|---|

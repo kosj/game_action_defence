@@ -2,6 +2,7 @@ extends CanvasLayer
 ## 메인 메뉴: 새로하기 / 이어하기 / 언어 선택. 이어하기는 로컬 저장 데이터가 있을 때만 활성화.
 ## 표시 문구는 Locale 에서 가져오며, 언어 변경 시 즉시 다시 번역된다.
 
+const _UIPopup := preload("res://scripts/UIPopup.gd")
 const _UIStyle := preload("res://scripts/UIStyle.gd")
 const _IntroStory := preload("res://scripts/IntroStory.gd")
 
@@ -246,46 +247,13 @@ func _prewarm_panels() -> void:
 
 ## 옵션 패널(언어 / 사운드 On/Off) — Option 버튼으로 열고 닫는 오버레이.
 func _build_options_panel() -> void:
-	_options_dim = ColorRect.new()
-	_options_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_options_dim.color = Color(0, 0, 0, 0.6)
-	_options_dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	_options_dim.visible = false
-	_options_dim.gui_input.connect(_on_dim_input)   # 바깥 영역 탭 시 닫기
-	add_child(_options_dim)
-
-	_options_panel = PanelContainer.new()
-	_options_panel.anchor_left = 0.5
-	_options_panel.anchor_right = 0.5
-	_options_panel.anchor_top = 0.5
-	_options_panel.anchor_bottom = 0.5
-	_options_panel.offset_left = -210.0
-	_options_panel.offset_right = 210.0
-	_options_panel.offset_top = -240.0
-	_options_panel.offset_bottom = 240.0
-	_options_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_NEUTRAL))
-	_options_panel.visible = false
-	add_child(_options_panel)
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_top", 22)
-	margin.add_theme_constant_override("margin_bottom", 22)
-	_options_panel.add_child(margin)
-
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 16)
-	margin.add_child(vb)
-
-	_options_title = Label.new()
-	_options_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_options_title.add_theme_font_size_override("font_size", 30)
-	_options_title.add_theme_color_override("font_color", UITheme.TEXT)
-	UITheme.heading(_options_title)
-	vb.add_child(_options_title)
-
-	vb.add_child(HSeparator.new())
+	var p := _UIPopup.make(self, "menu_options", UITheme.SEC_NEUTRAL, UITheme.TEXT,
+		_on_close_options, {"separation": 16, "center_body": true})
+	_options_dim = p["dim"]
+	_options_panel = p["panel"]
+	_options_title = p["title"]
+	_close_btn = p["close"]
+	var vb: VBoxContainer = p["body"]
 
 	# 언어 설정
 	_lang_title = Label.new()
@@ -343,15 +311,6 @@ func _build_options_panel() -> void:
 	_log_hint.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 	vb.add_child(_log_hint)
 
-	vb.add_child(HSeparator.new())
-
-	_close_btn = Button.new()
-	_close_btn.custom_minimum_size = Vector2(0, 56)
-	_close_btn.add_theme_font_size_override("font_size", 22)
-	_UIStyle.apply_button_style(_close_btn, Color(0.14, 0.40, 0.20), Color(0.4, 0.85, 0.45))
-	_close_btn.pressed.connect(_on_close_options)
-	vb.add_child(_close_btn)
-
 
 func _on_options_pressed() -> void:
 	_refresh_log_button()   # 판 수가 늘었을 수 있으니 열 때마다 갱신
@@ -392,59 +351,21 @@ const _POWER_ICONS := {
 
 
 func _build_power_panel() -> void:
-	_power_dim = ColorRect.new()
-	_power_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_power_dim.color = Color(0, 0, 0, 0.6)
-	_power_dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	_power_dim.visible = false
-	_power_dim.gui_input.connect(_on_power_dim_input)
-	add_child(_power_dim)
+	var p := _UIPopup.make(self, "popup_power", UITheme.SEC_POWER, UITheme.SEC_POWER_TXT,
+		_on_power_close, {"scroll": true})
+	_power_dim = p["dim"]
+	_power_panel = p["panel"]
+	var list: VBoxContainer = p["body"]
+	list.add_theme_constant_override("separation", 10)
 
-	# 전체 화면 레이아웃 — 캐릭터 선택과 동일 규격(가장자리 여백만 남기고 화면을 채운다).
-	_power_panel = PanelContainer.new()
-	_power_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_power_panel.offset_left = 12.0
-	_power_panel.offset_right = -12.0
-	_power_panel.offset_top = 30.0
-	_power_panel.offset_bottom = -30.0
-	_power_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_POWER))
-	_power_panel.visible = false
-	add_child(_power_panel)
-
-	var margin := MarginContainer.new()
-	for m in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + m, 24)
-	_power_panel.add_child(margin)
-
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 12)
-	margin.add_child(vb)
-
-	var title := Label.new()
-	title.text = Locale.t("popup_power")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 30)
-	title.add_theme_color_override("font_color", UITheme.SEC_POWER_TXT)
-	UITheme.heading(title)
-	vb.add_child(title)
-
+	# 보유 골드는 제목 바로 아래(구분선 위)에 둔다 — 가격을 보기 전에 잔액을 읽게 한다.
 	_power_gold_label = Label.new()
 	_power_gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_power_gold_label.add_theme_font_size_override("font_size", 20)
 	_power_gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	var vb: VBoxContainer = p["vbox"]
 	vb.add_child(_power_gold_label)
-
-	vb.add_child(HSeparator.new())
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.scroll_deadzone = 24   # 터치 드래그가 버튼 클릭에 먹히지 않고 스크롤로 이어지게
-	vb.add_child(scroll)
-	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", 10)
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(list)
+	vb.move_child(_power_gold_label, 1)   # 제목(0) 바로 뒤
 
 	_power_rows.clear()
 	for u in MetaManager.upgrades():
@@ -475,14 +396,6 @@ func _build_power_panel() -> void:
 			_UIStyle.set_button_content_margin_left(btn, 86)
 		_power_rows.append({"btn": btn, "u": u})
 
-	var close := Button.new()
-	close.text = Locale.t("menu_close")
-	close.custom_minimum_size = Vector2(0, 52)
-	close.add_theme_font_size_override("font_size", 22)
-	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
-	close.pressed.connect(_on_power_close)
-	vb.add_child(close)
-
 
 func _on_power_pressed() -> void:
 	_refresh_power()
@@ -495,9 +408,6 @@ func _on_power_close() -> void:
 	_power_panel.visible = false
 
 
-func _on_power_dim_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
-		_on_power_close()
 
 
 func _on_power_buy(id: String) -> void:
@@ -508,58 +418,21 @@ func _on_power_buy(id: String) -> void:
 
 # ── 캐릭터 선택 오버레이 ─────────────────────────────────────────────
 func _build_character_panel() -> void:
-	_char_dim = ColorRect.new()
-	_char_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_char_dim.color = Color(0, 0, 0, 0.6)
-	_char_dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	_char_dim.visible = false
-	_char_dim.gui_input.connect(_on_char_dim_input)
-	add_child(_char_dim)
+	var p := _UIPopup.make(self, "popup_character", UITheme.SEC_CHAR, UITheme.SEC_CHAR_TXT,
+		_on_character_close, {"scroll": true, "separation": 14})
+	_char_dim = p["dim"]
+	_char_panel = p["panel"]
+	var rows_box: VBoxContainer = p["body"]
+	rows_box.add_theme_constant_override("separation", 16)
 
-	# 전체 화면 레이아웃 — 좁은 중앙 프레임 대신 화면을 꽉 채워 썸네일·스탯이 시원하게 보인다.
-	_char_panel = PanelContainer.new()
-	_char_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_char_panel.offset_left = 12.0
-	_char_panel.offset_right = -12.0
-	_char_panel.offset_top = 30.0
-	_char_panel.offset_bottom = -30.0
-	_char_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_CHAR))
-	_char_panel.visible = false
-	add_child(_char_panel)
-
-	var margin := MarginContainer.new()
-	for m in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + m, 24)
-	_char_panel.add_child(margin)
-
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 14)
-	margin.add_child(vb)
-
-	var title := Label.new()
-	title.text = Locale.t("popup_character")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 32)
-	title.add_theme_color_override("font_color", UITheme.SEC_CHAR_TXT)
-	UITheme.heading(title)
-	vb.add_child(title)
-
+	# 보유 골드는 제목 바로 아래(구분선 위) — 가격을 보기 전에 잔액을 읽게 한다.
 	_char_gold_label = Label.new()
 	_char_gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_char_gold_label.add_theme_font_size_override("font_size", 20)
 	_char_gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	var vb: VBoxContainer = p["vbox"]
 	vb.add_child(_char_gold_label)
-
-	vb.add_child(HSeparator.new())
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.scroll_deadzone = 24   # 터치 드래그가 버튼 클릭에 먹히지 않고 스크롤로 이어지게
-	vb.add_child(scroll)
-	var rows_box := VBoxContainer.new()
-	rows_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	rows_box.add_theme_constant_override("separation", 16)
-	scroll.add_child(rows_box)
+	vb.move_child(_char_gold_label, 1)
 
 	_char_rows.clear()
 	for c in GameData.characters:
@@ -593,13 +466,6 @@ func _build_character_panel() -> void:
 			_UIStyle.set_button_content_margin_left(btn, 172)
 		_char_rows.append({"btn": btn, "c": c, "thumb": thumb})
 
-	var close := Button.new()
-	close.text = Locale.t("menu_close")
-	close.custom_minimum_size = Vector2(0, 56)
-	close.add_theme_font_size_override("font_size", 22)
-	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
-	close.pressed.connect(_on_character_close)
-	vb.add_child(close)
 
 
 ## 오버레이 카드 갱신 — 선택/잠금/구매 상태를 반영.
@@ -690,67 +556,16 @@ func _on_character_close() -> void:
 	_char_panel.visible = false
 
 
-func _on_char_dim_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
-		_on_character_close()
 
 
 # ── 도전과제 오버레이 ─────────────────────────────────────────────────
 func _build_achievement_panel() -> void:
-	_ach_dim = ColorRect.new()
-	_ach_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_ach_dim.color = Color(0, 0, 0, 0.6)
-	_ach_dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	_ach_dim.visible = false
-	_ach_dim.gui_input.connect(_on_ach_dim_input)
-	add_child(_ach_dim)
-
-	_ach_panel = PanelContainer.new()
-	_ach_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_ach_panel.offset_left = 12.0
-	_ach_panel.offset_right = -12.0
-	_ach_panel.offset_top = 30.0
-	_ach_panel.offset_bottom = -30.0
-	_ach_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_ACHIEVE))
-	_ach_panel.visible = false
-	add_child(_ach_panel)
-
-	var margin := MarginContainer.new()
-	for m in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + m, 22)
-	_ach_panel.add_child(margin)
-
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 10)
-	margin.add_child(vb)
-
-	var title := Label.new()
-	title.text = Locale.t("popup_achievements")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", UITheme.SEC_ACHIEVE_TXT)
-	vb.add_child(title)
-
-	vb.add_child(HSeparator.new())
-
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 400)
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	vb.add_child(scroll)
-	var list := VBoxContainer.new()
-	list.add_theme_constant_override("separation", 6)
-	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	scroll.add_child(list)
-
-	_ach_list = list   # 행은 _refresh_achievements() 가 카드로 다시 만든다
-
-	var close := Button.new()
-	close.text = Locale.t("menu_close")
-	close.custom_minimum_size = Vector2(0, 52)
-	close.add_theme_font_size_override("font_size", 22)
-	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
-	close.pressed.connect(_on_achievements_close)
-	vb.add_child(close)
+	var p := _UIPopup.make(self, "popup_achievements", UITheme.SEC_ACHIEVE, UITheme.SEC_ACHIEVE_TXT,
+		_on_achievements_close, {"scroll": true, "separation": 10})
+	_ach_dim = p["dim"]
+	_ach_panel = p["panel"]
+	_ach_list = p["body"]   # 행은 _refresh_achievements() 가 카드로 다시 만든다
+	_ach_list.add_theme_constant_override("separation", 6)
 
 
 func _refresh_achievements() -> void:
@@ -796,138 +611,29 @@ func _on_achievements_close() -> void:
 
 # ── 끝없는 과제(Quests) 패널 — 현재 활성 과제 + 진행 + 다음 보상 표시 ──────────
 func _build_quest_panel() -> void:
-	_quest_dim = ColorRect.new()
-	_quest_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_quest_dim.color = Color(0, 0, 0, 0.6)
-	_quest_dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	_quest_dim.visible = false
-	_quest_dim.gui_input.connect(func(e: InputEvent):
-		if e is InputEventScreenTouch and e.pressed or e is InputEventMouseButton and e.pressed:
-			_on_quests_close())
-	add_child(_quest_dim)
-
-	_quest_panel = PanelContainer.new()
-	_quest_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_quest_panel.offset_left = 12.0
-	_quest_panel.offset_right = -12.0
-	_quest_panel.offset_top = 30.0
-	_quest_panel.offset_bottom = -30.0
-	_quest_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_QUEST))
-	_quest_panel.visible = false
-	add_child(_quest_panel)
-
-	var margin := MarginContainer.new()
-	for m in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + m, 22)
-	_quest_panel.add_child(margin)
-
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 12)
-	margin.add_child(vb)
-
-	var title := Label.new()
-	title.text = Locale.t("popup_quests")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", UITheme.SEC_QUEST_TXT)
-	vb.add_child(title)
-
-	var hint := Label.new()
-	hint.text = Locale.t("quest_hint")
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.custom_minimum_size = Vector2(440, 0)
-	hint.add_theme_font_size_override("font_size", 14)
-	hint.add_theme_color_override("font_color", Color(0.7, 0.78, 0.72))
-	vb.add_child(hint)
-
-	vb.add_child(HSeparator.new())
-
-	# 카드형 행은 텍스트 행보다 높아 항목이 늘면 넘친다 — 스크롤로 수용한다.
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.scroll_deadzone = 24
-	vb.add_child(scroll)
-
-	_quest_list = VBoxContainer.new()
-	_quest_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# 카드형 행은 텍스트 행보다 높아 항목이 늘면 넘친다 — 셸의 스크롤로 수용한다.
+	var p := _UIPopup.make(self, "popup_quests", UITheme.SEC_QUEST, UITheme.SEC_QUEST_TXT,
+		_on_quests_close, {"hint_key": "quest_hint", "scroll": true})
+	_quest_dim = p["dim"]
+	_quest_panel = p["panel"]
+	_quest_list = p["body"]
 	_quest_list.add_theme_constant_override("separation", 14)
-	scroll.add_child(_quest_list)
-
-	var close := Button.new()
-	close.text = Locale.t("menu_close")
-	close.custom_minimum_size = Vector2(0, 52)
-	close.add_theme_font_size_override("font_size", 22)
-	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
-	close.pressed.connect(_on_quests_close)
-	vb.add_child(close)
 
 
 ## ── 보상 보관함(REWARDS) — 유저가 직접 "CLAIM"을 눌러 수령 ─────────────────
 func _build_rewards_panel() -> void:
-	_rewards_dim = ColorRect.new()
-	_rewards_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_rewards_dim.color = Color(0, 0, 0, 0.6)
-	_rewards_dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	_rewards_dim.visible = false
-	_rewards_dim.gui_input.connect(func(e: InputEvent):
-		if e is InputEventScreenTouch and e.pressed or e is InputEventMouseButton and e.pressed:
-			_on_rewards_close())
-	add_child(_rewards_dim)
-
-	_rewards_panel = PanelContainer.new()
-	_rewards_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_rewards_panel.offset_left = 12.0
-	_rewards_panel.offset_right = -12.0
-	_rewards_panel.offset_top = 30.0
-	_rewards_panel.offset_bottom = -30.0
-	_rewards_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_REWARD))
-	_rewards_panel.visible = false
-	add_child(_rewards_panel)
-
-	var margin := MarginContainer.new()
-	for m in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + m, 22)
-	_rewards_panel.add_child(margin)
-
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 12)
-	margin.add_child(vb)
-
-	var title := Label.new()
-	title.text = Locale.t("popup_rewards")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 26)
-	title.add_theme_color_override("font_color", UITheme.SEC_REWARD_TXT)
-	vb.add_child(title)
-
-	var hint := Label.new()
-	hint.text = Locale.t("rewards_hint")
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	hint.custom_minimum_size = Vector2(440, 0)
-	hint.add_theme_font_size_override("font_size", 14)
-	hint.add_theme_color_override("font_color", Color(0.82, 0.76, 0.62))
-	vb.add_child(hint)
-
-	vb.add_child(HSeparator.new())
-
-	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(440, 260)
-	scroll.scroll_deadzone = 24   # 터치 드래그가 버튼 클릭에 먹히지 않고 스크롤로 이어지게
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vb.add_child(scroll)
-	_rewards_list = VBoxContainer.new()
-	_rewards_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var p := _UIPopup.make(self, "popup_rewards", UITheme.SEC_REWARD, UITheme.SEC_REWARD_TXT,
+		_on_rewards_close, {"hint_key": "rewards_hint", "scroll": true})
+	_rewards_dim = p["dim"]
+	_rewards_panel = p["panel"]
+	_rewards_list = p["body"]
 	_rewards_list.add_theme_constant_override("separation", 10)
-	scroll.add_child(_rewards_list)
 
 	_rewards_total = Label.new()
 	_rewards_total.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_rewards_total.add_theme_font_size_override("font_size", 16)
 	_rewards_total.add_theme_color_override("font_color", Color(1.0, 0.88, 0.45))
-	vb.add_child(_rewards_total)
+	_UIPopup.add_above_close(p, _rewards_total)
 
 	var claim_all := Button.new()
 	claim_all.text = Locale.t("rewards_claim_all")
@@ -935,15 +641,7 @@ func _build_rewards_panel() -> void:
 	claim_all.add_theme_font_size_override("font_size", 22)
 	_UIStyle.apply_button_style(claim_all, Color(0.45, 0.32, 0.06), Color(1.0, 0.88, 0.4))
 	claim_all.pressed.connect(_on_claim_all_pressed)
-	vb.add_child(claim_all)
-
-	var close := Button.new()
-	close.text = Locale.t("menu_close")
-	close.custom_minimum_size = Vector2(0, 48)
-	close.add_theme_font_size_override("font_size", 20)
-	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
-	close.pressed.connect(_on_rewards_close)
-	vb.add_child(close)
+	_UIPopup.add_above_close(p, claim_all)
 
 
 ## 3차(보조) 메뉴 버튼 — 6개가 모두 같은 어두운 금속 플레이트를 쓰고, 구분은 좌측
@@ -1108,66 +806,25 @@ func _on_quests_close() -> void:
 	_quest_panel.visible = false
 
 
-func _on_ach_dim_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
-		_on_achievements_close()
 
 
 # ── 테마(아레나) 선택 오버레이 ────────────────────────────────────────
 func _build_theme_panel() -> void:
-	_theme_dim = ColorRect.new()
-	_theme_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_theme_dim.color = Color(0, 0, 0, 0.6)
-	_theme_dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	_theme_dim.visible = false
-	_theme_dim.gui_input.connect(_on_theme_dim_input)
-	add_child(_theme_dim)
+	var p := _UIPopup.make(self, "popup_arena", UITheme.SEC_ARENA, UITheme.SEC_ARENA_TXT,
+		_on_theme_close, {"scroll": true, "separation": 14})
+	_theme_dim = p["dim"]
+	_theme_panel = p["panel"]
+	var rows_box: VBoxContainer = p["body"]
+	rows_box.add_theme_constant_override("separation", 16)
 
-	# 전체 화면 레이아웃 — 캐릭터 선택 패널과 같은 패턴. 좁은 중앙 프레임 대신 화면을
-	# 꽉 채워 썸네일이 크게 보이고, 테마가 늘어나도 스크롤로 수용한다.
-	_theme_panel = PanelContainer.new()
-	_theme_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_theme_panel.offset_left = 12.0
-	_theme_panel.offset_right = -12.0
-	_theme_panel.offset_top = 30.0
-	_theme_panel.offset_bottom = -30.0
-	_theme_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_ARENA))
-	_theme_panel.visible = false
-	add_child(_theme_panel)
-
-	var margin := MarginContainer.new()
-	for m in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + m, 24)
-	_theme_panel.add_child(margin)
-
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 14)
-	margin.add_child(vb)
-
-	var title := Label.new()
-	title.text = Locale.t("popup_arena")
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 32)
-	title.add_theme_color_override("font_color", UITheme.SEC_ARENA_TXT)
-	UITheme.heading(title)
-	vb.add_child(title)
-
+	# 보유 골드는 제목 바로 아래(구분선 위) — 가격을 보기 전에 잔액을 읽게 한다.
 	_theme_gold_label = Label.new()
 	_theme_gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_theme_gold_label.add_theme_font_size_override("font_size", 20)
 	_theme_gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	var vb: VBoxContainer = p["vbox"]
 	vb.add_child(_theme_gold_label)
-
-	vb.add_child(HSeparator.new())
-
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll.scroll_deadzone = 24   # 터치 드래그가 버튼 클릭에 먹히지 않고 스크롤로 이어지게
-	vb.add_child(scroll)
-	var rows_box := VBoxContainer.new()
-	rows_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	rows_box.add_theme_constant_override("separation", 16)
-	scroll.add_child(rows_box)
+	vb.move_child(_theme_gold_label, 1)
 
 	# 테마 카드 = [이름 / 설명] 위, [가로를 꽉 채우는 와이드 썸네일] 아래.
 	# 카드 높이(썸네일이 남는 세로를 모두 차지). 3개 기준으로 한 화면에 들어온다.
@@ -1233,13 +890,6 @@ func _build_theme_panel() -> void:
 		_theme_rows.append({"btn": btn, "t": t, "thumb": thumb,
 			"name": name_lbl, "desc": desc_lbl})
 
-	var close := Button.new()
-	close.text = Locale.t("menu_close")
-	close.custom_minimum_size = Vector2(0, 52)
-	close.add_theme_font_size_override("font_size", 22)
-	_UIStyle.apply_button_style(close, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
-	close.pressed.connect(_on_theme_close)
-	vb.add_child(close)
 
 
 func _refresh_theme() -> void:
@@ -1296,9 +946,6 @@ func _on_theme_close() -> void:
 	_theme_panel.visible = false
 
 
-func _on_theme_dim_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
-		_on_theme_close()
 
 
 func _on_theme_pick(id: String) -> void:
@@ -1349,44 +996,13 @@ func _refresh_power() -> void:
 ## 랭킹 오버레이 — 모드(난이도)별 최고 점수. 온라인 백엔드(안드로이드 PGS)면 네이티브 리더보드
 ## 버튼도 노출한다. 로컬 빌드(웹/PC)에서는 이 기기의 모드별 최고점만 보여준다.
 func _build_ranking_panel() -> void:
-	_rank_dim = ColorRect.new()
-	_rank_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_rank_dim.color = Color(0, 0, 0, 0.6)
-	_rank_dim.mouse_filter = Control.MOUSE_FILTER_STOP
-	_rank_dim.visible = false
-	_rank_dim.gui_input.connect(_on_rank_dim_input)
-	add_child(_rank_dim)
-
-	_rank_panel = PanelContainer.new()
-	_rank_panel.anchor_left = 0.5
-	_rank_panel.anchor_right = 0.5
-	_rank_panel.anchor_top = 0.5
-	_rank_panel.anchor_bottom = 0.5
-	_rank_panel.offset_left = -210.0
-	_rank_panel.offset_right = 210.0
-	_rank_panel.offset_top = -230.0
-	_rank_panel.offset_bottom = 230.0
-	_rank_panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, UITheme.SEC_NEUTRAL))
-	_rank_panel.visible = false
-	add_child(_rank_panel)
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_top", 22)
-	margin.add_theme_constant_override("margin_bottom", 22)
-	_rank_panel.add_child(margin)
-
-	var vb := VBoxContainer.new()
-	vb.add_theme_constant_override("separation", 14)
-	margin.add_child(vb)
-
-	_rank_title = Label.new()
-	_rank_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_rank_title.add_theme_font_size_override("font_size", 30)
-	_rank_title.add_theme_color_override("font_color", UITheme.SEC_REWARD)
-	UITheme.heading(_rank_title)
-	vb.add_child(_rank_title)
+	var p := _UIPopup.make(self, "rank_title", UITheme.SEC_NEUTRAL, UITheme.SEC_REWARD,
+		_on_close_ranking, {"separation": 14, "center_body": true})
+	_rank_dim = p["dim"]
+	_rank_panel = p["panel"]
+	_rank_title = p["title"]
+	_rank_close_btn = p["close"]
+	var vb: VBoxContainer = p["body"]
 
 	_rank_note = Label.new()
 	_rank_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1430,13 +1046,6 @@ func _build_ranking_panel() -> void:
 	_rank_online_btn.visible = false
 	vb.add_child(_rank_online_btn)
 
-	_rank_close_btn = Button.new()
-	_rank_close_btn.custom_minimum_size = Vector2(0, 56)
-	_rank_close_btn.add_theme_font_size_override("font_size", 22)
-	_UIStyle.apply_button_style(_rank_close_btn, Color(0.14, 0.40, 0.20), Color(0.4, 0.85, 0.45))
-	_rank_close_btn.pressed.connect(_on_close_ranking)
-	vb.add_child(_rank_close_btn)
-
 
 func _on_ranking_pressed() -> void:
 	_refresh_ranking_rows()
@@ -1449,9 +1058,6 @@ func _on_close_ranking() -> void:
 	_rank_panel.visible = false
 
 
-func _on_rank_dim_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
-		_on_close_ranking()
 
 
 func _on_view_online_pressed() -> void:
@@ -1467,9 +1073,6 @@ func _refresh_ranking_rows() -> void:
 	_rank_online_btn.visible = RankingManager.is_online() and RankingManager.is_signed_in()
 
 
-func _on_dim_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed) or (event is InputEventScreenTouch and event.pressed):
-		_on_close_options()
 
 
 ## 현재 언어로 모든 라벨/버튼 텍스트를 갱신하고 선택 강조를 다시 칠한다.
