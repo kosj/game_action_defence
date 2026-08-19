@@ -14,6 +14,7 @@ extends Node
 ##   T6 개인 식별 정보를 담지 않는다
 ##   T7 enabled=false 면 아무것도 남기지 않는다
 ##   T8 치트를 쓴 판은 cheated=true 로 표시된다(사람 데이터와 섞이지 않게)
+##   T9 이어하기로 시작한 판은 resumed=true 로 표시된다(수치가 재개 이후만 세어지므로)
 
 var _ok := 0
 var _total := 0
@@ -124,6 +125,24 @@ func _ready() -> void:
 	_check("T8 치트 판만 cheated=true",
 		bool(r3.get("cheated", false)) and not bool(r4.get("cheated", true)),
 		"치트판=%s 다음판=%s" % [r3.get("cheated"), r4.get("cheated")])
+	Telemetry.clear_records()
+
+	# ── T9 이어하기 판 표시 ────────────────────────────────────────
+	# 이어하기는 세이브에서 elapsed_time 을 복원한 뒤 씬에 들어간다 — 그 상태를 흉내낸다.
+	Telemetry.clear_records()
+	Events.reset()
+	Events.elapsed_time = 420.0        # 세이브 복원 상당
+	Telemetry.begin_run()
+	Events.player_died.emit()
+	var r5: Dictionary = JSON.parse_string(Telemetry.load_records_raw()[0])
+	Telemetry.clear_records()
+	Events.reset()                      # 새 게임(elapsed_time=0)
+	Telemetry.begin_run()
+	Events.player_died.emit()
+	var r6: Dictionary = JSON.parse_string(Telemetry.load_records_raw()[0])
+	_check("T9 이어하기 판만 resumed=true",
+		bool(r5.get("resumed", false)) and not bool(r6.get("resumed", true)),
+		"이어하기=%s 새게임=%s" % [r5.get("resumed"), r6.get("resumed")])
 	Telemetry.clear_records()
 
 	print("RESULT ok=%d/%d" % [_ok, _total])

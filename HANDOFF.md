@@ -63,7 +63,7 @@
 | P2-4 잠금/체크 아이콘 | D | ⚪ 대기 | — | — |
 | P2-6 데드 API 정리 | C | ✅ (3056dc7) | claude/c-lane-dead-api | 2026-08-18 |
 | P2-7 MudField 고아 코드 삭제 | B | ✅ (5d1778c) | claude/b-lane-mudfield-cleanup | 2026-08-18 |
-| P1-15 이어하기 판 telemetry 왜곡 수정 | F | 🔵 진행중 | claude/f-lane-telemetry-resumed | 2026-08-19 |
+| P1-15 이어하기 판 telemetry 왜곡 수정 | F | ✅ (이 PR) | claude/f-lane-telemetry-resumed | 2026-08-19 |
 | P1-12 위협 등급(Threat Rank) | G | ⚪ 대기 | — | — |
 | P1-13 도감(Codex) | H | ⚪ 대기 | — | — |
 | P1-14 일일 시드 챌린지 | G | ⚪ 대기 | — | P1-12 이후 |
