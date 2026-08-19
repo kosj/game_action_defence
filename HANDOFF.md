@@ -58,7 +58,7 @@
 | P1-7 첫 보스 난이도 계단 | F | ✅ (77dcefc) | claude/f-lane-boss-step | 2026-08-18 |
 | P2-8 오토플레이 교전 이탈 수정 | F | ✅ (8b3dcb4) | claude/f-lane-autoplay-engage | 2026-08-18 |
 | P2-1 공통 팝업 셸 | D | ✅ (a6a4e7e) | claude/d-lane-ui-popup | 2026-08-18 |
-| P2-2 메뉴 플레이트 3종 | D | ⚪ 대기 | — | — |
+| P2-2 메뉴 플레이트 3종 | D | 🔵 진행중 | claude/d-lane-menu-plates | 2026-08-18 |
 | P2-3 로케일 누락 | D | ✅ (e7a546b) | claude/d-lane-locale | 2026-08-18 |
 | P2-4 잠금/체크 아이콘 | D | ✅ (22c67f2) | claude/d-lane-lock-check-icon | 2026-08-18 |
 | P2-6 데드 API 정리 | C | ✅ (3056dc7) | claude/c-lane-dead-api | 2026-08-18 |
