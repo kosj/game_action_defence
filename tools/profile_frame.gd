@@ -169,6 +169,21 @@ func _ablate() -> void:
 				var b = g.get_node_or_null("Body")
 				if b != null and b.modulate != Color.WHITE:
 					b.modulate = Color.WHITE
+		"dmgnum":
+			# 데미지 숫자(텍스트)만 숨긴다 — 폰트 아틀라스는 게임플레이 시트와 별개라
+			# 텍스트 아이템마다 배치가 끊긴다. 그 몫을 분리해 잰다.
+			for c in _main.get_children():
+				var s = c.get_script()
+				if s != null and String(s.resource_path).ends_with("DamageNumber.gd") \
+						and c is CanvasItem:
+					c.visible = false
+			var fxl = _main.get_node_or_null("FXLayer")
+			if fxl != null:
+				for c2 in fxl.get_children():
+					var s2 = c2.get_script()
+					if s2 != null and String(s2.resource_path).ends_with("DamageNumber.gd") \
+							and c2 is CanvasItem:
+						c2.visible = false
 		"gems":
 			for g in _gems():
 				if g is CanvasItem:

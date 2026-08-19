@@ -13,6 +13,9 @@ const BLADE_LEN := 24.0
 const BLADE_W := 7.5
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
+## 칼날 텍스처는 HIT_RADIUS 지름(56px)의 2배로 구워져 있다(고DPI 여유 — ASSET_PIPELINE.md).
+## 상수(HIT_RADIUS/BLADE_LEN/BLADE_W)를 바꾸면 tools/gen_fx_shapes.py 도 같이 고칠 것.
+const _BLADE_TEX := preload("res://assets/atlas/fx_orb_blade.tres")
 
 var _orbit_angle: float = 0.0
 var _spin: float = 0.0
@@ -55,35 +58,15 @@ func _physics_process(delta: float) -> void:
 	# 그리기는 로컬 좌표 기준 정적 — 회전은 노드 변환이 처리하므로 매 프레임 redraw 불필요.
 
 
+## 칼날 한 장. 모양이 완전히 정적이라(회전은 노드 변환이 한다) 통째로 구워 뒀다 —
+## 예전에는 draw_circle 3 + draw_colored_polygon 4 + draw_line 2 = 9커맨드였고, Godot
+## 캔버스 배처는 한 아이템 안에서도 **프리미티브 종류가 다르면 배치를 끊는다**.
+## 오브는 최대 6개가 유닛 사이(y_sort)에서 돌아 그 끊김이 주변 배치까지 갈랐다 —
+## 실측 드로우 콜 +121. 쿼드 하나로 바꾸니 게임플레이 아틀라스 배치에 그대로 합류한다.
+## 그림을 바꾼 것이 아니라 같은 좌표·같은 색을 텍스처로 옮긴 것이다(tools/gen_fx_shapes.py).
 func _draw() -> void:
-	# 모션 잔상(휩쓰는 공격 영역) — 확장 시 더 크게 보이도록 리치 반경을 옅게 깐다.
-	draw_circle(Vector2.ZERO, HIT_RADIUS, Color(0.70, 0.88, 1.0, 0.08))
-
-	# 십자형 이중 칼날(자전으로 회전하는 표창/검 느낌). 금속 본체 + 능선 하이라이트.
-	var tip := Vector2(BLADE_LEN, 0.0)
-	var s1 := Vector2(BLADE_LEN * 0.28, -BLADE_W)
-	var back := Vector2(-BLADE_LEN * 0.42, 0.0)
-	var s2 := Vector2(BLADE_LEN * 0.28, BLADE_W)
-	var steel := Color(0.85, 0.92, 1.0, 0.96)
-	var steel_dim := Color(0.62, 0.74, 0.92, 0.92)
-	var edge := Color(1.0, 1.0, 1.0, 0.95)
-
-	# 가로 칼날
-	draw_colored_polygon(PackedVector2Array([tip, s1, back, s2]), steel)
-	draw_line(back, tip, edge, 1.6, true)
-	draw_colored_polygon(PackedVector2Array([-tip, -s1, -back, -s2]), steel_dim)
-	draw_line(-back, -tip, edge, 1.4, true)
-	# 세로 칼날(직교) — 회전 시 십자 칼날처럼 보이게
-	var tipv := Vector2(0.0, BLADE_LEN)
-	var v1 := Vector2(BLADE_W, BLADE_LEN * 0.28)
-	var backv := Vector2(0.0, -BLADE_LEN * 0.42)
-	var v2 := Vector2(-BLADE_W, BLADE_LEN * 0.28)
-	draw_colored_polygon(PackedVector2Array([tipv, v1, backv, v2]), steel_dim)
-	draw_colored_polygon(PackedVector2Array([-tipv, -v1, -backv, -v2]), steel_dim)
-
-	# 중심 허브
-	draw_circle(Vector2.ZERO, 4.5, Color(0.95, 0.97, 1.0, 1.0))
-	draw_circle(Vector2.ZERO, 2.0, Color(0.45, 0.6, 0.85, 1.0))
+	draw_texture_rect(_BLADE_TEX,
+		Rect2(-HIT_RADIUS, -HIT_RADIUS, HIT_RADIUS * 2.0, HIT_RADIUS * 2.0), false)
 
 
 func _spawn_hit_fx(world_pos: Vector2) -> void:

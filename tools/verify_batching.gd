@@ -30,7 +30,19 @@ const HOT_SCENES := ["res://scenes/Zombie.tscn"]
 
 ## 매 프레임 그려지는 _draw() 를 가진 스크립트 — 여기서 프리미티브를 루프로 발행하면
 ## 화면에 보이는 개수만큼 드로우 콜이 늘어난다.
-const HOT_DRAW := ["res://scripts/Ground.gd", "res://scripts/PropField.gd"]
+## 매 프레임 그려지는 _draw() 를 가진 스크립트. 무기 비주얼은 실측에서 가장 컸다 —
+## 오브 +121 · 테슬라 +112 · 마늘 +91(OPTIMIZATION_PLAN.md 5-H). 전부 프리미티브를
+## 루프로 발행하던 것이고 QuadDraw(텍스처 쿼드)로 바꿨다.
+## **여기 있는 파일만 검사한다.** 아직 프리미티브로 그리는 곳이 남아 있어(아래 목록)
+## 전부 넣으면 CI 가 빨개진다 — 고친 파일을 하나씩 옮겨 오는 방식으로 조인다.
+const HOT_DRAW := [
+	"res://scripts/Ground.gd", "res://scripts/PropField.gd",
+	"res://scripts/Orb.gd", "res://scripts/Tesla.gd", "res://scripts/GarlicAura.gd",
+	"res://scripts/FXBurst.gd",
+]
+## 아직 안 고친 것 — 고칠 때마다 위로 옮긴다(OPTIMIZATION_PLAN.md 5-H).
+##   FXLightning.gd · Ultimate.gd · TeslaCoil.gd · FlySwarm.gd · BossArena.gd
+## 전부 QuadDraw 로 바꾸면 되고, 바꾼 뒤 HOT_DRAW 에 넣으면 회귀가 막힌다.
 ## 쿼드와 배칭되지 않는 그리기 명령.
 const PRIMITIVES := ["draw_circle", "draw_line", "draw_arc", "draw_polygon",
 	"draw_colored_polygon", "draw_multiline", "draw_rect"]
