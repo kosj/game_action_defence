@@ -40,9 +40,9 @@ func _icon_color() -> Color:
 
 func _label() -> String:
 	match kind:
-		"bomb": return "Bomb"
-		"evochest": return "Evolution"
-		_: return "Treasure"
+		"bomb": return Locale.t("pickup_bomb")
+		"evochest": return Locale.t("pickup_evolution")
+		_: return Locale.t("pickup_treasure")
 
 
 func _ready() -> void:

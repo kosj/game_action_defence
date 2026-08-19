@@ -429,7 +429,7 @@ func _update_hp_bar(health: int, max_health: int) -> void:
 	var cur := clampi(health, 0, mx)
 	var ratio := float(cur) / float(mx)
 	var target := _hp_fill_max * ratio
-	hp_label.text = "HP %d / %d" % [cur, mx]
+	hp_label.text = Locale.t("hud_hp_fmt") % [cur, mx]
 	# 연속 피격(접촉 데미지)에서 트윈을 새로 만들기만 하면 여러 트윈이 같은 size:x 를 놓고 다퉈
 	# 바가 튀고 트윈 객체도 누적된다 — 잔상 바(_hp_ghost_tween)처럼 직전 트윈을 반드시 정리한다.
 	if _hp_fill_tween and _hp_fill_tween.is_valid():
