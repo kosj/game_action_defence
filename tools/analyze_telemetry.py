@@ -24,6 +24,10 @@ import json
 import statistics as st
 import sys
 
+# scripts/Telemetry.gd 의 PARTIAL_INTERVAL 과 같은 값이어야 한다 — 중도 종료 기록은 이 주기의
+# 스냅샷이라 실제 플레이 시간을 최대 이만큼 과소보고한다(사람 실측에서 확인됨).
+PARTIAL_SNAPSHOT_S = 30
+
 
 def load(path):
     rows = []
@@ -64,6 +68,7 @@ def main():
     rows = load(a.path)
     if not rows:
         sys.exit("기록이 없다.")
+    all_rows = list(rows)   # 세션 분할 판정은 기록 순서를 봐야 한다 — 필터 전에 보관
     # 치트가 발동한 판은 사람 플레이가 아니다 — 섞으면 이 데이터의 존재 이유가 사라진다.
     cheated = [r for r in rows if r.get("cheated")]
     if cheated and not a.include_cheated:
@@ -98,10 +103,25 @@ def main():
     cleared = sum(1 for r in rows if r.get("cleared"))
     print("  30분 클리어 %d/%d" % (cleared, len(rows)))
 
-    # 중도 이탈은 "어렵다"와 다른 신호다 — 지루함·세션 길이 문제일 수 있어 따로 본다.
+    # 중도 종료는 "어렵다"와 다른 신호다 — 따로 본다.
+    # 다만 **이어하기로 돌아온 판은 이탈이 아니라 세션 분할**이다(모바일 웹에서 정상 행동).
+    # 기록은 시간순으로 쌓이므로, 중도 종료 바로 뒤에 resumed 기록이 오면 복귀로 본다.
     if quit_:
         qs = sorted(r["survived_s"] / 60.0 for r in quit_)
-        print("\n중도 이탈 %d판 — 중앙 %.1f분에서 그만둔다" % (len(qs), st.median(qs)))
+        returned = 0
+        for i, r in enumerate(all_rows):
+            if r.get("outcome") != "abandoned":
+                continue
+            nxt = all_rows[i + 1] if i + 1 < len(all_rows) else None
+            if nxt is not None and nxt.get("resumed"):
+                returned += 1
+        print("\n중도 종료 %d판 — 중앙 %.1f분 시점" % (len(qs), st.median(qs)))
+        if returned:
+            print("  그중 %d판은 이어하기로 복귀했다 — 이탈이 아니라 세션 분할이다" % returned)
+        if returned < len(qs):
+            print("  복귀가 확인되지 않은 %d판이 진짜 이탈 후보다" % (len(qs) - returned))
+        print("  ※ 중도 종료 기록은 %ds 스냅샷이라 실제 플레이 시간을 최대 그만큼 과소보고한다"
+              % PARTIAL_SNAPSHOT_S)
 
     by_char = collections.defaultdict(list)
     for r in rows:
