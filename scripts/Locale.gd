@@ -53,7 +53,7 @@ const STRINGS: Dictionary = {
 	"menu_new_game":   {"en": "New Game",   "ko": "새 게임",   "ja": "ニューゲーム"},
 	"menu_continue":   {"en": "Continue",   "ko": "이어하기",  "ja": "つづける"},
 	"menu_language":   {"en": "Language",   "ko": "언어",      "ja": "言語"},
-	"title_tagline":   {"en": "SURVIVE THE OUTBREAK", "ko": "감염에서 살아남아라", "ja": "アウトブレイクを生き延びろ"},
+	"title_tagline":   {"en": "SURVIVE THE OUTBREAK", "ko": "감염에서 살아남아라", "ja": "アウトブレイクを生きのびろ"},
 	"title_tap":       {"en": "TAP TO START", "ko": "화면을 터치해 시작", "ja": "タップしてスタート"},
 	"menu_sound":      {"en": "Sound",       "ko": "사운드",    "ja": "サウンド"},
 	"sound_on":        {"en": "On",          "ko": "켜짐",      "ja": "オン"},
@@ -61,7 +61,8 @@ const STRINGS: Dictionary = {
 	"menu_options":    {"en": "Options",     "ko": "옵션",      "ja": "オプション"},
 	"menu_close":      {"en": "Close",       "ko": "닫기",      "ja": "とじる"},
 	"menu_ranking":    {"en": "Ranking",     "ko": "랭킹",      "ja": "ランキング"},
-	# 서브셋 폰트에 実/績/強 글리프가 없어 일본어는 가나 표기를 쓴다(報酬는 사용 가능).
+	# 일본어는 가나 표기가 기본이다 — 서브셋 폰트의 한자는 89자뿐이고, 원본에도 없어 되살릴 수
+	# 없는 글자가 많다(実/績/強/選/択/宝/箱/体/分 등). tools/font_known_absent.txt 참고.
 	"menu_achievements": {"en": "Achievements", "ko": "도전과제",  "ja": "アチーブメント"},
 	"menu_quests":       {"en": "Quests",       "ko": "퀘스트",    "ja": "クエスト"},
 	"menu_rewards":      {"en": "Rewards",      "ko": "보상함",    "ja": "報酬"},
@@ -77,7 +78,7 @@ const STRINGS: Dictionary = {
 	"opt_copy_log_done": {"en": "COPIED", "ko": "복사했습니다", "ja": "コピーしました"},
 	"opt_log_hint":      {"en": "Runs saved on this device. Nothing is sent anywhere.",
 		"ko": "이 기기에만 저장된 플레이 기록입니다. 어디로도 전송되지 않습니다.",
-		"ja": "この端末にのみ保存されます。どこにも送信されません。"},
+		"ja": "このデバイスにだけのこります。どこにもおくりません。"},
 	"popup_power":       {"en": "PERMANENT UPGRADES", "ko": "영구 강화", "ja": "パワーアップ"},
 
 	# ── 도감(P1-13) ───────────────────────────────────────────────────────
@@ -115,16 +116,16 @@ const STRINGS: Dictionary = {
 	"gold_fmt":        {"en": "Gold: %d", "ko": "골드: %d", "ja": "ゴールド: %d"},
 	"unlock_cost_fmt": {"en": "Unlock: %d gold  (tap to buy)",
 						"ko": "해금: %d 골드  (탭하여 구매)",
-						"ja": "解放: %d ゴールド（タップで購入）"},
+						"ja": "アンロック: %d ゴールド（タップ）"},
 	"locked":          {"en": "Locked", "ko": "잠금", "ja": "ロック"},
 	"locked_by_fmt":   {"en": "Locked — %s", "ko": "잠금 — %s", "ja": "ロック — %s"},
 	"locked_by_ach":   {"en": "complete an achievement", "ko": "도전과제 달성 필요",
-						"ja": "実績の達成が必要"},
+						"ja": "アチーブメントでアンロック"},
 
 	# ── 레벨업 모달 (레벨업마다 뜬다 — 인게임 최다 노출) ────────────────────
 	"levelup_title_fmt": {"en": "LEVEL %d  ·  CHOOSE AN UPGRADE",
 						  "ko": "레벨 %d  ·  강화 선택",
-						  "ja": "レベル %d  ·  アップグレード選択"},
+						  "ja": "レベル %d  ·  アップグレードをえらぶ"},
 
 	# ── 보물상자 보상 카드 ────────────────────────────────────────────────
 	"tap_continue":    {"en": "tap to continue", "ko": "탭하여 계속", "ja": "タップでつづける"},
@@ -132,16 +133,16 @@ const STRINGS: Dictionary = {
 	# ── 필드 아이템 픽업 라벨(월드에 그린다) ───────────────────────────────
 	"pickup_bomb":     {"en": "Bomb", "ko": "폭탄", "ja": "ボム"},
 	"pickup_evolution": {"en": "Evolution", "ko": "진화", "ja": "エボリューション"},
-	"pickup_treasure": {"en": "Treasure", "ko": "보물", "ja": "宝箱"},
+	"pickup_treasure": {"en": "Treasure", "ko": "보물", "ja": "トレジャー"},
 
 	# ── 랭킹 오버레이 ─────────────────────────────────────────────────────
 	"rank_title":      {"en": "RANKING",     "ko": "랭킹",      "ja": "ランキング"},
 	"rank_local_note": {"en": "Best score per mode (this device)",
 						"ko": "모드별 최고 점수 (이 기기)",
-						"ja": "モード別ハイスコア（この端末）"},
+						"ja": "モードごとのハイスコア（このデバイス）"},
 	"rank_online":     {"en": "View Google Play Leaderboard",
 						"ko": "Google Play 랭킹 보기",
-						"ja": "Google Play ランキングを見る"},
+						"ja": "Google Play ランキングへ"},
 	"diff_easy":       {"en": "Easy",       "ko": "쉬움",      "ja": "イージー"},
 	"diff_normal":     {"en": "Normal",     "ko": "보통",      "ja": "ノーマル"},
 	"diff_hard":       {"en": "Hard",       "ko": "어려움",    "ja": "ハード"},
@@ -150,9 +151,9 @@ const STRINGS: Dictionary = {
 	"hud_score_fmt":   {"en": "Score %d",   "ko": "점수 %d",   "ja": "スコア %d"},
 	"hud_hp_fmt":      {"en": "HP %d / %d", "ko": "체력 %d / %d", "ja": "HP %d / %d"},
 	"hud_best_fmt":    {"en": "Best %d",    "ko": "최고 %d",   "ja": "ベスト %d"},
-	"hud_kills_fmt":   {"en": "%d Kills",   "ko": "%d 처치",   "ja": "%d 体"},
+	"hud_kills_fmt":   {"en": "%d Kills",   "ko": "%d 처치",   "ja": "%d キル"},
 	"boss_cleared":    {"en": "Boss %d Clear!", "ko": "보스 %d 클리어!", "ja": "ボス %d クリア！"},
-	"run_cleared":     {"en": "SURVIVED 30:00\nCLEAR!", "ko": "30분 생존\n클리어!", "ja": "30分 生存\nクリア！"},
+	"run_cleared":     {"en": "SURVIVED 30:00\nCLEAR!", "ko": "30분 생존\n클리어!", "ja": "30:00 生存\nクリア！"},
 	"hud_magnet_fmt":  {"en": "XP Magnet  %ds", "ko": "잼 자석  %d초", "ja": "ジェム磁石  %d秒"},
 	"hud_revive":      {"en": "REVIVE  (Watch Ad)", "ko": "부활  (광고 시청)", "ja": "復活（広告を視聴）"},
 	# 서브셋 폰트 주의: 일본어는 한자 글리프가 서브셋에 없을 수 있어 가나 위주로 쓴다.
