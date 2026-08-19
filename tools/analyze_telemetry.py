@@ -26,7 +26,7 @@ import sys
 
 # scripts/Telemetry.gd 의 PARTIAL_INTERVAL 과 같은 값이어야 한다 — 중도 종료 기록은 이 주기의
 # 스냅샷이라 실제 플레이 시간을 최대 이만큼 과소보고한다(사람 실측에서 확인됨).
-PARTIAL_SNAPSHOT_S = 30
+PARTIAL_SNAPSHOT_S = 10
 
 
 def load(path):
@@ -130,6 +130,29 @@ def main():
         print("\n캐릭터별")
         for c, v in sorted(by_char.items(), key=lambda kv: -st.median(kv[1])):
             print("  %-10s n=%-3d 중앙 %.1f분" % (c, len(v), st.median(v)))
+
+    # 프리즈 진단(P0-4) — 중도 종료 기록의 마지막 상태가 곧 "멈추기 직전"이다.
+    # 원인을 세 갈래로 가른다: 성능 붕괴 / 정지 갇힘 / 무한 루프·크래시.
+    for r in [x for x in all_rows if x.get("outcome") == "abandoned" and x.get("diag")]:
+        d = r["diag"]
+        flags = []
+        if d.get("frame_ms_max", 0) > 100:
+            flags.append("프레임 %.0fms — 성능 붕괴 의심" % d["frame_ms_max"])
+        if d.get("paused"):
+            flags.append("정지 상태 · 소유자 %s" % (d.get("pause_owners") or "없음(고아)"))
+        if abs(d.get("time_scale", 1.0) - 1.0) > 0.01:
+            flags.append("배속 %.3f 비정상" % d["time_scale"])
+        if d.get("watchdog"):
+            flags.append("워치독 %d회 발동" % len(d["watchdog"]))
+        if not flags:
+            flags.append("지표 정상 — 기록이 그냥 끊겼다(무한 루프/크래시 의심)")
+        print("\n중도 종료 %.1f분 시점의 상태" % (r["survived_s"] / 60.0))
+        print("  좀비 %s · 픽업 %s · 젬 %s · fps %s"
+              % (d.get("zombies"), d.get("pickups"), d.get("gems"), d.get("fps")))
+        for f in flags:
+            print("  → %s" % f)
+        for w in (d.get("watchdog") or [])[:5]:
+            print("     워치독: %s" % w)
 
     if a.compare:
         import csv

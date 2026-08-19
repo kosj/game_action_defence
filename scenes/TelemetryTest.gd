@@ -15,6 +15,7 @@ extends Node
 ##   T7 enabled=false 면 아무것도 남기지 않는다
 ##   T8 치트를 쓴 판은 cheated=true 로 표시된다(사람 데이터와 섞이지 않게)
 ##   T9 이어하기로 시작한 판은 resumed=true 로 표시된다(수치가 재개 이후만 세어지므로)
+##   T10 프리즈 진단(diag)이 기록되고 워치독 발동이 남는다 — 멈춘 뒤엔 못 남기므로 이게 유일한 단서다
 
 var _ok := 0
 var _total := 0
@@ -143,6 +144,25 @@ func _ready() -> void:
 	_check("T9 이어하기 판만 resumed=true",
 		bool(r5.get("resumed", false)) and not bool(r6.get("resumed", true)),
 		"이어하기=%s 새게임=%s" % [r5.get("resumed"), r6.get("resumed")])
+	Telemetry.clear_records()
+
+	# ── T10 프리즈 진단 ────────────────────────────────────────────
+	Telemetry.clear_records()
+	Events.reset()
+	Telemetry.begin_run()
+	Events.pause_watchdog_fired.emit("orphan_pause", "level=3 elapsed=42.0")
+	Events.player_died.emit()
+	var r7: Dictionary = JSON.parse_string(Telemetry.load_records_raw()[0])
+	var dg: Dictionary = r7.get("diag", {})
+	var need := ["fps", "frame_ms_max", "time_scale", "paused", "pause_owners",
+		"watchdog", "zombies", "pickups", "gems"]
+	var miss: Array = []
+	for k in need:
+		if not dg.has(k):
+			miss.append(k)
+	_check("T10 진단 필드 + 워치독 기록",
+		miss.is_empty() and dg.get("watchdog", []).size() == 1,
+		"빠진 필드 %s · 워치독 %s" % [str(miss), str(dg.get("watchdog"))])
 	Telemetry.clear_records()
 
 	print("RESULT ok=%d/%d" % [_ok, _total])
