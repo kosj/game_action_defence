@@ -1483,6 +1483,9 @@ func _apply_safe_area() -> void:
 
 
 func _on_main_menu_pressed() -> void:
+	# Events.reset() 보다 **먼저** 기록한다 — 리셋 뒤엔 경과·레벨·처치가 전부 0 이다.
+	# 씬 전환만으로는 텔레메트리에 아무 신호도 가지 않아, 이 한 줄이 없으면 그 판이 사라진다.
+	Telemetry.end_run("left")
 	Events.pause_release_all()   # 씬 전환 전 정지 소유권 전부 해제
 	MetaManager.bank(Events.total_gold)   # 이번 판 골드를 영구 은행에 적립
 	Events.reset()

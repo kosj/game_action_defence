@@ -66,7 +66,7 @@ var _watchdog_log: Array = []
 
 
 func _ready() -> void:
-	Events.player_died.connect(_on_run_end.bind("died"))
+	Events.player_died.connect(end_run.bind("died"))
 	Events.pause_watchdog_fired.connect(func(reason: String, detail: String):
 		if _watchdog_log.size() < 20:      # 무한 증가 방지 — 앞쪽 20건이면 원인 파악에 충분하다
 			_watchdog_log.append("%s@%.0fs %s" % [reason, Events.elapsed_time, detail]))
@@ -79,6 +79,10 @@ func _ready() -> void:
 
 ## 판 시작 — `Main._ready()` 가 호출한다. 이어하기도 같은 진입점을 쓴다.
 func begin_run() -> void:
+	# 이전 판이 끝맺지 못한 채 남아 있으면 **먼저 기록한다.** 여기서 안 건지면 아래 초기화 뒤
+	# 진행 스냅샷이 그 파일을 덮어써 그 판이 영구히 사라진다 — 실제로 30분 클리어 판이 그렇게
+	# 소실됐다(클리어 후 메뉴로 나가고 새 게임을 시작한 경우).
+	_promote_abandoned()
 	_active = enabled
 	_resumed = float(Events.elapsed_time) > 1.0
 	_hits = 0
@@ -144,7 +148,10 @@ func _on_boss_died() -> void:
 		_boss_spawn_t = -1.0
 
 
-func _on_run_end(outcome: String) -> void:
+## 판 종료 기록. 사망은 시그널로 자동이지만, **메뉴 복귀는 아무 신호도 오지 않으므로**
+## HUD 가 직접 부른다(`_on_main_menu_pressed`). 이걸 안 부르면 그 판이 통째로 사라진다.
+## outcome: "died" 사망 · "left" 메뉴로 나감(정상 종료) · "abandoned" 탭 닫힘·크래시.
+func end_run(outcome: String) -> void:
 	if not _active:
 		return
 	_active = false

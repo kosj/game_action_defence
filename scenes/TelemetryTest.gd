@@ -17,6 +17,8 @@ extends Node
 ##   T9 이어하기로 시작한 판은 resumed=true 로 표시된다(수치가 재개 이후만 세어지므로)
 ##   T10 프리즈 진단(diag)이 기록되고 워치독 발동이 남는다 — 멈춘 뒤엔 못 남기므로 이게 유일한 단서다
 ##   T11 분당 샘플에 메모리·노드 수가 실린다(누수 추이 판별용)
+##   T12 메뉴 복귀 판이 기록에 남는다 + 끝맺지 못한 판이 새 판 시작 시 승격된다
+##       (클리어 후 메뉴로 나간 판이 통째로 사라지던 버그)
 
 var _ok := 0
 var _total := 0
@@ -179,6 +181,33 @@ func _ready() -> void:
 		sm.size() >= 1 and sm[0].has("mem") and sm[0].has("nodes")
 			and float(sm[0]["mem"]) > 0.0,
 		str(sm[0]) if sm.size() > 0 else "샘플 없음")
+	Telemetry.clear_records()
+
+	# ── T12 메뉴 복귀 · 미완 판 승격 ────────────────────────────────
+	Telemetry.clear_records()
+	Events.reset()
+	Telemetry.begin_run()
+	Events.elapsed_time = 1800.0
+	Events.run_cleared.emit()          # 30분 클리어
+	Telemetry.end_run("left")          # 메뉴로 나감
+	var raw12 := Telemetry.load_records_raw()
+	var rl: Dictionary = JSON.parse_string(raw12[0]) if raw12.size() > 0 else {}
+	_check("T12a 메뉴 복귀 판이 기록됨 (클리어 포함)",
+		raw12.size() == 1 and String(rl.get("outcome", "")) == "left"
+			and bool(rl.get("cleared", false)),
+		"%d건 · outcome=%s · cleared=%s" % [raw12.size(), rl.get("outcome"), rl.get("cleared")])
+
+	# 끝맺지 못한 판(진행 스냅샷만 있는 상태)에서 새 판을 시작하면 그 판이 먼저 기록돼야 한다.
+	Telemetry.clear_records()
+	Events.reset()
+	Telemetry.begin_run()
+	Events.elapsed_time = 300.0
+	Telemetry._write_json(Telemetry.PARTIAL_PATH, Telemetry._snapshot("abandoned"))
+	Events.reset()
+	Telemetry.begin_run()              # 새 판 — 이전 판을 건져야 한다
+	var raw12b := Telemetry.load_records_raw()
+	_check("T12b 미완 판이 새 판 시작 시 승격됨", raw12b.size() == 1,
+		"%d건" % raw12b.size())
 	Telemetry.clear_records()
 
 	print("RESULT ok=%d/%d" % [_ok, _total])

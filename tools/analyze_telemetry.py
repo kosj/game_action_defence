@@ -85,10 +85,13 @@ def main():
     if not rows:
         sys.exit("이어하기 판을 제외하니 남는 기록이 없다.")
     died = [r for r in rows if r.get("outcome") == "died"]
+    # "left" = 메뉴로 나간 정상 종료 · "abandoned" = 탭 닫힘·크래시. 섞으면 크래시 조사가 흐려진다.
+    left = [r for r in rows if r.get("outcome") == "left"]
     quit_ = [r for r in rows if r.get("outcome") == "abandoned"]
     surv = sorted(r["survived_s"] / 60.0 for r in rows)
 
-    print("플레이 기록 %d판 (사망 %d · 중도 이탈 %d)\n" % (len(rows), len(died), len(quit_)))
+    print("플레이 기록 %d판 (사망 %d · 정상 종료 %d · 비정상 종료 %d)\n"
+          % (len(rows), len(died), len(left), len(quit_)))
     print("생존 시간 분포")
     histogram(surv)
     print("\n  중앙값 %.1f분 · 범위 %.1f~%.1f분" % (st.median(surv), surv[0], surv[-1]))
@@ -101,7 +104,7 @@ def main():
     print("  레벨 중앙 %.0f · 처치 중앙 %.0f"
           % (st.median(r["level"] for r in rows), st.median(r["kills"] for r in rows)))
     cleared = sum(1 for r in rows if r.get("cleared"))
-    print("  30분 클리어 %d/%d" % (cleared, len(rows)))
+    print("  30분 클리어 %d/%d%s" % (cleared, len(rows), "  ★" if cleared else ""))
 
     # 중도 종료는 "어렵다"와 다른 신호다 — 따로 본다.
     # 다만 **이어하기로 돌아온 판은 이탈이 아니라 세션 분할**이다(모바일 웹에서 정상 행동).
@@ -115,7 +118,7 @@ def main():
             nxt = all_rows[i + 1] if i + 1 < len(all_rows) else None
             if nxt is not None and nxt.get("resumed"):
                 returned += 1
-        print("\n중도 종료 %d판 — 중앙 %.1f분 시점" % (len(qs), st.median(qs)))
+        print("\n비정상 종료(탭 닫힘·크래시) %d판 — 중앙 %.1f분 시점" % (len(qs), st.median(qs)))
         if returned:
             print("  그중 %d판은 이어하기로 복귀했다 — 이탈이 아니라 세션 분할이다" % returned)
         if returned < len(qs):
