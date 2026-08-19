@@ -50,7 +50,11 @@ FONTS = [
 
 # 문자를 수집할 소스(.gd 는 문자열 리터럴만 — project_charset 설명 참고).
 SCAN_GLOBS = ("**/*.gd", "**/*.tres", "**/*.tscn", "**/*.godot", "**/*.json")
-SCAN_SKIP = (".godot/", "tools/_")
+# 화면에 뜨지 않는 텍스트는 수집하지 않는다:
+#   scenes/*Test.gd     회귀 테스트 — 검사 이름을 print 로 찍을 뿐이다
+#   tools/{check,verify,shot}_*  CI·촬영 도구 — 실패 메시지가 게임 문자열이 아니다
+# (tools/gen_*.gd 는 제외하지 않는다 — 카탈로그의 표시 이름이 거기서 온다.)
+SCAN_SKIP = (".godot/", "tools/_", "tools/check_", "tools/verify_", "tools/shot_", "Test.gd")
 
 # 원본 폰트에도 없던 문자 목록(서브셋 실행 시 자동 갱신). 아래 check() 설명 참고.
 KNOWN_ABSENT = "tools/font_known_absent.txt"
@@ -69,11 +73,35 @@ def _base_charset() -> set[str]:
     return cs
 
 
+def _strip_gd_comments(text: str) -> str:
+    """GDScript 소스에서 주석을 걷어낸다(따옴표 안의 `#` 은 주석이 아니다).
+
+    완전한 파서가 아니라 줄 단위 스캐너다 — 여러 줄 문자열(\"\"\")은 다루지 않는다.
+    이 용도(표시 문자열 수집)에는 충분하고, 틀리는 쪽이 "덜 수집"이라 폰트가 커지지 않는다.
+    """
+    out = []
+    for line in text.split("\n"):
+        quote = ""
+        for i, ch in enumerate(line):
+            if quote:
+                if ch == quote and (i == 0 or line[i - 1] != "\\"):
+                    quote = ""
+            elif ch in "\"'":
+                quote = ch
+            elif ch == "#":
+                line = line[:i]
+                break
+        out.append(line)
+    return "\n".join(out)
+
+
 def project_charset(root: pathlib.Path) -> set[str]:
     """프로젝트가 화면에 표시할 수 있는 문자 + 기본 문자.
 
-    .gd 는 **문자열 리터럴만** 본다 — 주석의 한글까지 포함하면 폰트가 불필요하게 커지고,
-    무엇보다 주석을 고칠 때마다 커버리지 검사가 깨져 쓸모없는 실패를 낸다(주석은 표시되지 않는다).
+    .gd 는 **주석을 걷어낸 뒤 문자열 리터럴만** 본다 — 주석의 한글까지 포함하면 폰트가
+    불필요하게 커지고, 무엇보다 주석을 고칠 때마다 커버리지 검사가 깨져 쓸모없는 실패를 낸다
+    (주석은 표시되지 않는다). 예전에는 파일 전체에 정규식을 돌려서, **주석 안에 따옴표로 인용한
+    한글이 표시 문자열로 잡혔다** — 설명을 한 줄 쓰는 것만으로 검사가 깨졌다.
     .tres/.tscn/.json 은 사실상 데이터라 전체를 훑는다.
     """
     cs = _base_charset()
@@ -87,7 +115,7 @@ def project_charset(root: pathlib.Path) -> set[str]:
             except (UnicodeDecodeError, OSError):
                 continue
             if rel.endswith(".gd"):
-                for lit in re.findall(r'"([^"\n]*)"|\'([^\'\n]*)\'', text):
+                for lit in re.findall(r'"([^"\n]*)"|\'([^\'\n]*)\'', _strip_gd_comments(text)):
                     cs |= set(lit[0]) | set(lit[1])
             else:
                 cs |= set(text)
@@ -104,8 +132,13 @@ def font_charset(path: pathlib.Path) -> set[str]:
 def _known_absent(root: pathlib.Path) -> set[str]:
     """원본 폰트 자체에 없어서 서브셋 전에도 렌더 불가였던 문자.
 
-    이 목록은 서브셋 실행 시 자동으로 갱신된다. 서브셋 때문에 사라진 것이 아니므로
-    CI 를 막지 않는다 — 다만 여기 실제 표시 문자가 들어 있으면 그건 별개의 버그다.
+    이 목록은 서브셋 실행 시 자동으로 갱신된다. 여기서는 면제로 쓴다 — 이 도구의 수집 대상
+    (project_charset)에는 _base_charset() 의 구두점 범위처럼 **화면에 뜨지 않는 글자**가
+    섞여 있어, 그것까지 실패로 부르면 매번 노이즈가 난다.
+
+    "이 글자를 쓰면 두부(□)가 뜬다"는 판정은 **tools/check_font_coverage.gd 가 맡는다**
+    (수집 대상이 Locale.STRINGS + data/*.tres 로 좁아 표시 문자와 정확히 일치한다).
+    그쪽이 CI 게이트이고, 이 목록을 면제가 아니라 금지로 쓴다(HANDOFF P1-17).
     """
     p = root / KNOWN_ABSENT
     if not p.exists():
@@ -178,7 +211,9 @@ def build(root: pathlib.Path) -> int:
     absent = sorted(c for c in want if c not in have and c.isprintable())
     (root / KNOWN_ABSENT).write_text(
         "# 원본 Noto Sans CJK 서브셋에도 없던 문자 — tools/subset_fonts.py 가 자동 생성한다.\n"
-        "# 이 중 실제로 화면에 표시되는 글자가 있으면 그건 폰트 커버리지 버그다.\n"
+        "# **이 글자들은 쓰면 안 된다.** 되살릴 방법이 없어 화면에 두부(□)로 뜬다.\n"
+        "# tools/check_font_coverage.gd(CI 게이트)가 표시 문자열에서 이 글자를 찾으면 실패시킨다.\n"
+        "# 일본어에 한자가 필요하면 가나 표기로 우회한다 — scripts/Locale.gd 의 선례 참고.\n"
         + "".join(absent) + "\n",
         encoding="utf-8",
     )
