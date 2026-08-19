@@ -28,11 +28,33 @@ extends SceneTree
 ##
 ## only=<태그> — 그 계통만 남기고 전부 숨긴다. off= 는 다른 것의 배칭까지 바꿔 놓아 몫이
 ##     과대평가된다(실제로 바닥이 격리 53 vs ablation 166 으로 3배 차이가 났다). 격리가 더 깨끗하다.
-##     노드 이름(Ground/PropField/Weather/...) 또는 zombies 계열:
+##     nothing — 아무것도 안 보이게 한다(바닥값 측정). 다른 값은 이 바닥값을 빼야 순증분이다.
+##     노드 이름(Ground/PropField/Weather/HUD/...) 또는 zombies 계열:
 ##       zombies                 — 좀비만
 ##       zombies_noshadow        — 좀비에서 그림자만 뺌
 ##       zombies_shadow_white    — 그림자를 그리되 modulate 만 흰색
 ##       zombies_shadow_notex    — 그림자 텍스처를 몸통과 통일
+##
+## ⚠️ 격리 측정의 함정 — CanvasLayer
+##   `only=` 는 처음에 `c is CanvasItem` 으로만 걸렀는데 **HUD 는 CanvasLayer 라 CanvasItem 이
+##   아니다.** 그래서 "격리" 한다면서 HUD 가 계속 그려졌고, "좀비 격리 37 드로우 콜" 의
+##   대부분이 실은 HUD(40)였다. 지금은 CanvasLayer 도 함께 끈다.
+##   **바닥값을 먼저 재라** — `only=nothing` 이 1 draw / 1 item 이어야 나머지 수치가 순증분이다.
+##
+## ── 계통별 격리 실측 (좀비 320마리, 두 수정 이후) ──────────────────────────────
+##       only=nothing      draw   1 / items   1   <- 바닥값
+##       only=zombies      draw   3 / items 118   <- 320마리. 화면 밖 컬링으로 실제 표시는 ~59마리
+##       only=Ground       draw   4 / items 197
+##       only=PropField    draw  13 / items  13
+##       only=HUD          draw  40 / items 115   <- 남은 가장 큰 덩어리
+##   items 는 제출한 캔버스 명령 수, draw 는 배칭 후 실제 GL 드로우 콜이다. 바닥이 197 items를
+##   4 draw 로 접는다(49:1) — 아틀라스+쿼드화가 제대로 먹고 있다는 뜻이다.
+##
+##   전체 게임 ablation(기준 138): HUD -61 · FX -38 · 프롭 -20 · 바닥 +5 · 좀비 +12.
+##   **좀비·바닥은 꺼도 드로우 콜이 늘어난다** — 이미 3~4개라 뺄 게 없고 남은 것들의 배칭
+##   순서만 흐트러진다. 더 줄이려면 HUD(아틀라스 밖 텍스처 + 나인패치 12장)를 봐야 한다.
+##   HUD 격리는 frame_ms 도 66.7 로 유독 높다 — vignette/fog_vision 전체화면 알파 오버레이의
+##   fill-rate 다(llvmpipe 라 증폭되지만 모바일 GPU 에서도 비싼 축이다).
 ##
 ## ── 이 도구로 찾은 것 (2026-08) ────────────────────────────────────────────────
 ## 좀비 320마리 격리 측정:
@@ -148,21 +170,24 @@ func _ablate() -> void:
 
 
 ## only= 격리. 셋업 때 한 번만 숨기면 그 뒤 생긴 노드가 그대로 보여 측정이 오염된다.
+##
+## ⚠️ **CanvasLayer 는 CanvasItem 이 아니다.** HUD 가 CanvasLayer 라 예전에는 `c is CanvasItem`
+## 필터에 안 걸려 계속 그려졌고, "좀비 격리 37 드로우 콜" 의 대부분이 실은 HUD 였다.
+## only=nothing 으로 재면 그 바닥값이 얼마인지 바로 보인다.
 func _isolate() -> void:
 	var zombie_mode := _only.begins_with("zombies")
 	for c in _main.get_children():
-		if not (c is CanvasItem):
-			continue
+		var keep := false
 		if zombie_mode:
-			c.visible = c.is_in_group("zombies")
-			if c.visible:
-				_tweak_zombie(c)
+			keep = c.is_in_group("zombies")
 		else:
-			c.visible = (String(c.name) == _only)
-	if not zombie_mode:
-		var fx = _main.get_node_or_null("FXLayer")
-		if fx != null and fx is CanvasItem:
-			fx.visible = false
+			keep = (String(c.name) == _only)
+		if c is CanvasItem:
+			c.visible = keep
+			if keep and zombie_mode:
+				_tweak_zombie(c)
+		elif c is CanvasLayer:
+			c.visible = keep
 
 
 ## 좀비 격리 변형 — 그림자의 어떤 속성이 배칭을 깨는지 가르기 위한 실험용.
