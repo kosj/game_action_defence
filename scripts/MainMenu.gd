@@ -464,7 +464,18 @@ func _build_character_panel() -> void:
 			thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			btn.add_child(thumb)
 			_UIStyle.set_button_content_margin_left(btn, 172)
-		_char_rows.append({"btn": btn, "c": c, "thumb": thumb})
+		# 잠금 자물쇠 — 썸네일 위에 얹는다. thumb 의 자식으로 넣으면 잠금 시 걸리는
+		# modulate(0.35)에 같이 어두워져 안 보인다 — 버튼에 직접 붙여 썸네일 영역에 맞춘다.
+		# 갱신마다 만들지 않고 한 번 만들어 visible 만 토글한다.
+		var lock := UIIcon.make("lock", 44, Color(0.95, 0.86, 0.55))
+		lock.set_anchors_preset(Control.PRESET_CENTER_LEFT)
+		lock.offset_left = 64.0
+		lock.offset_right = 108.0
+		lock.offset_top = -22.0
+		lock.offset_bottom = 22.0
+		lock.visible = false
+		btn.add_child(lock)
+		_char_rows.append({"btn": btn, "c": c, "thumb": thumb, "lock": lock})
 
 
 
@@ -485,11 +496,15 @@ func _refresh_character() -> void:
 				_UIStyle.apply_button_style(btn, Color(0.14, 0.16, 0.20), Color(0.35, 0.40, 0.48))
 			if thumb:
 				thumb.modulate = Color.WHITE
+			if row.get("lock"):
+				row["lock"].visible = false
 		else:
-			btn.text = "[-] %s\n%s\n%s" % [c.display, _char_stat_line(c), _unlock_hint(c)]
+			btn.text = "%s\n%s\n%s" % [c.display, _char_stat_line(c), _unlock_hint(c)]
 			_UIStyle.apply_button_style(btn, Color(0.10, 0.10, 0.12), Color(0.30, 0.30, 0.34))
 			if thumb:
 				thumb.modulate = Color(0.35, 0.35, 0.4)   # 잠금 — 실루엣처럼 어둡게
+			if row.get("lock"):
+				row["lock"].visible = true
 		# apply_button_style 이 스타일박스를 새로 깔아 썸네일용 좌측 컨텐츠 마진이 사라진다 — 재적용.
 		if thumb:
 			_UIStyle.set_button_content_margin_left(btn, 172)
@@ -859,13 +874,25 @@ func _build_theme_panel() -> void:
 		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		pad.add_child(col)
 
+		# 이름 줄 = [자물쇠] + 이름. 예전에는 이름 앞에 `"[-] "` 를 붙였다(P2-4).
+		# 자물쇠는 한 번 만들어 visible 만 토글한다 — 갱신마다 노드를 만들지 않는다.
+		var name_row := HBoxContainer.new()
+		name_row.add_theme_constant_override("separation", 8)
+		name_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		col.add_child(name_row)
+
+		var lock := UIIcon.make("lock", 22, Color(0.95, 0.86, 0.55))
+		lock.visible = false
+		name_row.add_child(lock)
+
 		# 이름/설명은 autowrap 을 끄고 넘치면 잘라낸다(위 주석의 최소 크기 폭주 방지).
 		var name_lbl := Label.new()
 		name_lbl.add_theme_font_size_override("font_size", 22)
 		name_lbl.clip_text = true
+		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		UITheme.heading(name_lbl)
-		col.add_child(name_lbl)
+		name_row.add_child(name_lbl)
 
 		var desc_lbl := Label.new()
 		desc_lbl.add_theme_font_size_override("font_size", 15)
@@ -888,7 +915,7 @@ func _build_theme_panel() -> void:
 			thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			col.add_child(thumb)
 		_theme_rows.append({"btn": btn, "t": t, "thumb": thumb,
-			"name": name_lbl, "desc": desc_lbl})
+			"name": name_lbl, "desc": desc_lbl, "lock": lock})
 
 
 
@@ -902,6 +929,9 @@ func _refresh_theme() -> void:
 		var thumb: TextureRect = row.get("thumb")
 		var name_lbl: Label = row["name"]
 		var desc_lbl: Label = row["desc"]
+		var lock: Control = row.get("lock")
+		if lock:
+			lock.visible = not ThemeManager.is_unlocked(t)
 		if ThemeManager.is_unlocked(t):
 			var picked: bool = t.id == sel
 			name_lbl.text = ("> %s" % t.display) if picked else String(t.display)
@@ -916,7 +946,7 @@ func _refresh_theme() -> void:
 			if thumb:
 				thumb.modulate = Color.WHITE
 		else:
-			name_lbl.text = "[-] %s" % t.display
+			name_lbl.text = t.display
 			name_lbl.add_theme_color_override("font_color", Color(0.62, 0.64, 0.70))
 			desc_lbl.text = _theme_unlock_hint(t)
 			desc_lbl.add_theme_color_override("font_color", Color(0.85, 0.74, 0.42))

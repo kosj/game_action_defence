@@ -60,7 +60,7 @@
 | P2-1 공통 팝업 셸 | D | ✅ (a6a4e7e) | claude/d-lane-ui-popup | 2026-08-18 |
 | P2-2 메뉴 플레이트 3종 | D | ⚪ 대기 | — | — |
 | P2-3 로케일 누락 | D | ✅ (e7a546b) | claude/d-lane-locale | 2026-08-18 |
-| P2-4 잠금/체크 아이콘 | D | 🔵 진행중 | claude/d-lane-lock-check-icon | 2026-08-18 |
+| P2-4 잠금/체크 아이콘 | D | ✅ (이 PR) | claude/d-lane-lock-check-icon | 2026-08-18 |
 | P2-6 데드 API 정리 | C | ✅ (3056dc7) | claude/c-lane-dead-api | 2026-08-18 |
 | P2-7 MudField 고아 코드 삭제 | B | ✅ (5d1778c) | claude/b-lane-mudfield-cleanup | 2026-08-18 |
 | P1-15 이어하기 판 telemetry 왜곡 수정 | F | ✅ (8cac2e8) | claude/f-lane-telemetry-resumed | 2026-08-19 |
@@ -732,8 +732,28 @@ CJK 글자를 개별 단위로 세도록 고쳤다 — 이 검사를 쓰는 다�
 
 ## P2-4. 폰트 서브셋 회피용 아스키 대체가 UI 품질을 깎는다
 `MainMenu.gd:590,1236` 잠금 표시 `"[-]"` · `UIListRow.gd:235` 체크 `"v"`.
-**작업** — `assets/ui/icons`(47종 보유) 또는 `UIIcon` 절차 드로잉으로 자물쇠/체크 아이콘 승격.
-신규 아트 없이 해결 가능.
+**작업 ✅ 완료 (2026-08-18)** — `assets/ui/icons` 47종에 **자물쇠·체크가 없어서** `UIIcon` 절차
+드로잉 경로로 갔다(항목이 제시한 두 선택지 중 후자). 신규 아트 없이 해결했다.
+
+- **`UIIcon` 에 `lock`·`check` 추가.** 자물쇠는 고리(반원 arc)+몸통+열쇠구멍, 체크는 2구간
+  폴리라인. 체크는 어두운 밑선을 먼저 깔아 대비를 만든다 — 예전 라벨이 `outline_size` 로
+  하던 역할이다.
+- **`UIListRow`** 완료 표시 `"v"` → 체크 아이콘.
+- **캐릭터 카드** — 버튼 텍스트가 여러 줄 한 덩어리라 이름 앞에 노드를 끼울 수 없다.
+  썸네일 위에 자물쇠를 얹었다. **`thumb` 의 자식으로 넣으면 잠금 시 걸리는 `modulate`(0.35)에
+  같이 어두워져 안 보인다** — 버튼에 직접 붙여 썸네일 영역 좌표에 맞췄다.
+- **아레나 카드** — 이름 라벨을 HBox 로 감싸 그 앞에 자물쇠를 두었다(`"[-] "` 접두어의 직접 대체).
+- 두 자물쇠 모두 **한 번 만들고 `visible` 만 토글**한다 — 갱신마다 노드를 만들지 않는다.
+
+**검증** — `tools/verify_ui_icons.gd` 신설(CI 추가, §3 13종): 종류 등록·`make()` 동작 ·
+**아스키 대체가 되살아나지 않는지**(주석은 제외하고 실제 코드 줄만 본다 — 왜 지웠는지 설명하는
+주석까지 잡으면 기록을 못 남긴다). `shot_menu_popups.gd` 로 세 화면의 실제 픽셀을 확인했다 —
+자물쇠가 자물쇠로, 체크가 체크로 읽힌다. `CLAUDE.md` §3 전체 + `check_text_fit.py` 통과.
+
+**작업 중 발견(범위 밖)** — `check_text_fit.py` 와 `check_gdscript.py` 는 **CI 에서 돌지 않는다**
+(`.github/workflows/export-web.yml` 에 없다). `check_text_fit.py` 는 P2-3 에서 실제 레이아웃
+버그(레벨업 제목이 패널을 밀어 넓히던 것)를 잡아낸 검사인데, 로컬에서 사람이 돌릴 때만
+작동한다. CI 에 넣으려면 컨테이너에 Python 의존이 필요해 A 레인(워크플로) 항목으로 잡는 편이 맞다.
 
 ## P2-5. CI가 회귀 테스트를 하나도 돌리지 않는다
 **근거** — `.github/workflows/export-web.yml` 은 `check_font_coverage.gd`·`check_atlas.gd` 만 실행한다.
