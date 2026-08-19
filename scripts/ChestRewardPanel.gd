@@ -450,7 +450,7 @@ func _reveal() -> void:
 	_auto_left += 1.0 + 0.34 * float(n)   # 확대+플립이 다 보이도록 자동 닫힘 여유 추가
 
 	var hint := Label.new()
-	hint.text = "tap to continue"
+	hint.text = Locale.t("tap_continue")
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 15)
 	hint.add_theme_color_override("font_color", Color(0.55, 0.58, 0.66))

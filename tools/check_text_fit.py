@@ -91,7 +91,7 @@ def main() -> None:
 
         # ── HUD (씬/코드 고정 오프셋) ──────────────────────────
         ("HUD · 골드", 168, 20, False, lit("999999")),
-        ("HUD · HP 라벨", 296, 16, False, lit("HP 999 / 999")),
+        ("HUD · HP 라벨", 296, 16, False, loc("hud_hp_fmt", (999, 999))),
         ("HUD · 처치 수", 226, 18, False, loc("hud_kills_fmt", 99999)),
         ("HUD · 타이머", 226, 28, False, lit("88:88")),
         ("HUD · 연장전 타이머", 226, 19, False,
@@ -103,7 +103,7 @@ def main() -> None:
         ("HUD · AUTO 태그", 48, 15, False, lit("AUTO")),
         ("HUD · 스웜 배너", 720, 30, False, loc("hud_swarm") + loc("hud_elite")),
         ("HUD · 보스 이름", 400, 18, False, res_strings("data/zombies.tres", "display")),
-        ("HUD · 웨이브 클리어", 580, 48, True, loc("run_cleared") + loc("wave_clear_fmt", 99)),
+        ("HUD · 배너", 580, 48, True, loc("run_cleared") + loc("boss_cleared", 9)),
         ("HUD · 일시정지 제목", 300, 34, True, loc("pause_title")),
         ("HUD · 생존 시간", 300, 18, False, loc("pause_time_fmt", "99:59")),
         ("HUD · 부활 버튼", 400 - BTN_PAD, 22, True, loc("hud_revive")),
@@ -155,15 +155,26 @@ def main() -> None:
         # ── 보상 카드(보물 상자) — 카드 폭이 고정이라 이름이 카드를 넘칠 수 있다.
         # 카드 128(4장) / 140(3장) / 152(2장 이하), 콘텐츠 여백 10*2.
         # 줄바꿈이 켜져 있으므로 "가장 긴 단어"가 기준이다.
+        ("보상 카드 · 계속 안내", 640, 18, False, loc("tap_continue")),
         ("보상 카드 · 이름(4장)", 128 - 20, 14, False, chest_texts, "word"),
         ("보상 카드 · 이름(3장)", 140 - 20, 14, False, chest_texts, "word"),
 
         # ── 레벨업 카드 — vb 440, 좌측 슬롯(12+68+12=92) + 우측 여백 18 ──
+        # 레벨업 모달 제목 — 레벨업마다 뜨는 최다 노출 문구(P2-3 에서 로케일화).
+        ("레벨업 · 제목", 440, 34, False, loc("levelup_title_fmt", 99), "word"),
+
         ("레벨업 카드", 440 - 92 - 18, 19, True,
          [("data", "%s  (%s)" % (n, "NEW")) for _, n in res_strings("data/item_catalog.tres", "display")]
          + res_strings("data/item_catalog.tres", "desc"), "word"),
 
         # ── 캐릭터 선택 카드 — 전체화면 팝업 612, 좌측 썸네일 여백 172 + 우측 18 ──
+        # 해금 힌트 — 캐릭터/아레나 카드가 같은 문구를 쓴다(P2-3 에서 로케일화·중복 제거).
+        ("카드 · 해금 힌트", 612 - 32, 15, False,
+         loc("unlock_cost_fmt", 9999) + loc("locked") + loc("locked_by_ach")
+         + [(lang, v % "achievement description here") for lang, v in loc("locked_by_fmt")], "word"),
+        # 팝업 셸 상단의 보유 골드 줄.
+        ("팝업 · 골드 라벨", 616, 20, False, loc("gold_fmt", 999999)),
+
         ("캐릭터 카드", 612 - 172 - 18, 19, True,
          res_strings("data/character_db.tres", "display")
          + res_strings("data/character_db.tres", "desc"), "word"),

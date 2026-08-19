@@ -626,7 +626,39 @@ CJK 글자를 개별 단위로 세도록 고쳤다 — 이 검사를 쓰는 다�
 | `MainMenu.gd:575,1026,1214,1300` | `"Gold: %d"` | 4곳 중복 |
 | `ChestRewardPanel.gd:453` | `"tap to continue"` | |
 | `HUD.gd:377` | `"HP %d / %d"` | 숫자 포맷이라 우선순위 낮음 |
-**작업** — `Locale.gd` 키 추가(en/ko/ja) 후 치환. 추가 후 반드시 폰트 커버리지 검사 실행.
+**작업 ✅ 완료 (2026-08-18)** — 표의 4건 + **표에 없던 2건**을 함께 처리했다.
+
+| 위치 | 문자열 | 키 |
+|---|---|---|
+| `LevelUpPanel` | `LEVEL %d · CHOOSE AN UPGRADE` | `levelup_title_fmt` |
+| `MainMenu` ×4 | `Gold: %d` | `gold_fmt` |
+| `ChestRewardPanel` | `tap to continue` | `tap_continue` |
+| `HUD` | `HP %d / %d` | `hud_hp_fmt` |
+| **`MainMenu` ×2세트(발견)** | `Unlock: %d gold (tap to buy)` · `Locked — %s` · `Locked` · `complete an achievement` | `unlock_cost_fmt` · `locked_by_fmt` · `locked` · `locked_by_ach` |
+| **`ItemPickup`(발견)** | `Bomb` · `Evolution` · `Treasure` (월드에 `draw_string`) | `pickup_*` |
+
+캐릭터/아레나 해금 힌트는 **같은 문구가 두 곳에 복붙**돼 있어 로케일화가 곧 중복 제거였다.
+
+**남긴 것** — `HUD.gd:742` 의 `"Lv"`(레벨 캡슐)은 en/ko/ja 공통 약어라 그대로 뒀다.
+`UIListRow.gd:235` 의 `"v"` 는 **P2-4** 소관(아스키 체크 → 아이콘)이라 손대지 않았다.
+치트 메뉴 문구(`CHEATS`·`AUTO-PLAY` 등)는 릴리스에서 사라지는 개발 도구라 로케일화 대상이 아니다.
+
+**⚠️ 로케일화가 숨은 레이아웃 버그를 드러냈다** — 레벨업 제목은 34px 에서 영어 기준 **544px**로
+패널 폭(440)을 넘겨 **패널 자체를 밀어 넓히고** 있었다. 프레임에 글자가 닿아 여백이 사라진
+상태였는데, 하드코딩 영어라 `check_text_fit.py` 의 검사 대상이 아니어서 아무도 몰랐다.
+크기를 줄이는 대신 줄바꿈(`AUTOWRAP_WORD_SMART` + 최소폭 440)을 켜 해결했다 — 제목의 위계를
+지키면서 패널이 의도한 폭으로 돌아온다. 한국어는 한 줄, 영어·일본어는 두 줄이다.
+
+**폰트 재서브셋** — 새 문구로 글리프 18자가 늘어 `CLAUDE.md` §2 의 재서브셋이 필요했다.
+`subset_fonts.py` 문서의 절차(`git cat-file` 로 서브셋 이전 원본 복원 → 재서브셋)를 따랐는데,
+**이 저장소는 얕은 클론이라 그 커밋이 없어 `git fetch --unshallow` 가 먼저 필요했다.**
+복원 후에도 `김`·`化` 두 자는 그 "원본"에도 없어(1.2MB 부분 서브셋이다) 가용 글자로 문구를
+바꿨다: `잠김`→`잠금`, `強化を選択`→`アップグレード選択`, `進化`→`エボリューション`.
+폰트 114KB → 122KB(+8KB).
+
+**검증** — `check_text_fit.py` 에 새 문구 케이스 5종 추가(레벨업 제목·해금 힌트·골드 라벨·
+계속 안내·HP 라벨). `tools/shot_levelup.gd` 신설해 **en/ko/ja 세 언어를 실제로 렌더**해
+두부(□) 없이 나오는지 눈으로 확인했다(언어 인자를 받는다). `CLAUDE.md` §3 전체 통과.
 
 ## P2-4. 폰트 서브셋 회피용 아스키 대체가 UI 품질을 깎는다
 `MainMenu.gd:590,1236` 잠금 표시 `"[-]"` · `UIListRow.gd:235` 체크 `"v"`.

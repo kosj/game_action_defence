@@ -93,6 +93,29 @@ const STRINGS: Dictionary = {
 	"rewards_claim_all": {"en": "CLAIM ALL", "ko": "모두 받기", "ja": "すべて受け取る"},
 	"rewards_total_fmt": {"en": "Total waiting  %d", "ko": "대기 중 합계  %d", "ja": "トータル  %d"},
 
+	# ── 공용: 골드·해금 상태 (P2-3, 캐릭터/아레나 팝업이 함께 쓴다) ──────────
+	"gold_fmt":        {"en": "Gold: %d", "ko": "골드: %d", "ja": "ゴールド: %d"},
+	"unlock_cost_fmt": {"en": "Unlock: %d gold  (tap to buy)",
+						"ko": "해금: %d 골드  (탭하여 구매)",
+						"ja": "解放: %d ゴールド（タップで購入）"},
+	"locked":          {"en": "Locked", "ko": "잠금", "ja": "ロック"},
+	"locked_by_fmt":   {"en": "Locked — %s", "ko": "잠금 — %s", "ja": "ロック — %s"},
+	"locked_by_ach":   {"en": "complete an achievement", "ko": "도전과제 달성 필요",
+						"ja": "実績の達成が必要"},
+
+	# ── 레벨업 모달 (레벨업마다 뜬다 — 인게임 최다 노출) ────────────────────
+	"levelup_title_fmt": {"en": "LEVEL %d  ·  CHOOSE AN UPGRADE",
+						  "ko": "레벨 %d  ·  강화 선택",
+						  "ja": "レベル %d  ·  アップグレード選択"},
+
+	# ── 보물상자 보상 카드 ────────────────────────────────────────────────
+	"tap_continue":    {"en": "tap to continue", "ko": "탭하여 계속", "ja": "タップでつづける"},
+
+	# ── 필드 아이템 픽업 라벨(월드에 그린다) ───────────────────────────────
+	"pickup_bomb":     {"en": "Bomb", "ko": "폭탄", "ja": "ボム"},
+	"pickup_evolution": {"en": "Evolution", "ko": "진화", "ja": "エボリューション"},
+	"pickup_treasure": {"en": "Treasure", "ko": "보물", "ja": "宝箱"},
+
 	# ── 랭킹 오버레이 ─────────────────────────────────────────────────────
 	"rank_title":      {"en": "RANKING",     "ko": "랭킹",      "ja": "ランキング"},
 	"rank_local_note": {"en": "Best score per mode (this device)",
@@ -107,6 +130,7 @@ const STRINGS: Dictionary = {
 
 	# ── HUD (포맷 문자열은 %d 자리 유지) ──────────────────────────────────
 	"hud_score_fmt":   {"en": "Score %d",   "ko": "점수 %d",   "ja": "スコア %d"},
+	"hud_hp_fmt":      {"en": "HP %d / %d", "ko": "체력 %d / %d", "ja": "HP %d / %d"},
 	"hud_best_fmt":    {"en": "Best %d",    "ko": "최고 %d",   "ja": "ベスト %d"},
 	"hud_kills_fmt":   {"en": "%d Kills",   "ko": "%d 처치",   "ja": "%d 体"},
 	"boss_cleared":    {"en": "Boss %d Clear!", "ko": "보스 %d 클리어!", "ja": "ボス %d クリア！"},

@@ -91,6 +91,11 @@ func _build_ui() -> void:
 
 	_title = Label.new()
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# 영어 제목("LEVEL 99  ·  CHOOSE AN UPGRADE")은 34px 에서 544px 라 패널 폭(440)을 넘겨
+	# 패널 자체를 밀어 넓히고 있었다 — 프레임에 글자가 닿아 여백이 사라진다(실렌더 확인, P2-3).
+	# 크기를 줄이는 대신 줄바꿈을 켠다. 한국어·일본어는 짧아 한 줄로 유지된다.
+	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_title.custom_minimum_size = Vector2(440, 0)
 	_title.add_theme_font_size_override("font_size", 34)
 	_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	vb.add_child(_title)
@@ -156,7 +161,7 @@ func _refresh() -> void:
 	# 대기 레벨업이 많이 쌓여도 스택이 깊어지지 않게 한다.
 	var choices: Array = []
 	while _pending > 0:
-		_title.text = "LEVEL %d  ·  CHOOSE AN UPGRADE" % Events.level
+		_title.text = Locale.t("levelup_title_fmt") % Events.level
 		choices = _draw_choices(3)
 		if not choices.is_empty():
 			break

@@ -471,7 +471,7 @@ func _build_character_panel() -> void:
 ## 오버레이 카드 갱신 — 선택/잠금/구매 상태를 반영.
 func _refresh_character() -> void:
 	if _char_gold_label:
-		_char_gold_label.text = "Gold: %d" % MetaManager.meta_gold
+		_char_gold_label.text = Locale.t("gold_fmt") % MetaManager.meta_gold
 	var sel := CharacterManager.selected_id()
 	for row in _char_rows:
 		var c: CharacterData = row["c"]
@@ -514,11 +514,11 @@ func _char_stat_line(c: CharacterData) -> String:
 ## 잠긴 캐릭터의 해금 조건 안내 문구.
 func _unlock_hint(c: CharacterData) -> String:
 	if c.unlock_cost > 0:
-		return "Unlock: %d gold  (tap to buy)" % c.unlock_cost
+		return Locale.t("unlock_cost_fmt") % c.unlock_cost
 	if c.unlock_achievement != "":
 		var a: AchievementData = GameData.achievement(c.unlock_achievement)
-		return "Locked — %s" % (a.desc if a != null else "complete an achievement")
-	return "Locked"
+		return Locale.t("locked_by_fmt") % (a.desc if a != null else Locale.t("locked_by_ach"))
+	return Locale.t("locked")
 
 
 func _on_char_pick(id: String) -> void:
@@ -754,7 +754,7 @@ func _on_claim_all_pressed() -> void:
 func _refresh_meta_gold_labels() -> void:
 	for lbl in [_power_gold_label, _char_gold_label, _theme_gold_label]:
 		if lbl != null and lbl.text != "":
-			lbl.text = "Gold: %d" % MetaManager.meta_gold
+			lbl.text = Locale.t("gold_fmt") % MetaManager.meta_gold
 
 
 func _on_rewards_pressed() -> void:
@@ -894,7 +894,7 @@ func _build_theme_panel() -> void:
 
 func _refresh_theme() -> void:
 	if _theme_gold_label:
-		_theme_gold_label.text = "Gold: %d" % MetaManager.meta_gold
+		_theme_gold_label.text = Locale.t("gold_fmt") % MetaManager.meta_gold
 	var sel := ThemeManager.selected_id()
 	for row in _theme_rows:
 		var t: ThemeData = row["t"]
@@ -927,11 +927,11 @@ func _refresh_theme() -> void:
 
 func _theme_unlock_hint(t: ThemeData) -> String:
 	if t.unlock_cost > 0:
-		return "Unlock: %d gold  (tap to buy)" % t.unlock_cost
+		return Locale.t("unlock_cost_fmt") % t.unlock_cost
 	if t.unlock_achievement != "":
 		var a: AchievementData = GameData.achievement(t.unlock_achievement)
-		return "Locked — %s" % (a.desc if a != null else "complete an achievement")
-	return "Locked"
+		return Locale.t("locked_by_fmt") % (a.desc if a != null else Locale.t("locked_by_ach"))
+	return Locale.t("locked")
 
 
 func _on_theme_pressed() -> void:
@@ -977,7 +977,7 @@ func _on_theme_pick(id: String) -> void:
 
 
 func _refresh_power() -> void:
-	_power_gold_label.text = "Gold: %d" % MetaManager.meta_gold
+	_power_gold_label.text = Locale.t("gold_fmt") % MetaManager.meta_gold
 	for row in _power_rows:
 		var u: Dictionary = row["u"]
 		var id: String = String(u["id"])

@@ -70,6 +70,10 @@ godot --headless --path . --script res://tools/gen_theme_data.gd
 ### 화면에 나오는 문자열은 전부 `Locale` 키로
 지원 언어 **en/ko/ja 3종**(`Locale.SUPPORTED`). 폰트는 "실제로 쓰는 글자만" 남긴 서브셋이라,
 키 없이 하드코딩하면 **없는 글자가 두부(□)로 뜬다.** 특히 일본어 신규 한자를 조심한다.
+⚠️ 서브셋 이전 원본은 git 히스토리에만 있고(`subset_fonts.py` 문서 참고), **이 저장소는 얕은
+클론으로 시작하므로 `git fetch --unshallow` 를 먼저 해야 그 커밋이 보인다.** 그 원본조차 1.2MB
+부분 서브셋이라 없는 글자가 있다(`김`·`化` 등) — 없으면 그 글자를 피해 문구를 바꾸는 편이 빠르다.
+
 문자열 추가 후 반드시:
 ```sh
 godot --headless --path . --script res://tools/check_font_coverage.gd   # CI 게이트와 동일
