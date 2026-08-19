@@ -90,6 +90,39 @@ region 이 그 자리에 새로 들어온 다른 그림을 가리켜 엉뚱한 �
 캐릭터 러닝 시트는 아틀라스에 넣어도 된다 — `Sprite2D.hframes` 는 AtlasTexture 의 region 을
 분할하므로 그대로 동작한다(실측 확인).
 
+### 알파는 `modulate` 가 아니라 텍스처에 굽는다
+
+Godot 의 2D 배처는 연속해서 그리는 아이템이 같은 텍스처·같은 머티리얼일 때만 묶는다 —
+그리고 **`modulate` 가 다르면 그것만으로도 배치가 끊긴다.** 아틀라스로 텍스처를 통일해도
+여기서 새는 것을 한동안 못 봤다.
+
+실제로 그랬다. `Zombie.tscn` 의 `Shadow` 에 `modulate = Color(1,1,1,0.5)` 가 걸려 있어
+좀비마다 `그림자(α0.5) → 몸통(흰색)` 이 번갈아 나오며 아이템마다 배치가 끊겼다.
+좀비 320마리 실측(실렌더):
+
+| | 드로우 콜 | 아이템 |
+|---|---|---|
+| 그림자에 modulate 0.5 | 152 | 188 |
+| **modulate 를 없애고 알파를 텍스처에 구움** | **37** | 176 |
+
+그림자는 **그대로 다 그려지는데**(아이템 수 동일) 드로우 콜만 1/4 이 됐다. 전체 게임에서도
+435 → 239(-45%)다. 외형 차이는 최대 1/255(손실 압축 반올림 수준)로 사실상 없다.
+
+**그래서 개체가 수백인 유닛의 스프라이트에는 `modulate` 를 걸지 않는다.** 반투명이 필요하면
+알파를 구운 전용 PNG 를 만든다 — 좀비 그림자가 `shadow.png` 대신 `shadow_soft.png`
+(알파 ×0.5)를 쓰는 이유다. 나머지(플레이어·보스·터렛·프롭·지뢰)는 알파가 제각각인 데다
+개체가 한둘이라 공유 `shadow.png` 를 그대로 쓴다 — 그쪽 배치가 한 번 끊기는 건 무시할 만하다.
+
+```bash
+godot --headless --script res://tools/verify_batching.gd   # CI 도 이걸 돌린다
+```
+
+이 검사가 핫 씬(좀비)의 스프라이트에 `modulate`/`self_modulate` 가 걸리거나 서로 다른
+아틀라스를 쓰면 빌드를 실패시킨다. **눈으로는 안 보이고 프레임만 깎이는 종류**라 안전망이 필요하다.
+
+프레임 부하를 실제로 재려면 `tools/profile_frame.gd` (실렌더 프로파일러)를 쓴다 —
+헤드리스는 더미 렌더러라 드로우 콜이 전부 0 이다.
+
 ### 안 쓰는 그림은 저장소에 두지 않는다
 
 아틀라스에서 안 쓰는 그림은 "용량이 조금 늘어나는" 정도가 아니다. **시트 한 변이 한 단계
@@ -148,8 +181,9 @@ region 이 그 자리에 새로 들어온 다른 그림을 가리켜 엉뚱한 �
 ### 검사
 
 ```bash
-python3 tools/build_atlas.py --check          # 아틀라스가 원본과 최신인지
-godot --headless --script res://tools/check_atlas.gd   # 직접 참조 / 크기 불일치
+python3 tools/build_atlas.py --check                      # 아틀라스가 원본과 최신인지
+godot --headless --script res://tools/check_atlas.gd      # 직접 참조 / 크기 불일치
+godot --headless --script res://tools/verify_batching.gd  # 핫 씬의 modulate·아틀라스 일치
 ```
 
 CI(`Check texture atlas`)가 같은 검사를 돌려 **빌드를 실패시킨다**. 잡는 것은 두 가지다.

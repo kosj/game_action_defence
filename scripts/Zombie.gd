@@ -218,7 +218,14 @@ func _face(dir: Vector2) -> void:
 
 
 ## 그림자를 스프라이트 폭에 비례하는 납작한 타원으로, 캐릭터 발밑(스프라이트 하단)에 배치.
-## shadow.png 는 128x72. 그림자는 Body 플립과 무관하게 루트 자식이라 항상 고정.
+## 그림자 텍스처(shadow_soft.png)는 128x72. 그림자는 Body 플립과 무관하게 루트 자식이라 항상 고정.
+##
+## ⚠️ 그림자는 **modulate 를 걸지 않는다.** 알파 0.5 는 shadow_soft.png 에 구워져 있다.
+## Godot 캔버스 배처는 연속된 아이템의 modulate 가 다르면 배치를 끊는다 — 예전에는
+## 그림자에 modulate = Color(1,1,1,0.5) 가 걸려 있어 좀비마다 그림자(a0.5) -> 몸통(흰색)이
+## 번갈아 나오며 **아이템마다 배칭이 깨졌다**(좀비 320마리 실측: 드로우 콜 152 -> 39).
+## 다른 곳(Player/Boss/Turret/PropField/LandMine)은 알파가 제각각이라 공유 텍스처
+## shadow.png 를 그대로 쓴다 — 좀비만 개체가 수백이라 전용 텍스처를 따로 둔 것이다.
 func _fit_shadow() -> void:
 	if body.texture == null:
 		return

@@ -67,6 +67,9 @@ jobs:
       - name: Check texture atlas
         run: godot --headless --script res://tools/check_atlas.gd
 
+      - name: Check canvas batching
+        run: godot --headless --script res://tools/verify_batching.gd
+
       # 회귀 테스트 — 씬 7종은 get_tree().quit(0/1), verify_*.gd 는 quit(실패건수) 로
       # 성패를 종료 코드에 담는다. 따라서 실행 줄만 있으면 CI 게이트가 된다(로그 파싱 불필요).
       # 셸이 dash 라 pipefail 을 못 쓰므로, 파이프 없이 한 줄씩 그대로 실행한다.
