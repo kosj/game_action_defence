@@ -3,7 +3,7 @@ extends SceneTree
 ##
 ## 실행(한 판):
 ##   godot --headless --path . --fixed-fps 60 --script res://tools/sim_balance.gd -- \
-##       character=veteran theme=suburb maxmin=30 seed=1 persona=greedy
+##       character=veteran theme=suburb maxmin=30 seed=1 persona=greedy threat=1
 ##
 ## 여러 판 반복·집계·판정은 `tools/sim_balance.py` 가 한다 — 이 스크립트는 한 판만 본다.
 ## 판을 프로세스마다 새로 띄우는 이유: 오토로드(메타 골드·과제·퀘스트)와 오브젝트 풀이
@@ -86,6 +86,7 @@ func _setup() -> void:
 
 	_pick("CharacterManager", "character", func(gd, id): return gd.character(id))
 	_pick("ThemeManager", "theme", func(gd, id): return _theme_by_id(gd, id))
+	_pick_threat()
 
 	_events.player_died.connect(_on_died)
 	_events.player_health_changed.connect(_on_hp)
@@ -104,6 +105,18 @@ func _setup() -> void:
 	var cheats := root.get_node("Cheats")
 	cheats.autoplay_persona = String(_args.get("persona", "random"))
 	cheats.autoplay = true
+
+
+## 위협 등급 선택(P1-12). 해금 게이트를 우회하는 것은 캐릭터/테마와 같은 이유다 —
+## 등급 5의 곡선을 재려고 등급 5까지 실제로 플레이할 수는 없다.
+func _pick_threat() -> void:
+	var r := int(_args.get("threat", "1"))
+	if r <= 1:
+		return
+	var tm := root.get_node("ThreatManager")
+	tm._max_rank = maxi(tm._max_rank, mini(r, tm.count()))
+	if not tm.select(r):
+		push_warning("sim_balance: 위협 등급 %d 를 선택할 수 없다 — %d 로 진행" % [r, tm.selected_rank()])
 
 
 ## 캐릭터/테마 선택. 해금 게이트(구매·도전과제)는 측정 목적상 우회한다 —
@@ -181,6 +194,7 @@ func _finish(el: float) -> void:
 		"character": cm.selected_id(),
 		"theme": tm.selected_id(),
 		"seed": int(_args.get("seed", "0")),
+		"threat": root.get_node("ThreatManager").selected_rank(),
 		"survived_s": snappedf(el, 0.1),
 		"died": _died,
 		"cleared": _cleared,

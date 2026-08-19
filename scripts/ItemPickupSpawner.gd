@@ -17,8 +17,10 @@ var _game_over: bool = false
 
 func _ready() -> void:
 	# 스폰 주기/상한은 밸런스 테이블(res://data/balance.tres)에서.
-	spawn_interval_min = GameData.balance.chest_interval_min
-	spawn_interval_max = GameData.balance.chest_interval_max
+	# 위협 등급이 주기를 늘린다(P1-12) — 상자가 귀해진다. 등급 1 은 1.0 배라 기존과 같다.
+	var chest_mult := ThreatManager.chest_interval_mult()
+	spawn_interval_min = GameData.balance.chest_interval_min * chest_mult
+	spawn_interval_max = GameData.balance.chest_interval_max * chest_mult
 	max_active = GameData.balance.chest_max_active
 	player = get_tree().get_first_node_in_group("player")
 	Events.player_died.connect(func(): _game_over = true)

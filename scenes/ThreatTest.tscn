@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://cthreattst001"]
+
+[ext_resource type="Script" path="res://scenes/ThreatTest.gd" id="1_thrt"]
+
+[node name="ThreatTest" type="Node"]
+script = ExtResource("1_thrt")

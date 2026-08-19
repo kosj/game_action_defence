@@ -5,6 +5,7 @@ extends CanvasLayer
 const _UIPopup := preload("res://scripts/UIPopup.gd")
 const _UIStyle := preload("res://scripts/UIStyle.gd")
 const _CodexPanel := preload("res://scripts/CodexPanel.gd")
+const _ThreatPanel := preload("res://scripts/ThreatPanel.gd")
 const _IntroStory := preload("res://scripts/IntroStory.gd")
 
 ## 난이도 인덱스 → Locale 키
@@ -21,6 +22,8 @@ var _codex_btn: Button
 ## 도감은 **처음 열 때 만든다.** 좀비·보스 아이콘이 게임플레이 아틀라스(767KB)에 있어
 ## 메뉴 진입 시점에 조립하면 도감을 열지 않는 사람까지 그 페이지를 올리게 된다.
 var _codex: RefCounted = null
+## 위협 등급 선택도 처음 열 때 만든다(도감과 같은 이유 — 안 여는 사람의 비용을 늘리지 않는다).
+var _threat: RefCounted = null
 var _options_dim: ColorRect
 var _options_panel: PanelContainer
 var _options_title: Label
@@ -406,6 +409,40 @@ func _build_power_panel() -> void:
 			btn.add_child(tr)
 			_UIStyle.set_button_content_margin_left(btn, 86)
 		_power_rows.append({"btn": btn, "u": u})
+
+
+## 위협 등급 선택 열기. 첫 호출에서만 패널을 만든다.
+func _open_threat() -> void:
+	if _threat == null:
+		_threat = _ThreatPanel.new()
+		_threat.build(self, _on_threat_close, _on_threat_picked)
+	_threat.refresh()
+	_threat.dim.visible = true
+	_threat.panel.visible = true
+
+
+func _on_threat_close() -> void:
+	if _threat == null:
+		return
+	_threat.dim.visible = false
+	_threat.panel.visible = false
+	# 새 게임 흐름 중이었다면 닫기도 "고른 등급으로 진행"이다(현재 선택은 항상 유효하다).
+	if _newgame_flow:
+		_finish_newgame_flow()
+
+
+func _on_threat_picked() -> void:
+	_threat.dim.visible = false
+	_threat.panel.visible = false
+	_finish_newgame_flow()
+
+
+## 새 게임 흐름의 끝 — 서사 인트로를 보여준 뒤(완료/건너뛰기 시) 실제 시작.
+func _finish_newgame_flow() -> void:
+	if not _newgame_flow:
+		return
+	_newgame_flow = false
+	_IntroStory.play(self, _start_new_game)
 
 
 ## 도감 열기. 첫 호출에서만 패널을 만든다(위 _codex 주석 참고).
@@ -1028,11 +1065,14 @@ func _on_theme_pick(id: String) -> void:
 		SoundManager.play_ui("player_hurt", 0.2, 1.0)
 	_refresh_theme()
 	if picked and _newgame_flow:
-		_newgame_flow = false
 		_theme_dim.visible = false
 		_theme_panel.visible = false
-		# 마지막 단계: 서사 인트로를 보여준 뒤(완료/건너뛰기 시) 실제 시작
-		_IntroStory.play(self, _start_new_game)
+		# 다음 단계: 위협 등급. 해금된 등급이 하나뿐이면 고를 것이 없으므로 건너뛴다 —
+		# 새 플레이어에게 선택지 없는 화면을 세우지 않는다(P1-12).
+		if ThreatManager.max_rank() > 1:
+			_open_threat()
+		else:
+			_finish_newgame_flow()
 
 
 func _refresh_power() -> void:
@@ -1144,6 +1184,8 @@ func _apply_language() -> void:
 	_codex_btn.text = Locale.t("menu_codex")
 	if _codex != null:
 		_codex.apply_language()
+	if _threat != null:
+		_threat.apply_language()
 	_refresh_rewards_badge()   # 보상 버튼 라벨도 로케일에서 가져온다
 	_lang_title.text = Locale.t("menu_language")
 	_sound_title.text = Locale.t("menu_sound")

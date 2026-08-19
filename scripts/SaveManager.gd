@@ -76,6 +76,7 @@ func save_game(player: Node) -> void:
 		# 스탯·트레잇·외형·궁극기가 통째로 달라진다.
 		"character_id": CharacterManager.selected_id(),
 		"theme_id": ThemeManager.selected_id(),
+		"threat_rank": ThreatManager.selected_rank(),   # 이어하기가 다른 등급으로 재개되지 않게
 		"total_gold": Events.total_gold,
 		"total_kills": Events.total_kills,
 		"score": Events.score,
@@ -181,6 +182,12 @@ func _restore_selection(data: Dictionary) -> void:
 	if tid != "" and tid != ThemeManager.selected_id() and not ThemeManager.select(tid):
 		push_warning("[SaveManager] 저장된 아레나 '%s' 를 선택할 수 없어 '%s' 로 이어간다"
 			% [tid, ThemeManager.selected_id()])
+	# 위협 등급(P1-12). 등급이 바뀐 채 이어지면 저장 시점과 다른 난이도로 재개된다.
+	# 구버전 세이브에는 이 키가 없다 — 그때는 등급 1로 본다(그 시절의 난이도가 그것이다).
+	var rank := int(data.get("threat_rank", 1))
+	if rank != ThreatManager.selected_rank() and not ThreatManager.select(rank):
+		push_warning("[SaveManager] 저장된 위협 등급 %d 를 선택할 수 없어 %d 로 이어간다"
+			% [rank, ThreatManager.selected_rank()])
 
 
 ## 카탈로그에서 사라진 아이템 id 를 걷어낸다(예: 삭제된 성수/십자가).

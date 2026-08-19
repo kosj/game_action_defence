@@ -1,0 +1,268 @@
+[gd_resource type="Resource" script_class="ThreatRankDB" load_steps=23 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/ThreatRankData.gd" id="1_ml3ys"]
+[ext_resource type="Script" path="res://scripts/data/ThreatRankDB.gd" id="2_6fmlp"]
+
+[sub_resource type="Resource" id="Resource_vpr5u"]
+script = ExtResource("1_ml3ys")
+rank = 1
+enemy_hp_mult = 1.0
+enemy_speed_mult = 1.0
+boss_hp_mult = 1.0
+chest_interval_mult = 1.0
+elite_interval_mult = 1.0
+boss_heal_charges_add = 0
+start_health_add = 0
+rule_key = ""
+rule_amount = ""
+
+[sub_resource type="Resource" id="Resource_28jjj"]
+script = ExtResource("1_ml3ys")
+rank = 2
+enemy_hp_mult = 1.1
+enemy_speed_mult = 1.0
+boss_hp_mult = 1.0
+chest_interval_mult = 1.0
+elite_interval_mult = 1.0
+boss_heal_charges_add = 0
+start_health_add = 0
+rule_key = "threat_rule_enemy_hp"
+rule_amount = "+10%"
+
+[sub_resource type="Resource" id="Resource_y2u4n"]
+script = ExtResource("1_ml3ys")
+rank = 3
+enemy_hp_mult = 1.1
+enemy_speed_mult = 1.0
+boss_hp_mult = 1.0
+chest_interval_mult = 1.25
+elite_interval_mult = 1.0
+boss_heal_charges_add = 0
+start_health_add = 0
+rule_key = "threat_rule_chest"
+rule_amount = "+25%"
+
+[sub_resource type="Resource" id="Resource_tc062"]
+script = ExtResource("1_ml3ys")
+rank = 4
+enemy_hp_mult = 1.1
+enemy_speed_mult = 1.0
+boss_hp_mult = 1.0
+chest_interval_mult = 1.25
+elite_interval_mult = 1.0
+boss_heal_charges_add = 1
+start_health_add = 0
+rule_key = "threat_rule_boss_heal"
+rule_amount = "+1"
+
+[sub_resource type="Resource" id="Resource_2dy02"]
+script = ExtResource("1_ml3ys")
+rank = 5
+enemy_hp_mult = 1.1
+enemy_speed_mult = 1.0
+boss_hp_mult = 1.0
+chest_interval_mult = 1.25
+elite_interval_mult = 1.0
+boss_heal_charges_add = 1
+start_health_add = -1
+rule_key = "threat_rule_start_hp"
+rule_amount = "-1"
+
+[sub_resource type="Resource" id="Resource_tkf32"]
+script = ExtResource("1_ml3ys")
+rank = 6
+enemy_hp_mult = 1.1
+enemy_speed_mult = 1.0
+boss_hp_mult = 1.0
+chest_interval_mult = 1.25
+elite_interval_mult = 0.8
+boss_heal_charges_add = 1
+start_health_add = -1
+rule_key = "threat_rule_elite"
+rule_amount = "-20%"
+
+[sub_resource type="Resource" id="Resource_c7f8t"]
+script = ExtResource("1_ml3ys")
+rank = 7
+enemy_hp_mult = 1.1
+enemy_speed_mult = 1.05
+boss_hp_mult = 1.0
+chest_interval_mult = 1.25
+elite_interval_mult = 0.8
+boss_heal_charges_add = 1
+start_health_add = -1
+rule_key = "threat_rule_enemy_speed"
+rule_amount = "+5%"
+
+[sub_resource type="Resource" id="Resource_blkqe"]
+script = ExtResource("1_ml3ys")
+rank = 8
+enemy_hp_mult = 1.21
+enemy_speed_mult = 1.05
+boss_hp_mult = 1.0
+chest_interval_mult = 1.25
+elite_interval_mult = 0.8
+boss_heal_charges_add = 1
+start_health_add = -1
+rule_key = "threat_rule_enemy_hp"
+rule_amount = "+10%"
+
+[sub_resource type="Resource" id="Resource_qmftc"]
+script = ExtResource("1_ml3ys")
+rank = 9
+enemy_hp_mult = 1.21
+enemy_speed_mult = 1.05
+boss_hp_mult = 1.15
+chest_interval_mult = 1.25
+elite_interval_mult = 0.8
+boss_heal_charges_add = 1
+start_health_add = -1
+rule_key = "threat_rule_boss_hp"
+rule_amount = "+15%"
+
+[sub_resource type="Resource" id="Resource_5pn2f"]
+script = ExtResource("1_ml3ys")
+rank = 10
+enemy_hp_mult = 1.21
+enemy_speed_mult = 1.05
+boss_hp_mult = 1.15
+chest_interval_mult = 1.5625
+elite_interval_mult = 0.8
+boss_heal_charges_add = 1
+start_health_add = -1
+rule_key = "threat_rule_chest"
+rule_amount = "+25%"
+
+[sub_resource type="Resource" id="Resource_tvoed"]
+script = ExtResource("1_ml3ys")
+rank = 11
+enemy_hp_mult = 1.21
+enemy_speed_mult = 1.05
+boss_hp_mult = 1.15
+chest_interval_mult = 1.5625
+elite_interval_mult = 0.8
+boss_heal_charges_add = 1
+start_health_add = -2
+rule_key = "threat_rule_start_hp"
+rule_amount = "-1"
+
+[sub_resource type="Resource" id="Resource_3t2q7"]
+script = ExtResource("1_ml3ys")
+rank = 12
+enemy_hp_mult = 1.21
+enemy_speed_mult = 1.1025
+boss_hp_mult = 1.15
+chest_interval_mult = 1.5625
+elite_interval_mult = 0.8
+boss_heal_charges_add = 1
+start_health_add = -2
+rule_key = "threat_rule_enemy_speed"
+rule_amount = "+5%"
+
+[sub_resource type="Resource" id="Resource_85cm6"]
+script = ExtResource("1_ml3ys")
+rank = 13
+enemy_hp_mult = 1.21
+enemy_speed_mult = 1.1025
+boss_hp_mult = 1.15
+chest_interval_mult = 1.5625
+elite_interval_mult = 0.64
+boss_heal_charges_add = 1
+start_health_add = -2
+rule_key = "threat_rule_elite"
+rule_amount = "-20%"
+
+[sub_resource type="Resource" id="Resource_ra6fx"]
+script = ExtResource("1_ml3ys")
+rank = 14
+enemy_hp_mult = 1.3915
+enemy_speed_mult = 1.1025
+boss_hp_mult = 1.15
+chest_interval_mult = 1.5625
+elite_interval_mult = 0.64
+boss_heal_charges_add = 1
+start_health_add = -2
+rule_key = "threat_rule_enemy_hp"
+rule_amount = "+15%"
+
+[sub_resource type="Resource" id="Resource_86hj2"]
+script = ExtResource("1_ml3ys")
+rank = 15
+enemy_hp_mult = 1.3915
+enemy_speed_mult = 1.1025
+boss_hp_mult = 1.15
+chest_interval_mult = 1.5625
+elite_interval_mult = 0.64
+boss_heal_charges_add = 2
+start_health_add = -2
+rule_key = "threat_rule_boss_heal"
+rule_amount = "+1"
+
+[sub_resource type="Resource" id="Resource_suudf"]
+script = ExtResource("1_ml3ys")
+rank = 16
+enemy_hp_mult = 1.3915
+enemy_speed_mult = 1.1025
+boss_hp_mult = 1.3225
+chest_interval_mult = 1.5625
+elite_interval_mult = 0.64
+boss_heal_charges_add = 2
+start_health_add = -2
+rule_key = "threat_rule_boss_hp"
+rule_amount = "+15%"
+
+[sub_resource type="Resource" id="Resource_1swew"]
+script = ExtResource("1_ml3ys")
+rank = 17
+enemy_hp_mult = 1.3915
+enemy_speed_mult = 1.15763
+boss_hp_mult = 1.3225
+chest_interval_mult = 1.5625
+elite_interval_mult = 0.64
+boss_heal_charges_add = 2
+start_health_add = -2
+rule_key = "threat_rule_enemy_speed"
+rule_amount = "+5%"
+
+[sub_resource type="Resource" id="Resource_387ts"]
+script = ExtResource("1_ml3ys")
+rank = 18
+enemy_hp_mult = 1.3915
+enemy_speed_mult = 1.15763
+boss_hp_mult = 1.3225
+chest_interval_mult = 1.95312
+elite_interval_mult = 0.64
+boss_heal_charges_add = 2
+start_health_add = -2
+rule_key = "threat_rule_chest"
+rule_amount = "+25%"
+
+[sub_resource type="Resource" id="Resource_geaup"]
+script = ExtResource("1_ml3ys")
+rank = 19
+enemy_hp_mult = 1.60023
+enemy_speed_mult = 1.15763
+boss_hp_mult = 1.3225
+chest_interval_mult = 1.95312
+elite_interval_mult = 0.64
+boss_heal_charges_add = 2
+start_health_add = -2
+rule_key = "threat_rule_enemy_hp"
+rule_amount = "+15%"
+
+[sub_resource type="Resource" id="Resource_xb581"]
+script = ExtResource("1_ml3ys")
+rank = 20
+enemy_hp_mult = 1.60023
+enemy_speed_mult = 1.15763
+boss_hp_mult = 1.3225
+chest_interval_mult = 1.95312
+elite_interval_mult = 0.64
+boss_heal_charges_add = 2
+start_health_add = -3
+rule_key = "threat_rule_start_hp"
+rule_amount = "-1"
+
+[resource]
+script = ExtResource("2_6fmlp")
+ranks = Array[ExtResource("1_ml3ys")]([SubResource("Resource_vpr5u"), SubResource("Resource_28jjj"), SubResource("Resource_y2u4n"), SubResource("Resource_tc062"), SubResource("Resource_2dy02"), SubResource("Resource_tkf32"), SubResource("Resource_c7f8t"), SubResource("Resource_blkqe"), SubResource("Resource_qmftc"), SubResource("Resource_5pn2f"), SubResource("Resource_tvoed"), SubResource("Resource_3t2q7"), SubResource("Resource_85cm6"), SubResource("Resource_ra6fx"), SubResource("Resource_86hj2"), SubResource("Resource_suudf"), SubResource("Resource_1swew"), SubResource("Resource_387ts"), SubResource("Resource_geaup"), SubResource("Resource_xb581")])

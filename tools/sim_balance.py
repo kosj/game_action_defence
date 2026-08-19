@@ -11,6 +11,7 @@
     export GODOT=/path/to/godot            # 없으면 PATH 의 godot
     python3 tools/sim_balance.py                          # 기본 10판, 베테랑/교외
     python3 tools/sim_balance.py --runs 20 --character hunter
+    python3 tools/sim_balance.py --runs 10 --threat 5        # 위협 등급 5의 곡선(P1-12)
     python3 tools/sim_balance.py --runs 8 --all-characters --csv out.csv
 
 판마다 프로세스를 새로 띄우고 user:// 를 비운다 — 메타 골드·과제·퀘스트가 뒤 판으로
@@ -51,7 +52,7 @@ TARGETS = {
 }
 
 
-def run_one(godot, seed, character, theme, maxmin, persona="random"):
+def run_one(godot, seed, character, theme, maxmin, persona="random", threat=1):
     """한 판 실행 → 결과 dict. 판마다 user:// 를 격리해 진행 상태가 새지 않게 한다."""
     env = dict(os.environ)
     tmp_home = tempfile.mkdtemp(prefix="simbal_")
@@ -59,7 +60,7 @@ def run_one(godot, seed, character, theme, maxmin, persona="random"):
     cmd = [godot, "--headless", "--path", ROOT, "--fixed-fps", "60",
            "--script", "res://tools/sim_balance.gd", "--",
            "seed=%d" % seed, "character=%s" % character, "persona=%s" % persona,
-           "theme=%s" % theme, "maxmin=%g" % maxmin]
+           "theme=%s" % theme, "maxmin=%g" % maxmin, "threat=%d" % threat]
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=1800, env=env)
         m = re.search(r"SIMRESULT (\{.*\})", p.stdout)
@@ -157,6 +158,8 @@ def main():
                     help="veteran/hunter/engineer 를 같은 시드 집합으로 비교")
     ap.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) - 1))
     ap.add_argument("--csv", help="판별 원자료를 CSV 로 저장")
+    ap.add_argument("--threat", type=int, default=1,
+                    help="위협 등급(P1-12). 1=기존 밸런스와 동일한 기준선")
     a = ap.parse_args()
 
     godot = os.environ.get("GODOT", "godot")
@@ -166,14 +169,14 @@ def main():
     chars = ["veteran", "hunter", "engineer"] if a.all_characters else [a.character]
     personas = ["random", "greedy"] if a.both_personas else [a.persona]
     seeds = [a.seed_start + i for i in range(a.runs)]
-    print("밸런스 측정 — %d판 × %s × %s · 테마 %s · 최대 %g분 · 병렬 %d"
-          % (a.runs, "/".join(chars), "/".join(personas), a.theme, a.maxmin, a.jobs))
+    print("밸런스 측정 — %d판 × %s × %s · 테마 %s · 위협 등급 %d · 최대 %g분 · 병렬 %d"
+          % (a.runs, "/".join(chars), "/".join(personas), a.theme, a.threat, a.maxmin, a.jobs))
     print("(random=하한선 · greedy=상한 근사. 자세한 해석은 BALANCE.md)\n")
 
     all_rows, summaries = [], []
     keys = [(c, pn) for c in chars for pn in personas]
     with cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
-        futs = {ex.submit(run_one, godot, s, c, a.theme, a.maxmin, pn): (c, pn)
+        futs = {ex.submit(run_one, godot, s, c, a.theme, a.maxmin, pn, a.threat): (c, pn)
                 for (c, pn) in keys for s in seeds}
         rows_by_key = {k: [] for k in keys}
         for f in cf.as_completed(futs):

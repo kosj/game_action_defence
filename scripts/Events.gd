@@ -215,9 +215,13 @@ const _MODE_BOSS_HP := 1.00
 const _MODE_SCORE := 1.00
 
 
-func diff_enemy_hp_mult() -> float:    return _MODE_ENEMY_HP
-func diff_enemy_speed_mult() -> float: return _MODE_ENEMY_SPEED
-func diff_boss_hp_mult() -> float:     return _MODE_BOSS_HP
+## 위협 등급(P1-12)은 **이 배수 위에 곱한다.** 여기가 유일한 합류점이라 ZombieSpawner 의
+## 호출부 10여 곳을 건드리지 않아도 등급이 전 구간에 반영된다. 등급 1 은 1.0 이므로
+## 지금까지의 실측이 그대로 기준선으로 남는다.
+## 점수 배수는 등급을 곱하지 않는다 — 랭킹이 등급 섞인 점수로 오염되면 비교가 무의미해진다.
+func diff_enemy_hp_mult() -> float:    return _MODE_ENEMY_HP * ThreatManager.enemy_hp_mult()
+func diff_enemy_speed_mult() -> float: return _MODE_ENEMY_SPEED * ThreatManager.enemy_speed_mult()
+func diff_boss_hp_mult() -> float:     return _MODE_BOSS_HP * ThreatManager.boss_hp_mult()
 func diff_score_mult() -> float:       return _MODE_SCORE
 
 ## 후반 스케일링을 여기서 찾지 말 것 — 웨이브 기반 압박 배수(wave_pressure_mult 등)는
