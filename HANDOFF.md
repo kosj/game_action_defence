@@ -67,7 +67,7 @@
 | P2-7 MudField 고아 코드 삭제 | B | ✅ (5d1778c) | claude/b-lane-mudfield-cleanup | 2026-08-18 |
 | P1-15 이어하기 판 telemetry 왜곡 수정 | F | ✅ (8cac2e8) | claude/f-lane-telemetry-resumed | 2026-08-19 |
 | P1-16 사람 실측 반영 — AI 기준 결론 교정 | F | ✅ (d4cbed9) | claude/f-lane-human-data | 2026-08-19 |
-| P1-12 위협 등급(Threat Rank) | G | ✅ (이 PR) | claude/g-lane-threat-rank | 2026-08-19 |
+| P1-12 위협 등급(Threat Rank) | G | ✅ (e60c82c) | claude/g-lane-threat-rank | 2026-08-19 |
 | P1-13 도감(Codex) | H | ✅ (750546a) | claude/h-lane-codex | 2026-08-19 |
 | P1-17 일본어 두부(□) 23자 — 커버리지 게이트가 못 잡는다 | D | ✅ (2950b46) | claude/d-lane-font-tofu | 2026-08-19 |
 | P1-14 일일 시드 챌린지 | G | ⚪ 대기 | — | P1-12 이후 |
