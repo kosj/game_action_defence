@@ -6,7 +6,8 @@ class_name UIIcon
 @export var kind: String = "star"
 @export var color: Color = Color.WHITE
 
-const _KINDS := ["coin", "star", "flag", "clock", "trophy", "skull", "heart", "bolt", "sword", "orb", "gear"]
+const _KINDS := ["coin", "star", "flag", "clock", "trophy", "skull", "heart", "bolt", "sword", "orb", "gear",
+	"lock", "check"]
 
 ## 전용 아트가 있는 종류는 절차적 드로잉 대신 텍스처를 그린다(색 modulate 없이 원색 사용).
 ## 파일이 있는 것만 배선 — 나머지는 아래 _draw 의 벡터 드로잉으로 폴백.
@@ -52,6 +53,8 @@ func _draw() -> void:
 		"sword":  _sword(c, r)
 		"orb":    _orb(c, r)
 		"gear":   _gear(c, r)
+		"lock":   _lock(c, r)
+		"check":  _check(c, r)
 		_:        draw_circle(c, r * 0.7, color)
 
 
@@ -146,3 +149,27 @@ func _gear(c: Vector2, r: float) -> void:
 			c + dir * r * 0.58 - perp * r * 0.21]), color)
 	draw_circle(c, r * 0.66, color)
 	draw_circle(c, r * 0.27, Color(0, 0, 0, 0.6))
+
+
+## 자물쇠 — 잠긴 캐릭터/아레나 카드에 얹는다. 예전에는 이름 앞에 `"[-] "` 를 붙였는데,
+## 폰트 서브셋에 글자를 늘리지 않으려던 아스키 대체였다(HANDOFF P2-4). 아이콘은 글리프가
+## 필요 없으니 서브셋과 무관하고, 언어와도 무관하다.
+func _lock(c: Vector2, r: float) -> void:
+	var body := Rect2(c.x - r * 0.62, c.y - r * 0.10, r * 1.24, r * 0.92)
+	# 고리(shackle) — 몸통 위로 반원. 두께를 몸통보다 얇게 해 자물쇠로 읽히게 한다.
+	draw_arc(Vector2(c.x, body.position.y), r * 0.40, PI, TAU, 16, color, r * 0.22, true)
+	draw_rect(body, color, true)
+	# 열쇠 구멍 — 몸통 색을 뚫어 대비를 준다(작은 크기에서도 자물쇠임이 읽히는 유일한 디테일).
+	draw_circle(Vector2(c.x, c.y + r * 0.30), r * 0.17, Color(0, 0, 0, 0.75))
+
+
+## 체크 — 달성·수령 완료 표시. 슬롯 위에 얹히므로 어두운 밑선을 먼저 깔아 대비를 만든다
+## (예전 Label 이 outline_size 로 하던 역할).
+func _check(c: Vector2, r: float) -> void:
+	var pts := PackedVector2Array([
+		c + Vector2(-r * 0.62, r * 0.02),
+		c + Vector2(-r * 0.16, r * 0.50),
+		c + Vector2(r * 0.66, -r * 0.52),
+	])
+	draw_polyline(pts, Color(0, 0, 0, 0.85), maxf(r * 0.52, 3.0), true)
+	draw_polyline(pts, color, maxf(r * 0.30, 2.0), true)
