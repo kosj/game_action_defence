@@ -66,6 +66,7 @@ const STRINGS: Dictionary = {
 	"menu_quests":       {"en": "Quests",       "ko": "퀘스트",    "ja": "クエスト"},
 	"menu_rewards":      {"en": "Rewards",      "ko": "보상함",    "ja": "報酬"},
 	"menu_powerup":      {"en": "Power Up",     "ko": "영구 강화", "ja": "パワーアップ"},
+	"menu_codex":        {"en": "Codex",         "ko": "도감",      "ja": "コレクション"},
 	"rewards_src_quest": {"en": "Quest reward",       "ko": "퀘스트 보상",   "ja": "クエスト報酬"},
 	"rewards_src_ach":   {"en": "Achievement reward", "ko": "도전과제 보상", "ja": "アチーブメント報酬"},
 	"rewards_empty":     {"en": "No rewards waiting", "ko": "받을 보상이 없습니다", "ja": "受け取る報酬はありません"},
@@ -78,6 +79,23 @@ const STRINGS: Dictionary = {
 		"ko": "이 기기에만 저장된 플레이 기록입니다. 어디로도 전송되지 않습니다.",
 		"ja": "この端末にのみ保存されます。どこにも送信されません。"},
 	"popup_power":       {"en": "PERMANENT UPGRADES", "ko": "영구 강화", "ja": "パワーアップ"},
+
+	# ── 도감(P1-13) ───────────────────────────────────────────────────────
+	# 일본어는 **가나만** 쓴다. 서브셋 폰트의 한자는 89자뿐이고 図/鑑/項/目/名/前/隠 이 전부
+	# 없다(subset_fonts.py 문서 참고). 되살릴 원본도 없으므로 한자를 피하는 것이 유일한 길이다.
+	# 항목 이름(무기·캐릭터·아레나)은 카탈로그의 display 라서 전 언어 공통 영어다.
+	"codex_hint":        {"en": "Undiscovered entries keep their name hidden.",
+		"ko": "아직 보지 못한 항목은 이름이 가려집니다.",
+		"ja": "まだみつけていないものはシルエットのままです。"},
+	"codex_progress":    {"en": "Discovered %d / %d", "ko": "발견 %d / %d",
+		"ja": "みつけた %d / %d"},
+	"codex_sec_weapon":    {"en": "WEAPONS",    "ko": "무기",    "ja": "ウェポン"},
+	"codex_sec_evolution": {"en": "EVOLUTIONS", "ko": "진화",    "ja": "エボリューション"},
+	"codex_sec_passive":   {"en": "PASSIVES",   "ko": "패시브",  "ja": "パッシブ"},
+	"codex_sec_zombie":    {"en": "ZOMBIES",    "ko": "좀비",    "ja": "ゾンビ"},
+	"codex_sec_boss":      {"en": "BOSSES",     "ko": "보스",    "ja": "ボス"},
+	"codex_sec_survivor":  {"en": "SURVIVORS",  "ko": "생존자",  "ja": "サバイバー"},
+	"codex_sec_arena":     {"en": "ARENAS",     "ko": "아레나",  "ja": "アリーナ"},
 	"popup_character":   {"en": "CHOOSE YOUR SURVIVOR", "ko": "생존자 선택", "ja": "サバイバー"},
 	"popup_achievements":{"en": "ACHIEVEMENTS", "ko": "도전과제", "ja": "アチーブメント"},
 	"popup_quests":      {"en": "QUESTS", "ko": "퀘스트", "ja": "クエスト"},

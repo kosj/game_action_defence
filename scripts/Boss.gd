@@ -31,6 +31,7 @@ var gold_drop: int = 12
 
 var _alive: bool = false
 var _archetype: String = "melee"
+var _codex_key: String = ""   # 테마 보스 키(도감 기록용). setup 마다 갱신된다.
 var _base_color: Color = Color(0.55, 0.12, 0.14)
 const _HIT_FLASH := 0.12     # 피격 잔광 지속 시간
 var _flash: float = 0.0      # 피격 잔광 잔여 시간 — 피격마다 Tween 을 만들지 않기 위해 직접 감쇠
@@ -125,6 +126,7 @@ func setup(stats: Dictionary) -> void:
 	score_value = stats.get("score", 200)
 	gold_drop = stats.get("gold", 12)
 	_archetype = stats.get("archetype", "melee")
+	_codex_key = String(stats.get("key", ""))
 	_is_final = stats.get("final", false)
 	# 전용 아트워크 사용 — 타입별 틴트 대신 스프라이트를 그대로 노출(피격 잔광은 흰색 복귀).
 	# stats.sprite 는 **필수**다. 예전에는 아키타입 기본 텍스처(_BOSS_TEX)로 폴백했지만,
@@ -627,6 +629,8 @@ func _die() -> void:
 	remove_from_group("zombies")
 	remove_from_group("boss")
 	SoundManager.play("zombie_die")
+	# 도감: 어떤 보스를 잡았는지는 boss_died 시그널이 실어 나르지 않는다 — 여기서 직접 알린다.
+	CodexManager.discover("boss", _codex_key)
 	Events.add_score(score_value)
 	Events.boss_died.emit()
 	Events.shake(11.0)      # 보스 폭사 — 강한 화면 흔들림

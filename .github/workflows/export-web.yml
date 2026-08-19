@@ -67,7 +67,7 @@ jobs:
       - name: Check texture atlas
         run: godot --headless --script res://tools/check_atlas.gd
 
-      # 회귀 테스트 — 씬 4종은 get_tree().quit(0/1), verify_*.gd 는 quit(실패건수) 로
+      # 회귀 테스트 — 씬 6종은 get_tree().quit(0/1), verify_*.gd 는 quit(실패건수) 로
       # 성패를 종료 코드에 담는다. 따라서 실행 줄만 있으면 CI 게이트가 된다(로그 파싱 불필요).
       # 셸이 dash 라 pipefail 을 못 쓰므로, 파이프 없이 한 줄씩 그대로 실행한다.
       # 로컬에서 같은 목록을 돌리는 방법은 CLAUDE.md §3 참고.
@@ -79,6 +79,7 @@ jobs:
           godot --headless --path . res://scenes/FxLeakTest.tscn
           godot --headless --path . res://scenes/PauseWatchdogTest.tscn
           godot --headless --path . res://scenes/TelemetryTest.tscn
+          godot --headless --path . res://scenes/CodexTest.tscn
 
       # 시뮬레이션형 검증은 프레임 수에 의존하므로 --fixed-fps 60 을 반드시 준다
       # (없으면 헤드리스가 가변 프레임으로 돌아 타이밍 판정이 흔들린다).

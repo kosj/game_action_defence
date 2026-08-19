@@ -43,6 +43,7 @@ const _WALK_SWAY := 0.05     # 좌우로 뒤뚱거리는 회전(라디안, ≈3�
 var health: int
 var player: Node2D = null
 var _alive: bool = false
+var _type_id: String = ""          # 종 id(도감 기록용). setup 마다 갱신된다.
 var _type_color: Color = Color.WHITE
 var _score_value: int = 0
 var _contact_damage: int = 1
@@ -98,6 +99,7 @@ func on_despawn() -> void:
 
 ## 스포너가 풀에서 꺼낸 직후 호출해 종류별 스탯·스프라이트·행동을 주입한다.
 func setup(type_data: Dictionary) -> void:
+	_type_id = String(type_data.get("id", ""))   # 도감 기록용 종 id
 	speed = type_data["speed"]
 	max_health = type_data["max_health"]
 	health = max_health
@@ -348,6 +350,9 @@ func _die() -> void:
 	_alive = false
 	SoundManager.play("zombie_die")
 	remove_from_group("zombies")
+	# 도감: 처치한 종을 기록한다. zombie_killed 시그널에는 종 정보가 없고, 인자를 추가하면
+	# 연결부 4곳이 전부 깨진다 — 종을 아는 곳은 여기뿐이라 여기서 직접 알린다.
+	CodexManager.discover("zombie", _type_id)
 	Events.zombie_killed.emit()
 	Events.add_score(_score_value)
 	var scene := get_tree().current_scene
