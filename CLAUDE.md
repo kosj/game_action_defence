@@ -80,6 +80,12 @@ godot --headless --path . --script res://tools/check_font_coverage.gd   # CI 게
 python3 tools/subset_fonts.py                                           # 글자가 늘었으면 재서브셋
 ```
 
+### `assets/ui/frames`·`assets/ui/hud` 에 텍스처를 추가하면 `.import` 압축을 확인한다
+이 둘은 **나인패치로 늘려 쓰는 텍스처**라 무손실(`compress/mode=0`)이 규약이다 — 늘어나는
+테두리에서 손실 아티팩트가 띠로 보인다. `.gitignore` 가 `*.import` 를 무시하면서 이 두 폴더만
+예외로 추적하는 이유가 그것이다. **Godot 은 새 PNG 를 전역 기본값(손실)으로 임포트하므로**
+추가 후 `.import` 의 `compress/mode` 를 직접 고쳐야 한다(P2-2 에서 실제로 놓쳤다).
+
 ### 새 스프라이트는 아틀라스에 넣는다
 좀비·보스·투사체·FX·그림자는 아틀라스 한 장으로 묶여 있고, 코드는 `res://assets/atlas/*.tres`
 (AtlasTexture)를 참조한다. **PNG 를 직접 참조하면 그 스프라이트만 배칭이 끊긴다 —
