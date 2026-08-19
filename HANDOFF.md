@@ -57,7 +57,7 @@
 | P1-8 탐욕형 빌드 페르소나 | F | ✅ (61f5405) | claude/f-lane-greedy-persona | 2026-08-18 |
 | P1-7 첫 보스 난이도 계단 | F | ✅ (77dcefc) | claude/f-lane-boss-step | 2026-08-18 |
 | P2-8 오토플레이 교전 이탈 수정 | F | ✅ (8b3dcb4) | claude/f-lane-autoplay-engage | 2026-08-18 |
-| P2-1 공통 팝업 셸 | D | 🔵 진행중 | claude/d-lane-ui-popup | 2026-08-18 |
+| P2-1 공통 팝업 셸 | D | ✅ (이 PR) | claude/d-lane-ui-popup | 2026-08-18 |
 | P2-2 메뉴 플레이트 3종 | D | ⚪ 대기 | — | — |
 | P2-3 로케일 누락 | D | ⚪ 대기 | — | — |
 | P2-4 잠금/체크 아이콘 | D | ⚪ 대기 | — | — |
@@ -582,7 +582,35 @@ city 는 기믹 4종, lab 은 3종. 즉 **무료·기본 선택 아레나에만 
 **근거** — `POPUP_UI_PLAN.md` Phase 2 미구현. `scripts/UIPopup.gd` **없음**.
 현재 `MainMenu.gd` 안에 `ColorRect.new()` 8 · `PanelContainer.new()` 8 · `MarginContainer.new()` 9 ·
 `HSeparator.new()` 10 회. Phase 1(`UIListRow.gd`)·Phase 3(로케일)은 완료됐으므로 **Phase 2만 남았다.**
-**작업** — 계획 문서 §3 Phase 2 그대로. 한 번에 8개를 옮기지 말고 **패널 하나씩** 이관한다.
+**작업 ✅ 완료 (2026-08-18)** — `scripts/UIPopup.gd` 신설 + **팝업 8종 전부 이관**.
+계획대로 한 패널씩 옮기고 그때마다 `--import` 로 확인했다.
+
+**수렴 결과** — `MainMenu.gd` **1556 → 1155줄(-401)**.
+dim `ColorRect` 8→0 · `PanelContainer` 8→0 · `MarginContainer` 9→1 · `HSeparator` 11→3 ·
+dim 입력 핸들러 6→0(셸이 바깥 탭 닫기를 소유한다). Phase 2-4 의 수렴 목표를 달성했다.
+
+**셸이 제공하는 것** — dim(바깥 탭 닫기)·프레임·여백·제목·선택적 힌트·구분선·선택적 스크롤·
+닫기 버튼. 크기는 전 팝업 동일(전체화면, 좌우 12·상하 30 — Phase 2-2).
+내용이 적은 팝업(옵션·랭킹)은 `center_body` 로 본문을 세로 중앙에 두어 허전하지 않게 했다.
+`add_above_close()` 는 닫기 **위**에 요소를 더 붙이는 자리다(보상함의 합계·일괄수령) —
+셸이 닫기를 마지막에 붙이므로 그냥 `add_child` 하면 닫기 아래로 들어간다.
+
+**실렌더로 8종 전부 확인** — `tools/shot_menu_popups.gd` 신설. `xvfb-run` 으로 팝업을 하나씩
+열어 PNG 를 떠서 눈으로 봤다. 크기·여백·제목·닫기가 실제로 통일됐고 내용이 깨진 곳은 없다.
+
+**⚠️ `check_gdscript.py` 가 통과한 오류를 `--import` 가 잡았다** — 테마 패널 이관 중 지역 변수
+`card_h` 선언을 함께 지웠는데, 문법 검사기는 스코프를 보지 않아 통과했다. 리팩터링에서는
+`--import` 까지 돌려야 한다.
+
+**`check_text_fit.py` 의 결함도 하나 고쳤다** — 셸의 힌트 케이스를 추가하자 일본어가 "넘침"으로
+잡혔다. 자동 줄바꿈 검사가 **공백으로만 단어를 쪼개서**, 단어 사이에 공백이 없는 한중일 문장이
+통째로 한 단어가 되기 때문이다. Godot 의 `AUTOWRAP_WORD_SMART` 는 그 구간을 글자 단위로 끊는다.
+CJK 글자를 개별 단위로 세도록 고쳤다 — 이 검사를 쓰는 다른 케이스에도 같이 적용된다.
+겸사겸사 P0-3 에서 삭제된 상점의 죽은 케이스 4종도 걷어냈다(참조 키가 이미 없었다).
+
+**작업 중 발견(범위 밖)** — 랭킹 팝업이 아직 `Easy/Normal/Hard` 3행을 보여준다.
+난이도 3종은 없어진 시스템이라(`Events.difficulty` 는 항상 0) 두 행은 영구히 `0` 이다.
+`RankingManager.MODES` 정리가 필요하지만 이 항목의 범위가 아니라 손대지 않았다.
 
 ## P2-2. 메뉴 버튼 플레이트가 1종뿐 — 위계 아트가 없다
 **근거** — `MENU_UI_PLAN.md` Phase 2 는 `btn_plate_steel/blood/dark` 3종을 요구하는데

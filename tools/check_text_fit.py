@@ -119,16 +119,15 @@ def main() -> None:
                       "menu_ranking", "menu_powerup", "menu_options") for t in loc(k)]),
         ("메뉴 · 버전 라벨", 320, 14, False, lit("v1.0.0 · 8f52771 · 2026-08-13 09:45 UTC")),
 
-        # ── 상점 (패널 640 고정) ───────────────────────────────
-        ("상점 · 업그레이드 버튼", 640 - 36 - 44 - 26 - 18, 19, True,
-         [(lang, "%s Lv9" % v) for k, m in L.items() if k.startswith("upg_") and k.endswith("_name")
-          for lang, v in m.items()]
-         + [(lang, "-999G   %s" % v) for k, m in L.items()
-            if k.startswith("upg_") and k.endswith("_desc") for lang, v in m.items()]),
-        ("상점 · 광고 골드 버튼", 640 - 36 - 44 - BTN_PAD, 20, True,
-         loc("shop_ad_gold_fmt", 250) + loc("shop_ad_unavail") + loc("shop_ad_claimed")),
-        ("상점 · 계속 버튼", 640 - 36 - 44 - BTN_PAD, 24, True, loc("shop_continue")),
-        ("상점 · 제목", 640 - 36 - 44, 34, True, loc("shop_clear_title", 99)),
+        # ── 공통 팝업 셸 UIPopup (전체화면 720 - 화면여백 24 - 프레임 36 - 안쪽여백 44 = 616) ──
+        # 셸이 8개 팝업의 제목/힌트/닫기를 한곳에서 만든다 — 여기가 넘치면 여덟 개가 같이 넘친다.
+        ("팝업 셸 · 제목", 616, 26, True,
+         [t for k in ("popup_quests", "popup_achievements", "popup_rewards", "popup_power",
+                      "popup_character", "popup_arena", "menu_options", "rank_title")
+          for t in loc(k)]),
+        ("팝업 셸 · 힌트", 440, 14, False,
+         loc("quest_hint") + loc("rewards_hint"), "word"),
+        ("팝업 셸 · 닫기", 616 - BTN_PAD, 22, True, loc("menu_close")),
 
         # ── 팝업 리스트 행 (전체화면 팝업: 720-24-36-48=612, 슬롯 44 + 간격 11 + 여백 22) ──
         ("팝업 행 · 제목", 612 - 22 - 44 - 11 - 90, 18, False,
@@ -178,13 +177,33 @@ def main() -> None:
     # 줄바꿈(autowrap)이 켜진 위젯은 전체 문자열이 아니라 "쪼갤 수 없는 가장 긴 단어"가
     # 한 줄에 들어가야 한다. 그보다 넓으면 줄바꿈으로도 해결되지 않아 밖으로 삐져나온다.
     # (보물상자 카드가 정확히 이 경우였다 — 전체 길이만 보면 통과라 놓쳤다.)
+    #
+    # 단, 공백으로만 쪼개면 **한·중·일 문장은 통째로 한 단어가 된다** — 이 언어들은 단어
+    # 사이에 공백을 두지 않기 때문이다. Godot 의 AUTOWRAP_WORD_SMART 는 그 구간을 글자
+    # 단위로 끊으므로 실제로는 줄바꿈이 된다. 공백 기준만 쓰면 멀쩡한 문구가 "넘침"으로
+    # 잡힌다(공통 팝업 셸의 일본어 힌트가 정확히 그랬다). CJK 글자는 개별 단위로 센다.
+    def _unbreakable(tok):
+        out, buf = [], ""
+        for ch in tok:
+            if _is_cjk(ch):
+                if buf:
+                    out.append(buf)
+                    buf = ""
+                out.append(ch)   # CJK 는 글자 하나가 곧 끊을 수 있는 단위
+            else:
+                buf += ch
+        if buf:
+            out.append(buf)
+        return out
+
     def worst_token(texts, size, bold):
         best = None
         for lang, s_ in texts:
             for tok in s_.replace("\n", " ").split():
-                px = tw(tok, size, bold)
-                if best is None or px > best[0]:
-                    best = (px, lang, tok)
+                for piece in _unbreakable(tok):
+                    px = tw(piece, size, bold)
+                    if best is None or px > best[0]:
+                        best = (px, lang, piece)
         return best
 
     print(f"{'위젯':26} {'가용':>5} {'실측':>6} {'여유':>7}  최악 후보")
@@ -227,14 +246,22 @@ def main() -> None:
 
 # 케이스 이름 앞머리 → 어느 파일을 검증하는지 매핑. 새 화면을 만들면 여기에도 추가해야
 # 커버리지 검사를 통과한다(이번에 보물 상자를 통째로 빠뜨린 재발을 막는 장치).
+## 한중일 문자 여부 — 이 구간은 단어 사이에 공백이 없어 글자 단위로 줄바꿈된다.
+## (CJK 통합한자 · 히라가나/가타카나 · 한글 음절 · 전각 구두점)
+def _is_cjk(ch: str) -> bool:
+    o = ord(ch)
+    return (0x3000 <= o <= 0x303F or 0x3040 <= o <= 0x30FF or 0x3400 <= o <= 0x4DBF
+            or 0x4E00 <= o <= 0x9FFF or 0xAC00 <= o <= 0xD7A3 or 0xFF00 <= o <= 0xFF60)
+
+
 COVERED_BY = {
     "MainMenu.gd": ("메뉴", "팝업 행", "아레나", "캐릭터", "영구 강화"),
     "HUD.gd": ("HUD", "게임오버"),
     "IntroStory.gd": ("인트로",),
-    "ShopPanel.gd": ("상점",),
     "ChestRewardPanel.gd": ("보상 카드",),
     "LevelUpPanel.gd": ("레벨업",),
     "UIListRow.gd": ("팝업 행",),
+    "UIPopup.gd": ("팝업 셸",),
     "TitleScreen.gd": ("타이틀",),
     "AdManager.gd": ("광고",),
     "HUD.tscn": ("HUD", "게임오버"),
