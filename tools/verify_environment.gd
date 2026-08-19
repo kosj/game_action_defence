@@ -143,6 +143,10 @@ func _test_luma_floor(day, weather_script: GDScript) -> void:
 			t += 0.5
 	_ok("가독성 하한 준수(휘도 >= %.2f)" % floor_v, worst >= floor_v - EPS,
 		"최저 %.5f @ %s" % [worst, worst_desc])
+	# 한밤(맑음)의 "기준 틴트" 휘도 하한 — 캐릭터가 안 보인다는 실플레이 피드백으로 0.72 까지
+	# 올린 값이 되돌아가지 않게 잠근다(하한 보정은 날씨 합성 후에만 걸려 이건 따로 봐야 한다).
+	var mid_l: float = day_script.luma(day.tint_at(0.0))
+	_ok("한밤 기준 틴트 휘도 >= 0.70(캐릭터 가독성)", mid_l >= 0.70, "실측 %.3f" % mid_l)
 	_ok("하한 보정이 실제로 발동함", clamped_any, "한 번도 안 걸리면 테스트가 무의미")
 	_ok("최종 틴트 채널 <= 1.0", not over_one, "CanvasModulate 로 하이라이트가 날아감")
 
