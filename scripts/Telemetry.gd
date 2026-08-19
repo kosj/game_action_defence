@@ -23,7 +23,10 @@ extends Node
 const PATH := "user://telemetry.jsonl"
 const PARTIAL_PATH := "user://telemetry_partial.json"
 const MAX_RECORDS := 300        # 이 개수를 넘으면 오래된 것부터 버린다(무한 증가 방지)
-const PARTIAL_INTERVAL := 60.0  # 진행 중 스냅샷 주기 — 중도 이탈을 잡는 유일한 수단
+## 진행 중 스냅샷 주기 — 중도 종료를 잡는 유일한 수단이다. 이 주기만큼 실제 플레이 시간을
+## 과소보고하므로(실측에서 확인), 60 → 30 으로 줄여 오차를 절반으로 낮춘다.
+## tools/analyze_telemetry.py 의 PARTIAL_SNAPSHOT_S 와 같은 값이어야 한다.
+const PARTIAL_INTERVAL := 30.0
 const SAMPLE_INTERVAL := 60.0   # 분당 스냅샷
 
 var enabled: bool = true
