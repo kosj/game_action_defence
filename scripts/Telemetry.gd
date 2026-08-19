@@ -37,6 +37,14 @@ var _boss_fights: Array = []
 var _boss_spawns: int = 0
 var _boss_kills: int = 0
 var _cleared: bool = false
+## 이어하기로 시작한 판인가. 이어하기는 세이브에서 elapsed_time 만 복원하고 피격·보스 조우·
+## 분당 스냅샷은 새로 세므로, 그대로 두면 "20분 살았는데 피격 3회" 같은 왜곡된 기록이 남는다.
+## 표시해 두고 분석 도구가 기본 제외한다.
+##
+## 판별에 SaveManager.pending_continue 를 쓸 수 없다 — Godot 은 자식의 _ready() 를 부모보다
+## 먼저 부르므로, Main._ready() 가 begin_run() 을 호출하는 시점엔 Player._ready() 가 이미
+## 그 플래그를 지웠다. 대신 경과 시간을 본다(새 게임은 Events.reset() 으로 0 이다).
+var _resumed: bool = false
 var _samples: Array = []
 var _next_sample: float = SAMPLE_INTERVAL
 var _partial_accum: float = 0.0
@@ -54,6 +62,7 @@ func _ready() -> void:
 ## 판 시작 — `Main._ready()` 가 호출한다. 이어하기도 같은 진입점을 쓴다.
 func begin_run() -> void:
 	_active = enabled
+	_resumed = float(Events.elapsed_time) > 1.0
 	_hits = 0
 	_first_hit = -1.0
 	_last_hp = -1
@@ -128,6 +137,8 @@ func _snapshot(outcome: String) -> Dictionary:
 		"outcome": outcome,                 # "died" | "abandoned"
 		# 치트가 발동한 판은 사람 데이터가 아니다 — analyze_telemetry.py 가 기본 제외한다.
 		"cheated": Cheats.used_this_run,
+		# 이어하기 판은 피격·보스 수치가 재개 이후만 세어져 사람 데이터로 쓸 수 없다.
+		"resumed": _resumed,
 		"version": Events.VERSION,
 		"build": Events.build_sha(),
 		"character": (c.id if c != null else ""),

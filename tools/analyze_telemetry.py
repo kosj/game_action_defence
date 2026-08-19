@@ -57,6 +57,8 @@ def main():
     ap.add_argument("--compare", help="sim_balance --csv 산출물과 나란히 비교")
     ap.add_argument("--include-cheated", action="store_true",
                     help="치트를 쓴 판도 포함(기본은 제외 — 사람 데이터가 아니다)")
+    ap.add_argument("--include-resumed", action="store_true",
+                    help="이어하기로 시작한 판도 포함(기본은 제외 — 수치가 재개 이후만 세어진다)")
     a = ap.parse_args()
 
     rows = load(a.path)
@@ -69,6 +71,14 @@ def main():
         print("치트를 쓴 %d판을 제외했다 (--include-cheated 로 포함)\n" % len(cheated))
     if not rows:
         sys.exit("치트를 제외하니 남는 기록이 없다.")
+    # 이어하기 판은 elapsed_time 만 복원되고 피격·보스 수치는 재개 이후만 세어진다.
+    # survived_s 만 맞고 나머지가 어긋나므로 섞으면 표가 통째로 거짓말을 한다.
+    resumed = [r for r in rows if r.get("resumed")]
+    if resumed and not a.include_resumed:
+        rows = [r for r in rows if not r.get("resumed")]
+        print("이어하기로 시작한 %d판을 제외했다 (--include-resumed 로 포함)\n" % len(resumed))
+    if not rows:
+        sys.exit("이어하기 판을 제외하니 남는 기록이 없다.")
     died = [r for r in rows if r.get("outcome") == "died"]
     quit_ = [r for r in rows if r.get("outcome") == "abandoned"]
     surv = sorted(r["survived_s"] / 60.0 for r in rows)
