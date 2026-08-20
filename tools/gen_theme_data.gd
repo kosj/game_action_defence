@@ -34,13 +34,13 @@ func _initialize() -> void:
 			 "prop_keys": PackedStringArray(["mailbox", "bush", "forsale", "hydrant"]),
 			 "weather_keys": PackedStringArray(["rain"])}),
 		# 도심(중급) — 메타 골드 400. 아스팔트/콘크리트 톤.
-		# 날씨: 비 + 무너진 도시의 먼지바람.
+		# 날씨: 비.
 		_t("city", "Downtown", "Concrete jungle. Danger everywhere.", "stone",
 			Color(0.09, 0.09, 0.11), Color(0.18, 0.18, 0.22), Color(0.23, 0.23, 0.28), Color(0.30, 0.30, 0.36),
 			{"unlock_cost": 400, "gimmick_key": "falling_debris", "boss_key": "wrecker",
 			 "gimmick_keys": PackedStringArray(["falling_debris", "steam_vent", "burning_car", "fly_swarm"]),
 			 "prop_keys": PackedStringArray(["wreck_car", "barrier", "dumpster", "barrel", "rubble"]),
-			 "weather_keys": PackedStringArray(["rain", "dust"])}),
+			 "weather_keys": PackedStringArray(["rain"])}),
 		# 연구소(최종) — 'Hardened'(15분 생존) 달성 해금. 냉랭한 청백 톤.
 		# 날씨: 냉각 설비가 터진 한랭 구역이라 눈.
 		_t("lab", "Lab", "Where it all started. No way out.", "frozen",
