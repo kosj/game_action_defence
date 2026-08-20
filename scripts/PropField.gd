@@ -221,6 +221,8 @@ func _physics_process(_delta: float) -> void:
 				for cand in _cell_props(cx, cy):
 					if bool(cand["solid"]):
 						_sep_solid.append(cand)
+	if _sep_solid.is_empty():
+		return   # 주변 3×3 셀에 장애물이 없다 — 아래 그룹 조회·순회를 통째로 건너뛴다
 	# 보스 격리 구역이 열려 있으면 경계선을 물고 있는 장애물은 이번 프레임 판정에서 뺀다.
 	# 프롭은 플레이어를 바깥으로, 경계는 안쪽으로 민다 — 그 사이에 끼면 매 프레임 서로 밀어
 	# 제자리에서 떨리며 감전 피해(BossArena._shock)만 계속 받는다. 게다가 BossArena 는 런타임에
@@ -243,7 +245,10 @@ func _physics_process(_delta: float) -> void:
 		var dl := d.length()
 		if dl < mind and dl > 0.001:
 			pp += (d / dl) * (mind - dl)   # 표면 밖으로 밀어냄
-	_player.global_position = pp
+	# 밀어낼 것이 없으면 쓰지 않는다 — 무조건 대입하면 플레이어와 그 자식들(스프라이트·그림자·
+	# 카메라·무기 모듈)의 변환 전파가 매 물리 프레임 한 번씩 헛돈다.
+	if pp != _player.global_position:
+		_player.global_position = pp
 
 
 func _cell_of(p: Vector2) -> Vector2i:

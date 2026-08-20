@@ -1,6 +1,12 @@
-extends Area2D
+extends Node2D
 ## 경험치 젬(좀비 드랍): 플레이어가 자석 범위 안에 들어오면 빨려 들어가며, 가까워질수록 가속.
 ## 수집 시 경험치를 준다(골드는 필드의 보물상자에서만). 거리 계산만 사용(충돌 콜백 없음).
+##
+## 물리 노드가 아니다 — 예전에는 `Area2D` 였지만 **충돌 도형이 하나도 없었고**(Gold.tscn)
+## `_ready` 에서 monitoring/monitorable 을 둘 다 꺼서 물리 기능을 아무것도 쓰지 않았다.
+## 그런데도 CollisionObject2D 는 물리 서버에 area RID 를 등록하고, 위치를 옮길 때마다
+## 변환 알림을 서버로 보낸다 — 젬은 상한이 140개이고 자석에 끌려 매 프레임 움직인다.
+## Node2D 로 내리면 그 등록·동기화가 통째로 사라진다(Bullet 이 Area2D 를 버린 것과 같은 이유).
 
 @export var magnet_radius: float = 130.0
 @export var collect_radius: float = 22.0
@@ -43,11 +49,6 @@ var _pull_vel: Vector2 = Vector2.ZERO   # 누적 흡인 속도(가속되며 커�
 var _captured: bool = false             # 자석에 걸려 빨려드는 중
 
 
-func _ready() -> void:
-	monitoring = false
-	monitorable = false
-
-
 func on_spawn() -> void:
 	_alive = true
 	_launching = false
@@ -70,7 +71,16 @@ func _enforce_cap() -> void:
 	if _live.size() <= cap:
 		return
 	# 먼저 죽은/무효 참조를 걷어낸다(게임 재시작·수집으로 남은 것) — 그것만으로 상한 이하가 될 수 있다.
-	_live = _live.filter(func(g): return is_instance_valid(g) and g._alive)
+	# 상한에 붙어 있으면 이 함수가 **젬을 주울 때마다** 돌아간다(후반에는 초당 20회 이상).
+	# `filter(lambda)` 는 그때마다 배열을 새로 만들고 원소마다 Callable 을 호출했다 —
+	# 같은 일을 제자리 압축으로 처리해 할당과 호출을 없앤다.
+	var w := 0
+	for i in _live.size():
+		var g: Object = _live[i]
+		if is_instance_valid(g) and g._alive:
+			_live[w] = g
+			w += 1
+	_live.resize(w)
 	while _live.size() > cap:
 		var g: Object = _live[0]
 		if g == self:   # 자기 자신은 유지(방금 스폰) — 다른 게 없으면 중단
