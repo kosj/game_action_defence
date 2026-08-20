@@ -47,7 +47,7 @@ func _initialize() -> void:
 			Color(0.06, 0.10, 0.12), Color(0.10, 0.17, 0.20), Color(0.13, 0.22, 0.25), Color(0.30, 0.55, 0.55),
 			{"unlock_achievement": "survive_15", "gimmick_key": "toxic_pool", "boss_key": "mutation",
 			 "gimmick_keys": PackedStringArray(["toxic_pool", "cryo_vent", "tesla_coil"]),
-			 "prop_keys": PackedStringArray(["console", "drum", "server"]),
+			 "prop_keys": PackedStringArray(["console", "drum"]),
 			 "weather_keys": PackedStringArray(["snow"])}),
 	]
 	var err := ResourceSaver.save(db, "res://data/themes.tres")

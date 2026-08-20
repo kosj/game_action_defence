@@ -439,8 +439,8 @@ sprite 를 비워 ③이 실제로 실패하는 것을 확인했다. `CLAUDE.md`
 - `tools/gen_theme_data.gd` 의 세 테마에 `prop_keys` 를 채우고 `.tres` 재생성:
   - suburb: `fence, mailbox, bush, forsale, hydrant`
   - city: `wreck_car, barrier, dumpster, barrel, rubble` (`tank` 은 후속 삭제)
-  - lab: `console, drum, server` (`pod` 은 후속 삭제)
-  - ⚠️ 배양 탱크(`tank`)·격리 포드(`pod`)는 이후 삭제했다 — 키가 크고 세로로 솟은 부피라
+  - lab: `console, drum` (`pod`·`server` 는 후속 삭제)
+  - ⚠️ 배양 탱크(`tank`)·격리 포드(`pod`)·서버랙(`server`)은 이후 삭제했다 — 키가 크고 세로로 솟은 부피라
     플레이어가 겹치면 허공에 뜬 것으로 읽혔고, 배양 탱크는 도심 배경과도 맞지 않았다.
     기준과 경위는 `ENVIRONMENT_PLAN.md` E절.
 - 장애물 비율은 `PropField.SOLID_SHARE`(신설, 30%) 하나로 고정한다. 카탈로그를 균등 추첨하면
