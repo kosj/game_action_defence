@@ -1400,7 +1400,7 @@ func _build_pause_menu() -> void:
 		_cheat_perf_btn = _make_cheat_button("PERF HUD: OFF", func(): Cheats.toggle_perf_overlay())
 		# 낮/밤 시간 틴트를 통째로 끈다(날씨는 유지) — 밤 구간에서 화면이 어두워 확인이 어려울 때.
 		_cheat_day_btn = _make_cheat_button("DAY/NIGHT: ON", func(): Cheats.toggle_daynight())
-		# 비·눈·모래바람과 번개를 통째로 끈다(=상시 맑음). 스케줄은 계속 돌아 다시 켜면 이어진다.
+		# 비·눈과 번개를 통째로 끈다(=상시 맑음). 스케줄은 계속 돌아 다시 켜면 이어진다.
 		_cheat_weather_btn = _make_cheat_button("WEATHER: ON", func(): Cheats.toggle_weather())
 		Cheats.changed.connect(_refresh_cheat_ui)
 		_refresh_cheat_ui()   # 씬 재진입 시 이미 켜져 있던 토글이 라벨에 반영되도록 초기 1회 갱신
