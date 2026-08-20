@@ -95,6 +95,7 @@ jobs:
           godot --headless --path . --script res://tools/verify_quest_tracks.gd
           godot --headless --path . --script res://tools/verify_event_forecast.gd
           godot --headless --path . --script res://tools/verify_ui_icons.gd
+          godot --headless --path . --script res://tools/verify_late_speed.gd
 
       - name: Export to Web
         run: |

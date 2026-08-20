@@ -134,6 +134,18 @@ def main():
         for c, v in sorted(by_char.items(), key=lambda kv: -st.median(kv[1])):
             print("  %-10s n=%-3d 중앙 %.1f분" % (c, len(v), st.median(v)))
 
+    # 후반 이속(P1-5) — 이속 합계가 낮은 판만 유독 짧게 끝나면 이속이 선택이 아니라 세금이다.
+    # 추월 시점 자체는 게임 데이터에서 계산된다: tools/verify_late_speed.gd 참고.
+    sp = [r for r in rows if r.get("speed_lv") is not None]
+    if sp:
+        by_sp = collections.defaultdict(list)
+        for r in sp:
+            by_sp[int(r["speed_lv"])].append(r["survived_s"] / 60.0)
+        print("\n이속 투자별 (speed_lv = 운동화 + 메타 신속 + 캐릭터 보정)")
+        for lv, v in sorted(by_sp.items()):
+            print("  합계 %-2d n=%-3d 중앙 %.1f분 · 최장 %.1f분"
+                  % (lv, len(v), st.median(v), max(v)))
+
     # 프리즈 진단(P0-4) — 중도 종료 기록의 마지막 상태가 곧 "멈추기 직전"이다.
     # 원인을 세 갈래로 가른다: 성능 붕괴 / 정지 갇힘 / 무한 루프·크래시.
     for r in [x for x in all_rows if x.get("outcome") == "abandoned" and x.get("diag")]:
