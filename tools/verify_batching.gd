@@ -36,6 +36,7 @@ const HOT_SCENES := ["res://scenes/Zombie.tscn"]
 ## 매 프레임 그려지는 _draw() 를 가진 스크립트. 전부 QuadDraw(텍스처 쿼드)로 바꿨다 —
 ## 새로 _draw() 를 쓰는 곳을 만들면 여기 추가할 것.
 const HOT_DRAW := [
+	"res://scripts/Zombie.gd",
 	"res://scripts/Ground.gd",
 	"res://scripts/PropField.gd",
 	"res://scripts/Orb.gd",
@@ -97,6 +98,12 @@ func _check(path: String) -> void:
 	var inst := ps.instantiate()
 	var sprites: Array = []
 	_collect(inst, sprites)
+	# 스프라이트가 없으면 루트가 _draw() 로 직접 그리는 구조다(Zombie 가 그렇다) —
+	# 그쪽은 HOT_DRAW 의 프리미티브 검사가 맡는다. 다만 **스프라이트를 다시 붙이면**
+	# modulate 로 배치를 끊는 옛 구조로 되돌아가므로, 0개인 것을 정상으로 보고 넘긴다.
+	if sprites.is_empty():
+		inst.free()
+		return
 	if sprites.size() < 2:
 		inst.free()
 		return

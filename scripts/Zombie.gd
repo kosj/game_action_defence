@@ -26,8 +26,6 @@ const BOMB_TRIGGER := 74.0       # bomber 점화 시작 거리
 const BOMB_FUSE := 0.55          # bomber 점화~폭발 시간(도망 기회)
 const BOMB_RADIUS := 92.0        # bomber 폭발 피해 반경
 
-@onready var body: Node2D = $Body
-@onready var shadow: Node2D = $Shadow
 
 const _SHADOW_BASE := 0.32   # 크기 1.0 좀비 기준 그림자 스케일(Zombie.tscn 과 일치)
 const _HIT_FLASH := 0.12     # 피격 잔광 지속(초)
@@ -55,6 +53,27 @@ var _fuse_timer: float = 0.0
 var _flash: float = 0.0      # 피격 잔광 잔여 시간 — 매 프레임 Tween 생성 대신 직접 감쇠
 var _walk_phase: float = 0.0     # 걷기 애니메이션 위상(이동 거리로 진행)
 var _lod_phase: int = 0          # 화면 밖 LOD 틱 위상(개체별로 어긋나게 분산)
+## 좀비는 **루트가 직접 그린다** — Sprite2D 자식을 두지 않는다.
+##
+## 이유가 둘이다.
+##  ① 피격 잔광 색을 `modulate`(아이템 상태)가 아니라 **정점 데이터**로 넘기려는 것.
+##     modulate 가 다르면 캔버스 배처가 배치를 끊는데, `draw_texture_rect` 의 색 인자는
+##     정점에 실려 배치를 안 끊는다(ASSET_PIPELINE.md 1절).
+##  ② 좀비 하나가 노드 3개(루트+그림자+몸통)였다 — 320마리면 960개다. 1개로 줄었다.
+##
+## 매 프레임 커맨드 목록을 다시 만들어야 해서(Sprite2D 는 노드 변환만 갱신하면 됐다)
+## CPU 가 늘 것을 걱정했는데 실측은 반대였다 — 변환 전파가 줄어 상쇄하고도 남았다.
+## 드로우 콜 166 -> 148, proc_ms 36.3 -> 34.7 (좀비 320 + 무기 4종, 동일 시드 4회 중앙값).
+##
+## ⚠️ `_d_*` 를 바꾸면 반드시 `queue_redraw()` 를 부를 것 — Sprite2D 와 달리 자동 갱신이 없다.
+const _SHADOW_TEX := preload("res://assets/atlas/shadow_soft.tres")
+var _d_tex: Texture2D = null        # 몸통 텍스처(종류별)
+var _d_col: Color = Color.WHITE     # 몸통 틴트 — 피격 잔광·도화선 깜빡임
+var _d_scale: Vector2 = Vector2.ONE # 걷기 스쿼시 + 좌우 플립(음수 x)이 들어간다
+var _d_pos: Vector2 = Vector2.ZERO  # 걷기 바운스
+var _d_rot: float = 0.0             # 걷기 뒤뚱
+var _d_sh_scale: Vector2 = Vector2.ONE
+var _d_sh_pos: Vector2 = Vector2.ZERO
 var _body_base_scale: float = 1.0   # 종류별 기본 스프라이트 스케일(스쿼시는 이 값을 기준으로)
 var _facing: float = 1.0            # 사이드뷰 좌우 방향: 1=오른쪽, -1=왼쪽(회전 대신 수평 플립)
 
@@ -90,11 +109,12 @@ func on_despawn() -> void:
 	_alive = false
 	_flash = 0.0
 	remove_from_group("zombies")
-	body.modulate = Color.WHITE
-	body.scale = Vector2.ONE
-	body.rotation = 0.0
-	body.position = Vector2.ZERO
-	shadow.scale = Vector2.ONE * _SHADOW_BASE
+	_d_col = Color.WHITE
+	_d_scale = Vector2.ONE
+	_d_rot = 0.0
+	_d_pos = Vector2.ZERO
+	_d_sh_scale = Vector2.ONE * _SHADOW_BASE
+	queue_redraw()
 
 
 ## 스포너가 풀에서 꺼낸 직후 호출해 종류별 스탯·스프라이트·행동을 주입한다.
@@ -112,15 +132,16 @@ func setup(type_data: Dictionary) -> void:
 	_fuse_active = false
 	_fuse_timer = 0.0
 	if type_data.has("texture"):
-		body.texture = type_data["texture"]   # 종류별 캐릭터 스프라이트
-	body.modulate = Color.WHITE              # 스프라이트 본연의 색을 그대로 노출
+		_d_tex = type_data["texture"]   # 종류별 캐릭터 스프라이트
+	_d_col = Color.WHITE              # 스프라이트 본연의 색을 그대로 노출
 	var s := float(type_data.get("scale", 1.0))
 	_body_base_scale = s
 	_walk_phase = randf() * TAU              # 개체마다 위상을 달리해 군집이 똑같이 움직이지 않게
 	_facing = 1.0
-	body.rotation = 0.0
-	body.position = Vector2.ZERO
-	body.scale = Vector2.ONE * s
+	_d_rot = 0.0
+	_d_pos = Vector2.ZERO
+	_d_scale = Vector2.ONE * s
+	queue_redraw()
 	_fit_shadow()   # 스프라이트 크기·발 위치에 맞춰 바닥 그림자 배치
 
 
@@ -152,7 +173,8 @@ func _physics_process(delta: float) -> void:
 	if _flash > 0.0:
 		_flash = maxf(0.0, _flash - delta)
 		if vis:
-			body.modulate = Color.WHITE.lerp(_HIT_COLOR, _flash / _HIT_FLASH)
+			_d_col = Color.WHITE.lerp(_HIT_COLOR, _flash / _HIT_FLASH)
+			queue_redraw()
 	var prev_pos := global_position
 	match _behavior:
 		"weaver":  _behave_weaver(delta)
@@ -199,16 +221,18 @@ func _resolve_overlap() -> void:
 func _animate_walk(moved: float) -> void:
 	var fx := _body_base_scale * _facing
 	if moved <= 0.01:
-		body.scale = Vector2(fx, _body_base_scale)
-		body.position.y = move_toward(body.position.y, 0.0, 0.6)
-		body.rotation = move_toward(body.rotation, 0.0, 0.02)
+		_d_scale = Vector2(fx, _body_base_scale)
+		_d_pos.y = move_toward(_d_pos.y, 0.0, 0.6)
+		_d_rot = move_toward(_d_rot, 0.0, 0.02)
+		queue_redraw()
 		return
 	_walk_phase += moved * _WALK_FREQ
 	var s := sin(_walk_phase)
 	var squash := absf(s) * _WALK_SQUASH
-	body.scale = Vector2(fx * (1.0 + squash * 0.4), _body_base_scale * (1.0 - squash))
-	body.position.y = -absf(s) * _WALK_BOB   # 발 딛을 때 통통 튀는 느낌
-	body.rotation = s * _WALK_SWAY            # 좌우로 뒤뚱거림
+	_d_scale = Vector2(fx * (1.0 + squash * 0.4), _body_base_scale * (1.0 - squash))
+	_d_pos.y = -absf(s) * _WALK_BOB   # 발 딛을 때 통통 튀는 느낌
+	_d_rot = s * _WALK_SWAY            # 좌우로 뒤뚱거림
+	queue_redraw()
 
 
 ## 사이드뷰 좌우 방향 갱신 — 진행/추격 방향의 수평 성분으로만 판단(뱀서식 플립).
@@ -226,14 +250,28 @@ func _face(dir: Vector2) -> void:
 ## 번갈아 나오며 **아이템마다 배칭이 깨졌다**(좀비 320마리 실측: 드로우 콜 152 -> 39).
 ## 다른 곳(Player/Boss/Turret/PropField/LandMine)은 알파가 제각각이라 공유 텍스처
 ## shadow.png 를 그대로 쓴다 — 좀비만 개체가 수백이라 전용 텍스처를 따로 둔 것이다.
-func _fit_shadow() -> void:
-	if body.texture == null:
+## 그림자 + 몸통을 한 아이템에서 그린다. 그림자는 알파가 텍스처에 구워져 있어 틴트가 필요 없고,
+## 몸통 색은 정점 데이터로 넘어가 배치를 안 끊는다. 그리는 순서는 예전 씬의 자식 순서와 같다.
+func _draw() -> void:
+	var shs: Vector2 = _SHADOW_TEX.get_size() * _d_sh_scale
+	draw_texture_rect(_SHADOW_TEX, Rect2(_d_sh_pos - shs * 0.5, shs), false)
+	if _d_tex == null:
 		return
-	var tex: Vector2 = body.texture.get_size()
+	var ts: Vector2 = _d_tex.get_size()
+	draw_set_transform(_d_pos, _d_rot, _d_scale)   # 음수 scale.x = 좌우 플립
+	draw_texture_rect(_d_tex, Rect2(-ts * 0.5, ts), false, _d_col)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+
+func _fit_shadow() -> void:
+	if _d_tex == null:
+		return
+	var tex: Vector2 = _d_tex.get_size()
 	# 그림자를 좀비 폭에 맞게 크게(1.28x) 잡아 발밑 존재감을 준다.
 	var sx: float = (tex.x * _body_base_scale * 1.28) / 128.0
-	shadow.scale = Vector2(sx, sx * 0.52)
-	shadow.position = Vector2(0.0, tex.y * _body_base_scale * 0.46)
+	_d_sh_scale = Vector2(sx, sx * 0.52)
+	_d_sh_pos = Vector2(0.0, tex.y * _body_base_scale * 0.46)
+	queue_redraw()
 	sep_radius = tex.x * _body_base_scale * SEP_RATIO   # 종류별 크기에 맞는 몸통 반경
 
 
@@ -294,7 +332,8 @@ func _spit(dir: Vector2) -> void:
 func _behave_bomber(delta: float) -> void:
 	if _fuse_active:
 		_fuse_timer -= delta
-		body.modulate = Color(1, 1, 1) if fmod(_fuse_timer, 0.16) > 0.08 else Color(1.0, 0.4, 0.2)
+		_d_col = Color(1, 1, 1) if fmod(_fuse_timer, 0.16) > 0.08 else Color(1.0, 0.4, 0.2)
+		queue_redraw()
 		if _fuse_timer <= 0.0:
 			_explode()
 		return
@@ -348,7 +387,8 @@ func take_damage(amount: int, is_crit: bool = false) -> void:
 		_DamageNumber.spawn(get_tree().current_scene, global_position, amount)
 		SoundManager.play("zombie_hit")
 		_flash = _HIT_FLASH
-	body.modulate = _HIT_COLOR   # 피격 순간 붉게 번쩍 — 이후 _physics_process 에서 흰색으로 감쇠
+	_d_col = _HIT_COLOR   # 피격 순간 붉게 번쩍 — 이후 _physics_process 에서 흰색으로 감쇠
+	queue_redraw()
 	if health <= 0:
 		_die()
 
