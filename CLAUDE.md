@@ -171,6 +171,18 @@ godot --headless --path . --import && godot --headless --path . --import
 
 UI 를 건드렸으면 추가로 `python3 tools/check_text_fit.py` (en/ko/ja 폭 초과 검사).
 
+프레임을 건드렸으면 **최대 부하로도** 재 본다 — 평상시 판은 오토플레이가 좀비를 계속 녹여서
+최악이 재현되지 않는다(후반 동시 좀비가 상한 320 의 1/10 이다). 프레임 드랍은 최악에서 난다.
+```sh
+godot --headless --path . --script res://tools/bench_lategame.gd -- min=26 stress=1   # CPU
+LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 720x1280x24" \
+  godot --path . --rendering-driver opengl3 \
+  --script res://tools/bench_lategame.gd -- min=26 stress=1                            # 드로우 콜·VRAM
+```
+⚠️ **`physics_ms` 를 프레임 비용으로 읽지 말 것** — 엔진 모니터는 최근 1초의 **최댓값**이다.
+평상시 비용은 하네스가 센티넬로 직접 재는 `물리 틱` 줄을 본다. 자세한 것은
+`OPTIMIZATION_PLAN.md` §5-L.
+
 **기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 18종이 이 프로젝트의 안전망 전부다.
 
 비주얼을 건드렸으면 **실렌더 스크린샷**으로 확인한다 — 헤드리스는 `_draw` 를 부르고 오류도 안 내지만,

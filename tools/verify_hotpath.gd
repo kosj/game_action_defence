@@ -36,6 +36,7 @@ func _init() -> void:
 	_check_damage_number_redraw()
 	await _check_near_cache()
 	await _check_radius_path()
+	_check_homing_throttle()
 	print("")
 	if _fail == 0:
 		print("핫패스 가드 통과")
@@ -232,3 +233,15 @@ func _check_radius_path() -> void:
 	for z in zs:
 		z.free()
 	host.free()
+
+
+## ⑥ 유도탄 조준이 매 프레임 돌지 않는다.
+##
+## 조준 질의(`zombies_in_radius(pos, 420)`)의 비용은 **탄 × 좀비의 곱**이다 — 통제 실험에서
+## 유도탄 200발 기준 좀비 0 → 150 만으로 1.85ms → 12.19ms 였다. 60Hz 로 되돌리면 최대 부하에서
+## 따라잡기 틱(렌더 1프레임당 물리 4회)이 되살아난다. 상수를 되돌리는 것을 여기서 막는다.
+func _check_homing_throttle() -> void:
+	var sc := load("res://scripts/Bullet.gd") as GDScript
+	var every: int = int(sc.get("STEER_EVERY")) if sc != null else 1
+	_check("유도탄 조준이 매 프레임이 아니다 (STEER_EVERY=%d)" % every, every >= 2,
+		"매 프레임 조준하면 최대 부하에서 물리 틱이 약 1.6배가 된다")
