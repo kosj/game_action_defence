@@ -19,6 +19,8 @@ extends Node
 ##   T11 분당 샘플에 메모리·노드 수가 실린다(누수 추이 판별용)
 ##   T12 메뉴 복귀 판이 기록에 남는다 + 끝맺지 못한 판이 새 판 시작 시 승격된다
 ##   T13 해석된 이속 합계(speed_lv)가 기록된다 — 후반 이속 밸런스 판정의 유일한 지표
+##   T14 판 도중 Events.reset() 이 일어나도 기록이 0 으로 덮이지 않는다
+##       (30분 클리어 판이 "생존 0초 · 처치 1" 로 저장되던 버그)
 ##       (클리어 후 메뉴로 나간 판이 통째로 사라지던 버그)
 
 var _ok := 0
@@ -222,6 +224,32 @@ func _ready() -> void:
 	var r13: Dictionary = JSON.parse_string(Telemetry.load_records_raw()[0])
 	_check("T13 해석된 이속 합계가 기록됨", int(r13.get("speed_lv", -1)) == 5,
 		"speed_lv=%s" % r13.get("speed_lv"))
+	Telemetry.clear_records()
+
+	# ── T14 판 도중 Events.reset() 이 일어나도 기록이 0 으로 덮이지 않는다 ──
+	# "다시하기"가 end_run 없이 Events.reset() 을 부르면, 그 뒤의 진행 스냅샷이 리셋된 값으로
+	# 덮인다. Telemetry 자체 변수(cleared·samples·보스)는 리셋되지 않아 두 시점이 섞인다 —
+	# 실제로 30분 클리어 판이 "생존 0초 · 처치 1 · 레벨 2" 로 저장됐다(P0-9).
+	Telemetry.clear_records()
+	Events.reset()
+	Telemetry.begin_run()
+	Events.elapsed_time = 1800.0
+	Events.total_kills = 10731
+	Events.level = 182
+	Events.run_cleared.emit()
+	Telemetry._partial_accum = Telemetry.PARTIAL_INTERVAL   # 진행 스냅샷 1회 강제
+	Telemetry._process(0.016)                               # 정상 값으로 기록됨
+	Events.reset()                                          # ← end_run 없이 리셋
+	Telemetry._partial_accum = Telemetry.PARTIAL_INTERVAL
+	Telemetry._process(0.016)                               # 여기서 덮이면 회귀다
+	Telemetry.begin_run()                                   # 새 판 — 이전 판을 승격
+	var raw14 := Telemetry.load_records_raw()
+	var r14: Dictionary = JSON.parse_string(raw14[0]) if raw14.size() > 0 else {}
+	_check("T14 판 도중 리셋돼도 기록이 0 으로 안 덮임",
+		raw14.size() == 1 and int(r14.get("kills", -1)) == 10731
+			and int(r14.get("level", -1)) == 182 and bool(r14.get("cleared", false)),
+		"%d건 · kills=%s level=%s cleared=%s"
+			% [raw14.size(), r14.get("kills"), r14.get("level"), r14.get("cleared")])
 	Telemetry.clear_records()
 
 	print("RESULT ok=%d/%d" % [_ok, _total])

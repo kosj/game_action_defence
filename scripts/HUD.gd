@@ -1247,6 +1247,10 @@ func _show_end_panel(victory: bool) -> void:
 
 
 func _on_restart_pressed() -> void:
+	# 메인 메뉴와 같은 이유로 **Events.reset() 보다 먼저** 기록한다(P0-9).
+	# 이게 없으면 리셋된 값(경과 0·처치 1·레벨 2)이 진행 스냅샷을 덮어써, 그 판이
+	# "0점짜리 기록"으로 남는다 — 실제로 30분 클리어 판이 그렇게 저장됐다.
+	Telemetry.end_run("left")
 	Events.pause_release_all()   # 새 판 시작 전 정지 소유권 전부 해제
 	MetaManager.bank(Events.total_gold)   # 이번 판 골드를 영구 은행에 적립
 	Events.reset()
