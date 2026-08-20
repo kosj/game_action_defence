@@ -53,7 +53,7 @@
 | P1-2 프롭 활성화 | B | ✅ (b1ed9ab) | claude/b-lane-pending-item-dix8eg | 2026-08-18 |
 | P1-3 가스통 고아 코드 삭제 | B | ✅ (2e76857) | claude/b-lane-gascan-cleanup | 2026-08-18 |
 | P1-4 이벤트 예고 UI | E | ✅ (b7df041) | claude/e-lane-event-forecast | 2026-08-18 |
-| P1-5 후반 이속 밸런스 | F | ✅ (머지 후 sha 기입) | claude/f-lane-late-speed | 2026-08-20 |
+| P1-5 후반 이속 밸런스 | F | ✅ (3f5ca5d) | claude/f-lane-late-speed | 2026-08-20 |
 | P0-8 패시브가 기록에 안 남는다(획득 불가 의심) | F | ⚪ 대기 | — | 2026-08-20 |
 | P1-9 텔레메트리(로컬 수집) | F | ✅ (17df85c) | claude/f-lane-telemetry | 2026-08-18 |
 | P1-10 텔레메트리 원격 수집 | — | 🟡 결정대기 | — | — |
