@@ -42,6 +42,12 @@ const PROP_DIR := "res://assets/atlas/props/"
 
 ## 프롭 카탈로그: 키 → { file, theme=소속 테마(폴더), w=표시 최대변(px),
 ##                       solid=장애물여부, rfrac=충돌반경/최소변 비율 }.
+##
+## **높이 기준**: 표시 높이는 플레이어(유닛 규약 120px)의 대략 2/3 을 넘지 않고, 넘는다면
+## 세로로 솟은 부피가 아니어야 한다. 이 게임은 탑다운 필드 위에 사이드뷰 스프라이트를 세우는
+## 투영이라, 키 큰 원통·캡슐은 플레이어가 겹치는 순간 "허공에 떠 있는" 것으로 읽힌다.
+## 실제로 배양 탱크(118px = 플레이어의 98%)와 격리 포드(세로 캡슐)를 이 이유로 뺐다.
+## 얇은 판(울타리)이나 낮은 상자(쓰레기통·서버랙)는 지면에 붙어 읽히므로 해당하지 않는다.
 ## 아직 아트가 없는 키(파일 부재)는 로드 단계에서 자동 제외된다.
 ## 어느 테마에서 쓸지는 ThemeData.prop_keys 가 정한다 — 여기 있어도 그 목록에 없으면 안 나온다.
 const _CATALOG := {
@@ -53,13 +59,11 @@ const _CATALOG := {
 	"hydrant":   {"file": "prop_hydrant.png",   "theme": "suburb", "w": 34.0,  "solid": true,  "rfrac": 0.42},
 	# 도심 — wreck_car 는 BurningCar 기믹(도심 전용)도 같은 시트를 쓴다.
 	"wreck_car": {"file": "prop_wreck_car.png", "theme": "city",   "w": 120.0, "solid": true,  "rfrac": 0.42},
-	"tank":      {"file": "prop_tank.png",      "theme": "city",   "w": 118.0, "solid": true,  "rfrac": 0.42},
 	"barrier":   {"file": "prop_barrier.png",   "theme": "city",   "w": 100.0, "solid": true,  "rfrac": 0.40},
 	"dumpster":  {"file": "prop_dumpster.png",  "theme": "city",   "w": 82.0,  "solid": true,  "rfrac": 0.42},
 	"rubble":    {"file": "prop_rubble.png",    "theme": "city",   "w": 92.0,  "solid": false, "rfrac": 0.40},
 	"barrel":    {"file": "prop_barrel.png",    "theme": "city",   "w": 44.0,  "solid": false, "rfrac": 0.42},
 	# 연구소
-	"pod":       {"file": "prop_pod.png",       "theme": "lab",    "w": 66.0,  "solid": true,  "rfrac": 0.40},
 	"server":    {"file": "prop_server.png",    "theme": "lab",    "w": 78.0,  "solid": true,  "rfrac": 0.42},
 	"drum":      {"file": "prop_drum.png",      "theme": "lab",    "w": 42.0,  "solid": true,  "rfrac": 0.44},
 	"console":   {"file": "prop_console.png",   "theme": "lab",    "w": 70.0,  "solid": false, "rfrac": 0.40},
@@ -97,8 +101,8 @@ const _MOTIFS := {
 		# 사고 현장 — 폐차 + 잔해 + 드럼통
 		[{"k": "wreck_car", "o": Vector2(-44, 16)}, {"k": "rubble", "o": Vector2(62, -40)},
 		 {"k": "barrel", "o": Vector2(86, 46)}],
-		# 방어선 잔해 — 탱크 + 잔해
-		[{"k": "tank", "o": Vector2(0, -8)}, {"k": "rubble", "o": Vector2(-84, 56)},
+		# 무너진 방어선 — 폐차 + 잔해 + 드럼통
+		[{"k": "wreck_car", "o": Vector2(0, -12)}, {"k": "rubble", "o": Vector2(-80, 56)},
 		 {"k": "barrel", "o": Vector2(84, 52)}],
 		# 뒷골목 — 쓰레기통 + 드럼통 + 잔해
 		[{"k": "dumpster", "o": Vector2(-58, 8)}, {"k": "barrel", "o": Vector2(12, -48)},
@@ -111,8 +115,8 @@ const _MOTIFS := {
 		# 서버 열 — 서버·콘솔·서버 정렬(서버 간격은 통행 간격 실측에 맞춰 116px)
 		[{"k": "server", "o": Vector2(-58, 0)}, {"k": "console", "o": Vector2(0, 0)},
 		 {"k": "server", "o": Vector2(58, 0)}],
-		# 격리 포드 구역 — 포드 + 콘솔 2대
-		[{"k": "pod", "o": Vector2(-62, -18)}, {"k": "console", "o": Vector2(15, 48)},
+		# 관측 구역 — 서버 + 콘솔 2대
+		[{"k": "server", "o": Vector2(-62, -18)}, {"k": "console", "o": Vector2(15, 48)},
 		 {"k": "console", "o": Vector2(80, -30)}],
 		# 약품 저장소 — 드럼 + 콘솔 2대
 		[{"k": "drum", "o": Vector2(-64, 30)}, {"k": "console", "o": Vector2(10, -45)},
