@@ -84,6 +84,31 @@ def main():
         print("이어하기로 시작한 %d판을 제외했다 (--include-resumed 로 포함)\n" % len(resumed))
     if not rows:
         sys.exit("이어하기 판을 제외하니 남는 기록이 없다.")
+    # 손상된 기록(P0-9) — 분당 샘플이 요약 수치보다 크면 두 시점이 섞인 레코드다.
+    # 판 도중 Events.reset() 이 일어난 뒤 진행 스냅샷이 덮인 경우로, 요약만 0 에 가깝다.
+    # 수정 전 빌드의 기록에 남아 있으므로 여기서 걸러 낸다 — 안 거르면 생존 0분으로 집계돼
+    # 중앙값을 끌어내리고, 하필 그게 클리어 판이라 상단이 통째로 사라진다.
+    def _corrupt(r):
+        sm = r.get("samples") or []
+        if not sm:
+            return False
+        last = sm[-1]
+        return (int(last.get("kills", 0)) > int(r.get("kills", 0))
+                or int(last.get("level", 0)) > int(r.get("level", 0)))
+
+    broken = [r for r in rows if _corrupt(r)]
+    if broken:
+        rows = [r for r in rows if not _corrupt(r)]
+        print("손상된 기록 %d판을 제외했다 — 판 도중 리셋으로 요약이 덮인 것이다(P0-9)." % len(broken))
+        for r in broken:
+            sm = r["samples"][-1]
+            print("  %s %s분경 · 샘플 처치 %s/레벨 %s ↔ 요약 처치 %s/레벨 %s%s"
+                  % (r.get("character", "?"), sm.get("min", "?"), sm.get("kills"), sm.get("level"),
+                     r.get("kills"), r.get("level"), "  ★클리어" if r.get("cleared") else ""))
+        print("")
+    if not rows:
+        sys.exit("손상된 기록을 제외하니 남는 기록이 없다.")
+
     died = [r for r in rows if r.get("outcome") == "died"]
     # "left" = 메뉴로 나간 정상 종료 · "abandoned" = 탭 닫힘·크래시. 섞으면 크래시 조사가 흐려진다.
     left = [r for r in rows if r.get("outcome") == "left"]
