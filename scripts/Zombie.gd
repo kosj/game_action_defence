@@ -202,8 +202,11 @@ func _physics_process(delta: float) -> void:
 ## 정확히 접촉 사거리에 서게 되므로, 닿은 좀비는 반드시 접촉 피해를 준다
 ## (Player._check_contact_damage 가 같은 반경을 쓴다).
 ##
-## 좀비끼리의 분리는 넣지 않는다 — 320마리 기준 물리 시간이 5.3ms → 10.8ms 로 2배가 됐고,
-## 플레이어 주변으로 한정해도 7.3ms 였다. 웹(WASM)에서는 그대로 프레임 붕괴로 이어진다.
+## ⚠️ 여기는 **플레이어와의** 겹침만 푼다. 좀비끼리의 분리는 `ZombieSpawner._physics_process()`
+## 가 따로 처리한다 — 예전에는 "비싸서 넣지 않는다"고 이 자리에 적혀 있었지만 지금은 들어가
+## 있다. 대신 비용을 세 가지로 눌렀다: 30Hz(2 물리 프레임에 1번) · 플레이어 반경 760px 밖
+## 생략 · 한 마리가 검사하는 이웃 6마리 상한. 최대 부하(좀비 320) 실측이 1.07ms 로,
+## 물리 틱의 11% 다(OPTIMIZATION_PLAN.md §5-M 의 절제 측정).
 func _resolve_overlap() -> void:
 	var to_p := global_position - player.global_position
 	var min_p: float = sep_radius + Events.player_body_radius

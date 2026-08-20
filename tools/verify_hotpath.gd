@@ -8,12 +8,21 @@ extends SceneTree
 ##
 ## 근거 수치는 OPTIMIZATION_PLAN.md §7 참고.
 
-## 대량으로 존재하는 개체 씬 — 이들이 물리 노드가 되면 개체 수만큼 물리 서버 등록·변환
-## 동기화가 되살아난다. Bullet 은 예전에 Area2D 였고, Gold 는 **충돌 도형도 없는 Area2D** 였다.
-const MASS_SCENES := [
+## 물리 노드여서는 안 되는 씬. 이유가 둘로 나뉜다.
+##
+## ① 대량 개체(Bullet·Gold·Zombie) — 물리 노드가 되면 **개체 수만큼** 물리 서버 등록·변환
+##    동기화가 되살아난다. Bullet 은 예전에 Area2D 였고, Gold 는 충돌 도형도 없는 Area2D 였다.
+## ② 픽업(ItemPickup·WeaponPickup) — 개수가 최대 2라 프레임 이유는 없다. 실측으로도 정지
+##    상태의 Area2D 는 600개에서 0.003ms 로 기준선과 같다(§5-M). 여기 넣는 이유는 **함정**이다.
+##    예전에는 도형 없는 Area2D 에 monitoring/monitorable 을 둘 다 꺼 둔 상태였는데, 그러면
+##    "Area2D 니까 body_entered 를 쓰면 되겠다"고 집었을 때 신호가 영영 안 온다. 수집 판정은
+##    collect_radius 거리 계산이라는 사실이 타입에 드러나 있어야 한다.
+const NO_PHYSICS_SCENES := [
 	"res://scenes/Bullet.tscn",
 	"res://scenes/Gold.tscn",
 	"res://scenes/Zombie.tscn",
+	"res://scenes/ItemPickup.tscn",
+	"res://scenes/WeaponPickup.tscn",
 ]
 
 var _fail := 0
@@ -30,7 +39,7 @@ func _check(label: String, cond: bool, detail: String = "") -> void:
 func _init() -> void:
 	await process_frame
 	print("── 핫패스 가드 ──────────────────────────────────────")
-	_check_mass_scenes()
+	_check_no_physics_scenes()
 	_check_scripts_alive()
 	_check_all_scripts_compile()
 	_check_damage_number_redraw()
@@ -45,9 +54,9 @@ func _init() -> void:
 	quit(_fail)
 
 
-## ① 대량 개체 씬의 루트는 물리 노드가 아니어야 한다.
-func _check_mass_scenes() -> void:
-	for path in MASS_SCENES:
+## ① 위 씬들의 루트는 물리 노드가 아니어야 한다.
+func _check_no_physics_scenes() -> void:
+	for path in NO_PHYSICS_SCENES:
 		var ps := load(path) as PackedScene
 		if ps == null:
 			_check("%s 로드" % path, false, "씬을 열 수 없다")
@@ -64,7 +73,7 @@ func _check_mass_scenes() -> void:
 ## 컴파일에 실패한 GDScript 도 노드에는 **붙어 있다.** 그래서 "스크립트가 있는가"로는 못 가른다 —
 ## 게임은 조용히 죽은 탄을 날리고, 벤치는 그 상태로 "탄은 싸다"는 표를 찍는다(P1-18 이 그랬다).
 func _check_scripts_alive() -> void:
-	for path in MASS_SCENES:
+	for path in NO_PHYSICS_SCENES:
 		var ps := load(path) as PackedScene
 		if ps == null:
 			continue

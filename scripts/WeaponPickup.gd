@@ -1,6 +1,9 @@
-extends Area2D
+extends Node2D
 ## 무기 픽업: 맵 랜덤 위치에 등장. 플레이어가 가까이 가면 즉시 장착되고,
 ## 방치되면 일정 시간 후 사라진다(자리 순환). 희귀도가 높을수록 더 크고 화려하게 표현.
+##
+## 물리 노드가 아니다: 수집 판정은 collect_radius 거리 계산뿐이다.
+## (예전에는 ItemPickup 과 함께 도형 없는 Area2D 였다 — 자세한 것은 ItemPickup.gd 머리말)
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 
@@ -16,8 +19,6 @@ var _t: float = 0.0
 
 func _ready() -> void:
 	add_to_group("weapon_pickups")
-	monitoring = false
-	monitorable = false
 
 
 ## 스포너가 풀에서 꺼낸 직후 무기 데이터를 주입.
