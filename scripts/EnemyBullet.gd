@@ -46,9 +46,9 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	if not _alive:
 		return
-	draw_circle(Vector2.ZERO, 9.0, Color(color.r, color.g, color.b, 0.20))
-	draw_circle(Vector2.ZERO, 5.5, Color(color.r, color.g, color.b, 0.60))
-	draw_circle(Vector2.ZERO, 2.5, Color(1.0, 1.0, 0.9, 0.95))
+	QuadDraw.disc(self, Vector2.ZERO, 9.0, Color(color.r, color.g, color.b, 0.20))
+	QuadDraw.disc(self, Vector2.ZERO, 5.5, Color(color.r, color.g, color.b, 0.60))
+	QuadDraw.disc(self, Vector2.ZERO, 2.5, Color(1.0, 1.0, 0.9, 0.95))
 
 
 func _impact() -> void:

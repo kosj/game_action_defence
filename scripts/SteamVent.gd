@@ -67,32 +67,30 @@ func _burst() -> void:
 func _draw() -> void:
 	var ph := fmod(_phase_t, TELEGRAPH + ACTIVE + COOLDOWN)
 	# 금속 통풍구 베이스 — 어두운 원판 + 밝은 림 + 배기 슬릿 3줄(무엇인지 한눈에 보이게).
-	draw_circle(Vector2.ZERO, 16.0, Color(0.16, 0.17, 0.20, 0.95))
-	draw_arc(Vector2.ZERO, 16.0, 0.0, TAU, 20, Color(0.55, 0.58, 0.66, 0.9), 2.2, true)
+	QuadDraw.disc(self, Vector2.ZERO, 16.0, Color(0.16, 0.17, 0.20, 0.95))
+	QuadDraw.ring(self, Vector2.ZERO, 16.0, Color(0.55, 0.58, 0.66, 0.9), 2.2, 20)
 	for i in 3:
 		var y := -6.0 + 6.0 * float(i)
-		draw_line(Vector2(-8, y), Vector2(8, y), Color(0.42, 0.45, 0.52, 0.9), 2.5)
+		QuadDraw.segment(self, Vector2(-8, y), Vector2(8, y), Color(0.42, 0.45, 0.52, 0.9), 2.5)
 	if ph < TELEGRAPH:
 		# 경고: 위험 반경 링이 차오르고(호가 자라며 회전) 통풍구가 노랗게 점멸.
 		var p := ph / TELEGRAPH
 		var blink := 0.5 + 0.5 * sin(_age * 18.0)
-		draw_arc(Vector2.ZERO, 16.0, 0.0, TAU, 20, Color(1.0, 0.85, 0.25, 0.4 + 0.5 * blink * p), 2.5, true)
-		draw_circle(Vector2.ZERO, BURST_R, Color(1.0, 0.9, 0.4, 0.05 + 0.09 * p))
-		draw_arc(Vector2.ZERO, BURST_R, 0.0, TAU, 32, Color(0.85, 0.88, 0.95, 0.25 + 0.35 * p), 2.0, true)
+		QuadDraw.ring(self, Vector2.ZERO, 16.0, Color(1.0, 0.85, 0.25, 0.4 + 0.5 * blink * p), 2.5, 20)
+		QuadDraw.disc(self, Vector2.ZERO, BURST_R, Color(1.0, 0.9, 0.4, 0.05 + 0.09 * p))
+		QuadDraw.ring(self, Vector2.ZERO, BURST_R, Color(0.85, 0.88, 0.95, 0.25 + 0.35 * p), 2.0, 32)
 		var sweep := _age * 2.5
-		draw_arc(Vector2.ZERO, BURST_R, sweep, sweep + TAU * p, 32, Color(1.0, 0.85, 0.3, 0.55 + 0.3 * blink), 3.5, true)
+		QuadDraw.ring(self, Vector2.ZERO, BURST_R, Color(1.0, 0.85, 0.3, 0.55 + 0.3 * blink), 3.5, 32, sweep, sweep + TAU * p)
 	elif ph < TELEGRAPH + ACTIVE:
 		# 분출: 범위 전체가 증기로 번쩍 + 수직 증기 기둥.
-		draw_circle(Vector2.ZERO, BURST_R, Color(0.9, 0.93, 0.98, 0.30))
-		draw_arc(Vector2.ZERO, BURST_R, 0.0, TAU, 32, Color(1.0, 1.0, 1.0, 0.7), 3.0, true)
+		QuadDraw.disc(self, Vector2.ZERO, BURST_R, Color(0.9, 0.93, 0.98, 0.30))
+		QuadDraw.ring(self, Vector2.ZERO, BURST_R, Color(1.0, 1.0, 1.0, 0.7), 3.0, 32)
 		for i in 4:
 			var fi := float(i)
-			draw_circle(Vector2(sin(_age * 20.0 + fi * 2.1) * 7.0, -14.0 - fi * 16.0), 11.0 - fi * 1.8,
-				Color(0.92, 0.95, 1.0, 0.5 - fi * 0.1))
+			QuadDraw.disc(self, Vector2(sin(_age * 20.0 + fi * 2.1) * 7.0, -14.0 - fi * 16.0), 11.0 - fi * 1.8, Color(0.92, 0.95, 1.0, 0.5 - fi * 0.1))
 	else:
 		# 대기: 슬릿에서 스멀스멀 새어 나오는 작은 증기 — 살아있는 위험임을 계속 알린다.
 		for i in 2:
 			var fi := float(i)
 			var t := fmod(_age * 0.9 + fi * 0.5, 1.0)
-			draw_circle(Vector2(sin(_age * 3.0 + fi * 3.7) * 5.0, -10.0 - t * 22.0), 3.5 + t * 3.0,
-				Color(0.85, 0.88, 0.94, 0.30 * (1.0 - t)))
+			QuadDraw.disc(self, Vector2(sin(_age * 3.0 + fi * 3.7) * 5.0, -10.0 - t * 22.0), 3.5 + t * 3.0, Color(0.85, 0.88, 0.94, 0.30 * (1.0 - t)))

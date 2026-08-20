@@ -197,9 +197,11 @@ class _Saw extends Node2D:
 			return
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2(f, 1.0))
 		# 몸통(손잡이 쪽) + 앞으로 뻗은 바
+		# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 		draw_colored_polygon(PackedVector2Array([
 			Vector2(-13, -7), Vector2(-2, -6), Vector2(-2, 6), Vector2(-13, 8)]),
 			Color(0.86, 0.44, 0.12))
+		# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 		draw_colored_polygon(PackedVector2Array([
 			Vector2(-2, -4), Vector2(17, -3), Vector2(17, 3), Vector2(-2, 4)]),
 			Color(0.55, 0.58, 0.65))
@@ -208,7 +210,10 @@ class _Saw extends Node2D:
 		for i in range(teeth):
 			var p := fposmod(spin * 0.35 + float(i) / float(teeth), 1.0)
 			var x: float = -2.0 + p * 19.0
+			# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 			draw_line(Vector2(x, -4.5), Vector2(x, -2.5), Color(0.95, 0.96, 1.0, 0.95), 1.6, true)
+			# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 			draw_line(Vector2(x, 2.5), Vector2(x, 4.5), Color(0.95, 0.96, 1.0, 0.95), 1.6, true)
+		# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 		draw_circle(Vector2(-7, 0), 3.0, Color(0.30, 0.32, 0.36))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

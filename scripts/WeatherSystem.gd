@@ -394,5 +394,5 @@ func _draw() -> void:
 	if _haze_vp == Vector2.ZERO:
 		return
 	var m := HAZE_MARGIN
-	draw_rect(Rect2(-_haze_vp.x * 0.5 - m, -_haze_vp.y * 0.5 - m,
+	QuadDraw.rect(self, Rect2(-_haze_vp.x * 0.5 - m, -_haze_vp.y * 0.5 - m,
 			_haze_vp.x + m * 2.0, _haze_vp.y + m * 2.0), Color(0.92, 0.94, 1.0, 1.0))

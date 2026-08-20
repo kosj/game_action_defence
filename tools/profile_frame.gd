@@ -184,6 +184,22 @@ func _ablate() -> void:
 					if s2 != null and String(s2.resource_path).ends_with("DamageNumber.gd") \
 							and c2 is CanvasItem:
 						c2.visible = false
+		"flashmod":
+			# 좀비 피격 잔광(body.modulate)만 흰색으로 — "인스턴스마다 색이 다른 것" 이
+			# 지금도 배칭을 깨고 있는지 잰다(MultiMesh 인스턴싱의 이득 상한을 가늠하는 값).
+			for z in get_nodes_in_group("zombies"):
+				var b = z.get_node_or_null("Body")
+				if b != null and b.modulate != Color.WHITE:
+					b.modulate = Color.WHITE
+		"gimmicks":
+			# 테마 기믹(증기·독성 웅덩이·낙석·불타는 차 등) 전부 숨김
+			for c in _main.get_children():
+				if c is CanvasItem and c.get_script() != null:
+					var sp := String(c.get_script().resource_path)
+					for g in ["SteamVent", "ToxicPool", "CryoVent", "FallingDebris",
+							"BurningCar", "TeslaCoil", "FlySwarm", "GroundHazard"]:
+						if sp.ends_with(g + ".gd"):
+							c.visible = false
 		"gems":
 			for g in _gems():
 				if g is CanvasItem:

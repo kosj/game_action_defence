@@ -102,6 +102,9 @@ func _draw() -> void:
 	for f in [1.0, -1.0]:
 		var arm := PackedVector2Array([
 			Vector2(0, 0) , Vector2(20.0 * S * f, -6.0 * S), Vector2(19.0 * S * f, 3.0 * S), Vector2(2.0 * S * f, 6.0 * S)])
+		# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 		draw_colored_polygon(arm, wood)
+		# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 		draw_polyline(PackedVector2Array([Vector2(0, -2.0 * S), Vector2(18.0 * S * f, -6.0 * S)]), edge, 2.5)
+	# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 	draw_circle(Vector2.ZERO, 3.4 * S, edge)
