@@ -159,6 +159,24 @@ def main():
         for c, v in sorted(by_char.items(), key=lambda kv: -st.median(kv[1])):
             print("  %-10s n=%-3d 중앙 %.1f분" % (c, len(v), st.median(v)))
 
+    # 프레임 추이(P1-18) — 종료 시점 한 장으로는 "언제부터 무너졌나"를 못 본다.
+    # 분당 샘플에 fps 가 실린 기록만 대상이다(그 이전 빌드는 이 줄이 안 나온다).
+    curves = [r for r in rows if any("fps" in x for x in (r.get("samples") or []))]
+    if curves:
+        print("\n분당 프레임 추이 (fps · 최악 프레임 · 좀비)")
+        for r in curves:
+            pts = [x for x in r["samples"] if "fps" in x]
+            if not pts:
+                continue
+            print("  %s %.1f분 — 레벨 %s" % (r.get("character", "?"),
+                                            r["survived_s"] / 60.0, r.get("level")))
+            for x in pts:
+                fps = int(x.get("fps", 0))
+                bar = "#" * max(0, min(30, int(fps / 2)))
+                print("    %3d분 %3dfps %-30s 최악 %5.1fms · 좀비 %s"
+                      % (x.get("min", 0), fps, bar, float(x.get("frame_ms", 0)),
+                         x.get("zombies", "?")))
+
     # 후반 이속(P1-5) — 이속 합계가 낮은 판만 유독 짧게 끝나면 이속이 선택이 아니라 세금이다.
     # 추월 시점 자체는 게임 데이터에서 계산된다: tools/verify_late_speed.gd 참고.
     sp = [r for r in rows if r.get("speed_lv") is not None]
