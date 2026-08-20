@@ -117,6 +117,14 @@ var _off: Array = []
 var _only: Array = []
 var _off_applied := false
 var _kills0 := -1
+## stress 모드 — 최대 부하(worst case) 재현. 아래 _stress_tick() 참고.
+var _stress := false
+var _pause_tags: Dictionary = {}
+var _paused_ticks := 0
+var _stress_t := 0.0
+var _vram: Array = []
+var _tex_mem: Array = []
+var _items: Array = []
 
 
 func _process(delta: float) -> bool:
@@ -127,6 +135,8 @@ func _process(delta: float) -> bool:
 		_setup()
 		return false
 	_t += delta
+	if _stress:
+		_stress_tick(delta)
 	if _t < _warm:
 		return false
 	# 풀에서 새로 나온 노드는 다시 켜져 있으므로 매 프레임 다시 끈다.
@@ -138,11 +148,22 @@ func _process(delta: float) -> bool:
 	if _kills0 < 0:
 		_kills0 = int(_events.total_kills)
 		_tick_ms.clear()   # 예열 구간의 틱은 버린다
+	# 정지 구간이 길면 표본이 사라진다 — **누가** 잡고 있는지 세어 둔다. 그게 없으면
+	# "표본 114/1800" 만 보고 원인을 못 찾는다(실제로 레벨업인 줄 알고 헛다리를 짚었다).
+	if paused:
+		for tag in _events.pause_owner_tags():
+			_pause_tags[tag] = int(_pause_tags.get(tag, 0)) + 1
+		_paused_ticks += 1
 	if not paused:
 		_frames.append(delta * 1000.0)
 		_proc_ms.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 		_phys_ms.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
 		_draw_calls.append(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+		_items.append(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME))
+		# GPU "부하"를 헤드리스에서 직접 잴 수는 없지만, **GPU 에 보내는 양**은 기기와 무관한
+		# 값이라 여기서 그대로 읽힌다 — 드로우 콜·캔버스 아이템·VRAM 이 그 대리 지표다.
+		_vram.append(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED))
+		_tex_mem.append(Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED))
 		var pf := Engine.get_physics_frames()
 		if _prev_pf >= 0:
 			_ticks.append(float(pf - _prev_pf))
@@ -209,6 +230,13 @@ func _setup() -> void:
 	var probe := String(_args.get("probe", ""))
 	if probe != "":
 		_setup_probe(probe, cheats)
+		# zn=N — 측정 대상 옆에 **가만히 있는 좀비 N 마리**를 세워 둔다(자기 로직은 끈 채로).
+		# 공간 해시 질의 비용은 "격자에 몇 마리가 들어 있나"에 달려 있는데, 기존 probe 는 좀비가
+		# 0 마리라 **질의가 가장 싼 상태만** 잰다. 유도탄처럼 반경 질의를 도는 개체는 그 상태에서
+		# 재면 실제 비용의 일부만 보인다. 좀비를 세워 두면 개체 수를 고정한 채 질의 비용만 바뀐다.
+		var zn := int(_args.get("zn", "0"))
+		if zn > 0:
+			_spawn_idle_zombies(zn)
 
 	var off := String(_args.get("off", ""))
 	if off != "":
@@ -218,6 +246,10 @@ func _setup() -> void:
 	# off= 는 "그것만 뺀 나머지"를 재므로 남은 것들의 상호작용(개체 수 변화)이 섞이는데,
 	# 실측 잡음이 ±1.3ms 라 1ms 급 항목은 그 안에 묻힌다. only= 는 절편이 0.1ms 인 정지 상태
 	# 위에 한 계통만 얹으므로 그 계통의 몫이 그대로 읽힌다.
+	_stress = int(_args.get("stress", "0")) != 0
+	if _stress:
+		_setup_stress(cheats)
+
 	var only := String(_args.get("only", ""))
 	if only != "":
 		_only = Array(only.split(","))
@@ -326,6 +358,85 @@ func _install_tick_probes() -> void:
 	tail.sink = _tick_ms
 	root.add_child(tail)
 	_tick_end = tail
+
+
+## ── 최대 부하(worst case) 모드 ────────────────────────────────────────
+## 평상시 판은 오토플레이가 좀비를 계속 녹여서 **최악이 재현되지 않는다**(후반 동시 좀비가
+## 상한 320 의 1/10 인 25~40마리인 이유가 그것이다). 프레임 드랍은 평상시가 아니라 최악에서
+## 나므로, 최악을 일부러 만들어 놓고 재는 모드가 따로 필요하다.
+##
+## 만드는 것: 좀비 상한까지 + 보스 + 만렙 빌드 + 젬 상한. 그리고 **계속 그 상태로 유지한다** —
+## 한 번만 채우면 몇 초 만에 녹아 다시 평상시가 된다.
+func _setup_stress(cheats: Node) -> void:
+	cheats.request_spawn_fill()
+	cheats.request_spawn_boss()
+	print("  [stress] 최대 부하 모드 — 좀비 상한 + 보스 + 젬 상한을 계속 유지한다")
+
+
+## 매 프레임 플레이어를 살려 두고, 1초마다 좀비·젬을 다시 채운다.
+##
+## ⚠️ **체력을 안 채우면 최악이 아니라 게임오버 화면을 재게 된다.** 좀비 상한(320) + 보스를
+## 붙여 놓으면 접촉 피해로 몇 초 만에 죽고, 그 뒤로는 정지 화면이라 물리 틱이 아예 안 돈다.
+## 실제로 그렇게 나왔다 — 표본 98/1200, 정지 소유자 `gameover` 1098프레임.
+## `tools/profile_frame.gd` 가 같은 함정을 이미 겪고 같은 처방을 쓰고 있다.
+func _stress_tick(delta: float) -> void:
+	var p := get_first_node_in_group("player")
+	if p != null and p.has_method("heal_full"):
+		p.heal_full()
+	_stress_t += delta
+	if _stress_t < 1.0:
+		return
+	_stress_t = 0.0
+	# 레벨업을 막는다 — 안 그러면 이 모드가 스스로를 못 재게 만든다.
+	# 상한까지 채운 좀비가 계속 죽으면서 경험치가 폭주하고, 레벨업 카드가 뜰 때마다
+	# LevelUpPanel 이 **0.7초 동안 게임을 정지**시킨 뒤에야 자동 선택한다(LevelUpPanel._auto_t).
+	# 그 결과 측정 구간의 90% 가 일시정지가 되고(표본 145/1800), 물리 틱은 몇 개 못 건진 채
+	# CPU 사용률만 낮게 나온다. 빌드는 이미 만렙으로 주입해 뒀으므로 레벨업은 이 시나리오에
+	# 아무것도 더하지 않는다 — 경험치를 그냥 비워 둔다.
+	_events.xp = 0
+	var cheats := root.get_node("Cheats")
+	cheats.request_spawn_fill()
+	# 젬도 상한까지 밀어 올린다 — 좀비를 즉사시키면 젬이 안 쌓여 최악이 안 만들어진다.
+	var need: int = int(root.get_node("GameData").balance.gem_live_cap) - _gem_count()
+	if need > 0:
+		var gs: PackedScene = _gold_scene if _gold_scene != null else load("res://scenes/Gold.tscn")
+		_gold_scene = gs
+		var pc: Vector2 = _player_pos()
+		for i in mini(need, 40):
+			var g: Node2D = root.get_node("Pool").acquire(gs, _main)
+			var a := TAU * float(i) / 40.0
+			# 자석 범위(130px) 밖 + **오토플레이 젬 탐색 반경(Cheats._GEM_R = 480px) 밖**에 둔다.
+			# 안쪽에 두면 조종 AI 가 주우러 가서 경험치가 폭주하고, 레벨업 카드가 계속 떠서
+			# 측정 구간의 80% 가 일시정지가 된다(표본 112/1500 이 그렇게 나왔다).
+			# 여기 젬은 "필드에 떠 있는 140개의 매 프레임 비용"을 재는 것이 목적이라 위치는 무관하다.
+			g.global_position = pc + Vector2(cos(a), sin(a)) * (620.0 + 60.0 * float(i % 5))
+
+
+func _gem_count() -> int:
+	return (load("res://scripts/Gold.gd") as GDScript).live_gems().size()
+
+
+func _player_pos() -> Vector2:
+	var p := get_first_node_in_group("player")
+	return (p as Node2D).global_position if p != null else Vector2.ZERO
+
+
+## probe 옆에 세워 둘 좀비 — 격자에는 들어가되 자기 비용은 0 이어야 하므로 처리를 꺼 둔다.
+## 플레이어 주변에 흩어 놓는다(반경 질의가 실제로 후보를 찾도록).
+func _spawn_idle_zombies(n: int) -> void:
+	if _zombie_scene == null:
+		_zombie_scene = load("res://scenes/Zombie.tscn")
+	var td := _zombie_type()
+	var pc := _player_pos()
+	for i in n:
+		var z: Node2D = root.get_node("Pool").acquire(_zombie_scene, _main)
+		var a := TAU * float(i) / float(n)
+		var r := 60.0 + 420.0 * float(i % 11) / 11.0
+		z.global_position = pc + Vector2(cos(a), sin(a)) * r
+		z.setup(td)
+		z.set_physics_process(false)
+		z.set_process(false)
+	print("  [probe] 정지 좀비 %d 마리를 세웠다(격자에만 들어간다)" % n)
 
 
 func _theme_by_id(gd, id: String):
@@ -470,6 +581,9 @@ func _report() -> void:
 		"tick_ms": _stat(_tick_ms),
 		"tick_samples": _tick_ms.size(),
 		"ticks_per_frame": _stat(_ticks),
+		"items": _stat(_items),
+		"vram_mb": _stat(_vram),
+		"tex_mb": _stat(_tex_mem),
 		"zg_queries": _stat(_zg_q),
 		"zg_builds": _stat(_zg_b),
 		"draw_calls": _stat(_draw_calls),
@@ -490,7 +604,7 @@ func _report() -> void:
 	# 측정 구간 대부분이 일시정지(레벨업 카드 등)였으면 표본이 확 준다 — 그런 판은 상태가
 	# 달라서 다른 판과 나란히 놓으면 안 된다. 스스로 그렇다고 찍는다.
 	var want_ticks := int(_measure * 60.0)
-	var thin := rec["tick_samples"] < want_ticks / 2
+	var thin: bool = int(rec["tick_samples"]) < want_ticks / 2
 	print("  물리 틱     중앙 %6.3fms  p95 %6.3fms  최악 %6.3fms   [틱 %d/%d개%s]  ← 평상시 비용"
 		% [rec["tick_ms"]["med"], rec["tick_ms"]["p95"], rec["tick_ms"]["max"],
 			rec["tick_samples"], want_ticks,
@@ -506,8 +620,24 @@ func _report() -> void:
 	var b: float = float(rec["zg_builds"]["med"])
 	print("  공간해시    질의 %6.0f/프레임  그중 9칸 순회 %6.0f  → 건너뜀 %4.0f%%"
 		% [q, b, (1.0 - b / maxf(q, 1.0)) * 100.0])
-	print("  드로우콜    중앙 %6.0f    최악 %6.0f" % [rec["draw_calls"]["med"], rec["draw_calls"]["max"]])
+	# GPU 로 나가는 양(기기 무관). 실제 GPU 사용률은 여기서 못 잰다 — 실기기/브라우저에서 볼 것.
+	if float(rec["items"]["max"]) <= 0.0:
+		print("  GPU 제출량  — 헤드리스(더미 렌더러)라 0 이다. 실렌더로 재려면:")
+		print("              LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s \"-screen 0 720x1280x24\" \\")
+		print("                godot --path . --rendering-driver opengl3 --script res://tools/bench_lategame.gd -- stress=1")
+	else:
+		print("  GPU 제출량  드로우콜 중앙 %5.0f 최악 %5.0f · 아이템 중앙 %5.0f 최악 %5.0f · VRAM %.1fMB(텍스처 %.1fMB)"
+			% [rec["draw_calls"]["med"], rec["draw_calls"]["max"],
+				rec["items"]["med"], rec["items"]["max"],
+				float(rec["vram_mb"]["max"]) / 1048576.0, float(rec["tex_mb"]["max"]) / 1048576.0])
 	print("  충돌쌍      중앙 %6.0f    최악 %6.0f" % [rec["collision_pairs"]["med"], rec["collision_pairs"]["max"]])
+	if _paused_ticks > 0:
+		var pk := _pause_tags.keys()
+		pk.sort_custom(func(a, b): return int(_pause_tags[a]) > int(_pause_tags[b]))
+		var parts: Array = []
+		for k in pk:
+			parts.append("%s %d" % [k, int(_pause_tags[k])])
+		print("  일시정지    프레임 %d회 — 소유자: %s" % [_paused_ticks, ", ".join(parts)])
 	print("  노드 %d · 레벨 %d · **초당 처치 %.1f**" % [rec["nodes"], rec["level"], rec["kills_per_s"]])
 	print("  개체 내역(스크립트별, 5개 이상만):")
 	var keys := _counts_last.keys()

@@ -67,6 +67,16 @@ var _alive: bool = false
 ## 때마다 비용이 든다 — 매 프레임 읽던 것을 없애면 탄 1발당 약 0.4µs 가 빠진다.
 ## 크기는 발사 측이 on_spawn() **뒤에** 주입하므로, 첫 물리 틱에서 지연 계산한다.
 var _hit_r: float = -1.0
+## 유도 조준을 몇 물리 프레임마다 다시 할지. **선회 속도는 그대로 두고 갱신 빈도만 낮춘다** —
+## 건너뛴 프레임의 delta 를 모아서 한 번에 적용하므로 초당 최대 선회각은 동일하다.
+##
+## 왜 필요한가: 조준은 `Events.zombies_in_radius(pos, 420)` 이고, 이 비용은 **탄 × 좀비의 곱**에
+## 비례한다. 통제 실험(유도탄 200발, 표본 720틱)에서 좀비를 0 → 150 으로 세우자
+## 1.85ms → 12.19ms 로 **6.6배**가 됐다(탄 1발당 9.3 → 61.0µs). 자료구조 문제가 아니다 —
+## 좀비 300 에서 셀 경로(13.47ms)와 전수 스캔(12.19ms)이 거의 같았다. 줄일 수 있는 것은 **횟수**뿐이다.
+const STEER_EVERY := 3
+var _steer_phase: int = 0   # 개체마다 위상을 달리해 한 프레임에 몰리지 않게 한다
+var _steer_accum: float = 0.0
 
 const _ZOMBIE_RADIUS := 14.0   # Zombie.tscn 충돌 반경
 const _BOSS_RADIUS := 38.0     # Boss.tscn 충돌 반경
@@ -89,6 +99,8 @@ func on_spawn() -> void:
 	knockback = 0.0
 	_pierced = 0
 	_hit_r = -1.0          # 발사 측이 scale 을 주입한 뒤 첫 틱에서 다시 잰다
+	_steer_phase = randi() % STEER_EVERY
+	_steer_accum = 0.0
 	_hit_ids.clear()
 
 
@@ -104,7 +116,11 @@ func _physics_process(delta: float) -> void:
 		_hit_r = 5.0 * scale.x   # 스폰 직후 1회 — 이후로는 scale 을 읽지 않는다
 	var from := global_position
 	if homing > 0.0:
-		_steer(delta)
+		# 조준은 STEER_EVERY 프레임에 한 번. 그동안 쌓인 delta 를 넘겨 선회량을 보존한다.
+		_steer_accum += delta
+		if (Engine.get_physics_frames() + _steer_phase) % STEER_EVERY == 0:
+			_steer(_steer_accum)
+			_steer_accum = 0.0
 		if spin == 0.0:
 			# 휘었으면 그림도 같이 틀어야 한다 — 안 그러면 볼트가 옆으로 날아간다.
 			# (자전하는 톱날은 방향이 의미 없으므로 제외)
