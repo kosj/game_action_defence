@@ -555,15 +555,26 @@ func _apply_only() -> void:
 		if n == _tick_head or n == _tick_end:
 			continue
 		var sc = n.get_script()
-		var want: bool = sc != null and _only.has(String(sc.resource_path).get_file().get_basename())
+		var base: String = String(sc.resource_path).get_file().get_basename() if sc != null else ""
+		var want: bool = base != "" and _only.has(base)
+		# ⚠️ stress=1 에서는 ZombieSpawner 의 `_process` 를 끄면 안 된다. 좀비 보충은
+		# Cheats.request_spawn_fill() → 스포너의 스폰 큐 → `_drain_spawn_queue()`(=`_process`)
+		# 로 이어지는데, 그 마지막 칸을 끄면 큐가 비워지지 않아 **좀비가 320마리에서 7마리로
+		# 사라진다.** 최대 부하 판 자체가 없어지므로 귀속을 잴 대상이 남지 않는다.
+		# `_process` 는 물리 틱 센티넬 바깥이라 이 예외가 측정값에 섞이지 않는다.
+		var keep_proc: bool = _stress and base == "ZombieSpawner"
 		if want:
 			if not n.is_physics_processing():
 				n.set_physics_process(true)
 			if not n.is_processing():
 				n.set_process(true)
-		elif n.is_physics_processing() or n.is_processing():
-			n.set_physics_process(false)
-			n.set_process(false)
+		else:
+			if n.is_physics_processing():
+				n.set_physics_process(false)
+			if n.is_processing() and not keep_proc:
+				n.set_process(false)
+			elif keep_proc and not n.is_processing():
+				n.set_process(true)
 
 
 func _apply_off(verbose: bool) -> void:
