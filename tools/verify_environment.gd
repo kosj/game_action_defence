@@ -59,6 +59,7 @@ func _process(_delta: float) -> bool:
 
 	print("── 프롭 ─────────────────────────────────────────")
 	_test_prop_keys(game_data)
+	_test_removed_props(game_data)
 	_test_prop_field(game_data, root.get_node("ThemeManager"))
 
 	weather.queue_free()
@@ -464,6 +465,49 @@ func _test_prop_keys(game_data) -> void:
 	_ok("카탈로그에 없는 prop 키 없음", bad == "", bad)
 	_ok("prop 키의 소속 테마가 일치", wrong_theme == "", wrong_theme)
 	_ok("prop 아틀라스 파일 전부 존재", missing == "", missing)
+
+
+## 삭제한 프롭이 카탈로그·테마 키·모티프·아틀라스 어디로도 돌아오지 않았는가.
+##
+## 삭제 기준(높이): 이 게임은 탑다운 필드 위에 사이드뷰 스프라이트를 세우는 투영이라, 키 큰
+## 원통·캡슐은 플레이어가 겹치는 순간 "허공에 떠 있는" 것으로 읽힌다. 배양 탱크(118px =
+## 플레이어 120px 의 98%)와 격리 포드(세로 캡슐)가 정확히 그랬다. 배양 탱크는 도심 테마와도
+## 맞지 않았다(연구소 기물이 무너진 도심 한복판에 서 있었다).
+##
+## 카탈로그에만 남아도 그 프롭은 다시 화면에 뜨고, 아틀라스에만 남으면 안 쓰는 시트가 VRAM 에
+## 상주한다(제거로 city 1024x512 -> 512x512, lab 512x512 -> 512x256 로 줄었다). 그래서 넷 다 본다.
+func _test_removed_props(game_data) -> void:
+	var pf_script: GDScript = load("res://scripts/PropField.gd")
+	var catalog: Dictionary = pf_script.get("_CATALOG")
+	var motifs: Dictionary = pf_script.get("_MOTIFS")
+	var prop_dir: String = pf_script.get("PROP_DIR")
+	for dead in [["tank", "city"], ["pod", "lab"]]:
+		var k: String = dead[0]
+		_ok("삭제된 프롭 %s 가 카탈로그에 없음" % k, not catalog.has(k))
+		var in_theme := ""
+		for th in game_data.themes:
+			if th != null and th.prop_keys.has(k):
+				in_theme += "%s " % th.id
+		_ok("삭제된 프롭 %s 를 쓰는 테마 없음" % k, in_theme == "", in_theme)
+		var in_motif := ""
+		for tid in motifs:
+			for mi in (motifs[tid] as Array).size():
+				for ch in (motifs[tid] as Array)[mi]:
+					if String(ch["k"]) == k:
+						in_motif += "%s:모티프%d " % [tid, mi]
+		_ok("삭제된 프롭 %s 를 쓰는 모티프 없음" % k, in_motif == "", in_motif)
+		_ok("삭제된 프롭 %s 의 아틀라스 항목 없음" % k,
+			not ResourceLoader.exists("%s%s/prop_%s.tres" % [prop_dir, dead[1], k]))
+
+	# 모티프가 카탈로그에 없는 키를 가리키면 그 모티프는 통째로 제외된다(PropField._ready) —
+	# 오타나 삭제 누락이 "군집이 조용히 사라지는" 증상으로만 나타나므로 여기서 직접 막는다.
+	var orphan := ""
+	for tid in motifs:
+		for mi in (motifs[tid] as Array).size():
+			for ch in (motifs[tid] as Array)[mi]:
+				if not catalog.has(String(ch["k"])):
+					orphan += "%s:모티프%d:%s " % [tid, mi, ch["k"]]
+	_ok("모티프가 카탈로그에 없는 키를 참조하지 않음", orphan == "", orphan)
 
 
 ## PropField 를 테마별로 실제로 띄워, ① 프롭이 필드에 놓이는가 ② 장애물 비율이 상한 안인가
