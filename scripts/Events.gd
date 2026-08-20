@@ -304,11 +304,34 @@ const _ZG_CELL := 64.0
 const _ZG_GC_FRAMES := 600   # 빈 셀 키 정리 주기(60fps 기준 10초) — 맵을 돌아다니면 키가 계속 쌓인다
 var _zg_frame: int = -1
 var _zg: Dictionary = {}     # Vector2i -> Array[Node2D]. 셀 배열 객체는 프레임 간 재사용한다.
+var _zg_filled: Array = []   # 이번 프레임에 실제로 채운 셀 키 — 다음 프레임에 이것만 비운다
 # 질의 결과용 재사용 버퍼. 호출부는 즉시 순회하고 보관하지 않는다는 전제이며,
 # 같은 함수를 순회 도중 다시 호출하면 안 된다(버퍼가 덮인다). 총알 순회 중 스플래시가
 # 겹치는 실제 사례가 있어 near/radius 는 서로 다른 버퍼를 쓴다.
 var _near_buf: Array = []
 var _radius_buf: Array = []
+
+# ── 같은 셀 재질의 건너뛰기 ────────────────────────────────────────────
+# zombies_near() 는 이 게임에서 가장 자주 불리는 함수다 — 탄 1발이 매 물리 프레임 1회이므로
+# 후반이면 초당 2만 회를 넘는다. 실측에서 호출당 4.8µs 로, 탄 1발 비용(10µs)의 절반이었다.
+#
+# 비싼 이유는 자료구조가 아니다. 바꿔 가며 재 봤지만 거의 같았다
+# (Vector2i 딕셔너리 2.32µs · int 키 딕셔너리 2.36µs · 평평한 버킷 배열 2.20µs).
+# 정체는 GDScript 가 3×3=9회 안쪽 루프를 도는 것 자체다 — 그러니 **횟수**를 줄여야 한다.
+#
+# 셀별 결과를 딕셔너리에 캐시하는 안을 먼저 재 봤는데 **더 느려졌다**(탄 200발 2.21 → 4.63ms,
+# p95 36ms). 탄이 서로 다른 셀에 흩어져 있으면 적중이 0인데 딕셔너리 삽입·배열 풀 비용만
+# 남기 때문이다. 그래서 버린다 — 최악을 나쁘게 만드는 최적화는 프레임 드랍 대책이 못 된다.
+#
+# 남긴 것은 **직전 셀 한 칸만 기억하는** 방식이다. 빗나가도 정수 비교 두 번이라 손해가 없고,
+# 산탄 8발·개틀링 연사처럼 같은 셀에서 함께 날아가는 탄이 9칸 순회를 건너뛴다.
+var _near_cell: Vector2i = Vector2i(0x7FFFFFFF, 0x7FFFFFFF)
+var _near_cell_frame: int = -1
+## 계측용 — 이번 프레임의 질의 수 / 그중 실제로 9칸을 돈 수. bench 가 적중률을 찍는다.
+var zg_queries: int = 0
+var zg_builds: int = 0
+## 직전 zombies_in_radius() 가 전수 스캔을 골랐는가 — 경로 선택을 회귀 테스트가 잠근다.
+var zg_radius_scanned: bool = false
 
 
 func _ensure_zgrid() -> void:
@@ -318,8 +341,11 @@ func _ensure_zgrid() -> void:
 	_zg_frame = f
 	# 셀 배열을 통째로 버리지 않고 비워서 재사용한다. _zg.clear() 로 매 프레임 점유 셀 수만큼
 	# (좀비 300+ 에서 150~300개) 새 Array 를 만드는 것이 이 시스템의 최대 상시 할당원이었다.
-	for key in _zg:
+	# 비울 대상은 **지난 프레임에 실제로 채운 셀**뿐이다 — 예전에는 딕셔너리 전체를 돌았고,
+	# 맵을 돌아다니면 빈 키가 GC 주기(600프레임)까지 쌓여 그만큼 헛도는 순회였다.
+	for key in _zg_filled:
 		(_zg[key] as Array).clear()
+	_zg_filled.clear()
 	for z in live_zombies():
 		if not is_instance_valid(z) or not z.is_in_group("zombies"):
 			continue
@@ -328,7 +354,10 @@ func _ensure_zgrid() -> void:
 		var arr: Variant = _zg.get(key)
 		if arr == null:
 			_zg[key] = [z]
+			_zg_filled.append(key)
 		else:
+			if (arr as Array).is_empty():
+				_zg_filled.append(key)
 			arr.append(z)
 	# 빈 셀을 계속 들고 있으면 위 clear 루프와 딕셔너리가 무한히 커진다 — 주기적으로 회수.
 	if f % _ZG_GC_FRAMES == 0:
@@ -342,11 +371,24 @@ func _ensure_zgrid() -> void:
 
 ## pos 주변(3×3 셀 ≈ ±96px)에 있는 좀비 후보만 반환. 정밀 거리 판정은 호출부가 수행한다.
 ## 셀(64px)이 최대 판정 반경(보스 38+총알 반경)보다 커서 3×3 스캔이면 누락 없이 커버된다.
-## 반환값은 공유 버퍼다 — 즉시 순회용이며, 다음 zombies_near() 호출 시 내용이 덮인다.
+##
+## 같은 물리 프레임 안에서 **직전 호출과 같은 셀이면 9칸 순회 없이 그대로 돌려준다**(위 주석 참고).
+## ⚠️ 반환값은 여전히 **공유 버퍼**다 — 즉시 순회용이며, 다른 셀로 다시 호출하면 내용이 덮인다.
+## (건너뛰기는 순회 횟수만 줄인다. 버퍼 계약은 예전과 똑같으니 호출부 규약도 그대로다)
 func zombies_near(pos: Vector2) -> Array:
 	_ensure_zgrid()
 	var cx := int(floor(pos.x / _ZG_CELL))
 	var cy := int(floor(pos.y / _ZG_CELL))
+	if _near_cell_frame != _zg_frame:
+		_near_cell_frame = _zg_frame
+		_near_cell = Vector2i(0x7FFFFFFF, 0x7FFFFFFF)   # 격자가 새로 서면 캐시도 버린다
+		zg_queries = 0
+		zg_builds = 0
+	zg_queries += 1
+	if _near_cell.x == cx and _near_cell.y == cy:
+		return _near_buf          # 직전 호출과 같은 셀 — 9칸 순회를 건너뛴다
+	_near_cell = Vector2i(cx, cy)
+	zg_builds += 1
 	_near_buf.clear()
 	for ox in range(-1, 2):
 		for oy in range(-1, 2):
@@ -365,9 +407,19 @@ func zombies_in_radius(pos: Vector2, r: float) -> Array:
 	_radius_buf.clear()
 	var r_sq := r * r
 	var span := int(ceil(r / _ZG_CELL))
-	# 반경이 아주 크면 셀 순회(25×25 이상)가 전수 스캔보다 비싸다 — 훑는 대상만 스냅샷으로 바꾸고
-	# 거리 필터는 그대로 적용한다(어느 경로로 오든 "반경 안"이라는 반환 계약은 동일해야 한다).
-	if span >= 12:
+	# 셀 순회와 전수 스캔 중 **싼 쪽을 그때그때 고른다.** 어느 경로로 오든 "반경 안"이라는
+	# 반환 계약은 동일하다 — 거리 필터를 양쪽 모두 적용하기 때문이다.
+	#
+	# 예전에는 `span >= 12`(25×25 셀) 고정 임계였는데, **이 게임에서 가장 비싼 질의가 그 아래에
+	# 걸려 있었다.** 유도탄의 조준 반경은 420px 이라 span=7 → 15×15 = 225칸이다. 후반 좀비는
+	# 25~40마리뿐이므로 전수 스캔이 훨씬 싸다(225칸 딕셔너리 조회 ≈ 61µs vs 40마리 거리 판정 ≈ 6µs).
+	# 유도탄 87발이 매 프레임 그 225칸을 돌아 물리 틱의 약 4.5ms 를 먹고 있었다(OPTIMIZATION_PLAN 5-L).
+	#
+	# 셀 조회 1칸은 전수 스캔 1마리보다 비싸므로 `칸 수 >= 마리 수` 를 기준으로 삼는다 —
+	# 보수적인 선(같은 값이면 전수 스캔)이라 뒤집혀도 손해가 나지 않는다.
+	var cells := (2 * span + 1) * (2 * span + 1)
+	zg_radius_scanned = cells >= live_zombies().size()
+	if zg_radius_scanned:
 		for z in live_zombies():
 			if not is_instance_valid(z):
 				continue

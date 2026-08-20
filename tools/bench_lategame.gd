@@ -30,9 +30,43 @@ extends SceneTree
 ## ⚠️ 이 게임은 거의 모든 로직이 `_physics_process` 에 있다. 그래서 `physics_ms` 는
 ## "물리 엔진 비용"이 아니라 **물리 엔진 + 게임 로직 전부**다. 항목별로 가르려면 `off=` 를 쓴다.
 
+
+## ── 물리 틱 1회의 진짜 비용 ────────────────────────────────────────────
+## ⚠️ `Performance.TIME_PHYSICS_PROCESS` 는 "이번 틱의 비용"이 **아니다.**
+## 엔진이 최근 1초 동안의 **최댓값**을 들고 있다가 1초마다 갱신·리셋하는 값이다
+## (실측: 60틱에 1번만 17.6ms 를 쓰게 만들었더니 표본 180개 중 107개가 17.6ms 로 찍혔다).
+## 즉 그 값은 **스파이크 지표**다. 프레임 드랍을 잡는 데는 오히려 알맞지만, 평상시 비용으로
+## 읽으면 게임 전체 비용을 2~5배 부풀려 보게 된다 — 예전 기록이 그렇게 읽혀 왔다.
+##
+## 그래서 평상시 비용은 직접 잰다. 물리 우선순위를 최소/최대로 준 센티넬 노드 두 개를 트리에
+## 두고, 둘의 시각 차이를 매 틱 기록한다. 그 사이에 이 게임의 모든 `_physics_process` 가 들어간다.
+class TickProbe extends Node:
+	var t_usec: int = 0
+	var sink = null                 # 끝 센티넬만 Array 를 받는다(시작 센티넬은 null)
+	var start_probe: TickProbe = null
+
+	func _physics_process(_d: float) -> void:
+		t_usec = Time.get_ticks_usec()
+		if sink != null and start_probe != null:
+			sink.append(float(t_usec - start_probe.t_usec) / 1000.0)
+
+
 const MAIN_SCENE := "res://scenes/Main.tscn"
-const GOLD_SCENE := preload("res://scenes/Gold.tscn")
-const BULLET_SCENE := preload("res://scenes/Bullet.tscn")
+## ⚠️ 여기서 `preload` 를 쓰면 안 된다 — 하네스가 잰 것이 통째로 거짓이 된다.
+##
+## `--script` 로 실행되는 SceneTree 스크립트는 **오토로드가 등록되기 전에 컴파일**된다.
+## 그때 preload 가 Bullet.tscn 을 끌어오면 Bullet.gd 가 같이 컴파일되는데, 그 안의 `Events`
+## (오토로드)를 못 찾아 "Compile Error: Identifier not found: Events" 로 실패한다.
+## 실패한 GDScript 가 그대로 리소스 캐시에 박히고, 이후 ProjectileWeapon 의 preload 도
+## **같은 PackedScene 객체**를 받으므로 게임이 쏘는 탄 전부가 스크립트가 죽은 Node2D 가 된다.
+##
+## 증상: 콘솔에 `Invalid assignment of property 'direction' ... base object of type 'Node2D'`
+## 가 쏟아지고, 탄이 움직이지도·명중하지도·반납되지도 않는다. 즉 **탄 비용이 0 으로 측정된다** —
+## "후반 병목은 탄"이라고 결론 낸 P1-18 의 프레임 예산이 이 상태에서 나온 수치였다.
+## 그래서 씬은 오토로드가 살아 있는 `_setup()`(=_process 안) 에서 `load()` 로 늦게 가져온다.
+var _gold_scene: PackedScene = null
+var _bullet_scene: PackedScene = null
+var _zombie_scene: PackedScene = null
 
 ## 사람 실측에서 fps 18 이 나온 그 빌드(엔지니어, 26분, 레벨 155)를 그대로 재현한다.
 ## 임의로 만든 빌드로 재면 "실제로 느린 그 상태"가 아니라 다른 상태를 재게 된다.
@@ -68,9 +102,19 @@ var _frames: Array = []          # 측정 구간의 프레임 시간(ms)
 var _proc_ms: Array = []
 var _phys_ms: Array = []
 var _draw_calls: Array = []
+## 렌더 프레임 1장당 돌아간 물리 틱 수. 1 이 정상이고, 2 이상이면 **물리가 프레임 예산을
+## 넘겨 엔진이 따라잡기 틱을 돌리는 중**이다 — 그 순간부터 비용이 스스로를 부풀린다.
+## physics_ms 를 이것으로 나눠야 "틱 1회의 진짜 비용"이 나온다.
+var _ticks: Array = []
+var _zg_q: Array = []
+var _tick_ms: Array = []          # 물리 틱 1회당 스크립트 비용(센티넬 실측)
+var _tick_end: TickProbe = null
+var _zg_b: Array = []
+var _prev_pf: int = -1
 var _pairs: Array = []
 var _counts_last: Dictionary = {}
 var _off: Array = []
+var _only: Array = []
 var _off_applied := false
 var _kills0 := -1
 
@@ -93,12 +137,23 @@ func _process(delta: float) -> bool:
 	# 일시정지 중(레벨업 카드 등)에는 프레임 시간이 의미가 없다 — 측정에서 뺀다.
 	if _kills0 < 0:
 		_kills0 = int(_events.total_kills)
+		_tick_ms.clear()   # 예열 구간의 틱은 버린다
 	if not paused:
 		_frames.append(delta * 1000.0)
 		_proc_ms.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 		_phys_ms.append(Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0)
 		_draw_calls.append(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+		var pf := Engine.get_physics_frames()
+		if _prev_pf >= 0:
+			_ticks.append(float(pf - _prev_pf))
+		_prev_pf = pf
 		_pairs.append(Performance.get_monitor(Performance.PHYSICS_2D_COLLISION_PAIRS))
+		# 공간 해시 질의 수와 그중 실제로 9칸을 돈 수 — 같은 셀 재질의 건너뛰기의 적중률.
+		# 계측 카운터가 없는 예전 리비전과도 같은 하네스로 비교할 수 있게 안전하게 읽는다.
+		var q = _events.get("zg_queries")
+		var b = _events.get("zg_builds")
+		_zg_q.append(float(q) if q != null else 0.0)
+		_zg_b.append(float(b) if b != null else 0.0)
 	if _t >= _warm + _measure:
 		_counts_last = _count_nodes()
 		_report()
@@ -112,6 +167,7 @@ func _setup() -> void:
 	_warm = float(_args.get("warm", "6"))
 	_measure = float(_args.get("measure", "20"))
 	_events = root.get_node("Events")
+	_assert_scripts_live()
 
 	var preset: Dictionary = BUILDS.get(String(_args.get("build", "engineer_late")), {})
 	# w=gatling:5,shotgun:8 — 무기 하나만 놓고 재기 위한 임시 빌드(탄 예산 분해용).
@@ -167,6 +223,119 @@ func _setup() -> void:
 	if off != "":
 		_off = Array(off.split(","))
 
+	# only= 는 off= 의 반대다 — **전부 끄고 지정한 것만 켠다.**
+	# off= 는 "그것만 뺀 나머지"를 재므로 남은 것들의 상호작용(개체 수 변화)이 섞이는데,
+	# 실측 잡음이 ±1.3ms 라 1ms 급 항목은 그 안에 묻힌다. only= 는 절편이 0.1ms 인 정지 상태
+	# 위에 한 계통만 얹으므로 그 계통의 몫이 그대로 읽힌다.
+	var only := String(_args.get("only", ""))
+	if only != "":
+		_only = Array(only.split(","))
+		_quiesce()
+		_enable_only()
+
+	# 센티넬은 마지막에 만든다 — _quiesce() 보다 먼저 만들면 같이 꺼진다.
+	_install_tick_probes()
+
+
+## 핫패스 씬의 스크립트가 실제로 살아 있는지 확인하고, 아니면 **측정하지 않고 실패한다.**
+##
+## 스크립트가 죽은 채로도 하네스는 끝까지 돌아가 그럴듯한 표를 찍는다 — 탄이 움직이지도
+## 않는데 "탄은 싸다"는 결론이 나온다. 조용히 틀린 수치를 내는 것이 이 도구의 최악의 실패라
+## 여기서 종료 코드 1 로 끊는다. (원인은 위 `_gold_scene` 주석 참고)
+func _assert_scripts_live() -> void:
+	var bad: Array = []
+	for path in ["res://scenes/Bullet.tscn", "res://scenes/Gold.tscn", "res://scenes/Zombie.tscn"]:
+		var ps := load(path) as PackedScene
+		if ps == null:
+			bad.append("%s (로드 실패)" % path)
+			continue
+		var n := ps.instantiate()
+		var sc = n.get_script()
+		# `can_instantiate()` 는 컴파일에 실패한 GDScript 에서 false 다 — 스크립트 유무만으로는
+		# 못 가른다(실패한 스크립트도 객체로는 붙어 있다).
+		if sc == null or not (sc as GDScript).can_instantiate():
+			bad.append("%s (스크립트 컴파일 실패)" % path)
+		n.free()
+	if bad.is_empty():
+		return
+	push_error("핫패스 스크립트가 죽어 있다: %s" % str(bad))
+	print("")
+	print("❌ 측정 중단 — 핫패스 스크립트가 죽어 있다: %s" % str(bad))
+	print("   이 상태로 재면 그 개체의 비용이 0 으로 나온다. 대개 원인은 이 파일 상단의")
+	print("   최상위 preload 다(오토로드 등록 전에 컴파일된다). load() 로 늦게 가져올 것.")
+	_finished = true
+	quit(1)
+
+
+## probe 모드 전용 — 측정 대상 말고 **매 프레임 도는 것을 전부 멈춘다.**
+## 남기는 것은 이벤트 버스(일시정지 워치독)와 풀(반납 큐)뿐이고, 그 둘은 _physics_process 가
+## 없다. 이렇게 해야 절편이 상수가 되어 두 지점의 차이가 곧 개체당 비용이 된다.
+##
+## 여기서 끄고 나서 개체를 스폰한다 — 순서가 바뀌면 측정 대상까지 같이 꺼진다.
+func _quiesce() -> void:
+	var stack: Array = [root]
+	var n := 0
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		for c in node.get_children():
+			stack.append(c)
+		if node.is_physics_processing() or node.is_processing():
+			node.set_physics_process(false)
+			node.set_process(false)
+			n += 1
+	print("  [probe] 트리 정지 — %d 노드의 _process/_physics_process 를 껐다" % n)
+
+
+## probe=zombie:N 용 좀비 종 데이터 — 스포너의 첫 티어 종을 그대로 가져온다.
+## (임의로 만든 dict 를 넘기면 setup() 이 기대하는 키가 빠져 실제와 다른 개체가 된다)
+func _zombie_type() -> Dictionary:
+	var gd := root.get_node("GameData")
+	for z in gd.zombie_list:
+		return {
+			"id": z.id, "speed": z.speed, "max_health": z.max_health,
+			"modulate": z.modulate, "score": z.score, "contact": z.contact,
+			"behavior": z.behavior, "scale": z.scale, "texture": z.texture,
+		}
+	return {"id": "x", "speed": 65.0, "max_health": 3, "modulate": Color.WHITE,
+		"score": 1, "contact": 1, "behavior": "chase", "scale": 1.0}
+
+
+## only= 대상 스크립트를 가진 노드만 다시 켠다(_quiesce 직후에 부른다).
+## 부모가 꺼져 있어도 자식은 독립적으로 돌므로, 무기 모듈처럼 Player 의 자식인 계통도
+## 단독으로 잴 수 있다.
+func _enable_only() -> void:
+	var stack: Array = [root]
+	var n := 0
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		for c in node.get_children():
+			stack.append(c)
+		var sc = node.get_script()
+		if sc == null:
+			continue
+		if _only.has(String(sc.resource_path).get_file().get_basename()):
+			node.set_physics_process(true)
+			node.set_process(true)
+			n += 1
+	print("  [only] %s — %d 노드만 켰다" % [str(_only), n])
+
+
+## 물리 틱의 시작/끝을 잡는 센티넬 두 개를 트리에 심는다.
+## 순서는 트리 위치가 아니라 `process_physics_priority` 로 못 박는다 — 같은 우선순위 안의
+## 호출 순서는 엔진 구현에 달렸지만, 우선순위가 다르면 낮은 쪽이 먼저인 것은 보장된다.
+func _install_tick_probes() -> void:
+	var head := TickProbe.new()
+	head.name = "BenchTickHead"
+	head.process_physics_priority = -10000
+	root.add_child(head)
+	var tail := TickProbe.new()
+	tail.name = "BenchTickTail"
+	tail.process_physics_priority = 10000
+	tail.start_probe = head
+	tail.sink = _tick_ms
+	root.add_child(tail)
+	_tick_end = tail
+
 
 func _theme_by_id(gd, id: String):
 	for t in gd.themes:
@@ -190,7 +359,16 @@ func _pick(mgr_name: String, id: String, finder: Callable) -> void:
 ## 대조 실험 — 게임을 정지 상태로 만들고 원하는 개체만 N 개 놓는다.
 ## "무엇이 비싼가"를 재는 유일하게 믿을 만한 방법이다. 개체 수를 바꿔 두 번 재면
 ## 기울기가 곧 개체당 비용이고, 절편은 그 외 고정 비용이다.
+##
+## ⚠️ 스포너·오토플레이만 끄는 것으로는 부족했다. 오토플레이를 꺼도 **무기는 계속 발사된다**
+## (뱀서식 자동 사격이라 Player._handle_attack 은 입력과 무관하다). 그래서 probe=gold:N 을
+## 재는 동안에도 탄 141발이 계속 나고 죽으며 프레임을 흔들었고, 측정값이 개체 수와 무관해졌다
+## (실측: gold:0 → 10.38ms, gold:140 → 9.54ms — 젬을 140개 얹었는데 더 빨라졌다).
+## 그래서 probe 모드는 **트리 전체를 정지**시키고 측정 대상만 남긴다.
 func _setup_probe(spec: String, cheats: Node) -> void:
+	_gold_scene = load("res://scenes/Gold.tscn")
+	_bullet_scene = load("res://scenes/Bullet.tscn")
+	_zombie_scene = load("res://scenes/Zombie.tscn")
 	var parts := spec.split(":")
 	var kind := String(parts[0])
 	var n := int(parts[1]) if parts.size() > 1 else 100
@@ -202,6 +380,7 @@ func _setup_probe(spec: String, cheats: Node) -> void:
 		sp.set_process(false)
 	for z in get_nodes_in_group("zombies"):
 		root.get_node("Pool").release(z)
+	_quiesce()
 	var pos := Vector2(360, 640)
 	for i in n:
 		# 플레이어에서 멀리(자석 범위 밖) 흩어 둔다 — 즉시 수집되면 개체 수가 유지되지 않는다.
@@ -209,14 +388,29 @@ func _setup_probe(spec: String, cheats: Node) -> void:
 		var at := pos + Vector2(cos(a), sin(a)) * (900.0 + 400.0 * float(i % 7))
 		match kind:
 			"gold":
-				var g: Node2D = root.get_node("Pool").acquire(GOLD_SCENE, _main)
+				var g: Node2D = root.get_node("Pool").acquire(_gold_scene, _main)
 				g.global_position = at
 			"bullet":
-				var b: Node2D = root.get_node("Pool").acquire(BULLET_SCENE, _main)
+				var b: Node2D = root.get_node("Pool").acquire(_bullet_scene, _main)
 				b.global_position = at
 				b.direction = Vector2(cos(a), sin(a))
 				b.lifetime = 9999.0
 				b.speed = 1.0            # 화면 밖으로 날아가 버리지 않게(수명 판정만 돌게)
+			"homing":
+				# 유도탄 — 매 프레임 조준 대상을 찾느라 반경 질의를 돈다. 직진탄과 비용이
+				# 완전히 다르므로 따로 잰다(직진탄만 재면 이 게임에서 가장 비싼 개체를 놓친다).
+				var h: Node2D = root.get_node("Pool").acquire(_bullet_scene, _main)
+				h.global_position = at
+				h.direction = Vector2(cos(a), sin(a))
+				h.lifetime = 9999.0
+				h.speed = 1.0
+				h.homing = 3.2          # gatling 과 같은 값
+				h.homing_arc = deg_to_rad(55.0)
+			"zombie":
+				# 좀비는 스포너 경로를 그대로 쓴다 — setup() 이 스프라이트·반경·행동을 채운다.
+				var z: Node2D = root.get_node("Pool").acquire(_zombie_scene, _main)
+				z.global_position = at
+				z.setup(_zombie_type())
 	print("  [probe] %s %d 개 — 스포너·오토플레이 정지" % [kind, n])
 
 
@@ -279,7 +473,14 @@ func _report() -> void:
 		"fps_med": snappedf(fps_med, 0.1),
 		"frame_ms": f,
 		"process_ms": _stat(_proc_ms),
-		"physics_ms": _stat(_phys_ms),
+		# ⚠️ 엔진 모니터 = 최근 1초의 **최댓값**(스파이크 지표). 이름을 그렇게 바꿔 둔다.
+		"physics_worst_per_sec_ms": _stat(_phys_ms),
+		# 센티넬로 직접 잰 틱 1회당 스크립트 비용(평상시 비용).
+		"tick_ms": _stat(_tick_ms),
+		"tick_samples": _tick_ms.size(),
+		"ticks_per_frame": _stat(_ticks),
+		"zg_queries": _stat(_zg_q),
+		"zg_builds": _stat(_zg_b),
 		"draw_calls": _stat(_draw_calls),
 		"collision_pairs": _stat(_pairs),
 		"nodes": int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
@@ -295,7 +496,25 @@ func _report() -> void:
 		% [f["med"], f["p95"], f["max"], fps_med, _frames.size(),
 			"  ⚠️믿을 수 없음" if _frames.size() < 30 else ""])
 	print("  _process    중앙 %6.2fms  p95 %6.2fms" % [rec["process_ms"]["med"], rec["process_ms"]["p95"]])
-	print("  physics     중앙 %6.2fms  p95 %6.2fms" % [rec["physics_ms"]["med"], rec["physics_ms"]["p95"]])
+	# 측정 구간 대부분이 일시정지(레벨업 카드 등)였으면 표본이 확 준다 — 그런 판은 상태가
+	# 달라서 다른 판과 나란히 놓으면 안 된다. 스스로 그렇다고 찍는다.
+	var want_ticks := int(_measure * 60.0)
+	var thin := rec["tick_samples"] < want_ticks / 2
+	print("  물리 틱     중앙 %6.3fms  p95 %6.3fms  최악 %6.3fms   [틱 %d/%d개%s]  ← 평상시 비용"
+		% [rec["tick_ms"]["med"], rec["tick_ms"]["p95"], rec["tick_ms"]["max"],
+			rec["tick_samples"], want_ticks,
+			"  ⚠️구간 대부분이 일시정지 — 다른 판과 비교하지 말 것" if thin else ""])
+	print("  physics     중앙 %6.2fms  p95 %6.2fms   ← 엔진 모니터 = 최근 1초의 **최댓값**"
+		% [rec["physics_worst_per_sec_ms"]["med"], rec["physics_worst_per_sec_ms"]["p95"]])
+	# 렌더 1프레임당 물리 틱. 1 이 아니면 physics_ms 는 여러 틱의 합이다 — 틱 단가로 환산해 같이 찍는다.
+	var tk: float = maxf(float(rec["ticks_per_frame"]["med"]), 1.0)
+	print("  물리틱/프레임 중앙 %6.2f %s"
+		% [rec["ticks_per_frame"]["med"],
+			"⚠️ 따라잡기 틱 발생 — 스스로를 부풀리는 구간이다" if tk > 1.05 else ""])
+	var q: float = float(rec["zg_queries"]["med"])
+	var b: float = float(rec["zg_builds"]["med"])
+	print("  공간해시    질의 %6.0f/프레임  그중 9칸 순회 %6.0f  → 건너뜀 %4.0f%%"
+		% [q, b, (1.0 - b / maxf(q, 1.0)) * 100.0])
 	print("  드로우콜    중앙 %6.0f    최악 %6.0f" % [rec["draw_calls"]["med"], rec["draw_calls"]["max"]])
 	print("  충돌쌍      중앙 %6.0f    최악 %6.0f" % [rec["collision_pairs"]["med"], rec["collision_pairs"]["max"]])
 	print("  노드 %d · 레벨 %d · **초당 처치 %.1f**" % [rec["nodes"], rec["level"], rec["kills_per_s"]])
