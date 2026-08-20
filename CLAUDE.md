@@ -179,6 +179,10 @@ LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 720x1280x24" \
   godot --path . --rendering-driver opengl3 \
   --script res://tools/bench_lategame.gd -- min=26 stress=1                            # 드로우 콜·VRAM
 ```
+⚠️ **계통별 몫은 `only=` 격리값이 아니라 "통째로 들어낸 빌드와의 차이"다.** `only=` 는 상호작용이
+빠져 과소·과대 둘 다 난다 — 실제로 `only=` 로 "여기가 제일 크다"고 지목한 계통이 절제해 보니
+전체의 11% 였다(P1-22). 고치기 전에 절제부터 할 것. 자세한 것은 `OPTIMIZATION_PLAN.md` §5-M.
+
 ⚠️ **`physics_ms` 를 프레임 비용으로 읽지 말 것** — 엔진 모니터는 최근 1초의 **최댓값**이다.
 평상시 비용은 하네스가 센티넬로 직접 재는 `물리 틱` 줄을 본다. 자세한 것은
 `OPTIMIZATION_PLAN.md` §5-L.

@@ -696,6 +696,27 @@ func _report() -> void:
 			parts.append("%s %d" % [k, int(_pause_tags[k])])
 		print("  일시정지    프레임 %d회 — 소유자: %s" % [_paused_ticks, ", ".join(parts)])
 	print("  노드 %d · 레벨 %d · **초당 처치 %.1f**" % [rec["nodes"], rec["level"], rec["kills_per_s"]])
+	# only= 로 잰 판은 "정말 그것만 켜져 있었나"를 같이 찍는다. 예전에 이 전제가 조용히
+	# 무너져(풀에서 새로 나온 노드가 켜진 채로 돌았다) 귀속 표가 통째로 틀린 적이 있다.
+	# 세어 두면 표를 읽는 사람이 그 판을 믿어도 되는지 한 줄로 판단할 수 있다.
+	if not _only.is_empty():
+		var on: Dictionary = {}
+		var stack: Array = [root]
+		while not stack.is_empty():
+			var n: Node = stack.pop_back()
+			for c in n.get_children():
+				stack.append(c)
+			if n == _tick_head or n == _tick_end or not n.is_physics_processing():
+				continue
+			var sc = n.get_script()
+			var base: String = String(sc.resource_path).get_file().get_basename() if sc != null else "(스크립트 없음)"
+			on[base] = int(on.get(base, 0)) + 1
+		var parts2: Array = []
+		for k in on:
+			parts2.append("%s %d" % [k, on[k]])
+		parts2.sort()
+		print("  only=%s — 물리 처리 중인 노드: %s" % [
+			",".join(PackedStringArray(_only)), ", ".join(parts2) if not parts2.is_empty() else "없음"])
 	print("  개체 내역(스크립트별, 5개 이상만):")
 	var keys := _counts_last.keys()
 	keys.sort_custom(func(a, b): return int(_counts_last[a]) > int(_counts_last[b]))
