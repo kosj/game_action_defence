@@ -64,7 +64,6 @@ const _CATALOG := {
 	"rubble":    {"file": "prop_rubble.png",    "theme": "city",   "w": 92.0,  "solid": false, "rfrac": 0.40},
 	"barrel":    {"file": "prop_barrel.png",    "theme": "city",   "w": 44.0,  "solid": false, "rfrac": 0.42},
 	# 연구소
-	"server":    {"file": "prop_server.png",    "theme": "lab",    "w": 78.0,  "solid": true,  "rfrac": 0.42},
 	"drum":      {"file": "prop_drum.png",      "theme": "lab",    "w": 42.0,  "solid": true,  "rfrac": 0.44},
 	"console":   {"file": "prop_console.png",   "theme": "lab",    "w": 70.0,  "solid": false, "rfrac": 0.40},
 }
@@ -111,19 +110,24 @@ const _MOTIFS := {
 		[{"k": "rubble", "o": Vector2(-65, -35)}, {"k": "rubble", "o": Vector2(55, 30)},
 		 {"k": "barrel", "o": Vector2(-20, 55)}, {"k": "barrel", "o": Vector2(80, -50)}],
 	],
+	# 연구소는 서버랙 삭제 후 콘솔(장식)·드럼(장애물) 2종뿐이다. 종류로 다양성을 낼 수 없으므로
+	# **배열**로 낸다 — 일렬 / 마주 보는 두 줄 / 어긋난 적치.
+	# solid 는 모티프당 [0, 2, 0, 1] = 평균 0.75 로 다른 테마(1.0)보다 낮게 잡았다. 남은 장애물이
+	# 드럼 하나뿐이라 모티프마다 넣으면 장애물 **비율**이 상한(1/3)에 붙는다 — 실측 33.2% 로
+	# 여유가 0.2%p 였다. 드럼은 반경 11px 로 서버랙(32px)의 1/3 이라 실제 차단 면적은 오히려 줄었다.
 	"lab": [
-		# 서버 열 — 서버·콘솔·서버 정렬(서버 간격은 통행 간격 실측에 맞춰 116px)
-		[{"k": "server", "o": Vector2(-58, 0)}, {"k": "console", "o": Vector2(0, 0)},
-		 {"k": "server", "o": Vector2(58, 0)}],
-		# 관측 구역 — 서버 + 콘솔 2대
-		[{"k": "server", "o": Vector2(-62, -18)}, {"k": "console", "o": Vector2(15, 48)},
-		 {"k": "console", "o": Vector2(80, -30)}],
-		# 약품 저장소 — 드럼 + 콘솔 2대
-		[{"k": "drum", "o": Vector2(-64, 30)}, {"k": "console", "o": Vector2(10, -45)},
-		 {"k": "console", "o": Vector2(78, 35)}],
-		# 관제 열 — 장애물 0 완충재, 콘솔 3대 정렬
+		# 관제 열 — 콘솔 3대 정렬(장애물 0 완충재)
 		[{"k": "console", "o": Vector2(-80, 0)}, {"k": "console", "o": Vector2(0, 0)},
 		 {"k": "console", "o": Vector2(80, 0)}],
+		# 약품 적치장 — 드럼 2통 + 콘솔. 드럼 간 거리 105px 로 통행 간격(63px)을 넘긴다.
+		[{"k": "drum", "o": Vector2(-64, 30)}, {"k": "drum", "o": Vector2(10, -45)},
+		 {"k": "console", "o": Vector2(78, 35)}],
+		# 관측 구역 — 콘솔 3대가 마주 본다(장애물 0 완충재)
+		[{"k": "console", "o": Vector2(-62, -18)}, {"k": "console", "o": Vector2(15, 48)},
+		 {"k": "console", "o": Vector2(80, -30)}],
+		# 정비 구역 — 콘솔 2대 + 드럼, 어긋난 배치
+		[{"k": "console", "o": Vector2(-70, -25)}, {"k": "drum", "o": Vector2(20, 40)},
+		 {"k": "console", "o": Vector2(75, -10)}],
 	],
 }
 
