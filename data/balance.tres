@@ -54,3 +54,6 @@ chest_w_epic_luck = 2.0
 chest_w_rare = 27.0
 chest_w_rare_luck = 3.0
 gem_live_cap = 140
+maxed_level_gold_base = 20
+maxed_level_gold_per_level = 2.0
+maxed_level_gold_max = 80

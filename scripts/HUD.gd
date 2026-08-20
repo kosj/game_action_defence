@@ -179,6 +179,7 @@ func _ready() -> void:
 	Events.game_won.connect(_on_game_won)
 	Events.achievement_unlocked.connect(_on_achievement_unlocked)
 	Events.quest_completed.connect(_on_quest_completed)
+	Events.maxed_level_gold.connect(_on_maxed_level_gold)
 	restart_button.pressed.connect(_on_restart_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
 	AdManager.rewarded_granted.connect(_on_rewarded_granted)
@@ -389,6 +390,34 @@ func _on_achievement_unlocked(title: String) -> void:
 func _on_quest_completed(title: String, reward: int) -> void:
 	SoundManager.play_ui("gold", 0.0, 1.5)
 	_show_toast("[+]  Quest: %s   +%d gold waiting" % [title, reward], Color(0.6, 1.0, 0.6), 190.0)
+
+
+# 만렙 레벨업 골드 보상 알림 — 후반에는 레벨업이 초당 몇 번씩 들어와 토스트가 겹친다.
+# 짧은 창(_MAXED_MERGE_SEC) 동안 모아 한 줄로 합쳐 띄운다.
+const _MAXED_MERGE_SEC := 0.8
+var _maxed_gold_sum: int = 0
+var _maxed_gold_count: int = 0
+var _maxed_gold_pending: bool = false
+
+
+func _on_maxed_level_gold(_level: int, gold: int) -> void:
+	_maxed_gold_sum += gold
+	_maxed_gold_count += 1
+	if _maxed_gold_pending:
+		return
+	_maxed_gold_pending = true
+	# 정지 중에도 흐르는 실시간 타이머 — 레벨업 패널이 떠 있어도 알림이 멈추지 않는다.
+	await get_tree().create_timer(_MAXED_MERGE_SEC, true, false, true).timeout
+	if not is_inside_tree():
+		return
+	var total := _maxed_gold_sum
+	var count := _maxed_gold_count
+	_maxed_gold_sum = 0
+	_maxed_gold_count = 0
+	_maxed_gold_pending = false
+	SoundManager.play_ui("gold", 0.0, 1.35)
+	var head := "MAX BUILD" if count == 1 else "MAX BUILD x%d" % count
+	_show_toast("%s   +%d gold" % [head, total], Color(1.0, 0.85, 0.35), 190.0)
 
 
 ## 화면 상단 중앙에 잠깐 떠오르는 토스트 알림(달성/과제 공용).

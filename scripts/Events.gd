@@ -98,6 +98,7 @@ signal elite_pack               # 예약 엘리트 팩 등장(주기적) — 진
 signal weather_changed(key: String)          # 날씨 전환("" = 맑음) — HUD 가 짧은 배너로 알린다
 signal achievement_unlocked(title: String)   # 도전과제 달성 — HUD 토스트 알림
 signal quest_completed(title: String, reward: int)   # 끝없는 과제 완료 — HUD 토스트 + 메타 골드 보상
+signal maxed_level_gold(level: int, gold: int)      # 고를 카드가 없는 레벨업 → 골드로 보상(HUD 알림)
 
 var total_gold: int = 0
 var total_kills: int = 0
@@ -186,6 +187,22 @@ func bonus_level() -> void:
 	xp_to_next = _xp_curve(level)
 	level_up.emit(level)
 	xp_changed.emit(xp, xp_to_next, level)
+
+
+## 고를 강화 카드가 하나도 없는 레벨업(보유 아이템 전부 만렙 + 슬롯 만석)을 골드로 보상한다.
+## 그대로 두면 후반 레벨업이 아무 보상 없이 지나가, 젬을 주우러 다닐 이유가 사라진다.
+## 실제 지급액은 add_gold 가 메타 '탐욕'·패시브 배수까지 곱한 값이라 여기서 되읽어 알린다.
+func grant_maxed_level_gold() -> int:
+	var b: BalanceData = GameData.balance
+	var amount: int = clampi(b.maxed_level_gold_base
+		+ int(round(b.maxed_level_gold_per_level * float(level))), 0, b.maxed_level_gold_max)
+	if amount <= 0:
+		return 0
+	var before := total_gold
+	add_gold(amount)
+	var gained := total_gold - before
+	maxed_level_gold.emit(level, gained)
+	return gained
 
 
 ## 광역/오라 무기 효과 반경 배수 — 패시브 '배터리'(upgrade_area)로 커진다.

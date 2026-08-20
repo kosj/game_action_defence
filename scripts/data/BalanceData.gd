@@ -78,3 +78,12 @@ extends Resource
 
 @export_group("Gem")
 @export var gem_live_cap: int = 140            # 필드 동시 경험치 젬 상한(초과분 자동 흡수)
+
+@export_group("Level up")
+## 강화 카드가 하나도 없을 때(보유 아이템 전부 만렙 + 슬롯 만석) 레벨업 1회당 지급하는 골드.
+## 지급량 = clamp(base + per_level × 레벨, 0, max). 메타 '탐욕'·패시브 '토끼발' 배수는
+## Events.add_gold 가 추가로 곱한다.
+## 후반에는 레벨업이 아무 보상 없이 지나가 경험치를 모을 이유가 사라진다 — 그 구간을 메운다.
+@export var maxed_level_gold_base: int = 20
+@export var maxed_level_gold_per_level: float = 2.0
+@export var maxed_level_gold_max: int = 80
