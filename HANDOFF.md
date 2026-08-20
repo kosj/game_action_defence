@@ -60,6 +60,7 @@
 | P1-18 후반 성능 — 계측 + 원인 규명 | F | ✅ (39c5456) | claude/f-lane-lategame-perf | 2026-08-20 |
 | P1-19 후반 탄 수 — 수를 줄이고 발당 위력을 올린다 | F | 🔵 진행중 | claude/f-lane-bullet-budget | 2026-08-20 |
 | P1-20 후반 적 체력 — 좀비가 녹아서 지루하다 | F | ⚪ 대기 | — | P1-19 와 같은 뿌리(분할) |
+| P1-21 GPU/CPU 병목 계측 + 엔진측 최적화 (밸런스 무관) | I | 🔵 진행중 | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-20 |
 | P1-9 텔레메트리(로컬 수집) | F | ✅ (17df85c) | claude/f-lane-telemetry | 2026-08-18 |
 | P1-10 텔레메트리 원격 수집 | — | 🟡 결정대기 | — | — |
 | P1-11 기록 내보내기 상시 노출 + 치트 판 표시 | F | ✅ (107e890) | claude/f-lane-telemetry-export | 2026-08-18 |
