@@ -213,11 +213,14 @@ func _physics_process(delta: float) -> void:
 		return
 	_tick_buffs(delta)
 	_tick_regen(delta)
-	# 무적 중 깜빡임 — 플레이어가 언제까지 안전한지 시각적으로 표시
+	# 무적 중 깜빡임 — 플레이어가 언제까지 안전한지 시각적으로 표시.
+	# 값이 바뀔 때만 쓴다: modulate 대입은 매번 렌더 서버로 나가고, 스프라이트의 modulate 가
+	# 이웃과 달라지면 캔버스 배칭도 끊긴다(ASSET_PIPELINE.md 1절).
+	var want_a := 1.0
 	if _hurt_timer > 0.0:
-		body.modulate.a = 1.0 if fmod(_hurt_timer, 0.4) > 0.2 else 0.35
-	else:
-		body.modulate.a = 1.0
+		want_a = 1.0 if fmod(_hurt_timer, 0.4) > 0.2 else 0.35
+	if body.modulate.a != want_a:
+		body.modulate.a = want_a
 	_check_contact_damage()
 	_handle_move()
 	_update_trait_mods(delta)   # 캐릭터 조건부 트레잇(velocity 확정 후)
