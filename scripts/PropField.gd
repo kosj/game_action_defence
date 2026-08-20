@@ -46,13 +46,16 @@ const PROP_DIR := "res://assets/atlas/props/"
 ## **높이 기준**: 표시 높이는 플레이어(유닛 규약 120px)의 대략 2/3 을 넘지 않고, 넘는다면
 ## 세로로 솟은 부피가 아니어야 한다. 이 게임은 탑다운 필드 위에 사이드뷰 스프라이트를 세우는
 ## 투영이라, 키 큰 원통·캡슐은 플레이어가 겹치는 순간 "허공에 떠 있는" 것으로 읽힌다.
-## 실제로 배양 탱크(118px = 플레이어의 98%)와 격리 포드(세로 캡슐)를 이 이유로 뺐다.
-## 얇은 판(울타리)이나 낮은 상자(쓰레기통·서버랙)는 지면에 붙어 읽히므로 해당하지 않는다.
+## 실제로 배양 탱크(118px = 플레이어의 98%)·격리 포드(세로 캡슐)·서버랙을 이 이유로 뺐다.
+##
+## **판독성 기준**: 한 개만 놓였을 때 "그것이 무엇인지" 알아볼 수 있어야 한다. 울타리를 이
+## 이유로 뺐다 — 단독으로 놓이면 잔디밭 위의 나무 판때기로만 읽혔고, 일렬 모티프에서도 판이
+## 서로 떨어져(간격 84px, 판 폭 31px) 울타리가 아니라 판자 3개로 보였다. 붙여서 연속된
+## 울타리로 만들면 이번에는 통행 간격 규칙(solid 간 >= r1+r2+2*PLAYER_R+8)을 어겨 벽이 된다.
 ## 아직 아트가 없는 키(파일 부재)는 로드 단계에서 자동 제외된다.
 ## 어느 테마에서 쓸지는 ThemeData.prop_keys 가 정한다 — 여기 있어도 그 목록에 없으면 안 나온다.
 const _CATALOG := {
 	# 교외
-	"fence":     {"file": "prop_fence.png",     "theme": "suburb", "w": 72.0,  "solid": true,  "rfrac": 0.32},
 	"mailbox":   {"file": "prop_mailbox.png",   "theme": "suburb", "w": 40.0,  "solid": false, "rfrac": 0.40},
 	"bush":      {"file": "prop_bush.png",      "theme": "suburb", "w": 62.0,  "solid": false, "rfrac": 0.40},
 	"forsale":   {"file": "prop_forsale.png",   "theme": "suburb", "w": 54.0,  "solid": false, "rfrac": 0.40, "noflip": true},   # 글자가 있는 팻말 — 반전하면 거울 글씨가 된다
@@ -77,12 +80,12 @@ const _CATALOG := {
 ##  ③ 일렬 모티프는 군집 단위로 플립을 공유한다 — 정렬이 곧 "사람이 놓은 것"의 신호다.
 const _MOTIFS := {
 	"suburb": [
-		# 앞마당 — 울타리 3장 일렬 + 우체통(테마의 solid 예산을 여기 몰아준다)
-		[{"k": "fence", "o": Vector2(-84, 0)}, {"k": "fence", "o": Vector2(0, 0)},
-		 {"k": "fence", "o": Vector2(84, 0)}, {"k": "mailbox", "o": Vector2(58, -62)}],
-		# 매물로 나온 집터 — 울타리 + FOR SALE 팻말 + 덤불
-		[{"k": "fence", "o": Vector2(-40, 28)}, {"k": "forsale", "o": Vector2(30, -48)},
-		 {"k": "bush", "o": Vector2(80, 40)}],
+		# 길가 우편함 — 우체통 + 소화전 + 덤불. 우체통과 소화전이 나란히 서면 "길가"로 읽힌다.
+		[{"k": "mailbox", "o": Vector2(-62, -28)}, {"k": "hydrant", "o": Vector2(30, -46)},
+		 {"k": "bush", "o": Vector2(62, 42)}],
+		# 매물로 나온 집터 — FOR SALE 팻말 + 우체통 + 덤불
+		[{"k": "forsale", "o": Vector2(-18, -40)}, {"k": "mailbox", "o": Vector2(-78, 34)},
+		 {"k": "bush", "o": Vector2(62, 30)}],
 		# 길모퉁이 정원 — 덤불 3개 + 소화전
 		[{"k": "bush", "o": Vector2(-72, -42)}, {"k": "bush", "o": Vector2(-18, 50)},
 		 {"k": "bush", "o": Vector2(52, -22)}, {"k": "hydrant", "o": Vector2(86, 54)}],

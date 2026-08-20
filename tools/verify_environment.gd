@@ -481,7 +481,7 @@ func _test_removed_props(game_data) -> void:
 	var catalog: Dictionary = pf_script.get("_CATALOG")
 	var motifs: Dictionary = pf_script.get("_MOTIFS")
 	var prop_dir: String = pf_script.get("PROP_DIR")
-	for dead in [["tank", "city"], ["pod", "lab"], ["server", "lab"]]:
+	for dead in [["tank", "city"], ["pod", "lab"], ["server", "lab"], ["fence", "suburb"]]:
 		var k: String = dead[0]
 		_ok("삭제된 프롭 %s 가 카탈로그에 없음" % k, not catalog.has(k))
 		var in_theme := ""
