@@ -112,13 +112,16 @@ func _damage_tick() -> void:
 ##   ult_quake: 방사형 균열 + 연쇄 충격 링(대지가 갈라지는 지진)
 ##   ult_arrowstorm: 화면을 가로지르는 화살 비(대각 스트릭 + 빛나는 촉)
 ##   ult_orbital: 하늘에서 꽂히는 수직 광선 폭격(조준 링 + 착탄 글로우)
+## ⚠️ 프리미티브 대신 **QuadDraw(텍스처 쿼드)** 로 그린다 — 캔버스 배처는 한 아이템
+## 안에서도 프리미티브 종류가 다르면 배치를 끊는다(ASSET_PIPELINE.md 1절).
+## 화살비는 `for i in 42` 안에서 선 5~6개를 발행해 프레임당 약 237 프리미티브였다.
 func _draw() -> void:
 	if _active <= 0.0 or _data == null:
 		return
 	var fade := clampf(_active / maxf(_data.area_duration, 0.01), 0.0, 1.0)
 	var c: Color = _data.color
 	# 공통 — 캐릭터색 스크린워시.
-	draw_circle(Vector2.ZERO, SCREEN_R, Color(c.r, c.g, c.b, 0.05 + 0.03 * sin(_pulse * 9.0)))
+	QuadDraw.disc(self, Vector2.ZERO, SCREEN_R, Color(c.r, c.g, c.b, 0.05 + 0.03 * sin(_pulse * 9.0)))
 	match weapon_id:
 		"ult_quake":
 			_draw_quake(c, fade)
@@ -136,17 +139,17 @@ func _draw_quake(c: Color, fade: float) -> void:
 		var pts := _quake_crack(ci)
 		if pts.size() < 2:
 			continue
-		draw_polyline(pts, Color(0.12, 0.05, 0.03, 0.85 * fade), 7.0, true)
-		draw_polyline(pts, Color(c.r, c.g * 0.7, c.b * 0.4, 0.8 * fade), 3.0, true)
-		draw_polyline(pts, Color(1.0, 0.85, 0.4, 0.5 * fade * (0.6 + 0.4 * sin(_pulse * 11.0))), 1.4, true)
+		QuadDraw.polyline(self, pts, Color(0.12, 0.05, 0.03, 0.85 * fade), 7.0)
+		QuadDraw.polyline(self, pts, Color(c.r, c.g * 0.7, c.b * 0.4, 0.8 * fade), 3.0)
+		QuadDraw.polyline(self, pts, Color(1.0, 0.85, 0.4, 0.5 * fade * (0.6 + 0.4 * sin(_pulse * 11.0))), 1.4)
 		# 갈라지는 끝단의 파편 불티 — 균열이 지금도 뻗어나가는 중임을 보여준다.
 		var tip: Vector2 = pts[pts.size() - 1]
 		var spark := 0.35 + 0.65 * absf(sin(_pulse * 17.0 + float(ci)))
-		draw_circle(tip, 3.4 * spark, Color(1.0, 0.8, 0.35, 0.75 * fade * spark))
+		QuadDraw.disc(self, tip, 3.4 * spark, Color(1.0, 0.8, 0.35, 0.75 * fade * spark))
 	# 연쇄 충격 링 3겹 — 시차를 두고 화면 밖으로 퍼진다.
 	for k in 3:
 		var ring_r := fmod(_pulse * 760.0 + float(k) * SCREEN_R / 3.0, SCREEN_R)
-		draw_arc(Vector2.ZERO, maxf(ring_r, 8.0), 0.0, TAU, 40, Color(c.r, c.g, c.b, 0.30 * fade * (1.0 - ring_r / SCREEN_R)), 6.0, true)
+		QuadDraw.ring(self, Vector2.ZERO, maxf(ring_r, 8.0), Color(c.r, c.g, c.b, 0.30 * fade * (1.0 - ring_r / SCREEN_R)), 6.0, 40)
 
 
 ## 균열 ci 의 이번 프레임 모양 — 자라난 길이까지만, 각 마디를 옆으로 떨어서 돌려준다.
@@ -188,24 +191,24 @@ func _draw_arrowstorm(c: Color, fade: float) -> void:
 			var p := t / 0.62
 			var head := target + drop * (-(1.0 - p) * 560.0)
 			var tail := head - drop * 46.0
-			draw_line(head - drop * 130.0, head, Color(c.r, c.g, c.b, 0.28 * fade), 3.0, true)   # 꼬리 잔상
-			draw_line(tail, head, Color(0.92, 0.96, 1.0, 0.9 * fade), 2.2, true)                 # 화살대
+			QuadDraw.segment(self, head - drop * 130.0, head, Color(c.r, c.g, c.b, 0.28 * fade), 3.0)   # 꼬리 잔상
+			QuadDraw.segment(self, tail, head, Color(0.92, 0.96, 1.0, 0.9 * fade), 2.2)                 # 화살대
 			var perp := drop.orthogonal()
-			draw_line(head, head - drop * 9.0 + perp * 4.0, Color(1.0, 1.0, 1.0, 0.9 * fade), 2.0, true)   # 촉
-			draw_line(head, head - drop * 9.0 - perp * 4.0, Color(1.0, 1.0, 1.0, 0.9 * fade), 2.0, true)
-			draw_line(tail, tail - drop * 7.0 + perp * 5.0, Color(c.r, c.g, c.b, 0.75 * fade), 1.6, true)  # 깃
-			draw_line(tail, tail - drop * 7.0 - perp * 5.0, Color(c.r, c.g, c.b, 0.75 * fade), 1.6, true)
+			QuadDraw.segment(self, head, head - drop * 9.0 + perp * 4.0, Color(1.0, 1.0, 1.0, 0.9 * fade), 2.0)   # 촉
+			QuadDraw.segment(self, head, head - drop * 9.0 - perp * 4.0, Color(1.0, 1.0, 1.0, 0.9 * fade), 2.0)
+			QuadDraw.segment(self, tail, tail - drop * 7.0 + perp * 5.0, Color(c.r, c.g, c.b, 0.75 * fade), 1.6)  # 깃
+			QuadDraw.segment(self, tail, tail - drop * 7.0 - perp * 5.0, Color(c.r, c.g, c.b, 0.75 * fade), 1.6)
 		else:
 			# 꽂힘: 착지 먼지 링이 퍼지고, 비스듬히 꽂힌 화살이 잠시 남는다.
 			var s := (t - 0.62) / 0.38
 			var a := (1.0 - s) * fade
-			draw_arc(target, 6.0 + 22.0 * s, 0.0, TAU, 16, Color(0.85, 0.9, 1.0, 0.5 * a), 2.0, true)
-			draw_circle(target, 4.0, Color(1.0, 1.0, 1.0, 0.8 * a))
+			QuadDraw.ring(self, target, 6.0 + 22.0 * s, Color(0.85, 0.9, 1.0, 0.5 * a), 2.0, 16)
+			QuadDraw.disc(self, target, 4.0, Color(1.0, 1.0, 1.0, 0.8 * a))
 			var shaft := target - drop * 26.0
-			draw_line(shaft, target, Color(0.92, 0.96, 1.0, 0.85 * a), 2.2, true)
+			QuadDraw.segment(self, shaft, target, Color(0.92, 0.96, 1.0, 0.85 * a), 2.2)
 			var perp2 := drop.orthogonal()
-			draw_line(shaft, shaft - drop * 6.0 + perp2 * 4.5, Color(c.r, c.g, c.b, 0.7 * a), 1.5, true)
-			draw_line(shaft, shaft - drop * 6.0 - perp2 * 4.5, Color(c.r, c.g, c.b, 0.7 * a), 1.5, true)
+			QuadDraw.segment(self, shaft, shaft - drop * 6.0 + perp2 * 4.5, Color(c.r, c.g, c.b, 0.7 * a), 1.5)
+			QuadDraw.segment(self, shaft, shaft - drop * 6.0 - perp2 * 4.5, Color(c.r, c.g, c.b, 0.7 * a), 1.5)
 
 
 func _draw_orbital(c: Color, fade: float) -> void:
@@ -216,8 +219,8 @@ func _draw_orbital(c: Color, fade: float) -> void:
 		var seed := bucket * 5 + i
 		var impact := Vector2((_h(seed) - 0.5) * 1.7 * 640.0, (_h(seed * 3 + 1) - 0.5) * 1.7 * 520.0)
 		var beam_a := (1.0 - bt) * fade
-		draw_line(impact + Vector2(0, -SCREEN_R * 1.2), impact, Color(c.r, c.g, c.b, 0.30 * beam_a), 24.0, true)
-		draw_line(impact + Vector2(0, -SCREEN_R * 1.2), impact, Color(1.0, 1.0, 1.0, 0.65 * beam_a), 7.0, true)
-		draw_circle(impact, 34.0 * (0.5 + bt * 0.8), Color(c.r, c.g, c.b, 0.35 * beam_a))
-		draw_circle(impact, 12.0, Color(1.0, 1.0, 1.0, 0.8 * beam_a))
-		draw_arc(impact, 46.0 + bt * 30.0, 0.0, TAU, 24, Color(c.r, c.g, c.b, 0.45 * beam_a), 2.5, true)
+		QuadDraw.segment(self, impact + Vector2(0, -SCREEN_R * 1.2), impact, Color(c.r, c.g, c.b, 0.30 * beam_a), 24.0)
+		QuadDraw.segment(self, impact + Vector2(0, -SCREEN_R * 1.2), impact, Color(1.0, 1.0, 1.0, 0.65 * beam_a), 7.0)
+		QuadDraw.disc(self, impact, 34.0 * (0.5 + bt * 0.8), Color(c.r, c.g, c.b, 0.35 * beam_a))
+		QuadDraw.disc(self, impact, 12.0, Color(1.0, 1.0, 1.0, 0.8 * beam_a))
+		QuadDraw.ring(self, impact, 46.0 + bt * 30.0, Color(c.r, c.g, c.b, 0.45 * beam_a), 2.5, 24)

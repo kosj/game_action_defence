@@ -21,12 +21,19 @@ const BLOB := preload("res://assets/atlas/decal_blob.tres")
 const STREAK := preload("res://assets/atlas/decal_streak.tres")
 ## 중심에서 퍼지는 쐐기 — 부채꼴/god-ray 대체.
 const WEDGE := preload("res://assets/atlas/fx_wedge.tres")
+## 완전 불투명 흰 사각형 — draw_rect 대체.
+const SOLID := preload("res://assets/atlas/fx_solid.tres")
 
 
 static func disc(ci: CanvasItem, pos: Vector2, r: float, col: Color) -> void:
 	if r <= 0.0:
 		return
 	ci.draw_texture_rect(BLOB, Rect2(pos.x - r, pos.y - r, r * 2.0, r * 2.0), false, col)
+
+
+## 채워진 사각형 — draw_rect 대체. 텍스처 없는 draw_rect 는 아틀라스 쿼드와 안 묶인다.
+static func rect(ci: CanvasItem, r: Rect2, col: Color) -> void:
+	ci.draw_texture_rect(SOLID, r, false, col)
 
 
 ## 선분 하나. 축에 정렬된 것은 변환 없이 그린다 — draw_set_transform 은 명령이 하나 더 붙는다.

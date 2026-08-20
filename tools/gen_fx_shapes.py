@@ -140,6 +140,15 @@ def gen_ring() -> None:
     _save(_over(im, PX), "fx_ring.png")
 
 
+def gen_solid() -> None:
+    """완전 불투명 흰 사각형. draw_rect 대체 — 색은 쓰는 쪽에서 틴트로 넣는다.
+
+    작아도 되지만 아틀라스 패딩(4px)에 먹히지 않게 16px 로 둔다.
+    """
+    im = Image.new("RGBA", (16, 16), (255, 255, 255, 255))
+    _save(im, "fx_solid.png")
+
+
 def _save(im: Image.Image, name: str) -> None:
     OUT.mkdir(parents=True, exist_ok=True)
     p = OUT / name
@@ -152,6 +161,7 @@ def main() -> int:
     gen_orb()
     gen_wedge()
     gen_ring()
+    gen_solid()
     print("[FX] 완료 — python3 tools/build_atlas.py 로 아틀라스에 반영하세요")
     return 0
 
