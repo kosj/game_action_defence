@@ -50,6 +50,16 @@ CI 대기 중인 것과 구분되지 않는다.
 전부 `tools/gen_*.gd` 생성기의 산출물이다. **생성기를 고치고 재생성한다.**
 `.tres` 를 직접 편집하면 다음 생성기 실행 때 말없이 덮어써진다.
 
+⚠️ **이미 어긋나 있을 수 있다.** `item_catalog.tres` 는 무기 4종(부메랑·궁극기 3종)과 마늘 표기가
+손으로 들어가 있었고, 규약대로 재생성하자 **그것들이 조용히 사라졌다**(P1-19 에서 발견·복구).
+그러니 재생성 전후로 **반드시 목록을 대조할 것**:
+```sh
+git show HEAD:data/item_catalog.tres | grep -o '^id = "[a-z_]*"' | sort > /tmp/before.txt
+godot --headless --path . --script res://tools/gen_item_catalog.gd
+grep -o '^id = "[a-z_]*"' data/item_catalog.tres | sort | diff /tmp/before.txt -
+```
+`verify_bullet_budget.gd` 가 궁극기 소실만은 CI 에서 잡지만, 나머지는 이 대조가 유일한 안전망이다.
+
 | 데이터 | 생성기 |
 |---|---|
 | `data/item_catalog.tres` (무기 30 = 기본 16 + 진화 11 + 궁극기 3 · 패시브 10) | `tools/gen_item_catalog.gd` |
@@ -147,6 +157,7 @@ godot --headless --path . --script res://tools/verify_event_forecast.gd
 godot --headless --path . --script res://tools/verify_ui_icons.gd
 godot --headless --path . --script res://tools/verify_late_speed.gd
 godot --headless --path . --script res://tools/verify_hotpath.gd
+godot --headless --path . --script res://tools/verify_bullet_budget.gd
 ```
 
 ⚠️ **`main` 을 새로 받은 직후에는 `--import` 를 먼저(가능하면 두 번) 돌린다.**
@@ -172,7 +183,7 @@ LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 720x1280x24" \
 평상시 비용은 하네스가 센티넬로 직접 재는 `물리 틱` 줄을 본다. 자세한 것은
 `OPTIMIZATION_PLAN.md` §5-L.
 
-**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 17종이 이 프로젝트의 안전망 전부다.
+**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 18종이 이 프로젝트의 안전망 전부다.
 
 비주얼을 건드렸으면 **실렌더 스크린샷**으로 확인한다 — 헤드리스는 `_draw` 를 부르고 오류도 안 내지만,
 그려진 것이 다른 레이어에 덮였는지·좌표가 화면 밖인지는 알려주지 않는다.

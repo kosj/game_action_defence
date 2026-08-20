@@ -100,6 +100,7 @@ jobs:
           godot --headless --path . --script res://tools/verify_ui_icons.gd
           godot --headless --path . --script res://tools/verify_late_speed.gd
           godot --headless --path . --script res://tools/verify_hotpath.gd
+          godot --headless --path . --script res://tools/verify_bullet_budget.gd
 
       - name: Export to Web
         run: |

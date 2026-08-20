@@ -191,6 +191,15 @@ func _setup() -> void:
 	_assert_scripts_live()
 
 	var preset: Dictionary = BUILDS.get(String(_args.get("build", "engineer_late")), {})
+	# w=gatling:5,shotgun:8 — 무기 하나만 놓고 재기 위한 임시 빌드(탄 예산 분해용).
+	var wspec := String(_args.get("w", ""))
+	if wspec != "":
+		var wd: Dictionary = {}
+		for e in wspec.split(","):
+			var kv := String(e).split(":")
+			wd[String(kv[0])] = int(kv[1]) if kv.size() > 1 else 8
+		preset = {"character": String(_args.get("character", "engineer")),
+			"weapons": wd, "passives": {}}
 	_pick("CharacterManager", String(preset.get("character", "engineer")),
 		func(gd, id): return gd.character(id))
 	_pick("ThemeManager", String(_args.get("theme", "city")),
