@@ -109,6 +109,7 @@ var _ticks: Array = []
 var _zg_q: Array = []
 var _tick_ms: Array = []          # 물리 틱 1회당 스크립트 비용(센티넬 실측)
 var _tick_end: TickProbe = null
+var _tick_head: TickProbe = null
 var _zg_b: Array = []
 var _prev_pf: int = -1
 var _pairs: Array = []
@@ -144,6 +145,11 @@ func _process(delta: float) -> bool:
 	if not _off.is_empty():
 		_apply_off(not _off_applied)
 		_off_applied = true
+	# only= 도 마찬가지다. 예전에는 setup 때 한 번만 껐는데, 그러면 **측정 중 풀에서 새로
+	# 나온 노드는 켜진 채로 돈다** — stress=1 처럼 계속 스폰되는 판에서는 "하나만 켰다"는
+	# 전제가 조용히 무너져 귀속이 통째로 틀린다(정지 절편이 0.01ms 가 아니게 된다).
+	if not _only.is_empty():
+		_apply_only()
 	# 일시정지 중(레벨업 카드 등)에는 프레임 시간이 의미가 없다 — 측정에서 뺀다.
 	if _kills0 < 0:
 		_kills0 = int(_events.total_kills)
@@ -375,6 +381,7 @@ func _install_tick_probes() -> void:
 	tail.sink = _tick_ms
 	root.add_child(tail)
 	_tick_end = tail
+	_tick_head = head
 
 
 ## ── 최대 부하(worst case) 모드 ────────────────────────────────────────
@@ -537,6 +544,39 @@ func _setup_probe(spec: String, cheats: Node) -> void:
 ## 켠 상태와의 physics_ms 차이가 그 스크립트가 매 프레임 쓰는 시간이다.
 ## (풀 반납도 그 로직 안에서 일어나므로, 끈 항목은 개체 수가 늘어난다 — 결과의 개체 내역을
 ##  함께 볼 것. 그래서 이건 "얼마나 비싼가"의 상한 추정이지 정밀 측정이 아니다.)
+## only= 대상만 켜고 나머지는 끈다. 센티넬 두 개는 건드리지 않는다 — 끄면 측정이 사라진다.
+## `_process` 에서 돌므로 이 순회 자체는 물리 틱 측정에 섞이지 않는다.
+func _apply_only() -> void:
+	var stack: Array = [root]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		for c in n.get_children():
+			stack.append(c)
+		if n == _tick_head or n == _tick_end:
+			continue
+		var sc = n.get_script()
+		var base: String = String(sc.resource_path).get_file().get_basename() if sc != null else ""
+		var want: bool = base != "" and _only.has(base)
+		# ⚠️ stress=1 에서는 ZombieSpawner 의 `_process` 를 끄면 안 된다. 좀비 보충은
+		# Cheats.request_spawn_fill() → 스포너의 스폰 큐 → `_drain_spawn_queue()`(=`_process`)
+		# 로 이어지는데, 그 마지막 칸을 끄면 큐가 비워지지 않아 **좀비가 320마리에서 7마리로
+		# 사라진다.** 최대 부하 판 자체가 없어지므로 귀속을 잴 대상이 남지 않는다.
+		# `_process` 는 물리 틱 센티넬 바깥이라 이 예외가 측정값에 섞이지 않는다.
+		var keep_proc: bool = _stress and base == "ZombieSpawner"
+		if want:
+			if not n.is_physics_processing():
+				n.set_physics_process(true)
+			if not n.is_processing():
+				n.set_process(true)
+		else:
+			if n.is_physics_processing():
+				n.set_physics_process(false)
+			if n.is_processing() and not keep_proc:
+				n.set_process(false)
+			elif keep_proc and not n.is_processing():
+				n.set_process(true)
+
+
 func _apply_off(verbose: bool) -> void:
 	var stack: Array = [root]
 	var n_off := 0
@@ -656,6 +696,27 @@ func _report() -> void:
 			parts.append("%s %d" % [k, int(_pause_tags[k])])
 		print("  일시정지    프레임 %d회 — 소유자: %s" % [_paused_ticks, ", ".join(parts)])
 	print("  노드 %d · 레벨 %d · **초당 처치 %.1f**" % [rec["nodes"], rec["level"], rec["kills_per_s"]])
+	# only= 로 잰 판은 "정말 그것만 켜져 있었나"를 같이 찍는다. 예전에 이 전제가 조용히
+	# 무너져(풀에서 새로 나온 노드가 켜진 채로 돌았다) 귀속 표가 통째로 틀린 적이 있다.
+	# 세어 두면 표를 읽는 사람이 그 판을 믿어도 되는지 한 줄로 판단할 수 있다.
+	if not _only.is_empty():
+		var on: Dictionary = {}
+		var stack: Array = [root]
+		while not stack.is_empty():
+			var n: Node = stack.pop_back()
+			for c in n.get_children():
+				stack.append(c)
+			if n == _tick_head or n == _tick_end or not n.is_physics_processing():
+				continue
+			var sc = n.get_script()
+			var base: String = String(sc.resource_path).get_file().get_basename() if sc != null else "(스크립트 없음)"
+			on[base] = int(on.get(base, 0)) + 1
+		var parts2: Array = []
+		for k in on:
+			parts2.append("%s %d" % [k, on[k]])
+		parts2.sort()
+		print("  only=%s — 물리 처리 중인 노드: %s" % [
+			",".join(PackedStringArray(_only)), ", ".join(parts2) if not parts2.is_empty() else "없음"])
 	print("  개체 내역(스크립트별, 5개 이상만):")
 	var keys := _counts_last.keys()
 	keys.sort_custom(func(a, b): return int(_counts_last[a]) > int(_counts_last[b]))
