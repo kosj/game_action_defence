@@ -119,6 +119,11 @@ var _only: Array = []
 var _off_applied := false
 var _kills0 := -1
 ## stress 모드 — 최대 부하(worst case) 재현. 아래 _stress_tick() 참고.
+##
+## ⚠️ **stress 는 스포너를 우회한다** — 매 초 좀비를 상한까지 직접 채우므로,
+## `spawn_interval*` 계열 변경은 이 모드에서 **아무 차이도 안 난다**(P1-20 에서 실제로 겪었다).
+## 스폰 throughput 을 바꾼 효과는 정상 모드로 재거나, 데이터에서 계산할 것
+## (`tools/verify_late_hp.gd` 가 엔진과 같은 식으로 초당 스폰을 찍어 준다).
 var _stress := false
 var _pause_tags: Dictionary = {}
 var _paused_ticks := 0

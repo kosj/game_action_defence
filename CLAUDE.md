@@ -60,6 +60,12 @@ grep -o '^id = "[a-z_]*"' data/item_catalog.tres | sort | diff /tmp/before.txt -
 ```
 `verify_bullet_budget.gd` 가 궁극기 소실만은 CI 에서 잡지만, 나머지는 이 대조가 유일한 안전망이다.
 
+⚠️ **`difficulty.tres` 도 같은 상태였다**(P1-20 에서 발견·수정). `gen_difficulty_data.gd` 는
+`DifficultyData.new()` 의 **스크립트 @export 기본값을 그대로 저장**할 뿐인데, 커밋된 `.tres` 는
+8개 필드가 달랐다(동시 상한 175 vs 320 등). 재생성하면 튜닝이 통째로 되돌아간다.
+지금은 기본값을 배포 값에 맞춰 놨다 — **이 생성기를 쓸 때는 스크립트 기본값을 고치는 것이 곧
+데이터를 고치는 것**이다. `.tres` 만 고치면 다음 재생성에 사라진다.
+
 | 데이터 | 생성기 |
 |---|---|
 | `data/item_catalog.tres` (무기 30 = 기본 16 + 진화 11 + 궁극기 3 · 패시브 10) | `tools/gen_item_catalog.gd` |
@@ -158,6 +164,7 @@ godot --headless --path . --script res://tools/verify_ui_icons.gd
 godot --headless --path . --script res://tools/verify_late_speed.gd
 godot --headless --path . --script res://tools/verify_hotpath.gd
 godot --headless --path . --script res://tools/verify_bullet_budget.gd
+godot --headless --path . --script res://tools/verify_late_hp.gd
 godot --headless --path . --script res://tools/verify_pickups.gd
 ```
 
