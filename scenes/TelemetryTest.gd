@@ -16,7 +16,7 @@ extends Node
 ##   T8 치트를 쓴 판은 cheated=true 로 표시된다(사람 데이터와 섞이지 않게)
 ##   T9 이어하기로 시작한 판은 resumed=true 로 표시된다(수치가 재개 이후만 세어지므로)
 ##   T10 프리즈 진단(diag)이 기록되고 워치독 발동이 남는다 — 멈춘 뒤엔 못 남기므로 이게 유일한 단서다
-##   T11 분당 샘플에 메모리·노드 수가 실린다(누수 추이 판별용)
+##   T11 분당 샘플에 메모리·노드·fps·프레임 시간이 실린다(누수·성능 추이 판별용)
 ##   T12 메뉴 복귀 판이 기록에 남는다 + 끝맺지 못한 판이 새 판 시작 시 승격된다
 ##   T13 해석된 이속 합계(speed_lv)가 기록된다 — 후반 이속 밸런스 판정의 유일한 지표
 ##   T14 판 도중 Events.reset() 이 일어나도 기록이 0 으로 덮이지 않는다
@@ -180,8 +180,10 @@ func _ready() -> void:
 	Events.player_died.emit()
 	var r8: Dictionary = JSON.parse_string(Telemetry.load_records_raw()[0])
 	var sm: Array = r8.get("samples", [])
-	_check("T11 분당 샘플에 메모리·노드",
+	# fps·프레임 시간이 없으면 "언제부터 느려졌나"를 못 본다 — P1-18 이 그것 때문에 막혔다.
+	_check("T11 분당 샘플에 메모리·노드·프레임",
 		sm.size() >= 1 and sm[0].has("mem") and sm[0].has("nodes")
+			and sm[0].has("fps") and sm[0].has("frame_ms") and sm[0].has("zombies")
 			and float(sm[0]["mem"]) > 0.0,
 		str(sm[0]) if sm.size() > 0 else "샘플 없음")
 	Telemetry.clear_records()
