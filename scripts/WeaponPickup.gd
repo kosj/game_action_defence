@@ -98,10 +98,10 @@ func _draw() -> void:
 	# 이름 / 희귀도 라벨
 	var font := ThemeDB.fallback_font
 	var label_pos := center + Vector2(-60.0, -glow_r - 14.0)
-	draw_string(font, label_pos, stats.get("name", ""), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 15, Color(1.0, 1.0, 1.0, alpha))
+	draw_string(font, label_pos, stats.get("name", ""), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 15, Color(1.0, 1.0, 1.0, alpha))   # batching-exempt: 무기/희귀도 이름은 임의 로케일 문자열이라 비트맵으로 못 굽는다. 동시 표시 수가 한 자릿수라 배치 손실이 그만큼뿐이다
 	if stats.get("tier_id", "common") != "common":
 		var tier_pos := label_pos + Vector2(0.0, 16.0)
-		draw_string(font, tier_pos, stats.get("tier_name", ""), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 13, Color(tier_color.r, tier_color.g, tier_color.b, alpha))
+		draw_string(font, tier_pos, stats.get("tier_name", ""), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 13, Color(tier_color.r, tier_color.g, tier_color.b, alpha))   # batching-exempt: 무기/희귀도 이름은 임의 로케일 문자열이라 비트맵으로 못 굽는다. 동시 표시 수가 한 자릿수라 배치 손실이 그만큼뿐이다
 
 
 func _draw_icon(shape: String, center: Vector2, r: float, rot: float, base_color: Color, tier_color: Color, alpha: float) -> void:

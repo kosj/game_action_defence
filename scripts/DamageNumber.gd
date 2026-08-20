@@ -6,9 +6,16 @@ extends Node2D
 ## 웹 프레임 드랍이 난다. 일반 숫자는 "프레임당 스폰 상한"으로 표본만 보여주고(피해는 정상),
 ## 큰 한 방(보스/크리티컬)은 별도의(더 낮은) 상한으로 우선 표시한다.
 ##
-## 문자열 드로우는 GL Compatibility 렌더러에서 가장 비싼 2D 연산이다(글리프 셰이핑 + 외곽선은
-## 글리프를 여러 방향으로 재렌더). 프레임당 상한만으로는 부족하다 — 수명 LIFE 동안 누적되므로
-## MAX_PER_FRAME × LIFE × fps 만큼 동시에 살아있을 수 있다. FXBurst 처럼 동시 활성 상한을 둔다.
+## 숫자는 **폰트가 아니라 게임플레이 아틀라스에 구운 비트맵 자릿수**로 그린다.
+## `draw_string` 은 폰트 글리프 아틀라스를 쓰는데 그건 게임플레이 시트와 별개 텍스처라
+## 숫자 하나가 뜰 때마다 배치가 끊긴다 — 실측으로 이 노드 하나가 드로우 콜 49개였다.
+## 자릿수를 아틀라스 쿼드로 그리면 좀비·이펙트와 같은 배치에 묶여 사실상 0이 된다.
+## 자릿수 텍스처는 `tools/gen_damage_digits.gd` 가 굽는다(검은 아웃라인 + 흰 글리프 한 장 —
+## 색을 틴트로 곱하면 아웃라인은 검정 그대로, 글리프만 색이 된다).
+##
+## 프레임당 상한만으로는 부족하다 — 수명 LIFE 동안 누적되므로 MAX_PER_FRAME × LIFE × fps
+## 만큼 동시에 살아있을 수 있다. 배치가 묶인 지금도 화면 도배(가독성)와 오버드로가 남으므로
+## FXBurst 처럼 동시 활성 상한을 유지한다.
 
 static var _pool: Array = []
 static var _frame: int = -1
@@ -40,13 +47,26 @@ const LIFE := 0.6
 const BASE_FONT_SIZE := 24       # 일반 숫자 기준 크기(팝 애니메이션은 이 값에 배율)
 const BIG_FONT_SIZE := 34        # 크리티컬/보스 강조 크기
 
-var _amount: int = 0
+## 비트맵 자릿수 — tools/gen_damage_digits.gd 가 굽고 아래 세 상수를 출력한다.
+## 값을 손으로 고치지 말고 생성기를 다시 돌려 출력된 것을 그대로 옮긴다.
+## 좌표계는 BASE_FONT_SIZE(24) 표시 기준이며, 원본 draw_string 과 같이 y=0 이 베이스라인이다.
+const GLYPH_ADVANCE := 13.0000                    # 자릿수 하나의 전진폭
+const GLYPH_OFFSET := Vector2(-1.3333, -19.6667)  # 펜 위치 -> 쿼드 좌상단
+const GLYPH_SIZE := Vector2(15.6667, 21.6667)     # 쿼드 크기
+const _DIGIT_TEX := [
+	preload("res://assets/atlas/dmg_0.tres"), preload("res://assets/atlas/dmg_1.tres"),
+	preload("res://assets/atlas/dmg_2.tres"), preload("res://assets/atlas/dmg_3.tres"),
+	preload("res://assets/atlas/dmg_4.tres"), preload("res://assets/atlas/dmg_5.tres"),
+	preload("res://assets/atlas/dmg_6.tres"), preload("res://assets/atlas/dmg_7.tres"),
+	preload("res://assets/atlas/dmg_8.tres"), preload("res://assets/atlas/dmg_9.tres"),
+]
+
 var _t: float = 0.0
 var _active: bool = false
 var _big: bool = false
 var _color: Color = Color.WHITE
 var _vel: Vector2 = Vector2(0, -50)
-var _half_w: float = 0.0   # 기본 폰트 크기에서의 문자열 반폭 — spawn 시 1회만 측정해 캐시
+var _digits: PackedByteArray = PackedByteArray()   # 자릿수(상위→하위) — spawn 시 1회 분해
 
 
 ## big=true 는 큰 글씨(강조). bypass_cap=true 는 일반 숫자 상한과 별도의 우선 슬롯을 쓴다
@@ -71,15 +91,25 @@ static func spawn(parent: Node, pos: Vector2, amount: int, big: bool = false, co
 		_spawned_this_frame += 1
 	_active_count += 1
 	var d = _pool.pop_back() if _pool.size() > 0 else (load("res://scripts/DamageNumber.gd") as GDScript).new()
-	d._amount = amount
 	d._big = big
 	d._color = color
 	d._t = 0.0
 	d._active = true
 	d.visible = true
-	# 문자열 폭은 수명 내내 바뀌지 않는다(팝은 배율로 근사) — 여기서 1회만 측정한다.
-	var base_size := BIG_FONT_SIZE if big else BASE_FONT_SIZE
-	d._half_w = ThemeDB.fallback_font.get_string_size(str(amount), HORIZONTAL_ALIGNMENT_LEFT, -1, base_size).x * 0.5
+	# 자릿수 분해도 수명 내내 바뀌지 않는다 — 여기서 1회만 한다(_draw 에서 str() 할당 제거).
+	# ⚠️ 지역 변수에 만들어 **통째로 대입**한다. PackedByteArray 는 값 타입이라
+	# `d._digits.append(...)` 처럼 동적 프로퍼티 접근 뒤에 메서드를 부르면 사본이 바뀌고
+	# 원본에는 아무 일도 안 일어난다(조용히 빈 배열이 되어 숫자가 안 보인다).
+	var digs := PackedByteArray()
+	var v := absi(amount)
+	if v == 0:
+		digs.append(0)
+	else:
+		while v > 0:
+			digs.append(v % 10)
+			v /= 10
+		digs.reverse()
+	d._digits = digs
 	d.z_index = 60   # 유닛·이펙트 위에 표시
 	d._vel = Vector2(randf_range(-18.0, 18.0), randf_range(-62.0, -42.0))
 	# 이펙트는 Y 정렬이 필요 없다 — 전용 레이어(Events.fx_layer)에 붙여 유닛 스트림에서 빼면
@@ -129,17 +159,21 @@ func _draw() -> void:
 		return
 	var t := clampf(_t / LIFE, 0.0, 1.0)
 	var a := 1.0 - t * t   # 끝으로 갈수록 빠르게 투명
-	var font := ThemeDB.fallback_font
 	# 등장 팝 — 초반 0.12초 동안 크게 튀었다 정상 크기로. 크리티컬(_big)은 더 큰 팝 + 미세 흔들림.
-	# 크기는 2px 단위로 양자화한다: 팝 중 매 프레임 다른 크기를 쓰면 크기별 글리프 아틀라스가
-	# 프레임마다 새로 생겨 캐시가 무의미해진다(팝은 0.12초뿐이지만 동시 수십 개가 함께 튄다).
+	# 예전에는 크기를 2px 단위로 양자화했다(크기마다 글리프 아틀라스가 새로 생겨서). 비트맵
+	# 자릿수는 텍스처 한 장을 배율만 바꿔 그리므로 그 비용이 없다 — 연속 배율로 부드럽게 튄다.
 	var base := BIG_FONT_SIZE if _big else BASE_FONT_SIZE
 	var pop := 1.0 + (0.7 if _big else 0.45) * (1.0 - clampf(_t / 0.12, 0.0, 1.0))
-	var fsize := int(round(base * pop / 2.0)) * 2
-	var txt := str(_amount)
-	# 폭은 spawn 시 측정한 기본 크기 기준값에 팝 배율을 곱해 근사(매 프레임 셰이핑 측정 제거).
-	var half_w := _half_w * (float(fsize) / float(base))
+	var sc := float(base) * pop / float(BASE_FONT_SIZE)
 	var shake := (sin(_t * 55.0) * 2.2 * (1.0 - t)) if _big else 0.0
-	var pos := Vector2(-half_w + shake, 0.0)
-	draw_string_outline(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, 5, Color(0, 0, 0, a * 0.9))
-	draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, Color(_color.r, _color.g, _color.b, a))
+	var adv := GLYPH_ADVANCE * sc
+	var n := _digits.size()
+	var x := -adv * float(n) * 0.5 + shake   # 원본의 -half_w 와 같은 중앙 정렬
+	var qsz := GLYPH_SIZE * sc
+	var qoff := GLYPH_OFFSET * sc
+	# 아웃라인은 텍스처에 이미 구워져 있다(검정). 틴트를 곱해도 0 × c = 0 이라 검정 그대로고
+	# 글리프(흰색)만 색이 된다 — 원본의 draw_string_outline + draw_string 두 번이 한 번이 된다.
+	var col := Color(_color.r, _color.g, _color.b, a)
+	for i in n:
+		draw_texture_rect(_DIGIT_TEX[_digits[i]], Rect2(Vector2(x, 0.0) + qoff, qsz), false, col)
+		x += adv
