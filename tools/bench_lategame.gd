@@ -109,6 +109,7 @@ var _ticks: Array = []
 var _zg_q: Array = []
 var _tick_ms: Array = []          # 물리 틱 1회당 스크립트 비용(센티넬 실측)
 var _tick_end: TickProbe = null
+var _tick_head: TickProbe = null
 var _zg_b: Array = []
 var _prev_pf: int = -1
 var _pairs: Array = []
@@ -144,6 +145,11 @@ func _process(delta: float) -> bool:
 	if not _off.is_empty():
 		_apply_off(not _off_applied)
 		_off_applied = true
+	# only= 도 마찬가지다. 예전에는 setup 때 한 번만 껐는데, 그러면 **측정 중 풀에서 새로
+	# 나온 노드는 켜진 채로 돈다** — stress=1 처럼 계속 스폰되는 판에서는 "하나만 켰다"는
+	# 전제가 조용히 무너져 귀속이 통째로 틀린다(정지 절편이 0.01ms 가 아니게 된다).
+	if not _only.is_empty():
+		_apply_only()
 	# 일시정지 중(레벨업 카드 등)에는 프레임 시간이 의미가 없다 — 측정에서 뺀다.
 	if _kills0 < 0:
 		_kills0 = int(_events.total_kills)
@@ -375,6 +381,7 @@ func _install_tick_probes() -> void:
 	tail.sink = _tick_ms
 	root.add_child(tail)
 	_tick_end = tail
+	_tick_head = head
 
 
 ## ── 최대 부하(worst case) 모드 ────────────────────────────────────────
@@ -537,6 +544,28 @@ func _setup_probe(spec: String, cheats: Node) -> void:
 ## 켠 상태와의 physics_ms 차이가 그 스크립트가 매 프레임 쓰는 시간이다.
 ## (풀 반납도 그 로직 안에서 일어나므로, 끈 항목은 개체 수가 늘어난다 — 결과의 개체 내역을
 ##  함께 볼 것. 그래서 이건 "얼마나 비싼가"의 상한 추정이지 정밀 측정이 아니다.)
+## only= 대상만 켜고 나머지는 끈다. 센티넬 두 개는 건드리지 않는다 — 끄면 측정이 사라진다.
+## `_process` 에서 돌므로 이 순회 자체는 물리 틱 측정에 섞이지 않는다.
+func _apply_only() -> void:
+	var stack: Array = [root]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		for c in n.get_children():
+			stack.append(c)
+		if n == _tick_head or n == _tick_end:
+			continue
+		var sc = n.get_script()
+		var want: bool = sc != null and _only.has(String(sc.resource_path).get_file().get_basename())
+		if want:
+			if not n.is_physics_processing():
+				n.set_physics_process(true)
+			if not n.is_processing():
+				n.set_process(true)
+		elif n.is_physics_processing() or n.is_processing():
+			n.set_physics_process(false)
+			n.set_process(false)
+
+
 func _apply_off(verbose: bool) -> void:
 	var stack: Array = [root]
 	var n_off := 0
