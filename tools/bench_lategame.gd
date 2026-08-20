@@ -230,7 +230,15 @@ func _setup() -> void:
 		_events.weapons = w.duplicate()
 	if not p.is_empty():
 		_events.passives = p.duplicate()
-	ItemDB.recompute(_events.weapons, _events.passives)
+	# ⚠️ `ItemDB.recompute(...)` 라고 쓰면 안 된다 — 전역 클래스명은 **컴파일 타임에 해석**되고,
+	# `ItemDB.gd` 는 오토로드 `GameData` 를 참조한다. `--script` 로 실행되는 이 파일은 오토로드
+	# 등록 전에 컴파일되므로 거기서 실패한다(위 `_gold_scene` 주석의 preload 함정과 같은 뿌리).
+	#
+	# 네이티브 헤드리스는 실패 후 다시 로드해 넘어가지만 **웹 빌드는 그대로 죽는다** —
+	# `Failed to load script "res://tools/bench_lategame.gd"`. 즉 이렇게 쓰면 이 하네스는
+	# 웹에서 한 번도 못 돈다. 런타임에 늦게 가져와 그 의존을 끊는다.
+	var item_db: GDScript = load("res://scripts/ItemDB.gd")
+	item_db.recompute(_events.weapons, _events.passives)
 	_events.inventory_changed.emit()
 
 	if int(_args.get("fill", "1")) != 0:

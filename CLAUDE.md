@@ -183,6 +183,16 @@ LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 720x1280x24" \
 평상시 비용은 하네스가 센티넬로 직접 재는 `물리 틱` 줄을 본다. 자세한 것은
 `OPTIMIZATION_PLAN.md` §5-L.
 
+**웹(WASM) 비용도 여기서 잰다** — 실기기로 넘기지 말 것. Chromium 이 깔려 있고 웹 빌드도
+여기서 만든다. `tools/bench_web.sh` 가 export → 로컬 서버 → Chromium → 콘솔 수집을 한 번에 한다.
+```sh
+GODOT=/path/to/godot tools/bench_web.sh "min=26 measure=12 fill=0 probe=bullet:400"
+```
+믿을 것은 **`물리 틱`·드로우 콜**뿐이다. `_process`·fps·VRAM 은 이 환경에 GPU 가 없어
+SwiftShader(소프트웨어 GL)로 도는 값이라 실기기와 무관하다.
+⚠️ **"웹은 데스크톱의 3~4배"는 틀린 상수다** — 실측하면 렌더 경합이 없을 때 **0.99배**다(§5-L).
+남은 미지수는 폰 CPU 의 절대 속도와 모바일 GPU fill-rate 뿐이고, 그것만 실기기가 필요하다.
+
 **기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 18종이 이 프로젝트의 안전망 전부다.
 
 비주얼을 건드렸으면 **실렌더 스크린샷**으로 확인한다 — 헤드리스는 `_draw` 를 부르고 오류도 안 내지만,
