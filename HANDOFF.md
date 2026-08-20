@@ -55,7 +55,7 @@
 | P1-4 이벤트 예고 UI | E | ✅ (b7df041) | claude/e-lane-event-forecast | 2026-08-18 |
 | P1-5 후반 이속 밸런스 | F | ✅ (3f5ca5d) | claude/f-lane-late-speed | 2026-08-20 |
 | ~~P0-8 패시브가 기록에 안 남는다~~ | F | ⛔ 철회 | — | 오독이었다(2026-08-20) |
-| P0-9 클리어 판이 0 으로 덮여 저장된다 | F | ✅ (머지 후 sha 기입) | claude/f-lane-clear-record | 2026-08-20 |
+| P0-9 클리어 판이 0 으로 덮여 저장된다 | F | ✅ (ce330de) | claude/f-lane-clear-record | 2026-08-20 |
 | P0-10 프리즈 계측 수리(트리아지 임계 · 웹 메모리) | F | ⚪ 대기 | — | P0-5 의 선행 조건 |
 | P1-18 후반 성능 — 20분 이후 30fps | C | ⚪ 대기 | — | 2026-08-20 |
 | P1-9 텔레메트리(로컬 수집) | F | ✅ (17df85c) | claude/f-lane-telemetry | 2026-08-18 |
