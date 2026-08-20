@@ -18,7 +18,7 @@ unlock_achievement = ""
 gimmick_key = ""
 boss_key = "mutant_dog"
 gimmick_keys = PackedStringArray()
-prop_keys = PackedStringArray("fence", "mailbox", "bush", "forsale", "hydrant")
+prop_keys = PackedStringArray("mailbox", "bush", "forsale", "hydrant")
 weather_keys = PackedStringArray("rain")
 
 [sub_resource type="Resource" id="Resource_11ex3"]

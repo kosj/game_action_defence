@@ -31,7 +31,7 @@ func _initialize() -> void:
 		_t("suburb", "Suburb", "Quiet outskirts. The outbreak begins.", "grass",
 			Color(0.10, 0.16, 0.08), Color(0.13, 0.20, 0.10), Color(0.16, 0.24, 0.13), Color(0.22, 0.31, 0.16),
 			{"boss_key": "mutant_dog",
-			 "prop_keys": PackedStringArray(["fence", "mailbox", "bush", "forsale", "hydrant"]),
+			 "prop_keys": PackedStringArray(["mailbox", "bush", "forsale", "hydrant"]),
 			 "weather_keys": PackedStringArray(["rain"])}),
 		# 도심(중급) — 메타 골드 400. 아스팔트/콘크리트 톤.
 		# 날씨: 비 + 무너진 도시의 먼지바람.
