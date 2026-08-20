@@ -212,6 +212,7 @@ func _finish(el: float) -> void:
 		"survived_after_boss_s": (snappedf(el - _boss_spawn_t, 0.1) if _boss_spawn_t >= 0.0 else -1.0),
 		"weapons": _events.weapons,
 		"passives": _events.passives,
+		"speed_lv": int(_events.upgrade_speed),
 		"peak_zombies": _peak_z,
 		"hp_mult_at_end": _hp_mult(el),
 		"samples": _samples,

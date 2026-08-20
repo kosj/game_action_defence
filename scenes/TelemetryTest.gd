@@ -18,6 +18,7 @@ extends Node
 ##   T10 프리즈 진단(diag)이 기록되고 워치독 발동이 남는다 — 멈춘 뒤엔 못 남기므로 이게 유일한 단서다
 ##   T11 분당 샘플에 메모리·노드 수가 실린다(누수 추이 판별용)
 ##   T12 메뉴 복귀 판이 기록에 남는다 + 끝맺지 못한 판이 새 판 시작 시 승격된다
+##   T13 해석된 이속 합계(speed_lv)가 기록된다 — 후반 이속 밸런스 판정의 유일한 지표
 ##       (클리어 후 메뉴로 나간 판이 통째로 사라지던 버그)
 
 var _ok := 0
@@ -26,7 +27,7 @@ var _total := 0
 # sim_balance.gd 의 SIMRESULT 와 공유해야 하는 키 — 하나라도 빠지면 분석 도구가 깨진다.
 const SHARED_KEYS := ["character", "theme", "survived_s", "died", "cleared", "level",
 	"kills", "hits", "first_hit_s", "boss_spawns", "boss_kills", "boss_fight_s",
-	"weapons", "passives", "samples"]
+	"weapons", "passives", "speed_lv", "samples"]
 # 있으면 안 되는 것 — 개인정보 수집으로 넘어가는 경계다.
 const FORBIDDEN_KEYS := ["user_id", "device_id", "ip", "email", "uuid", "session_id", "name"]
 
@@ -208,6 +209,19 @@ func _ready() -> void:
 	var raw12b := Telemetry.load_records_raw()
 	_check("T12b 미완 판이 새 판 시작 시 승격됨", raw12b.size() == 1,
 		"%d건" % raw12b.size())
+	Telemetry.clear_records()
+
+	# ── T13 이속 합계 ──────────────────────────────────────────────
+	# 운동화 패시브만 봐서는 그 판이 얼마나 빨랐는지 알 수 없다 — 메타 신속과 캐릭터 보정이
+	# 같은 스탯에 얹히기 때문이다. 후반 이속 밸런스(P1-5)는 이 합계로만 판정된다.
+	Telemetry.clear_records()
+	Events.reset()
+	Telemetry.begin_run()
+	Events.upgrade_speed = 5
+	Events.player_died.emit()
+	var r13: Dictionary = JSON.parse_string(Telemetry.load_records_raw()[0])
+	_check("T13 해석된 이속 합계가 기록됨", int(r13.get("speed_lv", -1)) == 5,
+		"speed_lv=%s" % r13.get("speed_lv"))
 	Telemetry.clear_records()
 
 	print("RESULT ok=%d/%d" % [_ok, _total])

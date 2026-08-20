@@ -189,6 +189,9 @@ func _snapshot(outcome: String) -> Dictionary:
 		"boss_fight_s": _boss_fights,
 		"weapons": Events.weapons.duplicate(),
 		"passives": Events.passives.duplicate(),
+		# 해석된 이속 합계(패시브 운동화 + 메타 신속 + 캐릭터 보정). 후반 이속 밸런스(P1-5)는
+		# "그 판이 얼마나 빨랐는가"로만 판정되는데, passives 만으로는 메타·캐릭터 몫이 안 보인다.
+		"speed_lv": Events.upgrade_speed,
 		"samples": _samples,
 		"diag": _diag(),
 	}
