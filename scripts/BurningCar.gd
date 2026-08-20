@@ -81,8 +81,8 @@ func _explode() -> void:
 func _draw() -> void:
 	var blink := 0.5 + 0.5 * sin(_pulse * 6.0)
 	if _armed >= ARM_TIME:   # 무장 후 깜빡이는 경고 링
-		draw_arc(Vector2.ZERO, TRIGGER_R * 0.8, 0.0, TAU, 24, Color(1.0, 0.4, 0.1, 0.25 + 0.4 * blink), 2.0, true)
+		QuadDraw.ring(self, Vector2.ZERO, TRIGGER_R * 0.8, Color(1.0, 0.4, 0.1, 0.25 + 0.4 * blink), 2.0, 24)
 	for i in 3:   # 차 위 불꽃 일렁임
 		var fxp := -8.0 + 8.0 * float(i)
 		var fyp := -14.0 - 6.0 * absf(sin(_pulse * 5.0 + float(i)))
-		draw_circle(Vector2(fxp, fyp), 3.5 + blink * 1.5, Color(1.0, 0.5 + 0.3 * blink, 0.1, 0.7))
+		QuadDraw.disc(self, Vector2(fxp, fyp), 3.5 + blink * 1.5, Color(1.0, 0.5 + 0.3 * blink, 0.1, 0.7))

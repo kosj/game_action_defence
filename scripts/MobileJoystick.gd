@@ -10,8 +10,10 @@ extends Control
 @export var dead_zone: float = 0.12
 @export var activation_ratio: float = 1.0
 
-const _BASE_TEX := preload("res://assets/ui/ui_joystick_base.png")
-const _KNOB_TEX := preload("res://assets/ui/ui_joystick_knob.png")
+## 조이스틱은 인게임 내내 매 프레임 그려진다 — UI 아틀라스에 넣어 다른 HUD 아이콘과
+## 한 배치로 묶는다(아틀라스 밖 텍스처는 그리는 순간 배치가 갈린다).
+const _BASE_TEX := preload("res://assets/atlas/ui/ui_joystick_base.tres")
+const _KNOB_TEX := preload("res://assets/atlas/ui/ui_joystick_knob.tres")
 const _MOUSE_INDEX := -999   # 마우스 입력 구분용 센티널
 
 var _value: Vector2 = Vector2.ZERO

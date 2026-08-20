@@ -63,11 +63,11 @@ func _draw() -> void:
 	var ph := fmod(_phase_t, TELEGRAPH + ACTIVE + COOLDOWN)
 	if ph < TELEGRAPH:
 		var p := ph / TELEGRAPH
-		draw_arc(Vector2.ZERO, FROST_R, 0.0, TAU, 28, Color(0.6, 0.85, 1.0, 0.2 + 0.4 * p), 2.0, true)
+		QuadDraw.ring(self, Vector2.ZERO, FROST_R, Color(0.6, 0.85, 1.0, 0.2 + 0.4 * p), 2.0, 28)
 	elif ph < TELEGRAPH + ACTIVE:
 		var fade := 1.0 - (ph - TELEGRAPH) / ACTIVE
-		draw_circle(Vector2.ZERO, FROST_R, Color(0.7, 0.9, 1.0, 0.18 * fade))
+		QuadDraw.disc(self, Vector2.ZERO, FROST_R, Color(0.7, 0.9, 1.0, 0.18 * fade))
 		for i in 6:   # 서리 결정 방사
 			var a := TAU * float(i) / 6.0
 			var d := Vector2.from_angle(a) * FROST_R * (0.5 + 0.4 * fade)
-			draw_line(Vector2.ZERO, d, Color(0.8, 0.95, 1.0, 0.5 * fade), 2.0)
+			QuadDraw.segment(self, Vector2.ZERO, d, Color(0.8, 0.95, 1.0, 0.5 * fade), 2.0)
