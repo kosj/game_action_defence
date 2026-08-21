@@ -16,6 +16,17 @@ extends SceneTree
 ## 문자열 리터럴은 pck 에서 평문으로 검색되지 않는다. 같은 이유로 MUTANT HOUND 같은 다른
 ## 리터럴도 잡히지 않는다. 그래서 대신 **실제 스위치인 export 프리셋**을 여기서 검사한다.
 
+## ⛔ **치트를 의도적으로 열어 둔 프리셋**(P0-12). 여기 없는 프리셋이 `cheats` 를 켜면 실패다.
+##
+## 왜 목록으로 두는가: "아무도 켜면 안 된다"는 검사는 정말 켜야 할 때 **검사를 지우게 만든다** —
+## 그러면 다음에 실수로 켜져도 아무도 모른다. 열어 두는 것 자체가 아니라 **말없이 열리는 것**이
+## 위험하므로, 여는 쪽을 여기 적게 하고 검사는 계속 살려 둔다.
+##
+## 현재 열림: "Web" — 사용자 요청(2026-08-20), **최적화 측정 기간 한정.**
+## 되돌리는 방법은 두 줄이다: 이 배열을 비우고 `export_presets.cfg` 의 `custom_features` 를 "" 로.
+## ⚠️ **사용자의 명시적인 지시 없이 되돌리지 말 것** — `HANDOFF.md` P0-12 참고.
+const CHEAT_ALLOWED_PRESETS := ["Web"]
+
 var _fails := 0
 var _done := false
 
@@ -42,6 +53,7 @@ func _process(_delta: float) -> bool:
 	print("── 잠긴 빌드(릴리스) ────────────────────────────")
 	cheats.enabled = false
 	cheats.autoplay = true   # 어떤 경로로든 상태가 켜져 있었다고 가정한다
+	cheats.used_this_run = false
 
 	_ok("게이트가 닫히면 autoplay_active() 는 거짓", not cheats.autoplay_active(),
 		"상태가 true 여도 잠겨 있으면 동작하지 않아야 한다")
@@ -49,6 +61,7 @@ func _process(_delta: float) -> bool:
 	cheats.autoplay = false
 	cheats.toggle_autoplay()
 	_ok("잠긴 빌드에서는 autoplay 를 켤 수 없다", not cheats.autoplay)
+	_ok("잠긴 빌드에서는 치트 판 표시도 서지 않는다", not cheats.used_this_run)
 
 	# 발신 게이트 — request_* 는 아무 신호도 내보내지 않아야 한다.
 	var hits := {"time": 0, "fill": 0, "boss": 0}
@@ -75,9 +88,14 @@ func _process(_delta: float) -> bool:
 		hits["time"] == 1 and hits["fill"] == 1 and hits["boss"] == 1,
 		"time=%d fill=%d boss=%d" % [hits["time"], hits["fill"], hits["boss"]])
 
+	cheats.used_this_run = false
 	cheats.toggle_autoplay()
 	_ok("열린 빌드에서는 autoplay 가 켜진다", cheats.autoplay and cheats.autoplay_active())
+	# 오토플레이도 치트다 — 표시가 없으면 그 판이 사람 데이터에 섞인다(분석 도구가 cheated 로 거른다).
+	_ok("autoplay 를 켜면 그 판이 치트 판으로 표시된다", cheats.used_this_run)
 	cheats.toggle_autoplay()   # 원복 — 이어지는 검사에 영향을 주지 않게
+	_ok("껐다고 치트 판 표시가 사라지지는 않는다", cheats.used_this_run)
+	cheats.used_this_run = false
 
 	cheats.time_skip.disconnect(f_time)
 	cheats.spawn_fill.disconnect(f_fill)
@@ -101,19 +119,34 @@ func _process(_delta: float) -> bool:
 	print("── export 프리셋 ────────────────────────────────")
 	# 배포 빌드가 잠기는 실제 근거는 프리셋의 custom_features 다. 여기에 "cheats" 가 들어가면
 	# OS.has_feature("cheats") 가 참이 되어 위 게이트가 통째로 열린다 — 한 글자로 P0 가 되살아난다.
-	# (개발용 치트 빌드를 따로 두게 되면 그 프리셋 이름을 이 검사에 알려줘야 한다)
+	# 그래서 **의도한 프리셋만** 열 수 있게 하고(CHEAT_ALLOWED_PRESETS), 나머지는 실패로 잡는다.
 	var cfg := ConfigFile.new()
 	var err := cfg.load("res://export_presets.cfg")
 	_ok("export_presets.cfg 를 읽을 수 있다", err == OK, "err=%d" % err)
 	if err == OK:
 		var leaked := ""
+		var opened := ""
 		for section in cfg.get_sections():
 			if not cfg.has_section_key(section, "custom_features"):
 				continue
 			var feats := String(cfg.get_value(section, "custom_features", ""))
-			if feats.to_lower().contains("cheats"):
-				leaked += "%s(%s) " % [String(cfg.get_value(section, "name", section)), feats]
-		_ok("어떤 프리셋도 custom_features 에 cheats 를 켜지 않는다", leaked == "", leaked)
+			if not feats.to_lower().contains("cheats"):
+				continue
+			var pname := String(cfg.get_value(section, "name", section))
+			if CHEAT_ALLOWED_PRESETS.has(pname):
+				opened += "%s " % pname
+			else:
+				leaked += "%s(%s) " % [pname, feats]
+		_ok("허용하지 않은 프리셋은 cheats 를 켜지 않는다", leaked == "", leaked)
+		# 허용된 개방도 **조용히 지나가지 않는다.** 되돌릴 시점을 놓치는 것이 이 상태의 유일한 위험이다.
+		if opened != "":
+			print("  ⛔ 치트가 열려 있다: %s— 최적화 측정 기간 한정(HANDOFF P0-12)." % opened)
+			print("     배포 빌드에서 AUTO-PLAY·TIME SKIP 이 동작하며, 이 판의 점수·랭킹·")
+			print("     도전과제·메타 골드는 오염된다. 측정이 끝나면 CHEAT_ALLOWED_PRESETS 를")
+			print("     비우고 export_presets.cfg 의 custom_features 를 \"\" 로 되돌린다.")
+		# 허용 목록이 비어 있는 것이 평시 상태다 — 비었으면 그 사실도 확인해 준다.
+		_ok("허용 목록이 의도한 상태다", true,
+			"현재 열림: %s" % (opened if opened != "" else "(없음 — 전 프리셋 잠김)"))
 
 	print("──────────────────────────────────────────────────")
 	print("실패 %d건" % _fails)
