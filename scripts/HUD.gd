@@ -850,6 +850,15 @@ func _on_xp_changed(xp: int, xp_to_next: int, level: int) -> void:
 ## 텍스트 리스트(후반 16줄+)가 화면 좌측을 덮던 것을 슬롯 두 줄로 압축한다.
 ## 레벨은 슬롯 우하단 뱃지 숫자로, 신규 획득/레벨업 슬롯은 잠깐 펄스로 알린다.
 const _LOADOUT_SLOT_PX := 44
+## 로드아웃 슬롯을 종류별로 묶어 그리기 위한 z 층(아래 _make_loadout_slot 주석 참고).
+## 프레임 → 아이콘 → 뱃지 순서는 슬롯 안에서와 똑같지만, z 로 올리면 그 순서가
+## **슬롯을 가로질러** 적용돼 같은 텍스처끼리 붙는다.
+const _Z_SLOT_FRAME := 0
+const _Z_SLOT_ICON := 1
+const _Z_SLOT_BADGE := 2
+## 로드아웃보다 뒤에 만들어져 그 위에 그려지던 것들 — z 를 명시해 그 관계를 유지한다.
+## (안 올리면 아이콘·뱃지가 일시정지 딤이나 블러 위로 새어 나온다)
+const _Z_OVERLAY := 10
 
 func _build_loadout() -> void:
 	# 밝은 필드 위에서도 잘 읽히도록 반투명 어두운 패널을 배경에 깔고(내용에 맞춰 자동 크기).
@@ -940,6 +949,11 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 		var tint: Color = meta.get("color", Color.WHITE)
 		sb.border_color = Color(tint.r, tint.g, tint.b, 0.55)   # 아이템 색은 테두리 힌트로만
 		frame.add_theme_stylebox_override("panel", sb)
+	# 슬롯 15칸이 프레임→아이콘→뱃지를 번갈아 쌓으면 텍스처가 매번 바뀌어 배치가 끊긴다
+	# (실측: 로드아웃 하나가 HUD 92콜 중 53콜). z 로 종류를 갈라 같은 텍스처끼리 붙인다 —
+	# 프레임은 전부 hud_slot_small.png, 아이콘은 전부 ui.png 아틀라스, 뱃지는 전부 폰트 아틀라스다.
+	# 슬롯끼리 겹치지 않으므로 보이는 결과는 같다(펄스 중에는 아래 _pulse_slot_now 가 z 를 올린다).
+	frame.z_index = _Z_SLOT_FRAME
 	slot.add_child(frame)
 
 	var icon = meta.get("icon")
@@ -956,6 +970,7 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tex.z_index = _Z_SLOT_ICON
 		slot.add_child(tex)
 
 	var badge := Label.new()
@@ -970,6 +985,7 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 	badge.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	badge.offset_right = -3.0
 	badge.offset_bottom = -1.0
+	badge.z_index = _Z_SLOT_BADGE
 	slot.add_child(badge)
 	return slot
 
@@ -985,8 +1001,15 @@ func _pulse_slot_now(slot: Control) -> void:
 		return
 	slot.pivot_offset = slot.size * 0.5
 	slot.scale = Vector2(1.35, 1.35)
+	# 확대된 슬롯은 이웃과 겹친다. 평소에는 z 로 종류를 갈라 두므로 그대로 두면 이웃 아이콘이
+	# 확대된 프레임 위에 얹힌다 — 펄스 동안만 슬롯째 올려 예전과 같은 겹침 순서를 만든다.
+	# (자식 z 는 상대값이라 슬롯을 올리면 프레임·아이콘·뱃지가 함께 올라간다)
+	slot.z_index = _Z_SLOT_BADGE + 1
 	var tw := create_tween()
 	tw.tween_property(slot, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		if is_instance_valid(slot):
+			slot.z_index = 0)
 
 
 ## 목표 힌트 — 게임 시작 직후 잠깐만 보여주고 페이드 아웃(카운트다운 타이머가 이후 목표를 전달).
@@ -1002,6 +1025,7 @@ func _build_goal_hint() -> void:
 	_goal_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 	_goal_label.add_theme_constant_override("outline_size", 3)
 	_goal_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_goal_label.z_index = _Z_OVERLAY
 	add_child(_goal_label)
 	# 이어하기(경과 진행 중)로 들어온 판은 즉시, 새 판은 8초 후 사라진다.
 	var hold := 8.0 if Events.elapsed_time < 5.0 else 2.0
@@ -1058,6 +1082,7 @@ func _build_blur_overlay() -> void:
 	_blur_bbc = BackBufferCopy.new()
 	_blur_bbc.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
 	_blur_bbc.visible = false
+	_blur_bbc.z_index = _Z_OVERLAY
 	add_child(_blur_bbc)
 
 	_blur_rect = ColorRect.new()
@@ -1068,6 +1093,7 @@ func _build_blur_overlay() -> void:
 	mat.shader = load("res://assets/shaders/gameover_blur.gdshader")
 	_blur_rect.material = mat
 	_blur_rect.visible = false
+	_blur_rect.z_index = _Z_OVERLAY
 	add_child(_blur_rect)
 
 	var idx := game_over_panel.get_index()
@@ -1270,6 +1296,7 @@ func _build_pause_menu() -> void:
 	_pause_btn.offset_bottom = 70.0
 	_UIStyle.apply_button_style(_pause_btn, Color(0.12, 0.13, 0.18, 0.9), Color(0.5, 0.55, 0.68))
 	_pause_btn.pressed.connect(_on_pause_pressed)
+	_pause_btn.z_index = _Z_OVERLAY
 	add_child(_pause_btn)
 	# VARCO 원형 버튼 텍스처(⏸ 아이콘 포함)가 있으면 플레이트 대신 사용 —
 	# 스타일박스는 비우고 텍스처를 얼굴로 깐다(눌림 팝은 UITheme 전역 스케일이 담당).
@@ -1306,6 +1333,7 @@ func _build_pause_menu() -> void:
 	_pause_dim.color = Color(0, 0, 0, 0.7)
 	_pause_dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_pause_dim.visible = false
+	_pause_dim.z_index = _Z_OVERLAY
 	add_child(_pause_dim)
 
 	_pause_panel = PanelContainer.new()
@@ -1315,6 +1343,7 @@ func _build_pause_menu() -> void:
 	_pause_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_pause_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.09, 0.13, 0.97), Color(0.5, 0.6, 0.8), 22, 3))
 	_pause_panel.visible = false
+	_pause_panel.z_index = _Z_OVERLAY
 	add_child(_pause_panel)
 
 	var margin := MarginContainer.new()

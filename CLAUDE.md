@@ -190,6 +190,12 @@ LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 720x1280x24" \
   godot --path . --rendering-driver opengl3 \
   --script res://tools/bench_lategame.gd -- min=26 stress=1                            # 드로우 콜·VRAM
 ```
+⚠️ **HUD 의 `z_index` 를 되돌리지 말 것.** 로드아웃 슬롯은 프레임·아이콘·뱃지에 z 0/1/2 를
+줘 종류별로 묶여 있다(`_Z_SLOT_*`). 되돌리면 **화면은 멀쩡한 채 드로우 콜만 26개 늘어난다**.
+로드아웃보다 뒤에 만들어지는 것들의 `_Z_OVERLAY` 도 짝이라 같이 유지해야 한다 — 지우면
+아이콘이 일시정지 딤 위로 새어 나온다(§5-O). z 를 건드렸으면
+`shot_hud_layers.gd` 로 겹침 순서를 픽셀로 확인한다.
+
 ⚠️ **드로우 콜은 `only=` 로 못 가른다** — 그것은 로직을 끄는 장치고 드로우 콜은 캔버스
 아이템에서 나온다(로직을 꺼도 그려진다). 그리기만 끄는 `hide=Zombie,HUD` 를 쓴다.
 실측 결과 최대 부하 177콜 중 **HUD 가 49% · FX 가 28% 고, 좀비 317마리는 0콜**이다(§5-N).

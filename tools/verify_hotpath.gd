@@ -85,7 +85,7 @@ func _check_scripts_alive() -> void:
 		n.free()
 
 
-## ②-b `scripts/**` 의 모든 GDScript 가 실제로 컴파일된다.
+## ②-b `scripts/**` 와 `tools/**` 의 모든 GDScript 가 실제로 컴파일된다.
 ##
 ## `tools/check_gdscript.py` 는 스코프를 보지 않고, CI 의 `--import` 는 **파싱 오류가 나도
 ## 종료 코드 0** 이다. 그래서 "지역 변수 타입 추론 실패" 같은 오류가 조용히 통과할 수 있다 —
@@ -93,18 +93,25 @@ func _check_scripts_alive() -> void:
 ## (그 스크립트가 죽으면 그 개체는 아무 일도 하지 않으므로 "공짜"로 측정된다).
 ##
 ## 컴파일에 실패한 GDScript 는 `can_instantiate()` 가 false 다 — 그것 하나로 전수 검사한다.
+## ⚠️ `tools/**` 도 본다. 예전에는 `scripts/**` 만 봤는데, **계측 도구가 안 뜨는 것이
+## 이 레포에서 가장 비싼 실패**다 — 게임은 멀쩡하고 CI 는 초록인데 벤치가 조용히 거짓 수치를
+## 낸다(§5-L 결함 ①이 정확히 그것이었다). 실제로 P1-28 작업 중 `var lo := arr.min()`
+## (Array.min() 은 Variant) 하나로 `bench_lategame.gd` 가 통째로 안 떴고, 그 오류는
+## `check_gdscript.py` 도 `--import` 도 통과했다.
 func _check_all_scripts_compile() -> void:
-	var bad: Array = []
-	var n := 0
-	for path in _gd_files("res://scripts"):
-		var sc = load(path)
-		if sc == null:
-			bad.append(path)
-			continue
-		if sc is GDScript and not (sc as GDScript).can_instantiate():
-			bad.append(path)
-		n += 1
-	_check("scripts/** GDScript %d개가 전부 컴파일된다" % n, bad.is_empty(), str(bad))
+	for dir_path in ["res://scripts", "res://tools"]:
+		var bad: Array = []
+		var n := 0
+		for path in _gd_files(dir_path):
+			var sc = load(path)
+			if sc == null:
+				bad.append(path)
+				continue
+			if sc is GDScript and not (sc as GDScript).can_instantiate():
+				bad.append(path)
+			n += 1
+		_check("%s/** GDScript %d개가 전부 컴파일된다" % [dir_path.get_file(), n],
+			bad.is_empty(), str(bad))
 
 
 func _gd_files(dir_path: String) -> Array:
