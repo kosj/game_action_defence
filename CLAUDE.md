@@ -181,6 +181,9 @@ godot --headless --path . --import && godot --headless --path . --import
 ```
 
 UI 를 건드렸으면 추가로 `python3 tools/check_text_fit.py` (en/ko/ja 폭 초과 검사).
+⚠️ **이 검사와 `build_atlas.py` 는 Pillow 가 필요하다** — 없으면 그냥 죽는다.
+`pip install pillow` 를 먼저 하고, **없다고 건너뛰지 말 것.** 이 검사는 CI 에 없어서
+(워크플로의 Python 잡은 `verify_triage.py` 만 돈다) 여기서 안 돌리면 아무도 안 돌린다.
 
 프레임을 건드렸으면 **최대 부하로도** 재 본다 — 평상시 판은 오토플레이가 좀비를 계속 녹여서
 최악이 재현되지 않는다(후반 동시 좀비가 상한 320 의 1/10 이다). 프레임 드랍은 최악에서 난다.
@@ -191,7 +194,7 @@ LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 720x1280x24" \
   --script res://tools/bench_lategame.gd -- min=26 stress=1                            # 드로우 콜·VRAM
 ```
 ⚠️ **HUD 의 `z_index` 를 되돌리지 말 것.** 로드아웃 슬롯은 프레임·아이콘·뱃지에 z 0/1/2 를
-줘 종류별로 묶여 있다(`_Z_SLOT_*`). 되돌리면 **화면은 멀쩡한 채 드로우 콜만 26개 늘어난다**.
+줘 종류별로 묶여 있다(`_Z_SLOT_*`). 되돌리면 **화면은 멀쩡한 채 드로우 콜만 11개 늘어난다**.
 로드아웃보다 뒤에 만들어지는 것들의 `_Z_OVERLAY` 도 짝이라 같이 유지해야 한다 — 지우면
 아이콘이 일시정지 딤 위로 새어 나온다(§5-O). z 를 건드렸으면
 `shot_hud_layers.gd` 로 겹침 순서를 픽셀로 확인한다.
