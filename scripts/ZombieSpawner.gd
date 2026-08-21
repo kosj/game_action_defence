@@ -383,9 +383,15 @@ func _spawn_boss() -> void:
 		_boss_alive = false
 		_boss_count -= 1
 		return
+	# 격리 구역 반경을 먼저 구한다 — 보스를 그 안쪽에 세워야 하기 때문이다.
+	# 예전에는 화면 밖(_random_spawn_pos)에 세워서, 보스가 울타리 밖에서 걸어 들어올 때까지
+	# 플레이어는 갇힌 채 기다려야 했다. 이제 구역 안 링 위에 등장해 바로 전투가 시작된다.
+	var arena_r: float = maxf(_bal.boss_arena_radius_min,
+			_bal.boss_arena_radius - _bal.boss_arena_shrink_per_count * float(_boss_count - 1))
 	var boss := BOSS.instantiate()
 	get_tree().current_scene.add_child(boss)
-	boss.global_position = _random_spawn_pos()
+	boss.global_position = player.global_position \
+			+ Vector2.from_angle(randf() * TAU) * (arena_r * BOSS_SPAWN_RING)
 	# 좀비 체력 곡선을 boss_curve_scale 만큼 반영해 보스도 후반까지 녹지 않게 한다.
 	# (예전의 분당 +3% 는 후반 보스를 순삭되게 만들었다.)
 	var time_scale := 1.0 + (_hp_mult() / Events.diff_enemy_hp_mult() - 1.0) * _diff.boss_curve_scale
@@ -405,12 +411,10 @@ func _spawn_boss() -> void:
 	}
 	boss.setup(stats)
 
-	# 격리 구역 — 플레이어를 중심으로 전개해 도주로를 막는다. 보스는 가두지 않는다(어차피
-	# 플레이어를 향해 오고, 대시로 잠깐 넘어가도 곧 돌아온다). 회차가 오를수록 좁아진다.
+	# 격리 구역 — 플레이어를 중심으로 전개해 도주로를 막는다. 보스도 같은 경계 안에 갇힌다
+	# (BossArena._confine_bosses). 회차가 오를수록 좁아진다.
 	if is_instance_valid(_arena):
 		_arena.queue_free()   # 이전 보스가 처치 없이 사라진 예외 상황 대비
-	var arena_r: float = maxf(_bal.boss_arena_radius_min,
-			_bal.boss_arena_radius - _bal.boss_arena_shrink_per_count * float(_boss_count - 1))
 	_arena = _BossArena.spawn(get_tree().current_scene, player.global_position, arena_r)
 
 	# 호위 정예 좀비 — 빠른(스프린터)/탱커(공사장) 혼합.
@@ -456,6 +460,11 @@ func _pick_type(weights: Array) -> Dictionary:
 		if roll < cum:
 			return ZOMBIE_TYPES[i]
 	return ZOMBIE_TYPES[0]
+
+
+## 보스 등장 위치 — 격리 구역 반경의 이 비율만큼 떨어진 링 위. 플레이어와 겹치지 않으면서
+## 화면 안(뷰포트 반대각 ≈ 734)에 들어와, 등장 순간이 눈에 보인다.
+const BOSS_SPAWN_RING := 0.72
 
 
 func _random_spawn_pos() -> Vector2:

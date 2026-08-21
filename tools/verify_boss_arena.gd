@@ -19,6 +19,7 @@ const CENTER := Vector2(1000, 500)   # 원점이 아니어도 되는지 같이 �
 
 var _arena: Node2D = null
 var _player: CharacterBody2D = null
+var _boss: Node2D = null
 var _t: float = 0.0
 var _fail: int = 0
 var _done: Dictionary = {}
@@ -60,6 +61,15 @@ func _setup() -> void:
 	_player.add_to_group("player")
 	scene.add_child(_player)
 	_player.global_position = CENTER
+	# 보스 대역 — 구역이 보스를 가두는지 보는 용도라 스프라이트 없이 반폭(arena_margin)만 갖는다.
+	_boss = Node2D.new()
+	var bstub := GDScript.new()
+	bstub.source_code = "extends Node2D\nvar arena_margin: float = 70.0\n"
+	bstub.reload()
+	_boss.set_script(bstub)
+	_boss.add_to_group("boss")
+	scene.add_child(_boss)
+	_boss.global_position = CENTER
 	_arena = (load("res://scripts/BossArena.gd") as GDScript).spawn(scene, CENTER, R)
 	print("─ 보스 격리 구역 검증 ─ 중심 (%.0f, %.0f) · 반경 %.0f" % [CENTER.x, CENTER.y, R])
 	print("  실제 회차별 반경: %s" % _radii_by_count())
@@ -133,6 +143,28 @@ func _step() -> void:
 		_player.hits = 0)
 	_at(3.9, "away_chk", func() -> void:
 		_expect(_player.hits == 0, "경계에서 떨어지면 감전이 멈춘다(0.85초 동안 0대)"))
+
+	# 보스도 같은 경계 안에 갇힌다 — 예전에는 플레이어만 갇혀서, 보스가 밖으로 나가면
+	# 플레이어는 울타리에 막힌 채 손도 못 대고 기다려야 했다.
+	_at(3.30, "boss_out", func() -> void:
+		_boss.global_position = CENTER + Vector2(2500.0, 0.0))
+	_at(3.35, "boss_out_chk", func() -> void:
+		var d: float = _boss.global_position.distance_to(CENTER)
+		var want: float = R - _boss.arena_margin
+		_expect(absf(d - want) < 1.0,
+				"보스도 경계 안으로 되돌아온다(중심에서 %.1f, 기대 %.1f = 반경-반폭)" % [d, want]))
+
+	# 스프라이트 반폭만큼 안쪽에 선다 — 큰 보스가 울타리를 뚫고 나온 것처럼 보이지 않게.
+	_at(3.45, "boss_margin", func() -> void:
+		_expect(_boss.global_position.distance_to(CENTER) < R,
+				"보스는 판정선보다 자기 반폭만큼 안쪽에 선다"))
+
+	# 안쪽 보스는 건드리지 않는다.
+	var b_inside := CENTER + Vector2(-90.0, 140.0)
+	_at(3.55, "boss_in", func() -> void: _boss.global_position = b_inside)
+	_at(3.60, "boss_in_chk", func() -> void:
+		_expect(_boss.global_position.is_equal_approx(b_inside),
+				"구역 안의 보스는 위치를 건드리지 않는다"))
 
 	# 보스 처치 → 해제 연출 뒤 스스로 사라진다.
 	_at(4.0, "die", func() -> void:
