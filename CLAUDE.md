@@ -193,6 +193,11 @@ LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 720x1280x24" \
   godot --path . --rendering-driver opengl3 \
   --script res://tools/bench_lategame.gd -- min=26 stress=1                            # 드로우 콜·VRAM
 ```
+⚠️ **`Label` 에 `outline_size` 를 켜면 그 라벨 하나가 드로우 콜 2개다**(외곽선 패스 + 본체
+패스가 라벨마다 번갈아 나와 배칭이 끊긴다). 실측으로 **이 게임 드로우 콜의 단일 최대 항목**이다 —
+HUD 66콜 중 30콜. 숫자만 나오는 라벨은 P1-27 이 데미지 숫자에 쓴 방식(외곽선을 글리프와 한 장에
+구워 틴트로 곱한다)으로 1콜이 된다. 상세는 `OPTIMIZATION_PLAN.md` §5-P.
+
 ⚠️ **HUD 의 `z_index` 를 되돌리지 말 것.** 로드아웃 슬롯은 프레임·아이콘·뱃지에 z 0/1/2 를
 줘 종류별로 묶여 있다(`_Z_SLOT_*`). 되돌리면 **화면은 멀쩡한 채 드로우 콜만 11개 늘어난다**.
 로드아웃보다 뒤에 만들어지는 것들의 `_Z_OVERLAY` 도 짝이라 같이 유지해야 한다 — 지우면
