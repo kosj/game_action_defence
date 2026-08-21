@@ -24,6 +24,9 @@ extends SceneTree
 ##   probe=gold:N  대조 실험 모드 — 스포너·오토플레이를 끄고 **그 개체만 N 개** 놓고 잰다.
 ##                 개체 수를 바꿔 가며 재면 개체당 프레임 비용(µs)이 직접 나온다.
 ##                 off= 로 재는 것보다 정확하다 — off 는 풀 반납까지 멈춰 개체 수가 같이 변한다.
+##   hide=Gold,Bullet **그리기만** 끈다(visible=false). 로직은 그대로 돈다 —
+##                    드로우 콜 귀속용이다. only= 로는 못 가른다: 그것은 로직을 끄는 장치고
+##                    드로우 콜은 로직이 아니라 캔버스 아이템에서 나온다(로직을 꺼도 그려진다).
 ##   off=Gold,Bullet  해당 스크립트의 _physics_process 만 끈다(노드는 그대로 둔다).
 ##                    켠 상태와의 차이가 곧 그 스크립트의 프레임 비용이다.
 ##
@@ -116,6 +119,7 @@ var _pairs: Array = []
 var _counts_last: Dictionary = {}
 var _off: Array = []
 var _only: Array = []
+var _hide: Array = []
 var _off_applied := false
 var _kills0 := -1
 ## stress 모드 — 최대 부하(worst case) 재현. 아래 _stress_tick() 참고.
@@ -155,6 +159,9 @@ func _process(delta: float) -> bool:
 	# 전제가 조용히 무너져 귀속이 통째로 틀린다(정지 절편이 0.01ms 가 아니게 된다).
 	if not _only.is_empty():
 		_apply_only()
+	# hide= 도 같다. 풀에서 새로 나온 노드는 visible 이 true 로 돌아와 있다.
+	if not _hide.is_empty():
+		_apply_hide()
 	# 일시정지 중(레벨업 카드 등)에는 프레임 시간이 의미가 없다 — 측정에서 뺀다.
 	if _kills0 < 0:
 		_kills0 = int(_events.total_kills)
@@ -277,6 +284,10 @@ func _setup() -> void:
 	_stress = int(_args.get("stress", "0")) != 0
 	if _stress:
 		_setup_stress(cheats)
+
+	var hide := String(_args.get("hide", ""))
+	if hide != "":
+		_hide = Array(hide.split(","))
 
 	var only := String(_args.get("only", ""))
 	if only != "":
@@ -549,6 +560,22 @@ func _setup_probe(spec: String, cheats: Node) -> void:
 ## 켠 상태와의 physics_ms 차이가 그 스크립트가 매 프레임 쓰는 시간이다.
 ## (풀 반납도 그 로직 안에서 일어나므로, 끈 항목은 개체 수가 늘어난다 — 결과의 개체 내역을
 ##  함께 볼 것. 그래서 이건 "얼마나 비싼가"의 상한 추정이지 정밀 측정이 아니다.)
+## hide= 대상 캔버스 아이템을 안 보이게 한다. 로직은 건드리지 않는다 — 개체 수도 그대로다.
+## 총계에서 이 차이가 곧 그 계통이 내는 드로우 콜이다(P1-22 의 "격리값이 아니라 절제와의 차이").
+func _apply_hide() -> void:
+	var stack: Array = [root]
+	while not stack.is_empty():
+		var n: Node = stack.pop_back()
+		for c in n.get_children():
+			stack.append(c)
+		var sc = n.get_script()
+		# HUD 처럼 루트가 CanvasLayer 인 계통도 있다 — 둘 다 visible 을 가진다.
+		if sc == null or not (n is CanvasItem or n is CanvasLayer):
+			continue
+		if _hide.has(String(sc.resource_path).get_file().get_basename()):
+			n.set("visible", false)
+
+
 ## only= 대상만 켜고 나머지는 끈다. 센티넬 두 개는 건드리지 않는다 — 끄면 측정이 사라진다.
 ## `_process` 에서 돌므로 이 순회 자체는 물리 틱 측정에 섞이지 않는다.
 func _apply_only() -> void:
@@ -704,6 +731,8 @@ func _report() -> void:
 	# only= 로 잰 판은 "정말 그것만 켜져 있었나"를 같이 찍는다. 예전에 이 전제가 조용히
 	# 무너져(풀에서 새로 나온 노드가 켜진 채로 돌았다) 귀속 표가 통째로 틀린 적이 있다.
 	# 세어 두면 표를 읽는 사람이 그 판을 믿어도 되는지 한 줄로 판단할 수 있다.
+	if not _hide.is_empty():
+		print("  hide=%s — 그리기를 끈 상태의 값이다" % ",".join(PackedStringArray(_hide)))
 	if not _only.is_empty():
 		var on: Dictionary = {}
 		var stack: Array = [root]
