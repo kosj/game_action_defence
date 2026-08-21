@@ -181,6 +181,9 @@ godot --headless --path . --import && godot --headless --path . --import
 ```
 
 UI 를 건드렸으면 추가로 `python3 tools/check_text_fit.py` (en/ko/ja 폭 초과 검사).
+⚠️ **이 검사와 `build_atlas.py` 는 Pillow 가 필요하다** — 없으면 그냥 죽는다.
+`pip install pillow` 를 먼저 하고, **없다고 건너뛰지 말 것.** 이 검사는 CI 에 없어서
+(워크플로의 Python 잡은 `verify_triage.py` 만 돈다) 여기서 안 돌리면 아무도 안 돌린다.
 
 프레임을 건드렸으면 **최대 부하로도** 재 본다 — 평상시 판은 오토플레이가 좀비를 계속 녹여서
 최악이 재현되지 않는다(후반 동시 좀비가 상한 320 의 1/10 이다). 프레임 드랍은 최악에서 난다.
