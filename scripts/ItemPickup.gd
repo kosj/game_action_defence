@@ -142,7 +142,7 @@ func _draw() -> void:
 	else:
 		_draw_chest(center, alpha)   # chest/evochest — 금속 밴드 색은 _icon_color()
 	var font := ThemeDB.fallback_font
-	draw_string(font, center + Vector2(-60.0, -34.0), _label(), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 14, Color(1.0, 1.0, 1.0, alpha))
+	draw_string(font, center + Vector2(-60.0, -34.0), _label(), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 14, Color(1.0, 1.0, 1.0, alpha))   # batching-exempt: 임의 로케일 문자열이라 비트맵으로 못 굽는다. 동시 표시 수가 한 자릿수라 배치 손실이 그만큼뿐이다
 
 
 ## 종류에 맞는 상자 텍스처(없으면 null). 파일이 없으면 절차 드로잉으로 폴백하므로
