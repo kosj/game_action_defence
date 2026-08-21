@@ -61,6 +61,7 @@
 | P1-27 데미지 숫자 비트맵 자릿수(#339 이후 유실분 회수) | I | ✅ (e66e381) | claude/i-lane-damage-digits | 2026-08-21 |
 | P1-28 HUD 드로우 콜 — 배칭이 끊기는 구조를 고친다 | I | ✅ (3f26b50) | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-21 |
 | P1-29 슬롯 프레임 나인패치를 구워 아틀라스로 (P1-28 잔여 29콜) | I | ⛔ 기각(측정 0) · 정정 머지 (e5494f3) | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-21 |
+| P1-30 잔여 29콜 원인 규명(최소 재현) + check_text_fit 를 CI 로 | I | 🔵 진행중 | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-21 |
 | P1-18 후반 성능 — 계측 + 원인 규명 | F | ✅ (39c5456) | claude/f-lane-lategame-perf | 2026-08-20 |
 | P1-19 후반 탄 수 — 수를 줄이고 발당 위력을 올린다 | F | ✅ (ca19513) | claude/f-lane-bullet-budget | 2026-08-20 |
 | P1-20 후반 난이도 — 유입을 줄이고 질을 올린다 | F | ✅ (c711f84) | claude/f-lane-late-hp | 2026-08-20 |
