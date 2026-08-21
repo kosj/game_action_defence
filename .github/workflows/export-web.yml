@@ -131,6 +131,9 @@ jobs:
           godot --headless --path . --fixed-fps 60 --script res://tools/verify_bullet_budget.gd
           godot --headless --path . --script res://tools/verify_late_hp.gd
           godot --headless --path . --script res://tools/verify_pickups.gd
+          # ⛔ 웹 빌드가 이 설정 없이는 몇 분 만에 wasm 힙 2GB 를 쳐서 죽는다(P0-5).
+          # 데스크톱에서는 재현되지 않으므로(Dummy 오디오 드라이버) 이 게이트가 유일한 방어선이다.
+          godot --headless --path . --script res://tools/verify_audio_playback.gd
 
       - name: Export to Web
         run: |

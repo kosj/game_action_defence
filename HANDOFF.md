@@ -44,7 +44,7 @@
 | P2-5 CI 회귀 게이트 + PR 트리거 | A | ✅ (9bd1100) | claude/game-designer-task-review-wvhkiq | 2026-08-18 |
 | P0-4 라이브 프리즈 — 진단 계측 | A | ✅ (2029c67) | claude/a-lane-freeze-diag | 2026-08-19 |
 | P0-7 메뉴 복귀 판이 기록에서 사라짐 | A | ✅ (17af508) | claude/a-lane-telemetry-leftrun | 2026-08-19 |
-| P0-5 라이브 프리즈 — 원인 규명 | A | 🔵 진행중 | claude/a-lane-heap-oom | **wasm 힙 2GB OOM 으로 확정**(콘솔 로그 확보) |
+| P0-5 라이브 프리즈 — 원인 규명 | A | ✅ (머지 후 sha) | claude/a-lane-heap-oom | **원인=웹 오디오 재생 1회당 힙 누수** · 수정+게이트 완료 |
 | P0-6 메모리·노드 추이 계측 | A | ✅ (b3108fa) | claude/a-lane-mem-diag | 2026-08-19 |
 | P0-1 치트 게이팅 | A | ✅ (db7bb29) | claude/a-lane-cheat-gate | 2026-08-18 |
 | P0-2 마일스톤 저장 + 퀘스트 트랙 교체 | C | ✅ (784e6c9) | claude/c-lane-milestone-save | 2026-08-18 |
@@ -292,7 +292,7 @@ E 레인(P1-4)과 충돌한다. `Events.wave_changed`·`wave_progress_changed` �
 
 ---
 
-## P0-5. 라이브 빌드가 7분경 멈춘다 — 원인 미규명 🔴
+## P0-5. 라이브 빌드가 멈춘다 — ✅ 원인 규명 완료(웹 오디오 힙 누수)
 
 **증상(사용자 보고, 2026-08-19)** — 배포 웹 빌드에서 플레이 중 **게임이 멈췄다.**
 레벨업 카드나 팝업은 **없었고**, 그냥 멈췄다. 사운드는 끄고 플레이해 확인 불가.
@@ -353,6 +353,69 @@ E 레인(P1-4)과 충돌한다. `Events.wave_changed`·`wave_progress_changed` �
 
 **⚠️ 우선순위** — 이 항목이 큐의 모든 것보다 위다. 밸런스·콘텐츠·UI 는 게임이 돌아간다는
 전제 위에 있고, 라이브 빌드가 7분에 멈추면 그 전제가 깨진다.
+
+
+### ✅ 원인 규명 완료 (2026-08-21) — **웹 오디오 재생 1회당 힙이 샌다**
+
+**증거** — 사용자가 배포 빌드에서 크래시 순간의 브라우저 콘솔을 잡아 줬다:
+
+```
+Cannot enlarge memory, requested 2147487744 bytes, but the limit is 2147483648 bytes!   (×4)
+USER ERROR: Error initializing dsp state   at: _alloc_vorbis
+USER ERROR: Failed to instantiate playback. at: play_basic
+Aborted(Runtime error: The application has corrupted its heap memory area (address zero)!)
+```
+
+**읽는 법** — 이 셋은 전부 **증상**이지 원인이 아니다.
+`2147483648` = 정확히 2GB = wasm 힙 상한. 힙이 먼저 꽉 찼고 → malloc 이 NULL 을 돌려줬고 →
+그걸 검사 없이 쓴 코드가 주소 0 을 덮어써서 → 엔진이 abort 했다. `_alloc_vorbis` 는
+그때 마침 malloc 을 요청한 **피해자**다.
+
+**진짜 원인** — `AudioStreamPlayer.playback_type` 이 기본값(`PLAYBACK_TYPE_DEFAULT`)이면
+프로젝트 설정 `audio/general/default_playback_type.web` 을 따라간다. 그 값은 `1` 인데,
+**그 설정의 열거형은 `AudioServer.PlaybackType` 과 한 칸 어긋나 있다:**
+
+| 열거형 | 0 | 1 | 2 |
+|---|---|---|---|
+| 프로젝트 설정 | Stream | **Sample** | — |
+| `AudioServer.PlaybackType` | DEFAULT | STREAM | SAMPLE |
+
+즉 웹 기본은 STREAM 이 아니라 **SAMPLE** 이고, 그 경로는 재생할 때마다 스트림을 샘플로
+변환해 두고 놓아주지 않는다. ogg 는 변환 결과가 통 PCM 이라 1회당 약 73KB, wav 는 1.1KB
+였다(66배) — 그래서 크래시가 하필 vorbis 에서 났다.
+
+**브라우저 실측** (`tools/heap_web.sh` · ogg 효과음만 · 같은 조건)
+
+| | 재생 | 객체 | wasm 힙 |
+|---|---|---|---|
+| 기본값 | 10,192회 | 32,121 | **1,359MB** (150초 만에 2GB, 사용자 오류 문구 그대로 재현) |
+| STREAM 고정 | 7,406회 | 1,587 | **46.1MB (완전 평탄)** |
+
+⚠️ **자동재생 정책과 무관하다.** `--autoplay-policy=no-user-gesture-required` 로
+AudioContext 를 실제로 돌려도 똑같이 2GB 를 친다 — 모든 플레이어에게 터진다.
+
+**수정** — `SoundManager._force_stream_playback()` 이 모든 플레이어를
+`PLAYBACK_TYPE_STREAM` 으로 고정한다. `tools/verify_audio_playback.gd` 가 CI 에서 지킨다
+(되돌리면 3건 실패).
+
+⚠️ **데스크톱으로는 절대 못 잡는다.** 헤드리스는 Dummy 오디오 드라이버라 이 경로를 타지
+않는다 — 스로틀 없이 84,000회 재생해도 RSS 가 평탄해서 한 번 "오디오는 결백"으로 오판했다.
+게이트는 **설정이 그대로 있는지**만 본다. 실제 누수는 `tools/heap_web.sh` 로 재야 한다.
+
+### 곁가지 — P0-10 의 결론 하나를 정정한다
+
+P0-10 에서 "wasm 힙은 잴 방법이 없다"고 적었는데, 그건 **게임 안에서는** 만 맞다.
+테스트 드라이버는 페이지 밖에 있으므로 페이지 스크립트보다 **먼저**
+`WebAssembly.Memory` 와 `instantiate` 를 감싸 메모리 객체를 붙잡을 수 있고,
+그러면 `buffer.byteLength` 가 곧 힙 크기다. `tools/heap_web_driver.mjs` 가 그것이다.
+(배포 빌드 텔레메트리로 남기는 것은 여전히 불가능하다 — 후킹은 페이지를 우리가 만들 때만 된다.)
+
+### 남은 것
+
+7:30 에 멈춘 최초 보고(2026-08-19, 빌드 `2ebbaa2`)가 **이것과 같은 원인인지는 미확정**이다.
+그때는 콘솔 로그가 없었다. 다만 증상(레벨업 카드 없이 그냥 멈춤)과 기전(힙 고갈 후 abort)이
+맞아떨어지고, 이 결함은 판이 길수록 확실히 터진다. 이 수정이 배포된 뒤에도 프리즈가
+재발하면 그때 별도 항목으로 다시 판다.
 
 ---
 

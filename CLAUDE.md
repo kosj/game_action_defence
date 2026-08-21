@@ -133,6 +133,24 @@ python3 tools/make_icon.py -o assets/sprites/boss_x.png --height 120 --black-hal
 `--black-halo` 는 월드에 놓이는 유닛 공통(흰 프린지를 검정 외곽선으로). 세로가 아닌 `--max`
 (긴 변)를 쓰면 가로로 긴 네발 보스만 혼자 작아진다.
 
+### ⛔ `AudioStreamPlayer` 는 반드시 `PLAYBACK_TYPE_STREAM` 으로 만든다
+웹 기본 재생 방식(샘플)은 **`play()` 한 번마다 재생 객체를 통째로 흘린다.** 배포 빌드가
+이것 때문에 wasm 힙 2GB 상한을 쳐서 죽었다(P0-5). 실측: ogg 효과음만 24,962회 재생하니
+힙이 105MB → 2GB.
+
+열거형이 **두 개고 서로 한 칸 어긋난다** — 이게 함정의 핵심이다:
+```
+프로젝트 설정(audio/general/default_playback_type*): 0=Stream · 1=Sample
+AudioServer.PlaybackType:                            0=DEFAULT · 1=STREAM · 2=SAMPLE
+```
+웹 기본 설정값 `1` 은 STREAM 이 아니라 **SAMPLE** 이다. 그래서 아무것도 안 하면 새는 쪽이다.
+새 플레이어를 만들면 `SoundManager._force_stream_playback()` 을 거칠 것.
+
+⚠️ **데스크톱에서는 절대 재현되지 않는다.** 헤드리스는 Dummy 오디오 드라이버라 이 경로를
+타지 않는다 — 스로틀 없이 84,000회 재생해도 RSS 가 평탄해서 한 번 "오디오는 결백"으로
+오판했다. `verify_audio_playback.gd` 는 **설정이 그대로 있는지**만 본다. 실제 누수는
+`tools/heap_web.sh` 로 브라우저에서 재야 한다(wasm 힙 크기를 직접 읽는다).
+
 ### 사운드는 `tools/import_sfx.py` 를 거친다
 라우드니스(RMS -16dBFS)·선행 무음 제거·페이드가 일괄 적용된다. 개별 세기는 파일이 아니라
 `SoundManager._VOLUMES` 에서 조정한다.
@@ -169,6 +187,7 @@ godot --headless --path . --script res://tools/verify_hotpath.gd
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_bullet_budget.gd
 godot --headless --path . --script res://tools/verify_late_hp.gd
 godot --headless --path . --script res://tools/verify_pickups.gd
+godot --headless --path . --script res://tools/verify_audio_playback.gd
 ```
 
 ⚠️ **`main` 을 새로 받은 직후에는 `--import` 를 먼저(가능하면 두 번) 돌린다.**
@@ -226,7 +245,7 @@ SwiftShader(소프트웨어 GL)로 도는 값이라 실기기와 무관하다.
 ⚠️ **"웹은 데스크톱의 3~4배"는 틀린 상수다** — 실측하면 렌더 경합이 없을 때 **0.99배**다(§5-L).
 남은 미지수는 폰 CPU 의 절대 속도와 모바일 GPU fill-rate 뿐이고, 그것만 실기기가 필요하다.
 
-**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 20종이 이 프로젝트의 안전망 전부다.
+**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 21종이 이 프로젝트의 안전망 전부다.
 
 비주얼을 건드렸으면 **실렌더 스크린샷**으로 확인한다 — 헤드리스는 `_draw` 를 부르고 오류도 안 내지만,
 그려진 것이 다른 레이어에 덮였는지·좌표가 화면 밖인지는 알려주지 않는다.
@@ -279,6 +298,9 @@ Events.pause_pop(self)                # 닫을 때
 ## 5. 알려진 함정
 
 - **웹 pck 상한 15MB** (CI 게이트). 현재 약 12MB. 에셋을 늘릴 땐 압축 설정을 같이 본다.
+- **웹 wasm 힙 상한 2GB.** 넘으면 `Cannot enlarge memory` 뒤에 malloc 이 NULL 을 돌려주고,
+  그걸 검사 없이 쓰면 `corrupted its heap memory area (address zero)` 로 죽는다. 즉 그 두 문구는
+  **원인이 아니라 고갈의 증상**이다 — 힙을 무엇이 채웠는지부터 볼 것(`tools/heap_web.sh`).
 - **렌더러는 `gl_compatibility` 고정.** 다른 렌더러 전용 기능(2D 라이트/SDF 등)을 쓰면 웹에서 깨진다.
 - **export 제외 필터는 하위 폴더까지 삼킨다** — 실제로 바닥 타일이 웹 빌드에서 통째로 사라진 적이 있다(`1137951`).
 - ⛔ **지금 배포 빌드는 치트가 열려 있다 — 되돌리지 말 것**(P0-12, 2026-08-20 사용자 요청).
