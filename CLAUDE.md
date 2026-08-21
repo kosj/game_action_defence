@@ -189,6 +189,10 @@ LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 720x1280x24" \
   godot --path . --rendering-driver opengl3 \
   --script res://tools/bench_lategame.gd -- min=26 stress=1                            # 드로우 콜·VRAM
 ```
+⚠️ **드로우 콜은 `only=` 로 못 가른다** — 그것은 로직을 끄는 장치고 드로우 콜은 캔버스
+아이템에서 나온다(로직을 꺼도 그려진다). 그리기만 끄는 `hide=Zombie,HUD` 를 쓴다.
+실측 결과 최대 부하 177콜 중 **HUD 가 49% · FX 가 28% 고, 좀비 317마리는 0콜**이다(§5-N).
+
 ⚠️ **계통별 몫은 `only=` 격리값이 아니라 "통째로 들어낸 빌드와의 차이"다.** `only=` 는 상호작용이
 빠져 과소·과대 둘 다 난다 — 실제로 `only=` 로 "여기가 제일 크다"고 지목한 계통이 절제해 보니
 전체의 11% 였다(P1-22). 고치기 전에 절제부터 할 것. 자세한 것은 `OPTIMIZATION_PLAN.md` §5-M.
