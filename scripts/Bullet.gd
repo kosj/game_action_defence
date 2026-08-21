@@ -62,6 +62,21 @@ var _pierced: int = 0              # 지금까지 관통한 적 수
 var _hit_ids: Dictionary = {}      # 이미 명중한 적(중복 타격 방지) — 관통 시에만 의미
 var _age: float = 0.0
 var _alive: bool = false
+## 명중 판정용 탄 반경(= 5px × scale.x)을 스폰 직후 1회만 계산해 들고 있는다.
+## `Node2D.scale` 은 필드가 아니라 **변환 행렬을 분해해 만드는 값**이라(atan2/sqrt) 읽을
+## 때마다 비용이 든다 — 매 프레임 읽던 것을 없애면 탄 1발당 약 0.4µs 가 빠진다.
+## 크기는 발사 측이 on_spawn() **뒤에** 주입하므로, 첫 물리 틱에서 지연 계산한다.
+var _hit_r: float = -1.0
+## 유도 조준을 몇 물리 프레임마다 다시 할지. **선회 속도는 그대로 두고 갱신 빈도만 낮춘다** —
+## 건너뛴 프레임의 delta 를 모아서 한 번에 적용하므로 초당 최대 선회각은 동일하다.
+##
+## 왜 필요한가: 조준은 `Events.zombies_in_radius(pos, 420)` 이고, 이 비용은 **탄 × 좀비의 곱**에
+## 비례한다. 통제 실험(유도탄 200발, 표본 720틱)에서 좀비를 0 → 150 으로 세우자
+## 1.85ms → 12.19ms 로 **6.6배**가 됐다(탄 1발당 9.3 → 61.0µs). 자료구조 문제가 아니다 —
+## 좀비 300 에서 셀 경로(13.47ms)와 전수 스캔(12.19ms)이 거의 같았다. 줄일 수 있는 것은 **횟수**뿐이다.
+const STEER_EVERY := 3
+var _steer_phase: int = 0   # 개체마다 위상을 달리해 한 프레임에 몰리지 않게 한다
+var _steer_accum: float = 0.0
 
 const _ZOMBIE_RADIUS := 14.0   # Zombie.tscn 충돌 반경
 const _BOSS_RADIUS := 38.0     # Boss.tscn 충돌 반경
@@ -83,6 +98,9 @@ func on_spawn() -> void:
 	pierce = 0
 	knockback = 0.0
 	_pierced = 0
+	_hit_r = -1.0          # 발사 측이 scale 을 주입한 뒤 첫 틱에서 다시 잰다
+	_steer_phase = randi() % STEER_EVERY
+	_steer_accum = 0.0
 	_hit_ids.clear()
 
 
@@ -94,18 +112,27 @@ func on_despawn() -> void:
 func _physics_process(delta: float) -> void:
 	if not _alive:
 		return
+	if _hit_r < 0.0:
+		_hit_r = 5.0 * scale.x   # 스폰 직후 1회 — 이후로는 scale 을 읽지 않는다
 	var from := global_position
 	if homing > 0.0:
-		_steer(delta)
+		# 조준은 STEER_EVERY 프레임에 한 번. 그동안 쌓인 delta 를 넘겨 선회량을 보존한다.
+		_steer_accum += delta
+		if (Engine.get_physics_frames() + _steer_phase) % STEER_EVERY == 0:
+			_steer(_steer_accum)
+			_steer_accum = 0.0
 		if spin == 0.0:
 			# 휘었으면 그림도 같이 틀어야 한다 — 안 그러면 볼트가 옆으로 날아간다.
 			# (자전하는 톱날은 방향이 의미 없으므로 제외)
 			rotation = direction.angle() + PI / 2.0
 	if spin != 0.0:
 		rotation += spin * delta   # 톱날 자전 — 그림은 그대로 두고 노드만 돌린다
-	global_position += direction * speed * delta
+	# `global_position` 은 읽을 때마다 전역 변환을, 쓸 때마다 부모 변환의 역행렬을 만든다.
+	# 예전에는 한 틱에 3읽기+1쓰기였다 — 목적지를 지역 변수로 계산해 1읽기+1쓰기로 줄인다.
+	var to := from + direction * speed * delta
+	global_position = to
 	# 빠른 총알이 저프레임에서 좀비를 건너뛰는 터널링 방지: 이동 구간을 레이캐스트로 훑는다.
-	_check_swept_hit(from, global_position)
+	_check_swept_hit(from, to)
 	if not _alive:
 		return
 	_age += delta
@@ -122,7 +149,7 @@ func _physics_process(delta: float) -> void:
 func _check_swept_hit(from: Vector2, to: Vector2) -> void:
 	var seg := to - from
 	var seg_len_sq := seg.length_squared()
-	var bullet_r := 5.0 * scale.x
+	var bullet_r := _hit_r
 	var max_r := _BOSS_RADIUS + bullet_r
 	# 이동 구간 AABB(+최대 판정 반경) — 범위 밖 좀비를 값싼 비교만으로 조기 탈락.
 	var lo_x := minf(from.x, to.x) - max_r

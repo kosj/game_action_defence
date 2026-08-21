@@ -24,12 +24,12 @@ const BOLT_DECAY := 3.0   # 초당 감쇠
 
 ## 날씨 정의.
 ##   tint     = 시간 틴트에 곱할 색(어둡게/따뜻하게)
-##   haze     = 화면 전체를 덮는 옅은 판의 알파 — 시야가 뿌예지는 날씨(모래바람·눈)에만
-##   haze_col = 그 판의 색조. 모래바람은 따뜻한 황토빛이라야 '먼지'로 읽힌다
+##   haze     = 화면 전체를 덮는 옅은 판의 알파 — 시야가 뿌예지는 날씨(현재는 눈)에만
+##   haze_col = 그 판의 색조. 모래바람 삭제로 지금은 전부 흰색이지만, 색이 있는 날씨가
+##              다시 들어올 때를 위해 필드는 남긴다(황사·화산재 등은 흰 판이면 가짜로 읽힌다)
 const _DEF: Dictionary = {
 	"rain": {"tint": Color(0.80, 0.84, 0.92), "haze": 0.00, "haze_col": Color(1.00, 1.00, 1.00), "bolt": true},
 	"snow": {"tint": Color(0.92, 0.95, 1.00), "haze": 0.06, "haze_col": Color(1.00, 1.00, 1.00), "bolt": false},
-	"dust": {"tint": Color(1.00, 0.88, 0.70), "haze": 0.12, "haze_col": Color(1.00, 0.80, 0.52), "bolt": false},
 }
 
 var _keys: PackedStringArray = PackedStringArray()   # 이 테마에서 나올 수 있는 날씨
@@ -312,18 +312,6 @@ func _configure(key: String) -> void:
 			_emitter.color = Color(0.95, 0.98, 1.00, 0.85)
 			_emitter.angular_velocity_min = -25.0
 			_emitter.angular_velocity_max = 25.0
-		"dust":
-			_emitter.texture = _soft_tex
-			_emitter.amount = 90
-			_emitter.lifetime = 2.2
-			_emitter.preprocess = 1.5
-			_emitter.direction = Vector2(1.0, 0.12).normalized()
-			_emitter.spread = 8.0
-			_emitter.initial_velocity_min = 320.0
-			_emitter.initial_velocity_max = 560.0
-			_emitter.scale_amount_min = 0.25
-			_emitter.scale_amount_max = 0.70
-			_emitter.color = Color(0.85, 0.70, 0.45, 0.58)
 		_:
 			_emitter.amount = 1
 			_emitter.emitting = false
@@ -361,7 +349,7 @@ func _make_ring() -> Texture2D:
 	return t
 
 
-## 눈·먼지용 소프트 라운드 점(32×32 radial).
+## 눈용 소프트 라운드 점(32×32 radial).
 func _make_soft() -> Texture2D:
 	var g := Gradient.new()
 	g.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
@@ -394,5 +382,5 @@ func _draw() -> void:
 	if _haze_vp == Vector2.ZERO:
 		return
 	var m := HAZE_MARGIN
-	draw_rect(Rect2(-_haze_vp.x * 0.5 - m, -_haze_vp.y * 0.5 - m,
+	QuadDraw.rect(self, Rect2(-_haze_vp.x * 0.5 - m, -_haze_vp.y * 0.5 - m,
 			_haze_vp.x + m * 2.0, _haze_vp.y + m * 2.0), Color(0.92, 0.94, 1.0, 1.0))

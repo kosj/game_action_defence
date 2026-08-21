@@ -91,9 +91,9 @@ func _draw() -> void:
 		return
 	var t := clampf(_t / warn_time, 0.0, 1.0)
 	# 고정 경고 테두리 링
-	draw_arc(Vector2.ZERO, blast_radius, 0.0, TAU, 48, Color(color.r, color.g, color.b, 0.9), 3.0, true)
+	QuadDraw.ring(self, Vector2.ZERO, blast_radius, Color(color.r, color.g, color.b, 0.9), 3.0, 48)
 	# 임박할수록 채워지는 내부(폭발 직전 가장 진하게 — "지금 벗어나라" 신호)
-	draw_circle(Vector2.ZERO, blast_radius * t, Color(color.r, color.g, color.b, 0.12 + 0.28 * t))
+	QuadDraw.disc(self, Vector2.ZERO, blast_radius * t, Color(color.r, color.g, color.b, 0.12 + 0.28 * t))
 	# 조준 십자
-	draw_line(Vector2(-blast_radius, 0), Vector2(blast_radius, 0), Color(color.r, color.g, color.b, 0.5), 1.5)
-	draw_line(Vector2(0, -blast_radius), Vector2(0, blast_radius), Color(color.r, color.g, color.b, 0.5), 1.5)
+	QuadDraw.segment(self, Vector2(-blast_radius, 0), Vector2(blast_radius, 0), Color(color.r, color.g, color.b, 0.5), 1.5)
+	QuadDraw.segment(self, Vector2(0, -blast_radius), Vector2(0, blast_radius), Color(color.r, color.g, color.b, 0.5), 1.5)

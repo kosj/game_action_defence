@@ -2,9 +2,9 @@
 
 [ext_resource type="Script" path="res://scripts/HUD.gd" id="1"]
 [ext_resource type="Script" path="res://scripts/MobileJoystick.gd" id="2"]
-[ext_resource type="Texture2D" path="res://assets/ui/ui_coin.png" id="3"]
-[ext_resource type="Texture2D" path="res://assets/ui/ui_heart_full.png" id="4"]
-[ext_resource type="Texture2D" path="res://assets/ui/ui_heart_empty.png" id="5"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/ui_coin.tres" id="3"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/ui_heart_full.tres" id="4"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/ui_heart_empty.tres" id="5"]
 [ext_resource type="Texture2D" path="res://assets/ui/vignette.png" id="6"]
 
 [node name="HUD" type="CanvasLayer"]

@@ -84,6 +84,31 @@ def main():
         print("이어하기로 시작한 %d판을 제외했다 (--include-resumed 로 포함)\n" % len(resumed))
     if not rows:
         sys.exit("이어하기 판을 제외하니 남는 기록이 없다.")
+    # 손상된 기록(P0-9) — 분당 샘플이 요약 수치보다 크면 두 시점이 섞인 레코드다.
+    # 판 도중 Events.reset() 이 일어난 뒤 진행 스냅샷이 덮인 경우로, 요약만 0 에 가깝다.
+    # 수정 전 빌드의 기록에 남아 있으므로 여기서 걸러 낸다 — 안 거르면 생존 0분으로 집계돼
+    # 중앙값을 끌어내리고, 하필 그게 클리어 판이라 상단이 통째로 사라진다.
+    def _corrupt(r):
+        sm = r.get("samples") or []
+        if not sm:
+            return False
+        last = sm[-1]
+        return (int(last.get("kills", 0)) > int(r.get("kills", 0))
+                or int(last.get("level", 0)) > int(r.get("level", 0)))
+
+    broken = [r for r in rows if _corrupt(r)]
+    if broken:
+        rows = [r for r in rows if not _corrupt(r)]
+        print("손상된 기록 %d판을 제외했다 — 판 도중 리셋으로 요약이 덮인 것이다(P0-9)." % len(broken))
+        for r in broken:
+            sm = r["samples"][-1]
+            print("  %s %s분경 · 샘플 처치 %s/레벨 %s ↔ 요약 처치 %s/레벨 %s%s"
+                  % (r.get("character", "?"), sm.get("min", "?"), sm.get("kills"), sm.get("level"),
+                     r.get("kills"), r.get("level"), "  ★클리어" if r.get("cleared") else ""))
+        print("")
+    if not rows:
+        sys.exit("손상된 기록을 제외하니 남는 기록이 없다.")
+
     died = [r for r in rows if r.get("outcome") == "died"]
     # "left" = 메뉴로 나간 정상 종료 · "abandoned" = 탭 닫힘·크래시. 섞으면 크래시 조사가 흐려진다.
     left = [r for r in rows if r.get("outcome") == "left"]
@@ -133,6 +158,33 @@ def main():
         print("\n캐릭터별")
         for c, v in sorted(by_char.items(), key=lambda kv: -st.median(kv[1])):
             print("  %-10s n=%-3d 중앙 %.1f분" % (c, len(v), st.median(v)))
+
+    # 프레임 추이(P1-18) — 종료 시점 한 장으로는 "언제부터 무너졌나"를 못 본다.
+    # 분당 샘플에 fps 가 실린 기록만 대상이다(그 이전 빌드는 이 줄이 안 나온다).
+    curves = [r for r in rows if any("fps" in x for x in (r.get("samples") or []))]
+    if curves:
+        print("\n분당 프레임 추이 (fps · 최악 프레임 · 좀비)")
+        for r in curves:
+            pts = [x for x in r["samples"] if "fps" in x]
+            # 이어하기 판의 선두 "몰아쓴" 행을 버린다(P0-11). begin_run 이 _next_sample 을
+            # 60초로 고정하던 시절, 재개 직후 한 프레임에 한 줄씩 수십 줄이 쏟아졌다 —
+            # 전부 재개 직전 상태(좀비 0 · 처치 고정)라 곡선이 아니다.
+            dropped = 0
+            while len(pts) > 1 and pts[0].get("zombies") == 0 \
+                    and pts[0].get("kills") == pts[1].get("kills"):
+                pts.pop(0)
+                dropped += 1
+            if not pts:
+                continue
+            print("  %s %.1f분 — 레벨 %s%s" % (r.get("character", "?"),
+                                              r["survived_s"] / 60.0, r.get("level"),
+                                              ("   [이어하기 몰아쓴 %d행 버림]" % dropped) if dropped else ""))
+            for x in pts:
+                fps = int(x.get("fps", 0))
+                bar = "#" * max(0, min(30, int(fps / 2)))
+                print("    %3d분 %3dfps %-30s 최악 %5.1fms · 좀비 %s"
+                      % (x.get("min", 0), fps, bar, float(x.get("frame_ms", 0)),
+                         x.get("zombies", "?")))
 
     # 후반 이속(P1-5) — 이속 합계가 낮은 판만 유독 짧게 끝나면 이속이 선택이 아니라 세금이다.
     # 추월 시점 자체는 게임 데이터에서 계산된다: tools/verify_late_speed.gd 참고.

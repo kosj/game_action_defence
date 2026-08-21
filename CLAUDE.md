@@ -50,6 +50,22 @@ CI 대기 중인 것과 구분되지 않는다.
 전부 `tools/gen_*.gd` 생성기의 산출물이다. **생성기를 고치고 재생성한다.**
 `.tres` 를 직접 편집하면 다음 생성기 실행 때 말없이 덮어써진다.
 
+⚠️ **이미 어긋나 있을 수 있다.** `item_catalog.tres` 는 무기 4종(부메랑·궁극기 3종)과 마늘 표기가
+손으로 들어가 있었고, 규약대로 재생성하자 **그것들이 조용히 사라졌다**(P1-19 에서 발견·복구).
+그러니 재생성 전후로 **반드시 목록을 대조할 것**:
+```sh
+git show HEAD:data/item_catalog.tres | grep -o '^id = "[a-z_]*"' | sort > /tmp/before.txt
+godot --headless --path . --script res://tools/gen_item_catalog.gd
+grep -o '^id = "[a-z_]*"' data/item_catalog.tres | sort | diff /tmp/before.txt -
+```
+`verify_bullet_budget.gd` 가 궁극기 소실만은 CI 에서 잡지만, 나머지는 이 대조가 유일한 안전망이다.
+
+⚠️ **`difficulty.tres` 도 같은 상태였다**(P1-20 에서 발견·수정). `gen_difficulty_data.gd` 는
+`DifficultyData.new()` 의 **스크립트 @export 기본값을 그대로 저장**할 뿐인데, 커밋된 `.tres` 는
+8개 필드가 달랐다(동시 상한 175 vs 320 등). 재생성하면 튜닝이 통째로 되돌아간다.
+지금은 기본값을 배포 값에 맞춰 놨다 — **이 생성기를 쓸 때는 스크립트 기본값을 고치는 것이 곧
+데이터를 고치는 것**이다. `.tres` 만 고치면 다음 재생성에 사라진다.
+
 | 데이터 | 생성기 |
 |---|---|
 | `data/item_catalog.tres` (무기 30 = 기본 16 + 진화 11 + 궁극기 3 · 패시브 10) | `tools/gen_item_catalog.gd` |
@@ -146,6 +162,10 @@ godot --headless --path . --script res://tools/verify_quest_tracks.gd
 godot --headless --path . --script res://tools/verify_event_forecast.gd
 godot --headless --path . --script res://tools/verify_ui_icons.gd
 godot --headless --path . --script res://tools/verify_late_speed.gd
+godot --headless --path . --script res://tools/verify_hotpath.gd
+godot --headless --path . --script res://tools/verify_bullet_budget.gd
+godot --headless --path . --script res://tools/verify_late_hp.gd
+godot --headless --path . --script res://tools/verify_pickups.gd
 ```
 
 ⚠️ **`main` 을 새로 받은 직후에는 `--import` 를 먼저(가능하면 두 번) 돌린다.**
@@ -159,7 +179,33 @@ godot --headless --path . --import && godot --headless --path . --import
 
 UI 를 건드렸으면 추가로 `python3 tools/check_text_fit.py` (en/ko/ja 폭 초과 검사).
 
-**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 16종이 이 프로젝트의 안전망 전부다.
+프레임을 건드렸으면 **최대 부하로도** 재 본다 — 평상시 판은 오토플레이가 좀비를 계속 녹여서
+최악이 재현되지 않는다(후반 동시 좀비가 상한 320 의 1/10 이다). 프레임 드랍은 최악에서 난다.
+```sh
+godot --headless --path . --script res://tools/bench_lategame.gd -- min=26 stress=1   # CPU
+LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 720x1280x24" \
+  godot --path . --rendering-driver opengl3 \
+  --script res://tools/bench_lategame.gd -- min=26 stress=1                            # 드로우 콜·VRAM
+```
+⚠️ **계통별 몫은 `only=` 격리값이 아니라 "통째로 들어낸 빌드와의 차이"다.** `only=` 는 상호작용이
+빠져 과소·과대 둘 다 난다 — 실제로 `only=` 로 "여기가 제일 크다"고 지목한 계통이 절제해 보니
+전체의 11% 였다(P1-22). 고치기 전에 절제부터 할 것. 자세한 것은 `OPTIMIZATION_PLAN.md` §5-M.
+
+⚠️ **`physics_ms` 를 프레임 비용으로 읽지 말 것** — 엔진 모니터는 최근 1초의 **최댓값**이다.
+평상시 비용은 하네스가 센티넬로 직접 재는 `물리 틱` 줄을 본다. 자세한 것은
+`OPTIMIZATION_PLAN.md` §5-L.
+
+**웹(WASM) 비용도 여기서 잰다** — 실기기로 넘기지 말 것. Chromium 이 깔려 있고 웹 빌드도
+여기서 만든다. `tools/bench_web.sh` 가 export → 로컬 서버 → Chromium → 콘솔 수집을 한 번에 한다.
+```sh
+GODOT=/path/to/godot tools/bench_web.sh "min=26 measure=12 fill=0 probe=bullet:400"
+```
+믿을 것은 **`물리 틱`·드로우 콜**뿐이다. `_process`·fps·VRAM 은 이 환경에 GPU 가 없어
+SwiftShader(소프트웨어 GL)로 도는 값이라 실기기와 무관하다.
+⚠️ **"웹은 데스크톱의 3~4배"는 틀린 상수다** — 실측하면 렌더 경합이 없을 때 **0.99배**다(§5-L).
+남은 미지수는 폰 CPU 의 절대 속도와 모바일 GPU fill-rate 뿐이고, 그것만 실기기가 필요하다.
+
+**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 19종이 이 프로젝트의 안전망 전부다.
 
 비주얼을 건드렸으면 **실렌더 스크린샷**으로 확인한다 — 헤드리스는 `_draw` 를 부르고 오류도 안 내지만,
 그려진 것이 다른 레이어에 덮였는지·좌표가 화면 밖인지는 알려주지 않는다.

@@ -1,9 +1,9 @@
 [gd_resource type="Resource" script_class="DifficultyData" load_steps=2 format=3]
 
-[ext_resource type="Script" path="res://scripts/data/DifficultyData.gd" id="1_u34lo"]
+[ext_resource type="Script" path="res://scripts/data/DifficultyData.gd" id="1_g1osk"]
 
 [resource]
-script = ExtResource("1_u34lo")
+script = ExtResource("1_g1osk")
 clear_seconds = 1800.0
 spawn_interval_base = 0.85
 spawn_interval_min = 0.1
@@ -13,10 +13,13 @@ max_z_cap = 320
 max_z_full_at = 1500.0
 hp_per_min = 0.16
 hp_accel_per_min2 = 0.042
+late_hp_start_s = 900.0
+late_hp_per_min = 1.5
+late_spawn_slow_per_min = 0.055
 speed_per_min = 0.03
 speed_cap = 2.0
-overtime_hp_per_min = 0.8
 boss_curve_scale = 0.8
+overtime_hp_per_min = 0.8
 tier_seconds = 60.0
 elite_seconds = 300.0
 boss_seconds = 600.0

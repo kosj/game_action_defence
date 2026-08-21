@@ -194,10 +194,14 @@ class _FlamePod extends Node2D:
 			draw_texture_rect(tex, Rect2(-sz * 0.5, sz), false)
 		else:
 			# 로컬 +X 가 분사 방향. 뒤쪽이 두툼한 탱크, 앞쪽이 좁아지는 노즐.
+			# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 			draw_circle(Vector2(-5, 0), 7.0, Color(0.22, 0.24, 0.28))
+			# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 			draw_colored_polygon(PackedVector2Array([
 				Vector2(-6, -5), Vector2(9, -3), Vector2(9, 3), Vector2(-6, 5)]),
 				Color(0.34, 0.36, 0.40))
+			# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 			draw_line(Vector2(9, 0), Vector2(13, 0), Color(1.0, 0.62, 0.20, 0.95), 4.0, true)
+			# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 			draw_circle(Vector2(-5, 0), 3.0, Color(1.0, 0.55, 0.15, 0.85))
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

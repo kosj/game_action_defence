@@ -48,10 +48,10 @@ func _impact() -> void:
 func _draw() -> void:
 	var p := clampf(_t / TELEGRAPH, 0.0, 1.0)
 	# 착탄 예고 원(점점 진해지고 안쪽이 차오른다).
-	draw_arc(Vector2.ZERO, IMPACT_R, 0.0, TAU, 32, Color(0.9, 0.3, 0.2, 0.35 + 0.5 * p), 2.5, true)
-	draw_circle(Vector2.ZERO, IMPACT_R * p, Color(0.8, 0.25, 0.15, 0.18))
+	QuadDraw.ring(self, Vector2.ZERO, IMPACT_R, Color(0.9, 0.3, 0.2, 0.35 + 0.5 * p), 2.5, 32)
+	QuadDraw.disc(self, Vector2.ZERO, IMPACT_R * p, Color(0.8, 0.25, 0.15, 0.18))
 	# 떨어지는 돌(위에서 내려온다).
 	var fall_y := -260.0 * (1.0 - p)
 	var rock := Vector2(0.0, fall_y)
-	draw_circle(rock, 13.0, Color(0.32, 0.30, 0.33, 1.0))
-	draw_circle(rock + Vector2(-4, -4), 5.0, Color(0.45, 0.43, 0.47, 1.0))
+	QuadDraw.disc(self, rock, 13.0, Color(0.32, 0.30, 0.33, 1.0))
+	QuadDraw.disc(self, rock + Vector2(-4, -4), 5.0, Color(0.45, 0.43, 0.47, 1.0))

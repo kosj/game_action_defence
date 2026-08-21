@@ -508,31 +508,29 @@ func _draw() -> void:
 	elif _enraged:
 		aura = Color(1.0, 0.5, 0.1, 0.6)     # 1단계 격노 — 주황 오라
 	var r := half_h * 0.98 + sin(_pulse * 4.0) * 4.0
-	draw_arc(Vector2.ZERO, r, 0.0, TAU, 48, aura, 3.0, true)
+	QuadDraw.ring(self, Vector2.ZERO, r, aura, 3.0, 48)
 
 	# 버서커 대시 예비 동작 — 돌진 경로를 붉게 예고(두꺼운 화살 라인).
 	if _archetype == "berserk" and _bstate == "wind":
 		var ba := 0.4 + 0.4 * absf(sin(_pulse * 26.0))
 		var bstart := _aim_dir * (half_h * 0.9)
 		var bend := _aim_dir * (half_h * 0.9 + 360.0)
-		draw_line(bstart, bend, Color(1.0, 0.25, 0.3, ba), 6.0, true)
-		draw_circle(bend, 10.0, Color(1.0, 0.3, 0.25, ba * 0.8))
+		QuadDraw.segment(self, bstart, bend, Color(1.0, 0.25, 0.3, ba), 6.0)
+		QuadDraw.disc(self, bend, 10.0, Color(1.0, 0.3, 0.25, ba * 0.8))
 
 	# 서머너 소환 예비 동작 — 발밑에 확장하는 초록 소환진(경고).
 	if _summon_tel > 0.0:
 		var sa := 0.3 + 0.4 * absf(sin(_pulse * 16.0))
-		draw_arc(Vector2.ZERO, half_h * 1.25, 0.0, TAU, 40, Color(0.4, 1.0, 0.55, sa), 4.0, true)
-		draw_arc(Vector2.ZERO, half_h * 0.75, 0.0, TAU, 32, Color(0.5, 1.0, 0.6, sa * 0.7), 2.5, true)
+		QuadDraw.ring(self, Vector2.ZERO, half_h * 1.25, Color(0.4, 1.0, 0.55, sa), 4.0, 40)
+		QuadDraw.ring(self, Vector2.ZERO, half_h * 0.75, Color(0.5, 1.0, 0.6, sa * 0.7), 2.5, 32)
 
 	# 자가 회복 시전 — 조여드는 초록 링 + 12시부터 채워지는 진행 게이지.
 	# 게이지가 한 바퀴 차면 회복이 성립한다("남은 시간"이 눈에 보이게 — 지금 끊으라는 신호).
 	if _heal_t > 0.0:
 		var ht := 1.0 - clampf(_heal_t / HEAL_CHANNEL, 0.0, 1.0)
 		var hglow := 0.35 + 0.35 * absf(sin(_pulse * 14.0))
-		draw_arc(Vector2.ZERO, half_h * (1.55 - 0.45 * ht), 0.0, TAU, 40,
-				Color(HEAL_COLOR.r, HEAL_COLOR.g, HEAL_COLOR.b, hglow), 4.0, true)
-		draw_arc(Vector2.ZERO, half_h * 1.05, -PI * 0.5, -PI * 0.5 + TAU * ht, 36,
-				Color(0.72, 1.0, 0.82, 0.95), 5.0, true)
+		QuadDraw.ring(self, Vector2.ZERO, half_h * (1.55 - 0.45 * ht), Color(HEAL_COLOR.r, HEAL_COLOR.g, HEAL_COLOR.b, hglow), 4.0, 40)
+		QuadDraw.ring(self, Vector2.ZERO, half_h * 1.05, Color(0.72, 1.0, 0.82, 0.95), 5.0, 36, -PI * 0.5, -PI * 0.5 + TAU * ht)
 
 	# 체력바 — 스프라이트 머리 위쪽에 확실히 떨어뜨려 그린다(겹침 방지).
 	var bar_w := 96.0
@@ -540,11 +538,11 @@ func _draw() -> void:
 	var bar_y := -(half_h + bar_h + 12.0)
 	var ratio := clampf(float(health) / float(max_health), 0.0, 1.0)
 	# 테두리/배경
-	draw_rect(Rect2(-bar_w * 0.5 - 2.0, bar_y - 2.0, bar_w + 4.0, bar_h + 4.0), Color(0, 0, 0, 0.7))
-	draw_rect(Rect2(-bar_w * 0.5, bar_y, bar_w, bar_h), Color(0.2, 0.05, 0.06, 0.9))
+	QuadDraw.rect(self, Rect2(-bar_w * 0.5 - 2.0, bar_y - 2.0, bar_w + 4.0, bar_h + 4.0), Color(0, 0, 0, 0.7))
+	QuadDraw.rect(self, Rect2(-bar_w * 0.5, bar_y, bar_w, bar_h), Color(0.2, 0.05, 0.06, 0.9))
 	# 채움 (체력 비율에 따라 색 변화: 녹색→노랑→빨강)
 	var fill := Color(0.9, 0.2, 0.2).lerp(Color(1.0, 0.85, 0.2), ratio)
-	draw_rect(Rect2(-bar_w * 0.5, bar_y, bar_w * ratio, bar_h), fill)
+	QuadDraw.rect(self, Rect2(-bar_w * 0.5, bar_y, bar_w * ratio, bar_h), fill)
 
 
 func take_damage(amount: int, is_crit: bool = false) -> void:

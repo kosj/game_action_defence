@@ -58,15 +58,17 @@ func _discharge() -> void:
 	SoundManager.play("tesla_arc", 0.06, 0.85)   # 고정 설치 코일 — 무기보다 낮고 묵직하게
 
 
+## ⚠️ 프리미티브 대신 **QuadDraw(텍스처 쿼드)** 로 그린다 — 캔버스 배처는 한 아이템
+## 안에서도 프리미티브 종류가 다르면 배치를 끊는다(ASSET_PIPELINE.md 1절).
 func _draw() -> void:
 	var ph := fmod(_phase_t, TELEGRAPH + ACTIVE + COOLDOWN)
 	# 코일 기둥 + 헤드
-	draw_rect(Rect2(-4.0, -22.0, 8.0, 26.0), Color(0.3, 0.32, 0.4, 1.0))
-	draw_circle(Vector2(0.0, -24.0), 6.0, Color(0.5, 0.6, 0.85, 1.0))
+	QuadDraw.rect(self, Rect2(-4.0, -22.0, 8.0, 26.0), Color(0.3, 0.32, 0.4, 1.0))
+	QuadDraw.disc(self, Vector2(0.0, -24.0), 6.0, Color(0.5, 0.6, 0.85, 1.0))
 	if ph < TELEGRAPH:
 		var p := ph / TELEGRAPH
-		draw_arc(Vector2.ZERO, ARC_R, 0.0, TAU, 32, Color(0.5, 0.7, 1.0, 0.12 + 0.3 * p), 2.0, true)
-		draw_circle(Vector2(0.0, -24.0), 6.0 + 4.0 * p, Color(0.7, 0.85, 1.0, 0.4 * p))
+		QuadDraw.ring(self, Vector2.ZERO, ARC_R, Color(0.5, 0.7, 1.0, 0.12 + 0.3 * p), 2.0, 32)
+		QuadDraw.disc(self, Vector2(0.0, -24.0), 6.0 + 4.0 * p, Color(0.7, 0.85, 1.0, 0.4 * p))
 	elif ph < TELEGRAPH + ACTIVE:
 		for e in _arcs:
 			_draw_bolt(Vector2(0.0, -24.0), e)
@@ -82,5 +84,5 @@ func _draw_bolt(a: Vector2, b: Vector2) -> void:
 		var mid := a.lerp(b, t)
 		if i < segs:
 			mid += perp * (sin(t * 9.0 + _age * 30.0) * 7.0)
-		draw_line(prev, mid, Color(0.7, 0.85, 1.0, 0.9), 2.0)
+		QuadDraw.segment(self, prev, mid, Color(0.7, 0.85, 1.0, 0.9), 2.0)
 		prev = mid

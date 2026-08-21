@@ -107,4 +107,4 @@ func _draw() -> void:
 	if _armed < ARM_TIME:
 		return
 	var blink := 0.5 + 0.5 * sin(_pulse * 9.0)
-	draw_arc(Vector2.ZERO, 17.0, 0.0, TAU, 22, Color(0.95, 0.15, 0.1, 0.3 + 0.45 * blink), 2.0, true)
+	QuadDraw.ring(self, Vector2.ZERO, 17.0, Color(0.95, 0.15, 0.1, 0.3 + 0.45 * blink), 2.0, 22)

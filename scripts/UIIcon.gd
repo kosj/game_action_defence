@@ -14,7 +14,7 @@ const _KINDS := ["coin", "star", "flag", "clock", "trophy", "skull", "heart", "b
 const _KIND_TEX := {
 	"skull": preload("res://assets/atlas/ui/hud_skull.tres"),
 	"clock": preload("res://assets/atlas/ui/hud_clock.tres"),
-	"coin":  preload("res://assets/ui/ui_coin.png"),
+	"coin":  preload("res://assets/atlas/ui/ui_coin.tres"),
 }
 
 

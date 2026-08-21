@@ -16,9 +16,12 @@ extends Node
 ##   T8 치트를 쓴 판은 cheated=true 로 표시된다(사람 데이터와 섞이지 않게)
 ##   T9 이어하기로 시작한 판은 resumed=true 로 표시된다(수치가 재개 이후만 세어지므로)
 ##   T10 프리즈 진단(diag)이 기록되고 워치독 발동이 남는다 — 멈춘 뒤엔 못 남기므로 이게 유일한 단서다
-##   T11 분당 샘플에 메모리·노드 수가 실린다(누수 추이 판별용)
+##   T11 분당 샘플에 메모리·노드·fps·프레임 시간이 실린다(누수·성능 추이 판별용)
 ##   T12 메뉴 복귀 판이 기록에 남는다 + 끝맺지 못한 판이 새 판 시작 시 승격된다
 ##   T13 해석된 이속 합계(speed_lv)가 기록된다 — 후반 이속 밸런스 판정의 유일한 지표
+##   T14 판 도중 Events.reset() 이 일어나도 기록이 0 으로 덮이지 않는다
+##   T15 이어하기 판이 분당 샘플을 한 프레임에 몰아 쓰지 않는다
+##       (30분 클리어 판이 "생존 0초 · 처치 1" 로 저장되던 버그)
 ##       (클리어 후 메뉴로 나간 판이 통째로 사라지던 버그)
 
 var _ok := 0
@@ -178,8 +181,10 @@ func _ready() -> void:
 	Events.player_died.emit()
 	var r8: Dictionary = JSON.parse_string(Telemetry.load_records_raw()[0])
 	var sm: Array = r8.get("samples", [])
-	_check("T11 분당 샘플에 메모리·노드",
+	# fps·프레임 시간이 없으면 "언제부터 느려졌나"를 못 본다 — P1-18 이 그것 때문에 막혔다.
+	_check("T11 분당 샘플에 메모리·노드·프레임",
 		sm.size() >= 1 and sm[0].has("mem") and sm[0].has("nodes")
+			and sm[0].has("fps") and sm[0].has("frame_ms") and sm[0].has("zombies")
 			and float(sm[0]["mem"]) > 0.0,
 		str(sm[0]) if sm.size() > 0 else "샘플 없음")
 	Telemetry.clear_records()
@@ -222,6 +227,51 @@ func _ready() -> void:
 	var r13: Dictionary = JSON.parse_string(Telemetry.load_records_raw()[0])
 	_check("T13 해석된 이속 합계가 기록됨", int(r13.get("speed_lv", -1)) == 5,
 		"speed_lv=%s" % r13.get("speed_lv"))
+	Telemetry.clear_records()
+
+	# ── T14 판 도중 Events.reset() 이 일어나도 기록이 0 으로 덮이지 않는다 ──
+	# "다시하기"가 end_run 없이 Events.reset() 을 부르면, 그 뒤의 진행 스냅샷이 리셋된 값으로
+	# 덮인다. Telemetry 자체 변수(cleared·samples·보스)는 리셋되지 않아 두 시점이 섞인다 —
+	# 실제로 30분 클리어 판이 "생존 0초 · 처치 1 · 레벨 2" 로 저장됐다(P0-9).
+	Telemetry.clear_records()
+	Events.reset()
+	Telemetry.begin_run()
+	Events.elapsed_time = 1800.0
+	Events.total_kills = 10731
+	Events.level = 182
+	Events.run_cleared.emit()
+	Telemetry._partial_accum = Telemetry.PARTIAL_INTERVAL   # 진행 스냅샷 1회 강제
+	Telemetry._process(0.016)                               # 정상 값으로 기록됨
+	Events.reset()                                          # ← end_run 없이 리셋
+	Telemetry._partial_accum = Telemetry.PARTIAL_INTERVAL
+	Telemetry._process(0.016)                               # 여기서 덮이면 회귀다
+	Telemetry.begin_run()                                   # 새 판 — 이전 판을 승격
+	var raw14 := Telemetry.load_records_raw()
+	var r14: Dictionary = JSON.parse_string(raw14[0]) if raw14.size() > 0 else {}
+	_check("T14 판 도중 리셋돼도 기록이 0 으로 안 덮임",
+		raw14.size() == 1 and int(r14.get("kills", -1)) == 10731
+			and int(r14.get("level", -1)) == 182 and bool(r14.get("cleared", false)),
+		"%d건 · kills=%s level=%s cleared=%s"
+			% [raw14.size(), r14.get("kills"), r14.get("level"), r14.get("cleared")])
+	Telemetry.clear_records()
+
+	# ── T15 이어하기 판이 분당 샘플을 몰아 쓰지 않는다 ────────────────
+	# begin_run 이 _next_sample 을 60초로 고정하면, 재개 직후 한 프레임에 한 줄씩
+	# 수십 줄이 쏟아진다(좀비 0 · 처치/레벨 고정). 실제 기록에서 29줄 중 26줄이 그랬고,
+	# 프리즈 진단에 쓰려던 fps 곡선이 통째로 못 쓰게 됐다(P0-11).
+	Telemetry.clear_records()
+	Events.reset()
+	Events.elapsed_time = 1500.0        # 25분 지점에서 이어하기
+	Telemetry.begin_run()
+	for i in 5:
+		Telemetry._process(0.016)       # 재개 직후 몇 프레임
+	var burst: int = Telemetry._samples.size()
+	Events.elapsed_time = 1561.0        # 1분 경과
+	Telemetry._process(0.016)
+	var after: int = Telemetry._samples.size()
+	_check("T15 이어하기 직후 샘플을 몰아 쓰지 않는다",
+		burst == 0 and after == 1,
+		"재개 직후 %d행 · 1분 뒤 %d행" % [burst, after])
 	Telemetry.clear_records()
 
 	print("RESULT ok=%d/%d" % [_ok, _total])

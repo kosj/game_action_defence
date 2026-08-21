@@ -98,6 +98,6 @@ func _draw() -> void:
 			draw_texture_rect(_tex, Rect2(p + Vector2(0.0, bob) - sz * 0.5, sz), false)
 		return
 	for p in _positions():
-		draw_circle(p, 7.0, Color(_data.color.r, _data.color.g, _data.color.b, 0.95))
-		draw_circle(p, 3.5, Color(1.0, 1.0, 1.0, 0.9))
-		draw_arc(p, 10.0, 0.0, TAU, 12, Color(_data.color.r, _data.color.g, _data.color.b, 0.4), 1.5, true)
+		QuadDraw.disc(self, p, 7.0, Color(_data.color.r, _data.color.g, _data.color.b, 0.95))
+		QuadDraw.disc(self, p, 3.5, Color(1.0, 1.0, 1.0, 0.9))
+		QuadDraw.ring(self, p, 10.0, Color(_data.color.r, _data.color.g, _data.color.b, 0.4), 1.5, 12)

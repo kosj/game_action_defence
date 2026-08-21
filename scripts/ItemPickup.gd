@@ -1,6 +1,13 @@
-extends Area2D
+extends Node2D
 ## 필드 픽업: 보물상자(먹으면 랜덤 골드) 또는 폭탄(화면 내 잡몹 일소). 방치 시 사라진다.
 ## 풀링되며 "item_pickups" 그룹으로 동시 등장 수를 제한한다.
+##
+## 물리 노드가 아니다: 수집 판정은 아래 _process() 의 collect_radius 거리 계산뿐이다.
+## 예전에는 Area2D 였는데 **충돌 도형도 없이 monitoring/monitorable 을 둘 다 꺼 둔** 상태였다.
+## 즉 Area2D 의 기능은 하나도 안 쓰면서 타입만 물리 노드였다 — Gold 가 있던 상태와 같다.
+## (그 상태가 위험한 이유는 프레임이 아니라 오해다. "Area2D 니까 body_entered 를 쓰면 되겠다"고
+##  집었다가 신호가 영영 안 와서 디버깅하게 된다. 실측 프레임 차이는 0 이었다 — 정지 상태의
+##  Area2D 는 600개에서도 0.003ms 다. `tools/node_cost.gd` · OPTIMIZATION_PLAN.md §5-M)
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 const _ChestReward := preload("res://scripts/ChestRewardPanel.gd")
@@ -47,8 +54,6 @@ func _label() -> String:
 
 func _ready() -> void:
 	add_to_group("item_pickups")
-	monitoring = false
-	monitorable = false
 
 
 func on_spawn() -> void:
@@ -165,10 +170,9 @@ func _draw_chest(center: Vector2, alpha: float) -> void:
 		# 쌓아 바깥으로 갈수록 옅어지게 한다.
 		for i in 5:
 			var f := float(i) / 5.0
-			draw_circle(center, (33.0 - 13.0 * f) * pulse,
-				Color(band.r, band.g, band.b, 0.05 * alpha))
+			QuadDraw.disc(self, center, (33.0 - 13.0 * f) * pulse, Color(band.r, band.g, band.b, 0.05 * alpha))
 	else:
-		draw_circle(center, 20.0 * pulse, Color(band.r, band.g, band.b, 0.22 * alpha))
+		QuadDraw.disc(self, center, 20.0 * pulse, Color(band.r, band.g, band.b, 0.22 * alpha))
 
 	if tex:
 		# 비율을 유지한 채 긴 변을 CHEST_DRAW_PX 에 맞추고, 후광과 같은 맥동을 준다.
@@ -184,26 +188,26 @@ func _draw_chest(center: Vector2, alpha: float) -> void:
 	var wood_d := Color(0.38, 0.24, 0.11, alpha)
 	var dark := Color(0.12, 0.08, 0.05, alpha)
 	var w := 15.0
-	draw_rect(Rect2(center + Vector2(-w, -2.0), Vector2(2.0 * w, 14.0)), wood)      # 몸통
-	draw_rect(Rect2(center + Vector2(-w, -11.0), Vector2(2.0 * w, 10.0)), wood_d)   # 뚜껑
-	draw_rect(Rect2(center + Vector2(-w, -2.0), Vector2(2.0 * w, 3.0)), gold)       # 중앙 금속 밴드
-	draw_rect(Rect2(center + Vector2(-w, 10.0), Vector2(2.0 * w, 2.0)), gold)       # 하단 밴드
-	draw_rect(Rect2(center + Vector2(-2.5, -11.0), Vector2(5.0, 23.0)), gold)       # 세로 밴드
-	draw_circle(center + Vector2(0.0, 4.0), 3.0, gold)                              # 자물쇠
-	draw_circle(center + Vector2(0.0, 4.0), 1.3, dark)
-	draw_rect(Rect2(center + Vector2(-w, -11.0), Vector2(2.0 * w, 23.0)), dark, false, 1.5)
+	QuadDraw.rect(self, Rect2(center + Vector2(-w, -2.0), Vector2(2.0 * w, 14.0)), wood)      # 몸통
+	QuadDraw.rect(self, Rect2(center + Vector2(-w, -11.0), Vector2(2.0 * w, 10.0)), wood_d)   # 뚜껑
+	QuadDraw.rect(self, Rect2(center + Vector2(-w, -2.0), Vector2(2.0 * w, 3.0)), gold)       # 중앙 금속 밴드
+	QuadDraw.rect(self, Rect2(center + Vector2(-w, 10.0), Vector2(2.0 * w, 2.0)), gold)       # 하단 밴드
+	QuadDraw.rect(self, Rect2(center + Vector2(-2.5, -11.0), Vector2(5.0, 23.0)), gold)       # 세로 밴드
+	QuadDraw.disc(self, center + Vector2(0.0, 4.0), 3.0, gold)                              # 자물쇠
+	QuadDraw.disc(self, center + Vector2(0.0, 4.0), 1.3, dark)
+	QuadDraw.rect(self, Rect2(center + Vector2(-w, -11.0), Vector2(2.0 * w, 23.0)), dark)
 
 
 func _draw_bomb(center: Vector2, alpha: float) -> void:
 	var col := BOMB_COLOR
 	var pulse := 1.0 + sin(_t * 5.0) * 0.07
 	var glow_r := 22.0 * pulse
-	draw_circle(center, glow_r, Color(col.r, col.g, col.b, 0.30 * alpha))
-	draw_arc(center, glow_r * 0.8, 0.0, TAU, 28, Color(col.r, col.g, col.b, 0.6 * alpha), 2.5, true)
+	QuadDraw.disc(self, center, glow_r, Color(col.r, col.g, col.b, 0.30 * alpha))
+	QuadDraw.ring(self, center, glow_r * 0.8, Color(col.r, col.g, col.b, 0.6 * alpha), 2.5, 28)
 	for i in 6:
 		var a := _t * 2.0 + TAU * float(i) / 6.0
 		var p := center + Vector2.from_angle(a) * (glow_r + 4.0)
-		draw_circle(p, 2.2, Color(col.r, col.g, col.b, 0.7 * alpha))
+		QuadDraw.disc(self, p, 2.2, Color(col.r, col.g, col.b, 0.7 * alpha))
 	var r := 11.0 * pulse
-	draw_circle(center, r, Color(col.r, col.g, col.b, 0.92 * alpha))
-	draw_circle(center, r * 0.55, Color(1.0, 1.0, 1.0, 0.85 * alpha))
+	QuadDraw.disc(self, center, r, Color(col.r, col.g, col.b, 0.92 * alpha))
+	QuadDraw.disc(self, center, r * 0.55, Color(1.0, 1.0, 1.0, 0.85 * alpha))

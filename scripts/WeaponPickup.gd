@@ -1,6 +1,9 @@
-extends Area2D
+extends Node2D
 ## 무기 픽업: 맵 랜덤 위치에 등장. 플레이어가 가까이 가면 즉시 장착되고,
 ## 방치되면 일정 시간 후 사라진다(자리 순환). 희귀도가 높을수록 더 크고 화려하게 표현.
+##
+## 물리 노드가 아니다: 수집 판정은 collect_radius 거리 계산뿐이다.
+## (예전에는 ItemPickup 과 함께 도형 없는 Area2D 였다 — 자세한 것은 ItemPickup.gd 머리말)
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 
@@ -16,8 +19,6 @@ var _t: float = 0.0
 
 func _ready() -> void:
 	add_to_group("weapon_pickups")
-	monitoring = false
-	monitorable = false
 
 
 ## 스포너가 풀에서 꺼낸 직후 무기 데이터를 주입.
@@ -88,8 +89,8 @@ func _draw() -> void:
 
 	# 희귀도 후광 — 강력할수록 크고 밝다
 	var glow_r := (22.0 + 10.0 * (tier_mult - 1.0)) * scale_pulse
-	draw_circle(center, glow_r, Color(tier_color.r, tier_color.g, tier_color.b, 0.30 * alpha))
-	draw_arc(center, glow_r * 0.78, 0.0, TAU, 28, Color(tier_color.r, tier_color.g, tier_color.b, 0.55 * alpha), 2.5, true)
+	QuadDraw.disc(self, center, glow_r, Color(tier_color.r, tier_color.g, tier_color.b, 0.30 * alpha))
+	QuadDraw.ring(self, center, glow_r * 0.78, Color(tier_color.r, tier_color.g, tier_color.b, 0.55 * alpha), 2.5, 28)
 
 	# 무기별 아이콘(회전)
 	var rot := _t * 1.1
@@ -110,20 +111,20 @@ func _draw_icon(shape: String, center: Vector2, r: float, rot: float, base_color
 	var core := Color(1.0, 1.0, 1.0, 0.9 * alpha)
 	match shape:
 		"circle":
-			draw_circle(center, r, fill)
-			draw_arc(center, r, 0.0, TAU, 24, rim, 2.0, true)
-			draw_circle(center, r * 0.35, core)
+			QuadDraw.disc(self, center, r, fill)
+			QuadDraw.ring(self, center, r, rim, 2.0, 24)
+			QuadDraw.disc(self, center, r * 0.35, core)
 		"triangle", "pentagon", "hexagon":
 			var sides: int = {"triangle": 3, "pentagon": 5, "hexagon": 6}[shape]
 			var pts := _make_ngon(center, r, sides, rot)
 			draw_colored_polygon(pts, fill)
-			draw_polyline(pts + PackedVector2Array([pts[0]]), rim, 2.0, true)
-			draw_circle(center, r * 0.3, core)
+			QuadDraw.polyline(self, pts + PackedVector2Array([pts[0]]), rim, 2.0)
+			QuadDraw.disc(self, center, r * 0.3, core)
 		"diamond":
 			var pts := _make_ngon(center, r, 4, rot)
 			draw_colored_polygon(pts, fill)
-			draw_polyline(pts + PackedVector2Array([pts[0]]), rim, 2.0, true)
-			draw_circle(center, r * 0.3, core)
+			QuadDraw.polyline(self, pts + PackedVector2Array([pts[0]]), rim, 2.0)
+			QuadDraw.disc(self, center, r * 0.3, core)
 		"long_diamond":
 			var dir := Vector2.from_angle(rot)
 			var perp := dir.orthogonal()
@@ -134,8 +135,8 @@ func _draw_icon(shape: String, center: Vector2, r: float, rot: float, base_color
 				center - perp * r * 0.45,
 			])
 			draw_colored_polygon(pts, fill)
-			draw_polyline(pts + PackedVector2Array([pts[0]]), rim, 2.0, true)
-			draw_circle(center, r * 0.25, core)
+			QuadDraw.polyline(self, pts + PackedVector2Array([pts[0]]), rim, 2.0)
+			QuadDraw.disc(self, center, r * 0.25, core)
 
 
 func _make_ngon(center: Vector2, r: float, sides: int, rot: float) -> PackedVector2Array:

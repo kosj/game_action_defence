@@ -46,7 +46,13 @@ var _active: bool = false
 var _big: bool = false
 var _color: Color = Color.WHITE
 var _vel: Vector2 = Vector2(0, -50)
-var _half_w: float = 0.0   # 기본 폰트 크기에서의 문자열 반폭 — spawn 시 1회만 측정해 캐시
+var _half_w: float = 0.0   # 그리는 폰트 크기에서의 문자열 반폭 — spawn 시 1회만 측정해 캐시
+var _base_pos: Vector2 = Vector2.ZERO   # 흔들림을 뺀 실제 이동 위치(흔들림은 표시용 오프셋)
+
+## 등장 팝의 최대 배율. **이 크기로 한 번 그려 두고 노드 scale 로 줄인다** — 확대가 아니라
+## 축소라 글자가 뭉개지지 않는다. 예전에는 팝 중에 폰트 크기 자체를 매 프레임 바꿔 그렸다.
+const _POP_MAX := 1.7
+const _POP_MAX_SMALL := 1.45
 
 
 ## big=true 는 큰 글씨(강조). bypass_cap=true 는 일반 숫자 상한과 별도의 우선 슬롯을 쓴다
@@ -77,9 +83,11 @@ static func spawn(parent: Node, pos: Vector2, amount: int, big: bool = false, co
 	d._t = 0.0
 	d._active = true
 	d.visible = true
-	# 문자열 폭은 수명 내내 바뀌지 않는다(팝은 배율로 근사) — 여기서 1회만 측정한다.
-	var base_size := BIG_FONT_SIZE if big else BASE_FONT_SIZE
-	d._half_w = ThemeDB.fallback_font.get_string_size(str(amount), HORIZONTAL_ALIGNMENT_LEFT, -1, base_size).x * 0.5
+	# 팝 최대 크기로 한 번 그려 두고 노드 scale 로 줄인다 — 폭도 그 크기 기준으로 1회만 잰다.
+	var draw_size: int = d._draw_font_size()
+	d._half_w = ThemeDB.fallback_font.get_string_size(str(amount), HORIZONTAL_ALIGNMENT_LEFT, -1, draw_size).x * 0.5
+	d.modulate = Color(color.r, color.g, color.b, 1.0)
+	d.scale = Vector2.ONE
 	d.z_index = 60   # 유닛·이펙트 위에 표시
 	d._vel = Vector2(randf_range(-18.0, 18.0), randf_range(-62.0, -42.0))
 	# 이펙트는 Y 정렬이 필요 없다 — 전용 레이어(Events.fx_layer)에 붙여 유닛 스트림에서 빼면
@@ -92,20 +100,40 @@ static func spawn(parent: Node, pos: Vector2, amount: int, big: bool = false, co
 		if d.get_parent() != null:
 			d.get_parent().remove_child(d)
 		host.add_child(d)
-	d.global_position = pos + Vector2(randf_range(-6.0, 6.0), -12.0)
-	d.queue_redraw()
+	d._base_pos = pos + Vector2(randf_range(-6.0, 6.0), -12.0)
+	d.global_position = d._base_pos
+	d.queue_redraw()   # 수명 통틀어 이 1회뿐이다(_process 주석 참고)
 
 
+## ⚠️ 여기서 `queue_redraw()` 를 부르지 않는다.
+##
+## 예전에는 매 프레임 다시 그렸다 — 동시 36개 × 60fps = **초당 2,160회의 외곽선 문자열 렌더**다.
+## 문자열 드로우는 GL Compatibility 에서 가장 비싼 2D 연산이고, 외곽선(`draw_string_outline`)은
+## 글리프를 여러 방향으로 다시 그리므로 그 몇 배다.
+##
+## 그런데 수명 내내 **글자 자체는 변하지 않는다.** 변하는 것은 페이드(알파)·등장 팝(크기)·
+## 흔들림(위치)뿐이고, 셋 다 **CanvasItem 속성**이라 다시 그리지 않고 표현할 수 있다:
+##   알파 → `modulate.a` · 팝 → `scale` · 흔들림 → 노드 위치.
+## 그래서 `_draw()` 는 스폰 시 1회만 돈다(`spawn()` 의 queue_redraw).
 func _process(delta: float) -> void:
 	if not _active:
 		return
 	_t += delta
-	global_position += _vel * delta
+	_base_pos += _vel * delta
 	_vel.y += 70.0 * delta   # 살짝 감속(위로 튀었다 잦아듦)
 	if _t >= LIFE:
 		_recycle()
 		return
-	queue_redraw()
+	var t := clampf(_t / LIFE, 0.0, 1.0)
+	# 색은 modulate 로 입힌다 — _draw 는 외곽선을 검정(0,0,0,0.9), 본문을 흰색으로 그려 두므로
+	# 곱셈 결과가 예전과 같다(외곽선 0.9a 검정 · 본문 (r,g,b,a)).
+	modulate = Color(_color.r, _color.g, _color.b, 1.0 - t * t)
+	var pop_max: float = _POP_MAX if _big else _POP_MAX_SMALL
+	var pop := 1.0 + (pop_max - 1.0) * (1.0 - clampf(_t / 0.12, 0.0, 1.0))
+	var k := pop / pop_max
+	scale = Vector2(k, k)
+	var shake := (sin(_t * 55.0) * 2.2 * (1.0 - t)) if _big else 0.0
+	global_position = _base_pos + Vector2(shake, 0.0)
 
 
 func _recycle() -> void:
@@ -124,22 +152,25 @@ static func clear_pool() -> void:
 	_pool.clear()
 
 
+## 그리는 폰트 크기 — 팝 최대 배율까지 미리 키운 값. 2px 단위로 양자화해 글리프 아틀라스를
+## 크기 두 종류(일반/강조)로 묶는다.
+func _draw_font_size() -> int:
+	var base := BIG_FONT_SIZE if _big else BASE_FONT_SIZE
+	var pop_max: float = _POP_MAX if _big else _POP_MAX_SMALL
+	return int(round(float(base) * pop_max / 2.0)) * 2
+
+
+## 수명 통틀어 **1회만** 실행된다(스폰 시). 색·알파·크기·흔들림은 전부 CanvasItem 속성으로
+## 옮겼으므로 여기서는 고정된 글자만 그린다.
 func _draw() -> void:
 	if not _active:
 		return
-	var t := clampf(_t / LIFE, 0.0, 1.0)
-	var a := 1.0 - t * t   # 끝으로 갈수록 빠르게 투명
 	var font := ThemeDB.fallback_font
-	# 등장 팝 — 초반 0.12초 동안 크게 튀었다 정상 크기로. 크리티컬(_big)은 더 큰 팝 + 미세 흔들림.
-	# 크기는 2px 단위로 양자화한다: 팝 중 매 프레임 다른 크기를 쓰면 크기별 글리프 아틀라스가
-	# 프레임마다 새로 생겨 캐시가 무의미해진다(팝은 0.12초뿐이지만 동시 수십 개가 함께 튄다).
-	var base := BIG_FONT_SIZE if _big else BASE_FONT_SIZE
-	var pop := 1.0 + (0.7 if _big else 0.45) * (1.0 - clampf(_t / 0.12, 0.0, 1.0))
-	var fsize := int(round(base * pop / 2.0)) * 2
+	var fsize := _draw_font_size()
 	var txt := str(_amount)
-	# 폭은 spawn 시 측정한 기본 크기 기준값에 팝 배율을 곱해 근사(매 프레임 셰이핑 측정 제거).
-	var half_w := _half_w * (float(fsize) / float(base))
-	var shake := (sin(_t * 55.0) * 2.2 * (1.0 - t)) if _big else 0.0
-	var pos := Vector2(-half_w + shake, 0.0)
-	draw_string_outline(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, 5, Color(0, 0, 0, a * 0.9))
-	draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, Color(_color.r, _color.g, _color.b, a))
+	var pos := Vector2(-_half_w, 0.0)
+	# 외곽선 두께도 그리는 크기에 맞춰 키운다 — 안 그러면 노드 scale 로 줄일 때 같이 얇아져
+	# 밝은 바닥 위에서 숫자가 묻힌다(휴지 상태에서 예전과 같은 5px 가 되도록 맞춘 값).
+	var outline := int(round(5.0 * float(fsize) / float(BIG_FONT_SIZE if _big else BASE_FONT_SIZE)))
+	draw_string_outline(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, outline, Color(0, 0, 0, 0.9))
+	draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, Color(1, 1, 1, 1))

@@ -176,7 +176,12 @@ func _tier() -> int:
 
 func _spawn_interval() -> float:
 	var t := clampf(_elapsed / _diff.spawn_interval_full_at, 0.0, 1.0)
-	return lerpf(_diff.spawn_interval_base, _diff.spawn_interval_min, t)
+	var iv := lerpf(_diff.spawn_interval_base, _diff.spawn_interval_min, t)
+	# 후반 전용 스폰 감속(P1-20) — 개체 유입이 곧 처치 수이자 프레임 비용이다.
+	# 체력 가속과 같은 시각에 시작해 "수를 줄이고 질을 올린다"가 한 쌍으로 움직인다.
+	if _elapsed > _diff.late_hp_start_s:
+		iv *= 1.0 + ((_elapsed - _diff.late_hp_start_s) / 60.0) * _diff.late_spawn_slow_per_min
+	return iv
 
 func _max_z() -> int:
 	var t := clampf(_elapsed / _diff.max_z_full_at, 0.0, 1.0)
@@ -186,6 +191,12 @@ func _hp_mult() -> float:
 	var mins := _elapsed / 60.0
 	# 선형 + 2차 가속 — 후반에 급격히 단단해져 플레이어의 곱연산 파워 성장을 따라잡는다.
 	var m := 1.0 + mins * _diff.hp_per_min + mins * mins * _diff.hp_accel_per_min2
+	# 후반 전용 가속(P1-20) — 사람 실측에서 분당 처치가 초반 110 → 35분대 760 으로 7배가 됐다.
+	# 빌드 파워가 이 곡선을 앞질러 좀비가 녹고, 녹이느라 쏟아내는 탄이 곧 프레임을 먹는다
+	# (BALANCE.md §3-10/§3-11). 2차항을 올리면 중반까지 같이 어려워지므로, 시작 시각이 있는
+	# 선형 항으로 20분 이후만 집는다.
+	if _elapsed > _diff.late_hp_start_s:
+		m += ((_elapsed - _diff.late_hp_start_s) / 60.0) * _diff.late_hp_per_min
 	if _elapsed > _diff.clear_seconds:   # 클리어 이후 무한 하드모드 — 분당 추가 체력
 		m += ((_elapsed - _diff.clear_seconds) / 60.0) * _diff.overtime_hp_per_min
 	return m * Events.diff_enemy_hp_mult()

@@ -177,29 +177,29 @@ func _draw() -> void:
 
 	# ── 감전선(지면) — 발이 실제로 막히고 피해를 받는 선. 울타리 그림은 이보다 바깥에 있으므로,
 	# 어디까지 갈 수 있는지는 이 선이 알려줘야 한다.
-	draw_arc(Vector2.ZERO, stop_r, 0.0, TAU, 72,
-			Color(COLOR.r, COLOR.g, COLOR.b, (0.22 + 0.28 * _near) * fade), 2.0, true)
+	QuadDraw.ring(self, Vector2.ZERO, stop_r,
+			Color(COLOR.r, COLOR.g, COLOR.b, (0.22 + 0.28 * _near) * fade), 2.0, 72)
 
 	# ── 전기선 — 기둥 단자를 잇는 한 줄 폐곡선. 통째로 한 번에 그려 이음매가 없다.
 	# FXLightning 과 같은 겹치기: 넓고 흐린 글로우 → 중간 → 얇고 흰 코어. 글로우를 아끼면
 	# 코어만 남아 흰 줄 하나로 보인다 — 방전으로 읽히는 건 바깥의 주황 번짐 쪽이다.
 	var low := _wire_points(r, pn, WIRE_Y2, 53)
-	draw_polyline(low, Color(1.0, 0.35, 0.03, 0.22 * hot * fade), 10.0, true)
-	draw_polyline(low, Color(1.0, 0.88, 0.40, 0.70 * hot * fade), 1.6, true)
+	QuadDraw.polyline(self, low, Color(1.0, 0.35, 0.03, 0.22 * hot * fade), 10.0)
+	QuadDraw.polyline(self, low, Color(1.0, 0.88, 0.40, 0.70 * hot * fade), 1.6)
 
 	var wire := _wire_points(r, pn, WIRE_Y, 0)
-	draw_polyline(wire, Color(1.0, 0.30, 0.02, 0.30 * hot * fade), 17.0, true)
-	draw_polyline(wire, Color(1.0, 0.55, 0.06, 0.55 * hot * fade), 9.0, true)
-	draw_polyline(wire, Color(1.0, 0.85, 0.30, 0.85 * hot * fade), 4.0, true)
-	draw_polyline(wire, Color(1.0, 1.0, 0.90, 1.0 * hot * fade), 1.6, true)
+	QuadDraw.polyline(self, wire, Color(1.0, 0.30, 0.02, 0.30 * hot * fade), 17.0)
+	QuadDraw.polyline(self, wire, Color(1.0, 0.55, 0.06, 0.55 * hot * fade), 9.0)
+	QuadDraw.polyline(self, wire, Color(1.0, 0.85, 0.30, 0.85 * hot * fade), 4.0)
+	QuadDraw.polyline(self, wire, Color(1.0, 1.0, 0.90, 1.0 * hot * fade), 1.6)
 	# 방전 마디 — 몇 군데만 골라 밝게 튀긴다(전부 찍으면 점선처럼 보인다).
 	var flick := int(_pulse * FLICKER_HZ)
 	for i in range(wire.size()):
 		if (i + flick) % 9 != 0:
 			continue
 		var p: Vector2 = wire[i]
-		draw_circle(p, 5.0, Color(1.0, 0.7, 0.2, 0.32 * fade))
-		draw_circle(p, 2.0, Color(1.0, 1.0, 0.92, 0.9 * fade))
+		QuadDraw.disc(self, p, 5.0, Color(1.0, 0.7, 0.2, 0.32 * fade))
+		QuadDraw.disc(self, p, 2.0, Color(1.0, 1.0, 0.92, 0.9 * fade))
 
 	# ── 경고 파일런 — 밑동이 경계선 위에 놓이도록 세운다(다른 프롭과 같은 규약).
 	var psz: Vector2 = _PYLON.get_size()
