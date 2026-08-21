@@ -93,9 +93,10 @@ func _physics_process(delta: float) -> void:
 	var player: Node2D = get_tree().get_first_node_in_group("player")
 	if not is_instance_valid(player):
 		return
+	var r := current_radius()
+	_confine_bosses(r)
 	var to_p: Vector2 = player.global_position - global_position
 	var d := to_p.length()
-	var r := current_radius()
 	_near = clampf((d - (r - NEAR_BAND)) / NEAR_BAND, 0.0, 1.0)
 	if d > r and d > 0.001:
 		# 경계 위로 되돌린다. 속도를 건드리지 않는 이유: 플레이어는 매 프레임 입력으로 velocity 를
@@ -104,6 +105,23 @@ func _physics_process(delta: float) -> void:
 		player.global_position = hit
 		_zap(hit)
 		_shock(player)
+
+
+## 보스도 같은 경계 안에 가둔다. 예전에는 플레이어만 갇혀서, 보스가 밖으로 걸어 나가면
+## 플레이어는 울타리에 막힌 채 손도 못 대고 보스가 돌아오기를 기다려야 했다.
+## 감전은 주지 않는다 — 울타리는 플레이어의 도주로를 막는 장치이지 보스의 피해원이 아니다.
+## 스프라이트 반폭(arena_margin)만큼 안쪽으로 세워, 큰 보스가 울타리를 뚫고 나온 것처럼
+## 보이지 않게 한다.
+func _confine_bosses(r: float) -> void:
+	for b in get_tree().get_nodes_in_group("boss"):
+		if not is_instance_valid(b) or not (b is Node2D):
+			continue
+		var m: Variant = b.get("arena_margin")
+		var lim: float = maxf(40.0, r - (float(m) if m != null else 60.0))
+		var to_b: Vector2 = (b as Node2D).global_position - global_position
+		var db := to_b.length()
+		if db > lim and db > 0.001:
+			(b as Node2D).global_position = global_position + to_b / db * lim
 
 
 ## 경계에 밀린 순간의 감전 연출 — 피해는 없지만 "닿으면 아프다"를 몸으로 알린다.

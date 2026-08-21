@@ -132,7 +132,7 @@ func _initialize() -> void:
 		_w("railgun",      "Railgun",      "Evolved Auto Gun",    C_ATK,   5, true),
 		_w("sawstorm",     "Saw Storm",    "Evolved Orb Shield",  C_ORB,   5, true),
 		_w("thunderstorm", "Thunderstorm", "Evolved Lightning",   C_LIGHT, 5, true),
-		_w("sanctuary",    "Sanctuary",    "Evolved Garlic Aura", C_ORB,   5, true),
+		_w("sanctuary",    "Sanctuary",    "Evolved Sunlight Aura", C_ORB, 5, true),
 		# 신규 무기 진화체(Phase 3-B). 모듈 무기라 강화 파라미터만 다른 새 WeaponData — recompute 오버라이드 불필요.
 		_evo(_wm("dragonsbreath", "Dragon's Breath", "Evolved Shotgun",     Color(1.00, 0.40, 0.10), [0.75, 8, 0.60, 1, 300.0, 660.0, 2, 2, 0.95], "", 0.0, 1.6, 38.0)),
 		# 같은 처리(간격 ×2 · 위력 ×2, DPS 동일). 진화 무기라 더 심했다 —
