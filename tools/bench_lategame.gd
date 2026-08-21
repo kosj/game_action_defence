@@ -183,10 +183,8 @@ func _process(delta: float) -> bool:
 		# 그 분산이 HUD 신호를 덮는다 — 실제로 얼리기 전에는 거의 모든 요소가 20~60콜씩
 		# 줄이는 것으로 나왔다(합이 기준선의 몇 배). 얼린 판은 매 프레임 같은 것을 그린다.
 		if not _scan_frozen:
-			_quiesce()
-			_stress = false        # 좀비 보충도 멈춘다 — 개체 수가 변하면 안 된다
+			_freeze_for_scan()
 			_scan_frozen = true
-			print("  [hudscan] 판을 정지시켰다 — 이제 프레임마다 같은 것을 그린다")
 			return false
 		_scan_tick()
 		return _finished
@@ -590,6 +588,38 @@ func _setup_probe(spec: String, cheats: Node) -> void:
 ## 켠 상태와의 physics_ms 차이가 그 스크립트가 매 프레임 쓰는 시간이다.
 ## (풀 반납도 그 로직 안에서 일어나므로, 끈 항목은 개체 수가 늘어난다 — 결과의 개체 내역을
 ##  함께 볼 것. 그래서 이건 "얼마나 비싼가"의 상한 추정이지 정밀 측정이 아니다.)
+## 스캔 전 판을 **완전히** 고정한다. 세 겹이 다 필요했다:
+##  ① `_quiesce()` — 스크립트의 _process/_physics_process. 이것만으로는 부족했다.
+##  ② `Engine.time_scale = 0` — 트윈·애니메이션은 노드 process 플래그가 아니라 시간으로 돈다.
+##  ③ **월드를 통째로 숨긴다** — HUD 는 별도 CanvasLayer 라 월드와 배치가 섞이지 않는다.
+##     남은 흔들림(FX 팝·좀비 사망)의 출처가 전부 월드였다. 숨기면 기준선이 곧 "HUD 만의 콜"이
+##     되어 요소별 몫을 정확히 뺄 수 있다.
+##
+## ①②만 했을 때 기준선 진폭이 4 였고, 그 표에서는 Control 15개가 나란히 12콜로 나왔다 —
+## 신호가 아니라 잡음이었다.
+func _freeze_for_scan() -> void:
+	_quiesce()
+	_stress = false            # 좀비 보충도 멈춘다 — 개체 수가 변하면 안 된다
+	Engine.time_scale = 0.0
+	var hud := _find_by_name(root, "HUD")
+	var hidden := 0
+	for c in root.get_children():
+		if c == hud:
+			continue
+		if c is CanvasItem or c is CanvasLayer:
+			c.set("visible", false)
+			hidden += 1
+		else:
+			# Main 같은 컨테이너 아래에 월드가 들어 있다 — 그 자식들을 본다.
+			for g in c.get_children():
+				if g == hud:
+					continue
+				if g is CanvasItem or g is CanvasLayer:
+					g.set("visible", false)
+					hidden += 1
+	print("  [hudscan] 판 고정 — 로직 정지 · time_scale 0 · 월드 %d개 숨김(HUD 만 남긴다)" % hidden)
+
+
 ## ── hudscan — HUD 요소별 드로우 콜 절제 ──────────────────────────────
 ## `hide=HUD` 는 "HUD 전체가 몇 콜인가"만 알려 준다. **그 안에서 무엇이 내는지**를 알아야
 ## 고칠 곳을 고를 수 있는데, 요소마다 판을 새로 띄우면 판 조건(좀비 수·보스 유무)이 달라져
@@ -649,8 +679,8 @@ func _scan_tick() -> void:
 func _scan_report() -> void:
 	print("")
 	print("── HUD 요소별 드로우 콜 (기준선 %d 콜 · 표본 진폭 %d) ──────" % [_scan_base, _scan_spread])
-	if _scan_spread > 2:
-		print("  ⚠️ 기준선이 %d 만큼 흔들린다 — 판이 안 얼었다. 아래 표를 믿지 말 것." % _scan_spread)
+	if _scan_spread > 0:
+		print("  ⚠️ 기준선이 %d 만큼 흔들린다 — 판이 덜 얼었다. 아래 표를 믿지 말 것." % _scan_spread)
 	if _scan_base <= 1:
 		print("  ⚠️ 기준선이 %d 이다 — 헤드리스(더미 렌더러)로 돌렸다. 실렌더가 필요하다:" % _scan_base)
 		print("     LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s \"-screen 0 720x1280x24\" \\")
