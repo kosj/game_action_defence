@@ -59,6 +59,8 @@ godot --headless --path . --script res://tools/gen_item_catalog.gd
 grep -o '^id = "[a-z_]*"' data/item_catalog.tres | sort | diff /tmp/before.txt -
 ```
 `verify_bullet_budget.gd` 가 궁극기 소실만은 CI 에서 잡지만, 나머지는 이 대조가 유일한 안전망이다.
+(이 게이트는 P1-25 에서 무기 30종 전부의 **동시 존재 개체 수 실측**으로 바뀌었다 — 씬을 띄우므로
+`--fixed-fps 60` 이 필요하다. 13초 걸린다.)
 
 ⚠️ **`difficulty.tres` 도 같은 상태였다**(P1-20 에서 발견·수정). `gen_difficulty_data.gd` 는
 `DifficultyData.new()` 의 **스크립트 @export 기본값을 그대로 저장**할 뿐인데, 커밋된 `.tres` 는
@@ -164,7 +166,7 @@ godot --headless --path . --script res://tools/verify_event_forecast.gd
 godot --headless --path . --script res://tools/verify_ui_icons.gd
 godot --headless --path . --script res://tools/verify_late_speed.gd
 godot --headless --path . --script res://tools/verify_hotpath.gd
-godot --headless --path . --script res://tools/verify_bullet_budget.gd
+godot --headless --path . --fixed-fps 60 --script res://tools/verify_bullet_budget.gd
 godot --headless --path . --script res://tools/verify_late_hp.gd
 godot --headless --path . --script res://tools/verify_pickups.gd
 ```
