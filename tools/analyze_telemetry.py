@@ -166,10 +166,19 @@ def main():
         print("\n분당 프레임 추이 (fps · 최악 프레임 · 좀비)")
         for r in curves:
             pts = [x for x in r["samples"] if "fps" in x]
+            # 이어하기 판의 선두 "몰아쓴" 행을 버린다(P0-11). begin_run 이 _next_sample 을
+            # 60초로 고정하던 시절, 재개 직후 한 프레임에 한 줄씩 수십 줄이 쏟아졌다 —
+            # 전부 재개 직전 상태(좀비 0 · 처치 고정)라 곡선이 아니다.
+            dropped = 0
+            while len(pts) > 1 and pts[0].get("zombies") == 0 \
+                    and pts[0].get("kills") == pts[1].get("kills"):
+                pts.pop(0)
+                dropped += 1
             if not pts:
                 continue
-            print("  %s %.1f분 — 레벨 %s" % (r.get("character", "?"),
-                                            r["survived_s"] / 60.0, r.get("level")))
+            print("  %s %.1f분 — 레벨 %s%s" % (r.get("character", "?"),
+                                              r["survived_s"] / 60.0, r.get("level"),
+                                              ("   [이어하기 몰아쓴 %d행 버림]" % dropped) if dropped else ""))
             for x in pts:
                 fps = int(x.get("fps", 0))
                 bar = "#" * max(0, min(30, int(fps / 2)))

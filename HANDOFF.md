@@ -60,7 +60,7 @@
 | P1-18 후반 성능 — 계측 + 원인 규명 | F | ✅ (39c5456) | claude/f-lane-lategame-perf | 2026-08-20 |
 | P1-19 후반 탄 수 — 수를 줄이고 발당 위력을 올린다 | F | ✅ (ca19513) | claude/f-lane-bullet-budget | 2026-08-20 |
 | P1-20 후반 난이도 — 유입을 줄이고 질을 올린다 | F | ✅ (c711f84) | claude/f-lane-late-hp | 2026-08-20 |
-| P0-11 이어하기 판의 분당 샘플이 전부 가짜다 | F | 🔵 진행중 | claude/f-lane-sample-catchup | 2026-08-21 |
+| P0-11 이어하기 판의 분당 샘플이 전부 가짜다 | F | ✅ (머지 후 sha 기입) | claude/f-lane-sample-catchup | 2026-08-21 |
 | P1-21 GPU/CPU 병목 계측 + 엔진측 최적화 (밸런스 무관) | I | ✅ (d29d16a · 66d4f70 · a4e1815) | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-20 |
 | P1-22 분리 패스 최적화 검토 + `only=` 귀속 결함 수정 | I | ✅ (b0264e7 · 5e9e943) | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-20 |
 | P1-23 픽업 2종 Area2D→Node2D + 좀비 분리 낡은 주석 정정 | I | ✅ (d4066c2) | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-20 |
@@ -423,6 +423,38 @@ P0-7(메뉴 복귀)에서 같은 종류의 구멍을 하나 막았는데, **"다
 (그 클리어 판: 30분 · 처치 10,731 · 레벨 182).
 
 ---
+
+## P0-11. 이어하기 판의 분당 샘플이 전부 가짜였다 ✅ (2026-08-21)
+
+**근거** — 사용자가 멈춤 2회를 보고하며 준 기록에서, 이어하기 판의 분당 샘플이 이렇게 생겼다:
+
+```
+min 1  fps 60  frame 52.8  kills 7998  level 155  zombies 0
+min 2  fps 38  frame 52.8  kills 7998  level 155  zombies 0
+   …  (같은 값이 26줄)
+min27  fps 47  frame 50.0  kills 8450  level 159  zombies 41   ← 여기부터 진짜
+```
+
+**29줄 중 26줄이 쓰레기다.** `begin_run()` 이 `_next_sample = SAMPLE_INTERVAL`(60초)로 고정
+초기화하는데, 이어하기는 `Events.elapsed_time` 이 이미 1580초 같은 값이라 첫 프레임부터
+`el >= _next_sample` 이 계속 참이 된다. 루프가 아니라 프레임당 한 줄이므로 **26프레임에 걸쳐
+26줄을 몰아 쓴다** — 전부 재개 직전 상태(좀비 0 · 처치·레벨 고정 · 같은 frame_ms)다.
+
+**영향** — 이어하기는 이 게임의 **기본 플레이 패턴**이다(기록의 대부분). 즉 P1-18 로 넣은
+fps 곡선이 **프리즈를 진단하려는 바로 그 판들에서 무용지물**이었다. 한 판은 23줄 전부가
+쓰레기라 곡선이 아예 없었다.
+
+**작업 ✅ 완료**
+1. `begin_run()` 이 `_next_sample = Events.elapsed_time + SAMPLE_INTERVAL` 로 초기화한다.
+2. `TelemetryTest` T15 — 25분 지점에서 이어하기 후 5프레임을 돌려 샘플이 0행인지 본다.
+   되돌리면 실제로 5행이 쏟아져 FAIL 한다(확인함).
+3. `analyze_telemetry.py` 가 **이미 쌓인 기록의 선두 몰아쓴 행을 버린다** — 안 버리면
+   곡선이 "재개 직전 상태"로 시작해 프레임 저하를 잘못 읽는다.
+
+**검증** — `scenes/TelemetryTest.tscn`
+
+---
+
 
 ## P0-10. 프리즈 계측이 거짓말을 한다 — P0-5 의 선행 조건 🔴
 

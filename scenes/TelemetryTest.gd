@@ -20,6 +20,7 @@ extends Node
 ##   T12 메뉴 복귀 판이 기록에 남는다 + 끝맺지 못한 판이 새 판 시작 시 승격된다
 ##   T13 해석된 이속 합계(speed_lv)가 기록된다 — 후반 이속 밸런스 판정의 유일한 지표
 ##   T14 판 도중 Events.reset() 이 일어나도 기록이 0 으로 덮이지 않는다
+##   T15 이어하기 판이 분당 샘플을 한 프레임에 몰아 쓰지 않는다
 ##       (30분 클리어 판이 "생존 0초 · 처치 1" 로 저장되던 버그)
 ##       (클리어 후 메뉴로 나간 판이 통째로 사라지던 버그)
 
@@ -252,6 +253,25 @@ func _ready() -> void:
 			and int(r14.get("level", -1)) == 182 and bool(r14.get("cleared", false)),
 		"%d건 · kills=%s level=%s cleared=%s"
 			% [raw14.size(), r14.get("kills"), r14.get("level"), r14.get("cleared")])
+	Telemetry.clear_records()
+
+	# ── T15 이어하기 판이 분당 샘플을 몰아 쓰지 않는다 ────────────────
+	# begin_run 이 _next_sample 을 60초로 고정하면, 재개 직후 한 프레임에 한 줄씩
+	# 수십 줄이 쏟아진다(좀비 0 · 처치/레벨 고정). 실제 기록에서 29줄 중 26줄이 그랬고,
+	# 프리즈 진단에 쓰려던 fps 곡선이 통째로 못 쓰게 됐다(P0-11).
+	Telemetry.clear_records()
+	Events.reset()
+	Events.elapsed_time = 1500.0        # 25분 지점에서 이어하기
+	Telemetry.begin_run()
+	for i in 5:
+		Telemetry._process(0.016)       # 재개 직후 몇 프레임
+	var burst: int = Telemetry._samples.size()
+	Events.elapsed_time = 1561.0        # 1분 경과
+	Telemetry._process(0.016)
+	var after: int = Telemetry._samples.size()
+	_check("T15 이어하기 직후 샘플을 몰아 쓰지 않는다",
+		burst == 0 and after == 1,
+		"재개 직후 %d행 · 1분 뒤 %d행" % [burst, after])
 	Telemetry.clear_records()
 
 	print("RESULT ok=%d/%d" % [_ok, _total])
