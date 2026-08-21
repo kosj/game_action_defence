@@ -24,6 +24,9 @@ extends SceneTree
 ##   probe=gold:N  대조 실험 모드 — 스포너·오토플레이를 끄고 **그 개체만 N 개** 놓고 잰다.
 ##                 개체 수를 바꿔 가며 재면 개체당 프레임 비용(µs)이 직접 나온다.
 ##                 off= 로 재는 것보다 정확하다 — off 는 풀 반납까지 멈춰 개체 수가 같이 변한다.
+##   hudscan=1     HUD 안에서 **요소 하나씩** 숨겨 가며 드로우 콜 몫을 잰다(실렌더 전용).
+##                 hide=HUD 는 "HUD 전체가 몇 콜인가"만 알려 준다. 그 안에서 무엇이 내는지는
+##                 이걸로 본다 — 한 프로세스에서 전부 돌므로 판 조건이 고정된다.
 ##   hide=Gold,Bullet **그리기만** 끈다(visible=false). 로직은 그대로 돈다 —
 ##                    드로우 콜 귀속용이다. only= 로는 못 가른다: 그것은 로직을 끄는 장치고
 ##                    드로우 콜은 로직이 아니라 캔버스 아이템에서 나온다(로직을 꺼도 그려진다).
@@ -120,6 +123,17 @@ var _counts_last: Dictionary = {}
 var _off: Array = []
 var _only: Array = []
 var _hide: Array = []
+## hudscan — HUD 요소별 드로우 콜 절제. _process 안의 상태 기계로 돈다
+## (SceneTree 스크립트라 await 로 끊을 수 없다).
+const _SCAN_SAMPLE := 30    # 대상 1개당 표본 프레임
+const _SCAN_SETTLE := 3     # 숨긴 뒤 렌더가 안정될 때까지 버리는 프레임
+var _hudscan := false
+var _scan_targets: Array = []
+var _scan_i := -2           # -2 = 미시작 · -1 = 기준선 · 0.. = 대상 인덱스
+var _scan_settle := 0
+var _scan_buf: Array = []
+var _scan_base := 0
+var _scan_out: Array = []
 var _off_applied := false
 var _kills0 := -1
 ## stress 모드 — 최대 부하(worst case) 재현. 아래 _stress_tick() 참고.
@@ -162,6 +176,9 @@ func _process(delta: float) -> bool:
 	# hide= 도 같다. 풀에서 새로 나온 노드는 visible 이 true 로 돌아와 있다.
 	if not _hide.is_empty():
 		_apply_hide()
+	if _hudscan:
+		_scan_tick()
+		return _finished
 	# 일시정지 중(레벨업 카드 등)에는 프레임 시간이 의미가 없다 — 측정에서 뺀다.
 	if _kills0 < 0:
 		_kills0 = int(_events.total_kills)
@@ -284,6 +301,8 @@ func _setup() -> void:
 	_stress = int(_args.get("stress", "0")) != 0
 	if _stress:
 		_setup_stress(cheats)
+
+	_hudscan = int(_args.get("hudscan", "0")) != 0
 
 	var hide := String(_args.get("hide", ""))
 	if hide != "":
@@ -560,6 +579,101 @@ func _setup_probe(spec: String, cheats: Node) -> void:
 ## 켠 상태와의 physics_ms 차이가 그 스크립트가 매 프레임 쓰는 시간이다.
 ## (풀 반납도 그 로직 안에서 일어나므로, 끈 항목은 개체 수가 늘어난다 — 결과의 개체 내역을
 ##  함께 볼 것. 그래서 이건 "얼마나 비싼가"의 상한 추정이지 정밀 측정이 아니다.)
+## ── hudscan — HUD 요소별 드로우 콜 절제 ──────────────────────────────
+## `hide=HUD` 는 "HUD 전체가 몇 콜인가"만 알려 준다. **그 안에서 무엇이 내는지**를 알아야
+## 고칠 곳을 고를 수 있는데, 요소마다 판을 새로 띄우면 판 조건(좀비 수·보스 유무)이 달라져
+## 비교가 안 된다. 그래서 한 프로세스 안에서 하나씩 숨겼다 되돌리며 잰다.
+##
+## SceneTree 스크립트는 `await` 로 프레임을 끊을 수 없으므로 `_process` 안의 상태 기계다.
+func _scan_tick() -> void:
+	if _scan_i == -2:
+		var hud := _find_by_name(root, "HUD")
+		if hud == null:
+			print("  [hudscan] HUD 를 못 찾았다")
+			_finished = true
+			return
+		_scan_targets.clear()
+		_collect_canvas_items(hud, _scan_targets)
+		_scan_i = -1               # 먼저 기준선
+		_scan_settle = _SCAN_SETTLE
+		_scan_buf.clear()
+		print("  [hudscan] HUD 아래 캔버스 아이템 %d개를 하나씩 절제한다" % _scan_targets.size())
+		return
+	if _scan_settle > 0:
+		_scan_settle -= 1
+		return
+	_scan_buf.append(int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)))
+	if _scan_buf.size() < _SCAN_SAMPLE:
+		return
+
+	var med := _median_int(_scan_buf)
+	_scan_buf.clear()
+	if _scan_i == -1:
+		_scan_base = med
+	else:
+		var prev = _scan_targets[_scan_i]
+		if is_instance_valid(prev):
+			(prev as CanvasItem).visible = true
+		_scan_out.append([_scan_base - med, String((prev as Node).name), (prev as Node).get_class()])
+
+	# 다음 대상 — 이미 안 보이는 것은 건너뛴다(보스바처럼 조건부로 꺼져 있는 UI).
+	_scan_i += 1
+	while _scan_i < _scan_targets.size():
+		var t = _scan_targets[_scan_i]
+		if is_instance_valid(t) and (t as CanvasItem).is_visible_in_tree():
+			(t as CanvasItem).visible = false
+			_scan_settle = _SCAN_SETTLE
+			return
+		_scan_i += 1
+	_scan_report()
+
+
+func _scan_report() -> void:
+	print("")
+	print("── HUD 요소별 드로우 콜 (기준선 %d 콜) ──────────────" % _scan_base)
+	if _scan_base <= 1:
+		print("  ⚠️ 기준선이 %d 이다 — 헤드리스(더미 렌더러)로 돌렸다. 실렌더가 필요하다:" % _scan_base)
+		print("     LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s \"-screen 0 720x1280x24\" \\")
+		print("       godot --path . --rendering-driver opengl3 --script res://tools/bench_lategame.gd -- hudscan=1")
+	_scan_out.sort_custom(func(a, b): return int(a[0]) > int(b[0]))
+	var shown := 0
+	for r in _scan_out:
+		if int(r[0]) <= 0:
+			continue
+		shown += 1
+		print("  %3d 콜  %-24s %s" % [r[0], r[1], r[2]])
+	if shown == 0:
+		print("  (몫이 0 보다 큰 요소가 없다)")
+	print("  — 0 이하는 생략. 절제는 가산적이지 않다(하나를 빼면 양옆이 합쳐진다).")
+	_finished = true
+	quit(0)
+
+
+func _find_by_name(n: Node, nm: String) -> Node:
+	if n.name == nm:
+		return n
+	for c in n.get_children():
+		var r := _find_by_name(c, nm)
+		if r != null:
+			return r
+	return null
+
+
+func _collect_canvas_items(n: Node, out: Array) -> void:
+	for c in n.get_children():
+		if c is CanvasItem:
+			out.append(c)
+		_collect_canvas_items(c, out)
+
+
+func _median_int(v: Array) -> int:
+	if v.is_empty():
+		return 0
+	var t := v.duplicate()
+	t.sort()
+	return int(t[t.size() / 2])
+
+
 ## hide= 대상 캔버스 아이템을 안 보이게 한다. 로직은 건드리지 않는다 — 개체 수도 그대로다.
 ## 총계에서 이 차이가 곧 그 계통이 내는 드로우 콜이다(P1-22 의 "격리값이 아니라 절제와의 차이").
 func _apply_hide() -> void:
