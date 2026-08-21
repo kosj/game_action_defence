@@ -124,6 +124,12 @@ func _drive_probe() -> void:
 		"music":
 			_sm.play_music("game" if (_probe_n % 2) == 0 else "title")
 			_probe_n += 1
+		"music_once":
+			# 게임처럼 BGM 을 한 번만 켜고 내버려 둔다. 루프 폴백(_on_music_finished)이
+			# 반복 발동하면 여기서 드러난다.
+			if _probe_n == 0:
+				_sm.play_music("game")
+				_probe_n = 1
 
 
 ## 프로세스 RSS(MB). Godot 의 MEMORY_STATIC 은 **자기 할당자를 거친 것만** 센다 —
