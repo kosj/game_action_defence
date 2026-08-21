@@ -87,7 +87,7 @@
 | P1-14 일일 시드 챌린지 | G | ⚪ 대기 | — | P1-12 이후 |
 | P1-24 인트로 서사가 구현물과 무관하다 | F | ✅ (4517097) | claude/game-designer-task-review-wvhkiq | 2026-08-21 |
 | P1-25 탄 예산 게이트가 무기 30종 중 7종만 본다 | F | ✅ (9fd3952) | claude/f-lane-budget-coverage | 2026-08-21 |
-| P1-26 드로우 콜 귀속 — 계통별로 얼마씩 내는가 (`hide=`) | I | 🔵 진행중 | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-21 |
+| P1-26 드로우 콜 귀속 — 계통별로 얼마씩 내는가 (`hide=`) | I | ✅ (93782d6) | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-21 |
 | P2-9 `subset_fonts.py` 가 서브셋 폰트를 원본으로 착각해 금지 목록을 오염시킨다 | D | ⚪ 대기 | — | 2026-08-21 |
 | P3-4/5/6 문서 정합성 (1·2·3 은 해소됨) | — | ✅ (56974a7) | claude/docs-lane-p3 | 2026-08-20 |
 
