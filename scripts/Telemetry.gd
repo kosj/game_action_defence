@@ -124,12 +124,13 @@ func _process(delta: float) -> void:
 		# fps·최악 프레임을 분당으로 남긴다(P1-18). 종료 시점 한 장(diag)만으로는
 		# "언제부터 무너졌는지"를 못 본다 — 실제로 그것 때문에 좀비 수를 원인으로 오해했다
 		# (좀비 34마리에서 18fps, 143마리에서 31fps 였다).
-		_samples.append({"min": int(round(_next_sample / 60.0)), "kills": Events.total_kills,
+		var sample := {"min": int(round(_next_sample / 60.0)), "kills": Events.total_kills,
 			"level": Events.level, "hp": Events.player_health,
 			"fps": int(Engine.get_frames_per_second()),
 			"frame_ms": snappedf(_frame_ms_max, 0.1),
-			"zombies": _group_count("zombies"),
-			"mem": _mem_mb(), "nodes": _node_count()})
+			"zombies": _group_count("zombies")}
+		sample.merge(_leak_counters())
+		_samples.append(sample)
 		_next_sample += SAMPLE_INTERVAL
 	# 진행 중 스냅샷 — 웹 탭을 닫거나 앱을 죽이면 완료 기록이 남지 않는다.
 	# 그 판이야말로 "어디서 그만뒀는지"라 오히려 더 중요하다.
@@ -235,13 +236,18 @@ func _snapshot(outcome: String) -> Dictionary:
 
 
 ## 프리즈 직전 상태 (P0-4). 멈춘 뒤에는 기록할 수 없으니 매 스냅샷마다 현재 상태를 남긴다.
-## 이 값들이 프리즈 원인을 세 갈래로 가른다:
-##   · frame_ms_max 가 치솟음 → 성능 붕괴(개체·이펙트 폭증). 개체 수를 함께 본다.
+## 이 값들이 프리즈 원인을 가른다:
+##   · fps 가 낮거나 frame_ms_max 가 큼 → 성능 저하·붕괴(개체·이펙트 폭증). 개체 수를 함께 본다.
 ##   · paused=true + pause_owners 가 남아 있음 → 모달이 정지를 쥔 채 갇힘.
+##   · 고아 노드·리소스·VRAM 이 우상향 → 누수. 분당 샘플의 추이로만 보인다.
 ##   · 전부 정상인데 기록이 끊김 → 무한 루프/크래시. 워치독조차 못 돈 것이다.
+##
+## ⚠️ **이 갈래들은 배타적이지 않다**(P0-10). 성능이 무너진 상태에서 크래시가 날 수 있고,
+## 실제 사람 기록이 그랬다 — 30fps·80ms 로 눌러앉은 판을 도구가 "지표 정상"으로 분류했다.
+## 판정하는 쪽(`tools/analyze_telemetry.py`)은 해당하는 갈래를 **전부** 세워야 한다.
 func _diag() -> Dictionary:
 	var tree := get_tree()
-	return {
+	var d := {
 		"fps": int(Engine.get_frames_per_second()),
 		"frame_ms_max": snappedf(_frame_ms_max, 0.1),
 		"time_scale": snappedf(Engine.time_scale, 0.001),
@@ -251,14 +257,45 @@ func _diag() -> Dictionary:
 		"zombies": (tree.get_nodes_in_group("zombies").size() if tree != null else -1),
 		"pickups": (tree.get_nodes_in_group("item_pickups").size() if tree != null else -1),
 		"gems": _Gem.live_gems().size(),
-		"mem_mb": _mem_mb(),
-		"nodes": _node_count(),
 	}
+	d.merge(_leak_counters())
+	return d
 
 
-## 정적 메모리(MB). 웹 빌드의 크래시는 대개 힙 고갈이라, 이 값이 우상향하면 누수다.
-func _mem_mb() -> float:
-	return snappedf(Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, 0.1)
+## 누수 판정용 계수기 — **웹에서 실제로 값이 나오는 것만 남겼다**(P0-10).
+##
+## 왜 `MEMORY_STATIC` 이 아닌가
+## ---------------------------
+## P0-6 은 `Performance.MEMORY_STATIC` 으로 메모리 추이를 심었는데, **웹 export 에서만 항상 0**
+## 이다(네이티브 헤드리스에서는 30.0MB 를 정상 반환하므로 코드 결함이 아니다). 0 이 계속 찍히면
+## "메모리가 안 늘었다 = 누수 없음"으로 오독된다 — 실제로는 아무것도 재고 있지 않다.
+## 그 상태로 크래시 기록을 **3회** 흘려보냈다.
+##
+## wasm 힙은 잴 방법이 없다 (실측으로 확인)
+## ----------------------------------------
+## 실제 웹 빌드를 Chromium 에 띄워 후보를 전부 재 봤다.
+##   · `performance.memory.usedJSHeapSize` → 68.9MB 로 그럴듯한 값이 나오지만, **wasm 쪽에서
+##     200MB 를 실제로 붙잡아도 0.0MB 움직인다.** JS 힙만 보는 값이라 이 게임엔 무의미하다.
+##     (그럴듯한데 아무것도 안 재는 값 — `mem_mb: 0` 보다 더 위험하다.)
+##   · `performance.measureUserAgentSpecificMemory` → 이 빌드는 `crossOriginIsolated` 가
+##     false 라 아예 없다.
+##   · `wasmMemory` · `Module` · `HEAP8` → Godot 4.3 웹 셸이 전역에 노출하지 않는다.
+## 그래서 **wasm 힙은 포기하고, 웹에서 실제로 살아 있는 지표로 갈아탔다.**
+##
+## 무엇이 살아 있나 (실제 웹 빌드 실측)
+## ------------------------------------
+##   OBJECT_COUNT 1544 · OBJECT_RESOURCE_COUNT 266 · OBJECT_ORPHAN_NODE_COUNT 0
+##   RENDER_VIDEO_MEM_USED 35.9MB (텍스처 18.9 + 버퍼 17.1)
+## 누수는 대부분 여기서 먼저 보인다 — 고아 노드가 쌓이거나, 리소스가 안 풀리거나,
+## 텍스처가 계속 올라가거나. 힙 총량보다 오히려 **원인에 가까운 값**이다.
+func _leak_counters() -> Dictionary:
+	return {
+		"nodes": int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
+		"objects": int(Performance.get_monitor(Performance.OBJECT_COUNT)),
+		"res": int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT)),
+		"orphans": int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)),
+		"vram": snappedf(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0, 0.1),
+	}
 
 
 ## 그룹 개체 수(분당 샘플용). 프레임과 함께 봐야 "무엇이 늘어서 느려졌나"를 가를 수 있다.
@@ -266,11 +303,6 @@ func _group_count(g: String) -> int:
 	var tree := get_tree()
 	return tree.get_nodes_in_group(g).size() if tree != null else -1
 
-
-## 살아있는 노드 수. 메모리와 함께 보면 "무엇이" 새는지 좁혀진다 —
-## 노드가 늘면 씬 트리 누수, 메모리만 늘면 리소스·배열 누수다.
-func _node_count() -> int:
-	return int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
 
 
 ## 지난 실행에서 끝맺지 못한 판(웹 탭 닫힘·앱 강제 종료)을 '이탈' 기록으로 올린다.
