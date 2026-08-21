@@ -83,7 +83,7 @@ func _process(delta: float) -> bool:
 func _boot_probe(kind: String) -> void:
 	_probe = kind
 	_sm = root.get_node("SoundManager")
-	_sm.muted = false
+	_sm.muted = int(_arg("mute", "0")) != 0
 	var host := Node.new()
 	root.add_child(host)
 	current_scene = host
@@ -130,6 +130,8 @@ func _boot() -> void:
 		_boot_probe(probe)
 		return
 	_ev = root.get_node("Events")
+	if int(_arg("mute", "0")) != 0:
+		root.get_node("SoundManager").muted = true
 	root.get_node("SaveManager").delete_save()
 	_ev.reset()
 	var main: Node = (load("res://scenes/Main.tscn") as PackedScene).instantiate()
