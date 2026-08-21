@@ -134,6 +134,8 @@ var _scan_settle := 0
 var _scan_buf: Array = []
 var _scan_base := 0
 var _scan_out: Array = []
+var _scan_frozen := false
+var _scan_spread := 0
 var _off_applied := false
 var _kills0 := -1
 ## stress 모드 — 최대 부하(worst case) 재현. 아래 _stress_tick() 참고.
@@ -177,6 +179,15 @@ func _process(delta: float) -> bool:
 	if not _hide.is_empty():
 		_apply_hide()
 	if _hudscan:
+		# 스캔 중에는 판을 **얼린다.** 안 그러면 창마다 좀비 사망·FX 팝으로 그리는 것이 달라져
+		# 그 분산이 HUD 신호를 덮는다 — 실제로 얼리기 전에는 거의 모든 요소가 20~60콜씩
+		# 줄이는 것으로 나왔다(합이 기준선의 몇 배). 얼린 판은 매 프레임 같은 것을 그린다.
+		if not _scan_frozen:
+			_quiesce()
+			_stress = false        # 좀비 보충도 멈춘다 — 개체 수가 변하면 안 된다
+			_scan_frozen = true
+			print("  [hudscan] 판을 정지시켰다 — 이제 프레임마다 같은 것을 그린다")
+			return false
 		_scan_tick()
 		return _finished
 	# 일시정지 중(레벨업 카드 등)에는 프레임 시간이 의미가 없다 — 측정에서 뺀다.
@@ -607,6 +618,13 @@ func _scan_tick() -> void:
 		return
 
 	var med := _median_int(_scan_buf)
+	if _scan_i == -1:
+		# ⚠️ `var lo := _scan_buf.min()` 로 쓰면 안 된다 — Array.min() 은 Variant 라
+		# "추론 타입이 Variant" 경고가 에러로 승격돼 스크립트가 통째로 안 뜬다.
+		# check_gdscript.py 도 --import 도 이걸 못 잡는다(OPTIMIZATION_PLAN §5-L).
+		var lo: int = int(_scan_buf.min())
+		var hi: int = int(_scan_buf.max())
+		_scan_spread = hi - lo
 	_scan_buf.clear()
 	if _scan_i == -1:
 		_scan_base = med
@@ -630,7 +648,9 @@ func _scan_tick() -> void:
 
 func _scan_report() -> void:
 	print("")
-	print("── HUD 요소별 드로우 콜 (기준선 %d 콜) ──────────────" % _scan_base)
+	print("── HUD 요소별 드로우 콜 (기준선 %d 콜 · 표본 진폭 %d) ──────" % [_scan_base, _scan_spread])
+	if _scan_spread > 2:
+		print("  ⚠️ 기준선이 %d 만큼 흔들린다 — 판이 안 얼었다. 아래 표를 믿지 말 것." % _scan_spread)
 	if _scan_base <= 1:
 		print("  ⚠️ 기준선이 %d 이다 — 헤드리스(더미 렌더러)로 돌렸다. 실렌더가 필요하다:" % _scan_base)
 		print("     LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s \"-screen 0 720x1280x24\" \\")
