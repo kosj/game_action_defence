@@ -97,7 +97,12 @@ func begin_run() -> void:
 	_boss_kills = 0
 	_cleared = false
 	_samples = []
-	_next_sample = SAMPLE_INTERVAL
+	# ⚠️ 이어하기는 `Events.elapsed_time` 이 이미 1500초 같은 값에서 시작한다(P0-11).
+	# 여기서 60초로 고정하면 첫 프레임부터 `el >= _next_sample` 이 계속 참이 되어
+	# **한 프레임에 한 줄씩 수십 줄을 몰아 쓴다** — 그 줄들은 전부 재개 직전 상태(좀비 0 ·
+	# 처치·레벨 고정)라 곡선이 아니라 쓰레기다. 실제로 29줄 중 26줄이 그것이었고,
+	# 이어하기가 기본 플레이 패턴이라 **프레임 곡선이 대부분의 판에서 무용지물이었다.**
+	_next_sample = float(Events.elapsed_time) + SAMPLE_INTERVAL
 	_partial_accum = 0.0
 	_last_elapsed = float(Events.elapsed_time)   # 이어하기는 0 이 아닌 값에서 시작한다
 	_frame_ms_max = 0.0
