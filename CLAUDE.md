@@ -260,8 +260,14 @@ Events.pause_pop(self)                # 닫을 때
 - **웹 pck 상한 15MB** (CI 게이트). 현재 약 12MB. 에셋을 늘릴 땐 압축 설정을 같이 본다.
 - **렌더러는 `gl_compatibility` 고정.** 다른 렌더러 전용 기능(2D 라이트/SDF 등)을 쓰면 웹에서 깨진다.
 - **export 제외 필터는 하위 폴더까지 삼킨다** — 실제로 바닥 타일이 웹 빌드에서 통째로 사라진 적이 있다(`1137951`).
+- ⛔ **지금 배포 빌드는 치트가 열려 있다 — 되돌리지 말 것**(P0-12, 2026-08-20 사용자 요청).
+  최적화 측정 기간 한정이며, **사용자의 명시적인 지시가 있을 때만 닫는다.** 상세와 되돌리는
+  방법은 `HANDOFF.md` P0-12. 스위치는 두 곳뿐이다 —
+  `export_presets.cfg` 의 `custom_features="cheats"` 와 `verify_cheat_gate.gd` 의
+  `CHEAT_ALLOWED_PRESETS`. 이 기간에는 **배포 빌드의 랭킹·도전과제·메타 골드가 오염된다**
+  (텔레메트리는 `cheated` 로 표시되니 분석에서는 걸러진다).
 - **치트는 `Cheats.enabled` 하나로 잠긴다**(P0-1 해결). 에디터·디버그 빌드는 열려 있고, 릴리스
-  export 는 프리셋 `custom_features` 에 `cheats` 가 있을 때만 열린다(현재 비어 있음 = 차단).
+  export 는 프리셋 `custom_features` 에 `cheats` 가 있을 때만 열린다.
   치트를 새로 추가하면 **UI(`HUD._build_pause_menu` 의 `if Cheats.enabled` 블록) 안에 넣고,
   상태는 `Cheats.autoplay_active()` 같은 게이트 포함 접근자로 읽는다.** 상태 변수를 직접 읽거나
   시그널을 직접 `emit` 하면 잠금을 우회하게 된다 — `verify_cheat_gate.gd` 가 이걸 검사한다.

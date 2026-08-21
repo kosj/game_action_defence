@@ -114,10 +114,16 @@ func request_spawn_boss() -> void:
 	spawn_boss.emit()
 
 
+## ⚠️ 켤 때만 used_this_run 을 세운다 — 끈다고 그 판이 사람 판이 되지는 않는다.
+## 예전에는 여기서 아무 표시도 하지 않아, **오토플레이로 돌린 판이 사람 데이터에 섞였다.**
+## 분석 도구는 `cheated` 로 거르는데 그 값이 false 였으니 걸러질 방법이 없었다
+## (BALANCE.md §3-6 — 오토플레이는 사람의 하한선이 아니라 다른 종이다).
 func toggle_autoplay() -> void:
 	if not enabled:
 		return
 	autoplay = not autoplay
+	if autoplay:
+		used_this_run = true
 	changed.emit()
 
 
