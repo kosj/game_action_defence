@@ -6,9 +6,14 @@ extends Node2D
 ## 웹 프레임 드랍이 난다. 일반 숫자는 "프레임당 스폰 상한"으로 표본만 보여주고(피해는 정상),
 ## 큰 한 방(보스/크리티컬)은 별도의(더 낮은) 상한으로 우선 표시한다.
 ##
-## 문자열 드로우는 GL Compatibility 렌더러에서 가장 비싼 2D 연산이다(글리프 셰이핑 + 외곽선은
-## 글리프를 여러 방향으로 재렌더). 프레임당 상한만으로는 부족하다 — 수명 LIFE 동안 누적되므로
-## MAX_PER_FRAME × LIFE × fps 만큼 동시에 살아있을 수 있다. FXBurst 처럼 동시 활성 상한을 둔다.
+## 동시 활성 상한(MAX_ACTIVE)을 두는 이유: 프레임당 상한만으로는 부족하다 — 수명 LIFE 동안
+## 누적되므로 MAX_PER_FRAME × LIFE × fps 만큼 동시에 살아있을 수 있다(FXBurst 와 같은 방어선).
+##
+## **글자는 폰트가 아니라 비트맵 자릿수로 그린다**(P1-27). `draw_string` 은 폰트 글리프
+## 아틀라스를 쓰는데 그건 게임플레이 시트와 별개 텍스처라, 숫자 하나마다 배치가 끊겼다 —
+## 노드당 2회(본문 + 외곽선) × 동시 36개가 그대로 드로우 콜이었다. 0~9 를 게임플레이
+## 아틀라스에 구워 두면 쿼드가 되어 좀비·이펙트와 한 배치로 묶인다.
+## 굽는 절차는 `tools/gen_damage_digits.gd`, 재발 방지는 `tools/verify_batching.gd`.
 
 static var _pool: Array = []
 static var _frame: int = -1
@@ -40,13 +45,25 @@ const LIFE := 0.6
 const BASE_FONT_SIZE := 24       # 일반 숫자 기준 크기(팝 애니메이션은 이 값에 배율)
 const BIG_FONT_SIZE := 34        # 크리티컬/보스 강조 크기
 
-var _amount: int = 0
+## 비트맵 자릿수 배치 상수 — `tools/gen_damage_digits.gd` 가 출력한 값을 그대로 옮긴다.
+## 표시 1배(BASE_FONT_SIZE) 기준이며, 그릴 때 배율을 곱한다.
+const GLYPH_ADVANCE := 13.0000                    # 자릿수 하나의 전진폭
+const GLYPH_OFFSET := Vector2(-1.3333, -19.6667)  # 펜 위치 -> 쿼드 좌상단
+const GLYPH_SIZE := Vector2(15.6667, 21.6667)     # 쿼드 크기
+const _DIGIT_TEX := [
+	preload("res://assets/atlas/dmg_0.tres"), preload("res://assets/atlas/dmg_1.tres"),
+	preload("res://assets/atlas/dmg_2.tres"), preload("res://assets/atlas/dmg_3.tres"),
+	preload("res://assets/atlas/dmg_4.tres"), preload("res://assets/atlas/dmg_5.tres"),
+	preload("res://assets/atlas/dmg_6.tres"), preload("res://assets/atlas/dmg_7.tres"),
+	preload("res://assets/atlas/dmg_8.tres"), preload("res://assets/atlas/dmg_9.tres"),
+]
+
 var _t: float = 0.0
 var _active: bool = false
 var _big: bool = false
 var _color: Color = Color.WHITE
 var _vel: Vector2 = Vector2(0, -50)
-var _half_w: float = 0.0   # 그리는 폰트 크기에서의 문자열 반폭 — spawn 시 1회만 측정해 캐시
+var _digits: PackedByteArray = PackedByteArray()   # 자릿수(상위→하위) — spawn 시 1회 분해
 var _base_pos: Vector2 = Vector2.ZERO   # 흔들림을 뺀 실제 이동 위치(흔들림은 표시용 오프셋)
 
 ## 등장 팝의 최대 배율. **이 크기로 한 번 그려 두고 노드 scale 로 줄인다** — 확대가 아니라
@@ -77,15 +94,25 @@ static func spawn(parent: Node, pos: Vector2, amount: int, big: bool = false, co
 		_spawned_this_frame += 1
 	_active_count += 1
 	var d = _pool.pop_back() if _pool.size() > 0 else (load("res://scripts/DamageNumber.gd") as GDScript).new()
-	d._amount = amount
 	d._big = big
 	d._color = color
 	d._t = 0.0
 	d._active = true
 	d.visible = true
-	# 팝 최대 크기로 한 번 그려 두고 노드 scale 로 줄인다 — 폭도 그 크기 기준으로 1회만 잰다.
-	var draw_size: int = d._draw_font_size()
-	d._half_w = ThemeDB.fallback_font.get_string_size(str(amount), HORIZONTAL_ALIGNMENT_LEFT, -1, draw_size).x * 0.5
+	# 자릿수 분해도 수명 내내 바뀌지 않는다 — 여기서 1회만 한다(_draw 에서 str() 할당 제거).
+	# ⚠️ 지역 변수에 만들어 **통째로 대입**한다. PackedByteArray 는 값 타입이라
+	# `d._digits.append(...)` 처럼 동적 프로퍼티 접근 뒤에 메서드를 부르면 사본이 바뀌고
+	# 원본에는 아무 일도 안 일어난다(조용히 빈 배열이 되어 숫자가 안 보인다).
+	var digs := PackedByteArray()
+	var v := absi(amount)
+	if v == 0:
+		digs.append(0)
+	else:
+		while v > 0:
+			digs.append(v % 10)
+			v /= 10
+		digs.reverse()
+	d._digits = digs
 	d.modulate = Color(color.r, color.g, color.b, 1.0)
 	d.scale = Vector2.ONE
 	d.z_index = 60   # 유닛·이펙트 위에 표시
@@ -107,9 +134,9 @@ static func spawn(parent: Node, pos: Vector2, amount: int, big: bool = false, co
 
 ## ⚠️ 여기서 `queue_redraw()` 를 부르지 않는다.
 ##
-## 예전에는 매 프레임 다시 그렸다 — 동시 36개 × 60fps = **초당 2,160회의 외곽선 문자열 렌더**다.
-## 문자열 드로우는 GL Compatibility 에서 가장 비싼 2D 연산이고, 외곽선(`draw_string_outline`)은
-## 글리프를 여러 방향으로 다시 그리므로 그 몇 배다.
+## 예전에는 매 프레임 다시 그렸다 — 동시 36개 × 60fps = **초당 2,160회의 드로우**다.
+## (그때는 그것이 외곽선 문자열 렌더였다. 지금은 쿼드라 개당 비용은 훨씬 싸지만,
+##  다시 그릴 이유가 없다는 사실 자체는 그대로다.)
 ##
 ## 그런데 수명 내내 **글자 자체는 변하지 않는다.** 변하는 것은 페이드(알파)·등장 팝(크기)·
 ## 흔들림(위치)뿐이고, 셋 다 **CanvasItem 속성**이라 다시 그리지 않고 표현할 수 있다:
@@ -152,12 +179,13 @@ static func clear_pool() -> void:
 	_pool.clear()
 
 
-## 그리는 폰트 크기 — 팝 최대 배율까지 미리 키운 값. 2px 단위로 양자화해 글리프 아틀라스를
-## 크기 두 종류(일반/강조)로 묶는다.
-func _draw_font_size() -> int:
+## 그리는 배율 — 팝 최대 크기까지 미리 키운 값(GLYPH_* 는 BASE_FONT_SIZE 기준이다).
+## 폰트일 때는 2px 단위로 양자화했었다(크기마다 글리프 아틀라스가 새로 생겨서). 텍스처는
+## 한 장을 배율만 바꿔 그리므로 그 제약이 없어졌다 — 연속값을 그대로 쓴다.
+func _draw_scale() -> float:
 	var base := BIG_FONT_SIZE if _big else BASE_FONT_SIZE
 	var pop_max: float = _POP_MAX if _big else _POP_MAX_SMALL
-	return int(round(float(base) * pop_max / 2.0)) * 2
+	return float(base) * pop_max / float(BASE_FONT_SIZE)
 
 
 ## 수명 통틀어 **1회만** 실행된다(스폰 시). 색·알파·크기·흔들림은 전부 CanvasItem 속성으로
@@ -165,12 +193,15 @@ func _draw_font_size() -> int:
 func _draw() -> void:
 	if not _active:
 		return
-	var font := ThemeDB.fallback_font
-	var fsize := _draw_font_size()
-	var txt := str(_amount)
-	var pos := Vector2(-_half_w, 0.0)
-	# 외곽선 두께도 그리는 크기에 맞춰 키운다 — 안 그러면 노드 scale 로 줄일 때 같이 얇아져
-	# 밝은 바닥 위에서 숫자가 묻힌다(휴지 상태에서 예전과 같은 5px 가 되도록 맞춘 값).
-	var outline := int(round(5.0 * float(fsize) / float(BIG_FONT_SIZE if _big else BASE_FONT_SIZE)))
-	draw_string_outline(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, outline, Color(0, 0, 0, 0.9))
-	draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fsize, Color(1, 1, 1, 1))
+	var sc := _draw_scale()
+	var adv := GLYPH_ADVANCE * sc
+	var n := _digits.size()
+	var qsz := GLYPH_SIZE * sc
+	var qoff := GLYPH_OFFSET * sc
+	var x := -adv * float(n) * 0.5   # 예전 -_half_w 와 같은 중앙 정렬
+	# 아웃라인은 텍스처에 **검정으로 구워져 있다.** 흰색으로 그려 두면 노드 modulate(색×알파)가
+	# 곱해질 때 아웃라인은 0 × c = 0 이라 검정 그대로고 글리프만 색이 된다 —
+	# 예전의 draw_string_outline + draw_string 두 번이 쿼드 한 번으로 줄어드는 이유가 이것이다.
+	for i in n:
+		draw_texture_rect(_DIGIT_TEX[_digits[i]], Rect2(Vector2(x, 0.0) + qoff, qsz), false)
+		x += adv
