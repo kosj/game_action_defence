@@ -1,5 +1,5 @@
 extends CanvasLayer
-## 새 게임 시작 시 한 줄씩 페이드인되는 풀스크린 인트로(서사) — "The Last Beacon".
+## 새 게임 시작 시 한 줄씩 페이드인되는 풀스크린 인트로(서사) — "Hold the Ground".
 ## 모든 문구는 Locale 에서 가져와 다국어를 지원한다. 완료/건너뛰기/탭으로 마치면
 ## on_done 콜백을 정확히 1회 호출한다.
 ##
@@ -43,7 +43,7 @@ func _build_ui() -> void:
 	sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(sky)
 
-	# 2) 코드로 그린 분위기 배경 — 폐허 도시 + 송신탑 비컨("The Last Beacon")
+	# 2) 코드로 그린 분위기 배경 — 폐허 도시 + 송신탑 비컨("Hold the Ground")
 	var backdrop := _IntroBackdrop.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
