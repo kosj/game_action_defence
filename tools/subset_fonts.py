@@ -20,11 +20,17 @@ Noto Sans CJK 는 한글 음절 11,172자를 전부 담고 있어 Regular+Bold �
 --------------------
 `--check` 가 실패한다. 저장소의 폰트는 이미 축소돼 있어 빠진 글리프를 되살릴 수 없다.
 **서브셋 이전 원본(각 1.2MB)이 git 히스토리에 남아 있으므로 내려받을 필요가 없다** — 되살린 뒤
-다시 서브셋하면 그 자리에서 다시 117KB 로 줄어든다:
+다시 서브셋하면 그 자리에서 다시 100KB 로 줄어든다:
 
+    git fetch --unshallow    # 이 저장소는 얕은 클론으로 시작한다 — 없으면 026b6f7 이 안 보인다
     git cat-file -p 026b6f7:assets/fonts/NotoSansCJK-Subset.otf      > assets/fonts/NotoSansCJK-Subset.otf
     git cat-file -p 026b6f7:assets/fonts/NotoSansCJK-Subset-Bold.otf > assets/fonts/NotoSansCJK-Subset-Bold.otf
     python3 tools/subset_fonts.py
+
+⚠️ **원본 복구를 빠뜨리면 스크립트가 거부한다**(P2-9). 예전에는 그냥 돌아가면서 이미 빠져 있던
+한글 36자를 "원본에도 없는 글자"로 판정해 `font_known_absent.txt` 에 올렸고, CI 게이트가 그걸
+**금지어**로 신뢰해 이후 세션이 멀쩡한 한국어를 피해 쓰게 됐다. 지금은 입력 폰트의 한글 수를
+세어 원본이 아니면 아무것도 건드리지 않고 멈춘다.
 
 한자는 89자뿐이다 (중요)
 ------------------------
@@ -51,10 +57,18 @@ FONTS = [
 # 문자를 수집할 소스(.gd 는 문자열 리터럴만 — project_charset 설명 참고).
 SCAN_GLOBS = ("**/*.gd", "**/*.tres", "**/*.tscn", "**/*.godot", "**/*.json")
 # 화면에 뜨지 않는 텍스트는 수집하지 않는다:
-#   scenes/*Test.gd     회귀 테스트 — 검사 이름을 print 로 찍을 뿐이다
-#   tools/{check,verify,shot}_*  CI·촬영 도구 — 실패 메시지가 게임 문자열이 아니다
-# (tools/gen_*.gd 는 제외하지 않는다 — 카탈로그의 표시 이름이 거기서 온다.)
-SCAN_SKIP = (".godot/", "tools/_", "tools/check_", "tools/verify_", "tools/shot_", "Test.gd")
+#   scenes/*Test.gd   회귀 테스트 — 검사 이름을 print 로 찍을 뿐이다
+#   tools/**          전부. 개발 도구는 화면에 글자를 그리지 않는다 — 콘솔 출력뿐이다.
+#
+# 예전에는 tools/{check,verify,shot}_* 만 뺐다. 그러자 bench_lategame·probe_batching·
+# gen_damage_digits 의 **진행 메시지에 쓰인 한글 36자**가 "표시 문자"로 잡혀 `--check` 가
+# 영구히 빨간 상태였다(P2-9 작업 중 확인). 예외를 하나씩 늘리는 대신 규칙을 뒤집는다.
+#
+# ⚠️ 카탈로그 생성기(gen_item_catalog 등)의 표시 이름도 이제 여기서 안 잡힌다. 괜찮다 —
+# 그 이름은 생성물인 `data/**.tres` 에 들어가고 그쪽은 계속 훑는다. .tres 에 없는 이름은
+# 화면에도 안 뜬다(생성기를 고쳤으면 재생성하는 것이 규약이다 — CLAUDE.md §2).
+# CI 게이트인 check_font_coverage.gd 도 같은 범위(Locale.STRINGS + data/*.tres)를 본다.
+SCAN_SKIP = (".godot/", "tools/", "Test.gd")
 
 # 원본 폰트에도 없던 문자 목록(서브셋 실행 시 자동 갱신). 아래 check() 설명 참고.
 KNOWN_ABSENT = "tools/font_known_absent.txt"
@@ -122,6 +136,62 @@ def project_charset(root: pathlib.Path) -> set[str]:
     return cs
 
 
+## 원본 폰트 판정 임계. 실측(2026-08-21):
+##   원본(026b6f7)  전체 11,973 · 한글 11,172 · 한자 89
+##   서브셋 산출물  전체  1,004 · 한글    376 · 한자 53
+## 30배 차이라 어디에 그어도 되지만, 서브셋이 자라도 안전하도록 원본 쪽에 가깝게 잡는다.
+HANGUL_SOURCE_MIN = 10000
+HANGUL_RANGE = (0xAC00, 0xD7A3)
+
+
+def hangul_count(path: pathlib.Path) -> int:
+    """폰트 cmap 의 한글 음절 수 — 원본/서브셋을 가르는 가장 단순한 지표."""
+    from fontTools.ttLib import TTFont   # 지연 임포트(다른 함수와 같은 방식)
+
+    lo, hi = HANGUL_RANGE
+    with TTFont(str(path), lazy=True) as f:
+        return sum(1 for cp in f.getBestCmap() if lo <= cp <= hi)
+
+
+def _is_hangul(ch: str) -> bool:
+    return HANGUL_RANGE[0] <= ord(ch) <= HANGUL_RANGE[1]
+
+
+def assert_source_fonts(root: pathlib.Path) -> int:
+    """입력이 **원본**인지 확인한다. 서브셋 산출물이면 거부한다(P2-9).
+
+    왜 필요한가: `assets/fonts/*.otf` 는 원본이 아니라 **이미 서브셋된 100KB 산출물**이다.
+    그대로 다시 서브셋하면 이미 빠져 있는 글자가 "원본에도 없는 글자"로 판정돼
+    `font_known_absent.txt` 에 올라간다. 그 목록은 CI 게이트가 **되살릴 수 없는 글자**로
+    신뢰하므로, 결과적으로 **원본에 멀쩡히 있는 한글이 금지어가 된다** — 이후 세션이
+    쓸 수 있는 한국어를 피해 가며 문구를 쓰게 된다.
+
+    문서에 절차가 적혀 있어도 "문서를 안 읽고 스크립트만 돌리면 조용히 망가지는" 형태였다.
+    그래서 문서가 아니라 코드가 막는다.
+    """
+    for rel in FONTS:
+        path = root / rel
+        if not path.exists():
+            print(f"[FONT] 없음: {rel}")
+            return 1
+        n = hangul_count(path)
+        if n < HANGUL_SOURCE_MIN:
+            print(
+                f"[FONT] 거부: {rel} 는 원본이 아니라 이미 서브셋된 산출물이다"
+                f" (한글 {n}자 < 기준 {HANGUL_SOURCE_MIN}자).\n"
+                "        이대로 서브셋하면 원본에 있는 한글이 '되살릴 수 없는 글자'로\n"
+                "        font_known_absent.txt 에 올라가 CI 게이트가 그것을 금지어로 취급한다.\n"
+                "        원본을 먼저 복구할 것:\n"
+                "          git fetch --unshallow    # 이 저장소는 얕은 클론으로 시작한다\n"
+                "          git cat-file -p 026b6f7:assets/fonts/NotoSansCJK-Subset.otf"
+                "      > assets/fonts/NotoSansCJK-Subset.otf\n"
+                "          git cat-file -p 026b6f7:assets/fonts/NotoSansCJK-Subset-Bold.otf"
+                " > assets/fonts/NotoSansCJK-Subset-Bold.otf"
+            )
+            return 1
+    return 0
+
+
 def font_charset(path: pathlib.Path) -> set[str]:
     from fontTools.ttLib import TTFont
 
@@ -183,6 +253,11 @@ def check(root: pathlib.Path) -> int:
 def build(root: pathlib.Path) -> int:
     from fontTools import subset
 
+    # 입력이 원본인지 먼저 확인한다 — 서브셋 산출물을 다시 서브셋하면 금지 목록이 오염된다(P2-9).
+    rc = assert_source_fonts(root)
+    if rc != 0:
+        return rc
+
     want = project_charset(root)
     text = "".join(sorted(want))
     for rel in FONTS:
@@ -212,8 +287,26 @@ def build(root: pathlib.Path) -> int:
     # 기록이지, "지금 쓰는 글자 중 없는 것"의 목록이 아니다. 지웠다가는 문구를 고쳐 그 글자를
     # 안 쓰게 되는 순간 경고가 같이 사라져, 다음 사람이 같은 글자를 다시 쓴다(P1-17 이
     # 그 함정이었다 — 23자를 걷어낸 직후 목록에서도 사라질 뻔했다).
-    absent = sorted(set(_known_absent(root))
-                    | {c for c in want if c not in have and c.isprintable()})
+    fresh = {c for c in want if c not in have and c.isprintable()}
+    # 한글은 이 목록에 들어올 수 없다 — 원본이 한글 11,172자를 전부 담은 한국어 빌드다.
+    # 여기에 한글이 있다면 그건 "원본에 없다"가 아니라 **입력이 원본이 아니었다**는 뜻이고,
+    # 위 게이트가 막지 못한 경로가 있다는 신호다. 목록을 오염시키느니 멈춘다(P2-9).
+    hangul_leak = sorted(c for c in fresh if _is_hangul(c))
+    if hangul_leak:
+        print(
+            f"[FONT] 중단: 한글 {len(hangul_leak)}자가 '원본에 없는 글자'로 잡혔다"
+            f" → {''.join(hangul_leak[:40])}\n"
+            "        원본은 한글을 전부 담고 있으므로 이건 입력이 원본이 아니라는 뜻이다.\n"
+            "        금지 목록을 건드리지 않고 멈춘다 — 원본을 복구한 뒤 다시 실행할 것."
+        )
+        return 1
+    # 기존 목록과 **합집합**으로 유지한다. 이 파일은 "원본 폰트에 무엇이 없는가"라는 사실의
+    # 기록이지, "지금 쓰는 글자 중 없는 것"의 목록이 아니다. 지웠다가는 문구를 고쳐 그 글자를
+    # 안 쓰게 되는 순간 경고가 같이 사라져, 다음 사람이 같은 글자를 다시 쓴다(P1-17 이
+    # 그 함정이었다 — 23자를 걷어낸 직후 목록에서도 사라질 뻔했다).
+    # ⚠️ 합집합이라 **한 번 들어간 글자는 스스로 빠지지 않는다.** 그래서 위에서 한글을
+    # 막고, 아래에서 과거에 새어 들어간 한글은 걷어낸다(오염된 목록의 자가 복구).
+    absent = sorted((set(_known_absent(root)) | fresh) - set(filter(_is_hangul, _known_absent(root))))
     (root / KNOWN_ABSENT).write_text(
         "# 원본 Noto Sans CJK 서브셋에도 없던 문자 — tools/subset_fonts.py 가 자동 생성한다.\n"
         "# **이 글자들은 쓰면 안 된다.** 되살릴 방법이 없어 화면에 두부(□)로 뜬다.\n"
