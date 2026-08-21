@@ -42,6 +42,9 @@ var _probe := ""
 var _sm: Node = null
 var _probe_n := 0
 const _SOUND_KEYS := ["shoot", "zombie_hit", "zombie_die", "gold", "laser", "boom", "swing"]
+## 포맷을 가르는 대조군 — 크래시가 `_alloc_vorbis` 에서 났으니 ogg 만의 문제인지 본다.
+const _SOUND_OGG := ["shoot", "zombie_hit", "zombie_die", "swing", "player_hurt", "ui_click", "spit"]
+const _SOUND_WAV := ["gold", "laser", "boom"]
 
 func _arg(k: String, d: String) -> String:
 	for a in OS.get_cmdline_user_args():
@@ -84,6 +87,13 @@ func _boot_probe(kind: String) -> void:
 	_probe = kind
 	_sm = root.get_node("SoundManager")
 	_sm.muted = int(_arg("mute", "0")) != 0
+	# pt=0|1|2 — 재생 방식을 명시 지정한다(DEFAULT/STREAM/SAMPLE).
+	# 웹의 누수가 "샘플로 변환해 두고 안 버리는" 경로 때문인지 가르는 스위치다.
+	var pt := int(_arg("pt", "-1"))
+	if pt >= 0:
+		for k in _sm._players:
+			(_sm._players[k] as AudioStreamPlayer).playback_type = pt
+		print("HEAP playback_type=%d 로 고정" % pt)
 	var host := Node.new()
 	root.add_child(host)
 	current_scene = host
@@ -92,6 +102,14 @@ func _boot_probe(kind: String) -> void:
 
 func _drive_probe() -> void:
 	match _probe:
+		"sound_ogg":
+			for k in _SOUND_OGG:
+				_sm._players[k].play()
+				_probe_n += 1
+		"sound_wav":
+			for k in _SOUND_WAV:
+				_sm._players[k].play()
+				_probe_n += 1
 		"sound":
 			# 스로틀을 우회해 매 프레임 여러 번 재생한다 — play_ui 는 _MIN_INTERVAL 을 타지만
 			# 소리를 돌아가며 쓰면 각 소리의 간격 제한에 걸리지 않는다.

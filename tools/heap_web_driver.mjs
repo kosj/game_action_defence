@@ -37,7 +37,12 @@ const runMs = parseInt(process.argv[3] || '300000', 10);
 
 const browser = await chromium.launch({
   args: ['--enable-unsafe-swiftshader', '--use-gl=angle', '--use-angle=swiftshader',
-         '--no-sandbox', '--disable-dev-shm-usage'],
+         '--no-sandbox', '--disable-dev-shm-usage',
+         // AUDIO=1 이면 사용자 제스처 없이도 AudioContext 가 돈다.
+         // "잠긴 컨텍스트라서 새는가, 아니면 항상 새는가"를 가르는 스위치다 —
+         // 실제 플레이어는 화면을 탭하므로 컨텍스트가 살아 있고, 그 조건에서도
+         // 새는지가 이 버그가 모두에게 터지는지를 결정한다.
+         ...(process.env.AUDIO === '1' ? ['--autoplay-policy=no-user-gesture-required'] : [])],
 });
 const page = await browser.newPage({ viewport: { width: 720, height: 1280 } });
 
