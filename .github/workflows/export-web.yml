@@ -13,6 +13,24 @@ permissions:
   contents: read
 
 jobs:
+  # 파이썬 도구 회귀 — **컨테이너 밖에서 돈다.**
+  # `build` 잡은 barichello/godot-ci 이미지 안에서 도는데 그 이미지에 python3 가 없다
+  # (그래서 이 워크플로에 파이썬 스텝이 하나도 없었다). 거기에 그냥 넣으면
+  # `python3: not found` 로 exit 127 이 난다 — 실제로 한 번 그렇게 깨졌다.
+  # ubuntu-latest 러너에는 python3 가 기본으로 있으므로 잡을 나눈다. Godot 이 필요 없어
+  # 몇 초면 끝나고, build 잡과 병렬로 돈다.
+  tools:
+    name: Python tool regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 프리즈 판정은 P0-5(프리즈 원인 규명)가 딛고 서는 바닥인데 그 바닥이 틀려 있었다.
+      # fps 30 · 프레임 80ms 인 판 셋을 "지표 정상"으로 분류했고, 그 판정 위에서 원인 규명을
+      # "성능 붕괴 아님"으로 좁혔다. 그 세 판을 고정 입력으로 박아 판정을 잠근다(P0-10).
+      - name: Freeze triage regression
+        run: python3 tools/verify_triage.py
+
   build:
     name: Build WebGL
     runs-on: ubuntu-latest
@@ -74,12 +92,6 @@ jobs:
       # 성패를 종료 코드에 담는다. 따라서 실행 줄만 있으면 CI 게이트가 된다(로그 파싱 불필요).
       # 셸이 dash 라 pipefail 을 못 쓰므로, 파이프 없이 한 줄씩 그대로 실행한다.
       # 로컬에서 같은 목록을 돌리는 방법은 CLAUDE.md §3 참고.
-      # 도구 자체의 회귀 — 프리즈 판정은 P0-5 가 딛고 서는 바닥인데 그 바닥이 틀려 있었다.
-      # fps 30 · 프레임 80ms 인 판 셋을 "지표 정상"으로 분류했고, 그 판정 위에서 원인 규명을
-      # "성능 붕괴 아님"으로 좁혔다. 그 세 판을 고정 입력으로 박아 판정을 잠근다(P0-10).
-      - name: Freeze triage regression
-        run: python3 tools/verify_triage.py
-
       - name: Regression tests (scenes)
         run: |
           set -e
@@ -137,7 +149,7 @@ jobs:
 
   deploy:
     name: Deploy to external Pages repo
-    needs: build
+    needs: [build, tools]   # 도구 회귀도 초록이어야 라이브로 나간다
     # PR 검증 실행에서는 배포하지 않는다 — main 에 실제로 머지된 것만 라이브로 나간다.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     # 배포는 Godot 컨테이너가 아닌 "호스트 러너"에서 수행한다. godot-ci 이미지에는 ssh-agent
