@@ -28,6 +28,53 @@ import sys
 # 스냅샷이라 실제 플레이 시간을 최대 이만큼 과소보고한다(사람 실측에서 확인됨).
 PARTIAL_SNAPSHOT_S = 10
 
+# ── 프리즈 트리아지 임계 (P0-10) ─────────────────────────────────────────
+# 60fps 대상 게임이다. 예전 임계는 `frame_ms_max > 100` 하나뿐이라 **fps 30 · 프레임 80ms
+# 인 판을 "지표 정상"으로 분류했고**, 그 판정 위에서 P0-5 를 "성능 붕괴 아님"으로 좁혔다.
+# 사람이 화면을 보고 "엄청 떨어진다"고 말한 판이 도구에서는 정상이었던 것이다.
+FPS_DEGRADED = 45          # 이 아래는 이미 체감되는 저하
+FPS_COLLAPSE = 30          # 목표의 절반. **이하**를 붕괴로 본다(fps 30 을 정상으로 넘기지 않는다)
+FRAME_MS_DEGRADED = 33.0   # 2프레임 분량(60fps 기준)
+FRAME_MS_COLLAPSE = 100.0  # 6프레임 분량 — 눈에 띄는 멈칫
+
+
+## 누수 계수기 한 줄. 옛 기록(P0-10 이전)은 `mem` 이 웹에서 항상 0 이었으므로 **값처럼
+## 보여 주면 안 된다** — "누수 없음"으로 오독된다. 명시적으로 미계측이라고 적는다.
+def _leak_line(d):
+    if "objects" not in d:
+        return ("누수 계수기 미계측 — 이 기록은 P0-10 이전 빌드다"
+                + (" (당시 mem_mb 는 웹에서 항상 0 이라 의미가 없다)" if "mem_mb" in d else ""))
+    return ("객체 %s · 리소스 %s · 고아 노드 %s · VRAM %sMB"
+            % (d.get("objects"), d.get("res"), d.get("orphans"), d.get("vram")))
+
+
+## 누수 추이 — 마지막 값 한 장으로는 "늘고 있었나"를 못 본다. 분당 샘플의 기울기를 본다.
+## 판정하는 값은 셋이다: 고아 노드(해제 누락) · 리소스(로드한 것이 안 풀림) · VRAM(텍스처).
+## 노드 수는 개체 수에 따라 판 안에서 오르내리므로 그 자체로는 누수 신호가 아니다 —
+## 실제로 사람 기록에서 323~675 를 오갔지만 판을 거듭해도 기준선이 오르지 않았다.
+def _leak_trend(r):
+    pts = [x for x in r.get("samples", []) if "objects" in x]
+    if len(pts) < 3:
+        if any("mem" in x for x in r.get("samples", [])):
+            print("  → 누수 추이 미계측 — 옛 빌드의 mem 은 웹에서 0 직선이다")
+        return []
+    first, last = pts[0], pts[-1]
+    span = max(last.get("min", 0) - first.get("min", 0), 1)
+    found = []
+    for key, label, per_min in (("orphans", "고아 노드", 1.0),
+                                ("res", "리소스", 5.0),
+                                ("vram", "VRAM", 0.5)):
+        a, b = first.get(key) or 0, last.get(key) or 0
+        rate = (b - a) / span
+        unit = "MB/분" if key == "vram" else "/분"
+        print("  → %s %s → %s (%+.1f%s, %d분간)" % (label, a, b, rate, unit, span))
+        if rate > per_min:
+            found.append("%s 누수 의심 — 분당 %+.1f%s"
+                         % (label, rate, "MB" if key == "vram" else "개"))
+    if not found:
+        print("  → 고아·리소스·VRAM 안정 — 누수 아님")
+    return found
+
 
 def load(path):
     rows = []
@@ -198,40 +245,38 @@ def main():
             print("  합계 %-2d n=%-3d 중앙 %.1f분 · 최장 %.1f분"
                   % (lv, len(v), st.median(v), max(v)))
 
-    # 프리즈 진단(P0-4) — 중도 종료 기록의 마지막 상태가 곧 "멈추기 직전"이다.
-    # 원인을 세 갈래로 가른다: 성능 붕괴 / 정지 갇힘 / 무한 루프·크래시.
+    # 프리즈 진단(P0-4 · 임계 재설정 P0-10) — 중도 종료 기록의 마지막 상태가 "멈추기 직전"이다.
+    #
+    # ⚠️ 갈래는 **배타적이지 않다.** 성능이 무너진 상태에서 크래시가 날 수 있다. 예전 판정은
+    #    `if not flags: 지표 정상` 이라 성능 항목이 하나도 안 걸리면 곧바로 "정상"으로 넘어갔고,
+    #    그래서 **fps 30 · 프레임 80ms 인 판 셋을 전부 "지표 정상"으로 분류했다.** 60fps 대상
+    #    게임에서 그건 정상이 아니다. 그 오분류 위에서 P0-5 를 "성능 붕괴 아님"으로 좁혔다.
     for r in [x for x in all_rows if x.get("outcome") == "abandoned" and x.get("diag")]:
         d = r["diag"]
         flags = []
-        if d.get("frame_ms_max", 0) > 100:
-            flags.append("프레임 %.0fms — 성능 붕괴 의심" % d["frame_ms_max"])
+        fps = d.get("fps")
+        fms = d.get("frame_ms_max", 0)
+        # 성능 — 저하와 붕괴를 가른다. 60fps 대상이므로 45 아래는 이미 체감되는 저하다.
+        if (fps is not None and fps <= FPS_COLLAPSE) or fms > FRAME_MS_COLLAPSE:
+            flags.append("성능 붕괴 — fps %s · 최악 프레임 %.0fms" % (fps, fms))
+        elif (fps is not None and fps < FPS_DEGRADED) or fms > FRAME_MS_DEGRADED:
+            flags.append("성능 저하 — fps %s · 최악 프레임 %.0fms" % (fps, fms))
         if d.get("paused"):
             flags.append("정지 상태 · 소유자 %s" % (d.get("pause_owners") or "없음(고아)"))
         if abs(d.get("time_scale", 1.0) - 1.0) > 0.01:
             flags.append("배속 %.3f 비정상" % d["time_scale"])
         if d.get("watchdog"):
             flags.append("워치독 %d회 발동" % len(d["watchdog"]))
-        if not flags:
-            flags.append("지표 정상 — 기록이 그냥 끊겼다(무한 루프/크래시 의심)")
         print("\n중도 종료 %.1f분 시점의 상태" % (r["survived_s"] / 60.0))
-        print("  좀비 %s · 픽업 %s · 젬 %s · fps %s · 메모리 %sMB · 노드 %s"
+        print("  좀비 %s · 픽업 %s · 젬 %s · fps %s · 노드 %s"
               % (d.get("zombies"), d.get("pickups"), d.get("gems"), d.get("fps"),
-                 d.get("mem_mb", "?"), d.get("nodes", "?")))
-        # 누수 판정 — 분당 샘플의 메모리·노드 추이를 본다. 마지막 값만으로는 알 수 없다.
-        mem = [(x["min"], x["mem"], x.get("nodes")) for x in r.get("samples", []) if "mem" in x]
-        if len(mem) >= 3:
-            first, last = mem[0], mem[-1]
-            dm = last[1] - first[1]
-            dn = (last[2] or 0) - (first[2] or 0)
-            print("  메모리 %.1f → %.1fMB (%+.1f) · 노드 %s → %s (%+d) · %d분간"
-                  % (first[1], last[1], dm, first[2], last[2], dn, last[0] - first[0]))
-            span = max(last[0] - first[0], 1)
-            if dm / span > 1.0:
-                print("  → 분당 %.1fMB 증가 — **누수 의심**" % (dm / span))
-            elif dn / span > 50:
-                print("  → 분당 노드 %+d — 씬 트리 누수 의심" % (dn / span))
-            else:
-                print("  → 메모리·노드 안정 — 누수 아님")
+                 d.get("nodes", "?")))
+        print("  " + _leak_line(d))
+        flags += _leak_trend(r)   # 추이 줄을 먼저 찍고 판정만 받아 온다
+        # 아무 갈래도 안 걸렸을 때만 "그냥 끊겼다"이다. 걸린 게 있으면 그것과 **함께**
+        # 크래시했을 수 있으므로 마지막 줄을 그렇게 적는다 — 배타적으로 읽히면 안 된다.
+        flags.append("지표 정상 — 기록이 그냥 끊겼다(무한 루프/크래시 의심)" if not flags
+                     else "위 상태에서 기록이 끊겼다 — 성능 붕괴·누수와 크래시는 배타적이지 않다")
         for f in flags:
             print("  → %s" % f)
         for w in (d.get("watchdog") or [])[:5]:

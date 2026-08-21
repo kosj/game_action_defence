@@ -74,6 +74,12 @@ jobs:
       # 성패를 종료 코드에 담는다. 따라서 실행 줄만 있으면 CI 게이트가 된다(로그 파싱 불필요).
       # 셸이 dash 라 pipefail 을 못 쓰므로, 파이프 없이 한 줄씩 그대로 실행한다.
       # 로컬에서 같은 목록을 돌리는 방법은 CLAUDE.md §3 참고.
+      # 도구 자체의 회귀 — 프리즈 판정은 P0-5 가 딛고 서는 바닥인데 그 바닥이 틀려 있었다.
+      # fps 30 · 프레임 80ms 인 판 셋을 "지표 정상"으로 분류했고, 그 판정 위에서 원인 규명을
+      # "성능 붕괴 아님"으로 좁혔다. 그 세 판을 고정 입력으로 박아 판정을 잠근다(P0-10).
+      - name: Freeze triage regression
+        run: python3 tools/verify_triage.py
+
       - name: Regression tests (scenes)
         run: |
           set -e

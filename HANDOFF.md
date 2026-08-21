@@ -44,7 +44,7 @@
 | P2-5 CI 회귀 게이트 + PR 트리거 | A | ✅ (9bd1100) | claude/game-designer-task-review-wvhkiq | 2026-08-18 |
 | P0-4 라이브 프리즈 — 진단 계측 | A | ✅ (2029c67) | claude/a-lane-freeze-diag | 2026-08-19 |
 | P0-7 메뉴 복귀 판이 기록에서 사라짐 | A | ✅ (17af508) | claude/a-lane-telemetry-leftrun | 2026-08-19 |
-| P0-5 라이브 프리즈 — 원인 규명 | A | ⚪ 대기 | — | **크래시로 확정**(P0-6 계측 대기) |
+| P0-5 라이브 프리즈 — 원인 규명 | A | ⚪ 대기 | — | **선행 조건(P0-10) 해소됨 — 착수 가능** |
 | P0-6 메모리·노드 추이 계측 | A | ✅ (b3108fa) | claude/a-lane-mem-diag | 2026-08-19 |
 | P0-1 치트 게이팅 | A | ✅ (db7bb29) | claude/a-lane-cheat-gate | 2026-08-18 |
 | P0-2 마일스톤 저장 + 퀘스트 트랙 교체 | C | ✅ (784e6c9) | claude/c-lane-milestone-save | 2026-08-18 |
@@ -56,7 +56,7 @@
 | P1-5 후반 이속 밸런스 | F | ✅ (3f5ca5d) | claude/f-lane-late-speed | 2026-08-20 |
 | ~~P0-8 패시브가 기록에 안 남는다~~ | F | ⛔ 철회 | — | 오독이었다(2026-08-20) |
 | P0-9 클리어 판이 0 으로 덮여 저장된다 | F | ✅ (ce330de) | claude/f-lane-clear-record | 2026-08-20 |
-| P0-10 프리즈 계측 수리(트리아지 임계 · 웹 메모리) | F | 🔵 진행중 | claude/f-lane-freeze-instrument | 2026-08-21 |
+| P0-10 프리즈 계측 수리(트리아지 임계 · 웹 메모리) | F | ✅ (머지 후 sha) | claude/f-lane-freeze-instrument | 2026-08-21 |
 | P0-12 치트 임시 개방(최적화 측정용) ⛔ **되돌리지 말 것** | A | ✅ (c2c9234) · **상태 유지 중** | claude/a-lane-cheats-temp | 2026-08-20 |
 | P1-18 후반 성능 — 계측 + 원인 규명 | F | ✅ (39c5456) | claude/f-lane-lategame-perf | 2026-08-20 |
 | P1-19 후반 탄 수 — 수를 줄이고 발당 위력을 올린다 | F | ✅ (ca19513) | claude/f-lane-bullet-budget | 2026-08-20 |
@@ -534,6 +534,54 @@ P0-5·P0-10 분석을 오염시킨다. `verify_cheat_gate.gd` 가 재발을 막�
 메모리 항목은 실제 값이 나오거나 "미계측"으로 표시된다(0 이 아니다).
 
 **검증** — `scenes/TelemetryTest.tscn` · 위 표의 3판을 고정 입력으로 삼는 도구 테스트
+
+---
+
+### ✅ 완료 (2026-08-21) — 웹 힙은 **잴 방법이 없다**는 것이 결론이다
+
+**① 트리아지 임계를 다시 잡았다.** `fps <= 30` 또는 `frame_ms_max > 100` → 성능 붕괴,
+`fps < 45` 또는 `frame_ms_max > 33` → 성능 저하. 갈래가 **배타적이지 않다는 것**도 반영했다 —
+예전 코드는 `if not flags: 지표 정상` 이라 성능 항목이 안 걸리면 곧바로 정상으로 넘어갔다.
+이제 걸린 갈래를 전부 세우고, 마지막 줄을 "위 상태에서 기록이 끊겼다"로 적는다.
+
+위 표의 3판을 `tools/fixtures/freeze_triage.jsonl` 로 박고 `tools/verify_triage.py` 로 잠갔다
+(CI 게이트). 임계를 옛날로 되돌리면 **6건 실패**한다.
+
+**② 웹 메모리 — 실측으로 후보를 전부 기각했다.** 실제 웹 빌드를 export 해 Chromium 에 띄우고 쟀다.
+
+| 후보 | 결과 |
+|---|---|
+| `Performance.MEMORY_STATIC` | **0** (네이티브 헤드리스는 30.0MB — 웹 한정 결함) |
+| `performance.memory.usedJSHeapSize` | 68.9MB 로 그럴듯한 값이 나오지만, **wasm 에서 200MB 를 실제로 붙잡아도 0.0MB 움직인다.** JS 힙만 본다 |
+| `performance.measureUserAgentSpecificMemory` | 이 빌드는 `crossOriginIsolated` 가 false 라 **함수 자체가 없다** |
+| `wasmMemory` · `Module` · `HEAP8` | Godot 4.3 웹 셸이 전역에 노출하지 않는다 |
+
+**usedJSHeapSize 를 그냥 썼으면 `mem_mb: 0` 보다 더 나빴다** — 그럴듯한 숫자가 나오는데
+아무것도 안 재기 때문이다. 반응성 시험을 안 했으면 그대로 넣을 뻔했다.
+
+**③ 대신 웹에서 실제로 살아 있는 지표로 갈아탔다.** 같은 웹 빌드에서 실측:
+
+```
+OBJECT_COUNT 1544 · OBJECT_RESOURCE_COUNT 266 · OBJECT_ORPHAN_NODE_COUNT 0
+RENDER_VIDEO_MEM_USED 35.9MB (텍스처 18.9 + 버퍼 17.1)
+```
+
+`mem` / `mem_mb` 를 빼고 `objects` · `res` · `orphans` · `vram` 을 분당 샘플과 `diag` 양쪽에
+넣었다. 힙 총량보다 오히려 **원인에 가까운 값**이다 — 고아 노드가 쌓이는지, 리소스가 안 풀리는지,
+텍스처가 계속 올라가는지가 바로 보인다. 분석 도구가 셋의 기울기로 누수를 판정한다.
+
+옛 기록(`mem` 만 있는 것)은 값처럼 보여 주지 않고 **"미계측"** 이라고 명시한다.
+
+⚠️ **이 테스트는 데스크톱에서 계속 통과하고 있었다.** `MEMORY_STATIC` 이 네이티브에서는
+정상이라 T11 의 `mem > 0` 이 초록이었고, 웹에서만 깨진 채 크래시 기록 3회를 흘려보냈다.
+`TelemetryTest` 에 T16 을 넣어 죽은 지표가 되살아나지 않는지 검사한다.
+
+**남은 것** — wasm 힙 총량은 여전히 못 잰다. 필요해지면 웹 셸에 `crossOriginIsolated` 를
+켜고(`Cross-Origin-Opener-Policy` · `Cross-Origin-Embedder-Policy` 헤더)
+`measureUserAgentSpecificMemory` 를 쓰는 길이 있으나, 배포 호스팅의 헤더 설정이 필요하고
+Chromium 계열 전용이다. **P0-5 는 이것 없이도 착수할 수 있다** — 고아·리소스·VRAM 추이가
+누수 여부를 가르고, 트리아지가 성능 붕괴를 더는 놓치지 않는다.
+
 
 **2026-08-21 추가 확인.** 같은 헤드리스 빌드에서 `Performance.MEMORY_STATIC` 은 **30.0MB 를
 정상 반환한다**(`OS.get_static_memory_usage()` 도 같은 값). 즉 코드가 틀린 게 아니라
