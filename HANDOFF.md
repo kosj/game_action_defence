@@ -58,7 +58,7 @@
 | P0-9 클리어 판이 0 으로 덮여 저장된다 | F | ✅ (ce330de) | claude/f-lane-clear-record | 2026-08-20 |
 | P0-10 프리즈 계측 수리(트리아지 임계 · 웹 메모리) | F | ✅ (df94dd2) | claude/f-lane-freeze-instrument | 2026-08-21 |
 | P0-12 치트 임시 개방(최적화 측정용) ⛔ **되돌리지 말 것** | A | ✅ (c2c9234) · **상태 유지 중** | claude/a-lane-cheats-temp | 2026-08-20 |
-| P1-27 데미지 숫자 비트맵 자릿수(#339 이후 유실분 회수) | I | ✅ (이 PR) | claude/i-lane-damage-digits | 2026-08-21 |
+| P1-27 데미지 숫자 비트맵 자릿수(#339 이후 유실분 회수) | I | ✅ (e66e381) | claude/i-lane-damage-digits | 2026-08-21 |
 | P1-18 후반 성능 — 계측 + 원인 규명 | F | ✅ (39c5456) | claude/f-lane-lategame-perf | 2026-08-20 |
 | P1-19 후반 탄 수 — 수를 줄이고 발당 위력을 올린다 | F | ✅ (ca19513) | claude/f-lane-bullet-budget | 2026-08-20 |
 | P1-20 후반 난이도 — 유입을 줄이고 질을 올린다 | F | ✅ (c711f84) | claude/f-lane-late-hp | 2026-08-20 |
