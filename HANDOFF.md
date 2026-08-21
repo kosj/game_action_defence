@@ -60,6 +60,7 @@
 | P1-18 후반 성능 — 계측 + 원인 규명 | F | ✅ (39c5456) | claude/f-lane-lategame-perf | 2026-08-20 |
 | P1-19 후반 탄 수 — 수를 줄이고 발당 위력을 올린다 | F | ✅ (ca19513) | claude/f-lane-bullet-budget | 2026-08-20 |
 | P1-20 후반 난이도 — 유입을 줄이고 질을 올린다 | F | ✅ (c711f84) | claude/f-lane-late-hp | 2026-08-20 |
+| P0-11 이어하기 판의 분당 샘플이 전부 가짜다 | F | 🔵 진행중 | claude/f-lane-sample-catchup | 2026-08-21 |
 | P1-21 GPU/CPU 병목 계측 + 엔진측 최적화 (밸런스 무관) | I | ✅ (d29d16a · 66d4f70 · a4e1815) | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-20 |
 | P1-22 분리 패스 최적화 검토 + `only=` 귀속 결함 수정 | I | ✅ (b0264e7 · 5e9e943) | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-20 |
 | P1-23 픽업 2종 Area2D→Node2D + 좀비 분리 낡은 주석 정정 | I | ✅ (d4066c2) | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-20 |
