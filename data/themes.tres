@@ -37,7 +37,7 @@ gimmick_key = "falling_debris"
 boss_key = "wrecker"
 gimmick_keys = PackedStringArray("falling_debris", "steam_vent", "burning_car", "fly_swarm")
 prop_keys = PackedStringArray("wreck_car", "barrier", "dumpster", "barrel", "rubble")
-weather_keys = PackedStringArray("rain", "dust")
+weather_keys = PackedStringArray("rain")
 
 [sub_resource type="Resource" id="Resource_es8an"]
 script = ExtResource("2_mg65s")
