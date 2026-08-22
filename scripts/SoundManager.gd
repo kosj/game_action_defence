@@ -122,6 +122,7 @@ func _ready() -> void:
 	muted = _read_setting()
 	for key in _SOUNDS:
 		var p := AudioStreamPlayer.new()
+		_force_stream_playback(p)
 		if ResourceLoader.exists(_SOUNDS[key]):   # 선택 사운드는 파일이 있을 때만 로드
 			var stream = load(_SOUNDS[key])
 			if stream:
@@ -131,6 +132,7 @@ func _ready() -> void:
 		_players[key] = p
 
 	_music_player = AudioStreamPlayer.new()
+	_force_stream_playback(_music_player)
 	add_child(_music_player)
 	# 루프 설정이 실패하는 환경(웹 등)을 위한 폴백 — 끝나면 즉시 재시작.
 	_music_player.finished.connect(_on_music_finished)
@@ -140,6 +142,61 @@ func _ready() -> void:
 	Events.player_revived.connect(_duck_music.bind(false))
 
 	_setup_web_visibility()
+
+
+## ⛔ **웹 빌드가 이것 없이는 몇 분 만에 죽는다 — 되돌리지 말 것** (P0-5).
+##
+## 무슨 일이 있었나
+## ----------------
+## 배포 웹 빌드가 플레이 중 **wasm 힙 2GB 상한을 쳐서 죽었다.** 사용자 콘솔 로그:
+##
+##     Cannot enlarge memory, requested 2147487744 bytes, but the limit is 2147483648 bytes!
+##     USER ERROR: Error initializing dsp state   at: _alloc_vorbis
+##     Aborted(Runtime error: The application has corrupted its heap memory area (address zero)!)
+##
+## 원인은 **`play()` 한 번마다 재생 객체가 통째로 새는 것**이었다. 브라우저 실측
+## (`tools/heap_web.sh`)에서 효과음만 24,962번 재생하니 힙이 105MB → 2GB 로 올라가
+## 위 오류가 **그대로 재현**됐다. 재생 1회당 객체 약 2.6개 · 힙 약 73KB 다.
+##
+## 왜 그런가 — 열거형이 한 칸 어긋나 있다
+## --------------------------------------
+## `AudioStreamPlayer.playback_type` 의 기본값은 `PLAYBACK_TYPE_DEFAULT`(0)이고,
+## 그러면 프로젝트 설정 `audio/general/default_playback_type.web` 을 따라간다.
+## 그 값은 `1` 인데 — **그 설정의 열거형은 `AudioServer.PlaybackType` 과 다르다.**
+##
+##     설정 열거형:              0=Stream · 1=Sample
+##     AudioServer.PlaybackType: 0=DEFAULT · 1=STREAM · 2=SAMPLE
+##
+## 즉 설정값 1 은 STREAM 이 아니라 **SAMPLE** 이다. 웹 기본이 샘플 경로인 것이고,
+## 그 경로가 재생할 때마다 스트림을 샘플로 변환해 두고 놓아주지 않는다.
+## ogg 는 변환 결과가 통 PCM 이라 1회당 73KB, wav 는 1.1KB 였다(66배 차이) —
+## 그래서 크래시가 `_alloc_vorbis` 에서 났다. **vorbis 는 범인이 아니라 피해자다.**
+##
+## 실측 — 조건을 갈라 보면 이렇다 (`tools/heap_web.sh` · ogg 효과음만)
+## ---------------------------------------------------------------------
+##
+##     AudioContext   이 수정   결과
+##     ------------   -------   ----------------------------------------
+##     잠김            없음      2GB (150초)
+##     활성            없음      2GB
+##     잠김            있음      2GB          ← ⚠️ 이 수정만으로는 못 막는다
+##     활성            있음      46.1MB 완전 평탄 (15,099회 재생)
+##
+## ⚠️ **`PLAYBACK_TYPE_STREAM` 은 필요조건이지 충분조건이 아니다.** AudioContext 가
+## 잠겨 있으면 재생이 배수되지 않아 어떤 재생 방식이든 쌓인다. 실제 플레이어는 화면을
+## 탭하므로 Godot 웹 셸이 컨텍스트를 재개하고, **그 조건에서는 완전히 듣는다** —
+## 실제 게임을 11분 돌려 힙 46.1MB 평탄 · 객체 증가 게임 60초당 +21(수정 전 +1,113)을 확인했다.
+##
+## ⚠️ 이 표를 만들기 전에 한 번 오판했다. `pt=1` 과 `AUDIO=1` 을 **동시에** 켠 실험 하나만
+## 보고 "STREAM 고정이 답"이라고 적었는데, 두 변수를 분리하니 위와 같았다.
+## **교란변수를 못 가른 채 결론 내지 말 것.**
+##
+## ⚠️ **데스크톱 헤드리스로는 절대 못 잡는다.** 헤드리스는 Dummy 오디오 드라이버라
+## 이 경로를 타지 않는다. 실제로 스로틀 없이 84,000회 재생해도 RSS 가 평탄해서
+## 한 번 "오디오는 결백"으로 오판했다. **이 문제만은 웹 실측이 유일한 안전망이다.**
+## `tools/verify_audio_playback.gd` 가 이 설정이 사라지지 않는지 CI 에서 지킨다.
+func _force_stream_playback(p: AudioStreamPlayer) -> void:
+	p.playback_type = AudioServer.PLAYBACK_TYPE_STREAM
 
 
 ## 이 사운드의 스트림이 실제로 로드되어 있는가(선택 사운드의 폴백 분기용).
