@@ -107,3 +107,7 @@ texture={
 2d_physics/layer_2="zombies"
 2d_physics/layer_3="bullets"
 2d_physics/layer_4="gold"
+
+[audio]
+
+driver/output_latency.web=160

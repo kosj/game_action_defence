@@ -23,6 +23,9 @@ extends SceneTree
 ##     `AudioServer.PlaybackType`:                            0=DEFAULT · 1=STREAM · 2=SAMPLE
 ## 설정의 웹 기본값 1 은 STREAM 이 아니라 **SAMPLE** 이다. 그래서 아무것도 안 하면 새는 쪽이다.
 
+## 웹 출력 지연 하한(ms). 실측으로 드롭아웃이 0 이 되는 가장 낮은 값이 160ms 였다.
+const MIN_WEB_LATENCY_MS := 160.0
+
 var _fail := 0
 
 
@@ -69,6 +72,28 @@ func _init() -> void:
 		_fail += 1
 		print("  FAIL 기본 재생 방식으로 남은 플레이어 → %s" % ", ".join(stray))
 		print("       웹에서는 재생 1회당 힙 약 73KB 가 샌다. SoundManager._force_stream_playback 참고.")
+
+	# 재생 방식을 STREAM 으로 바꾼 대가로 **웹 소프트웨어 믹서를 타게 됐다.** 엔진 기본
+	# 버퍼(50ms)로는 언더런이 나 소리가 끊긴다 — 브라우저에서 출력을 캡처해 재니 15초에
+	# 드롭아웃 31회였고, 사용자도 "재생 중 끊긴다"고 보고했다. 버퍼를 키우면 0 이 된다:
+	#
+	#   출력지연        드롭아웃   소리 나는 블록      클릭
+	#   50ms(엔진 기본)   31       493/648 (76%)      61
+	#   120ms              1       635/648 (98%)      49
+	#   160ms              0       648/648 (100%)     38   ← 채택
+	#   200ms              0       648/648 (100%)     39
+	#   (대조) SAMPLE      0       644/644 (100%)     34
+	#
+	# 160ms 를 고른 이유 — 0 이 되는 **가장 낮은** 값이다. 200ms 는 더 나아지지 않으면서
+	# 조작-소리 지연만 커진다. 낮추면 소리가 다시 끊기므로 여기서 잠근다.
+	var lat: float = float(ProjectSettings.get_setting("audio/driver/output_latency.web", 0))
+	if lat >= MIN_WEB_LATENCY_MS:
+		print("  ok   웹 출력 지연 %.0fms (하한 %.0fms)" % [lat, MIN_WEB_LATENCY_MS])
+	else:
+		_fail += 1
+		print("  FAIL 웹 출력 지연이 %.0fms 다 — %.0fms 미만이면 STREAM 믹서가 언더런을 낸다"
+			% [lat, MIN_WEB_LATENCY_MS])
+		print("       project.godot 의 [audio] driver/output_latency.web 를 확인할 것.")
 
 	if _fail == 0:
 		print("\n오디오 재생 방식 OK")

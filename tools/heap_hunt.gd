@@ -89,6 +89,17 @@ func _boot_probe(kind: String) -> void:
 	_sm.muted = int(_arg("mute", "0")) != 0
 	# pt=0|1|2 — 재생 방식을 명시 지정한다(DEFAULT/STREAM/SAMPLE).
 	# 웹의 누수가 "샘플로 변환해 두고 안 버리는" 경로 때문인지 가르는 스위치다.
+	# reg=1 — 스트림을 미리 한 번만 샘플로 등록한다. 누수가 "재생마다 샘플을 새로 만들어
+	# 두고 안 버리는 것"이라면 이걸로 멎어야 하는데, **실측으로 안 멎었다**(그대로 2GB).
+	# 즉 누수는 샘플 생성이 아니라 재생 자체에 붙어 있다. 그 판정을 남기려고 옵션은 유지한다.
+	if int(_arg("reg", "0")) != 0:
+		var n := 0
+		for k in _sm._players:
+			var st: AudioStream = (_sm._players[k] as AudioStreamPlayer).stream
+			if st != null and st.can_be_sampled() and not AudioServer.is_stream_registered_as_sample(st):
+				AudioServer.register_stream_as_sample(st)
+				n += 1
+		print("HEAP 스트림 %d개를 샘플로 미리 등록" % n)
 	var pt := int(_arg("pt", "-1"))
 	if pt >= 0:
 		for k in _sm._players:
@@ -102,6 +113,12 @@ func _boot_probe(kind: String) -> void:
 
 func _drive_probe() -> void:
 	match _probe:
+		"sound_one":
+			# 소리 하나만 일정 간격으로 — 재생 방식별 **음량**을 비교하기 위한 것.
+			# 여러 소리를 겹치면 합성 결과라 음량 차이를 못 가른다.
+			if fmod(_t, 0.5) < 0.02:
+				_sm._players["shoot"].play()
+				_probe_n += 1
 		"sound_ogg":
 			for k in _SOUND_OGG:
 				_sm._players[k].play()
