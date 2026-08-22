@@ -62,6 +62,7 @@
 | P1-28 HUD 드로우 콜 — 배칭이 끊기는 구조를 고친다 | I | ✅ (3f26b50) | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-21 |
 | P1-29 슬롯 프레임 나인패치를 구워 아틀라스로 (P1-28 잔여 29콜) | I | ⛔ 기각(측정 0) · 정정 머지 (e5494f3) | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-21 |
 | P1-30 잔여 29콜 원인 규명(최소 재현) + check_text_fit 를 CI 로 | I | ✅ (5ccb678) 원인=텍스트 외곽선 | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-21 |
+| P1-31 낡은 문서 정리 — 이번 측정으로 뒤집힌 서술 회수 | I | 🔵 진행중 | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-21 |
 | P1-18 후반 성능 — 계측 + 원인 규명 | F | ✅ (39c5456) | claude/f-lane-lategame-perf | 2026-08-20 |
 | P1-19 후반 탄 수 — 수를 줄이고 발당 위력을 올린다 | F | ✅ (ca19513) | claude/f-lane-bullet-budget | 2026-08-20 |
 | P1-20 후반 난이도 — 유입을 줄이고 질을 올린다 | F | ✅ (c711f84) | claude/f-lane-late-hp | 2026-08-20 |
@@ -91,7 +92,7 @@
 | P1-24 인트로 서사가 구현물과 무관하다 | F | ✅ (4517097) | claude/game-designer-task-review-wvhkiq | 2026-08-21 |
 | P1-25 탄 예산 게이트가 무기 30종 중 7종만 본다 | F | ✅ (9fd3952) | claude/f-lane-budget-coverage | 2026-08-21 |
 | P1-26 드로우 콜 귀속 — 계통별로 얼마씩 내는가 (`hide=`) | I | ✅ (93782d6) | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-21 |
-| P2-9 `subset_fonts.py` 가 서브셋 폰트를 원본으로 착각해 금지 목록을 오염시킨다 | D | 🔵 진행중 | claude/d-lane-subset-guard | 2026-08-21 |
+| P2-9 `subset_fonts.py` 가 서브셋 폰트를 원본으로 착각해 금지 목록을 오염시킨다 | D | ✅ (fd65477) | claude/d-lane-subset-guard | 2026-08-21 |
 | P3-4/5/6 문서 정합성 (1·2·3 은 해소됨) | — | ✅ (56974a7) | claude/docs-lane-p3 | 2026-08-20 |
 
 **결정 대기 항목은 전부 해소됐다(2026-08-18).** 아래 §2 결정 로그 참고 — 이제 모든 항목이 바로 착수 가능하다.
@@ -2084,6 +2085,28 @@ if hangul_glyphs(font) < 10000:
 
 원본을 복구하지 않은 상태에서 스크립트를 돌려 **0이 아닌 종료 코드로 거부**되는지 본다.
 그다음 원본을 복구해 정상 동작하는지 보고, `git diff tools/font_known_absent.txt` 가 비는지 확인한다.
+
+**작업 ✅ 완료 (2026-08-21)** — 방어선을 **둘** 두고 각각 실제로 무는지 확인했다.
+
+1. **입력 원본 판정**(`assert_source_fonts`). 폰트 cmap 의 한글 음절 수로 가른다 —
+   실측: 원본 11,172자 vs 서브셋 산출물 376자로 **30배 차이**라 임계 10,000 은 넉넉하다.
+   거부 시 아무것도 건드리지 않고 종료 코드 1 + `git fetch --unshallow` 부터의 복구 절차를 찍는다.
+2. **한글 누출 차단**. 원본은 한글을 전부 담은 한국어 빌드이므로, 한글이 "원본에 없는 글자"로
+   잡히면 그건 **입력이 원본이 아니라는 뜻**이다. 목록을 쓰지 않고 멈춘다.
+   ⚠️ P1-17 에서 이 목록을 **합집합(추가만)** 으로 바꿔 놨기 때문에, 한 번 오염되면 스스로
+   빠지지 않는다 — 그래서 막는 것에 더해 **과거에 새어 들어간 한글은 걷어내도록** 했다.
+
+두 게이트 모두 **일부러 뚫어 보고** 확인했다. ①은 서브셋 상태로 실행 → 거부(EXIT 1, 목록·폰트 무변경).
+②는 ①을 무력화하고 없는 한글을 표시 문자열에 넣어 실행 → "한글 1자가…" 로 중단(EXIT 1, 목록 무변경).
+
+**곁다리로 고친 것 — `--check` 가 영구히 빨간 상태였다.**
+`project_charset` 이 `tools/bench_lategame.gd`·`probe_batching.gd`·`gen_damage_digits.gd` 의
+**콘솔 진행 메시지에 쓰인 한글 36자**를 "표시 문자"로 잡고 있었다. 화면에 뜨지 않는 글자다.
+P1-17 에서 `tools/{check,verify,shot}_*` 만 예외로 뺐던 것이 원인 — 예외를 하나씩 늘리는 대신
+**`tools/` 전체를 뺐다**. 개발 도구는 화면에 글자를 그리지 않는다.
+카탈로그 생성기의 표시 이름은 생성물 `data/**.tres` 로 계속 잡히므로 잃는 것이 없고,
+CI 게이트(`check_font_coverage.gd`)도 원래 같은 범위(Locale + data/*.tres)를 본다.
+이 수정으로 **폰트를 다시 굽지 않고** `--check` 가 통과로 돌아왔다.
 
 ---
 
