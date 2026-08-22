@@ -44,7 +44,7 @@
 | P2-5 CI 회귀 게이트 + PR 트리거 | A | ✅ (9bd1100) | claude/game-designer-task-review-wvhkiq | 2026-08-18 |
 | P0-4 라이브 프리즈 — 진단 계측 | A | ✅ (2029c67) | claude/a-lane-freeze-diag | 2026-08-19 |
 | P0-7 메뉴 복귀 판이 기록에서 사라짐 | A | ✅ (17af508) | claude/a-lane-telemetry-leftrun | 2026-08-19 |
-| P0-5 라이브 프리즈 — 원인 규명 | A | ✅ (머지 후 sha) | claude/a-lane-heap-oom | **원인=웹 오디오 재생 1회당 힙 누수** · 수정+게이트 완료 |
+| P0-5 라이브 프리즈 — 원인 규명 | A | ✅ (dde99c9) | claude/a-lane-heap-oom | **원인=웹 오디오 재생 1회당 힙 누수** · 수정+게이트 완료 |
 | P0-6 메모리·노드 추이 계측 | A | ✅ (b3108fa) | claude/a-lane-mem-diag | 2026-08-19 |
 | P0-1 치트 게이팅 | A | ✅ (db7bb29) | claude/a-lane-cheat-gate | 2026-08-18 |
 | P0-2 마일스톤 저장 + 퀘스트 트랙 교체 | C | ✅ (784e6c9) | claude/c-lane-milestone-save | 2026-08-18 |
