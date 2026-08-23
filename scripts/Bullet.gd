@@ -60,6 +60,9 @@ var pierce: int = 0                # 관통 가능 적 수(0=첫 명중에 소�
 var knockback: float = 0.0         # 직격 넉백 세기(0=기본 _KNOCKBACK). 산탄총 등이 크게 준다.
 var _pierced: int = 0              # 지금까지 관통한 적 수
 var _did_hit: bool = false         # 이 탄이 한 번이라도 맞혔는가(명중률 계측용)
+## 쫓고 있는 표적. 유효한 동안은 반경 질의를 건너뛴다(_steer 주석 참고).
+## 풀 재사용 시 남으면 이전 판의 좀비를 쫓으므로 on_spawn 에서 반드시 비운다.
+var _target: Node2D = null
 var _hit_ids: Dictionary = {}      # 이미 명중한 적(중복 타격 방지) — 관통 시에만 의미
 var _age: float = 0.0
 var _alive: bool = false
@@ -120,6 +123,7 @@ func on_spawn() -> void:
 	knockback = 0.0
 	_pierced = 0
 	_did_hit = false
+	_target = null
 	_hit_r = -1.0          # 발사 측이 scale 을 주입한 뒤 첫 틱에서 다시 잰다
 	_steer_phase = randi() % STEER_EVERY
 	_steer_accum = 0.0
@@ -247,7 +251,39 @@ func _draw() -> void:
 ## 전방 호 안에서 가장 가까운(=각도가 가장 잘 맞는) 적 쪽으로 진행 방향을 조금씩 튼다.
 ## 이미 지나친 적을 쫓아 되돌아오면 관통 무기의 '한 줄로 베고 지나간다'는 느낌이 깨지므로
 ## 후보를 전방 호로 제한한다.
+##
+## **잡은 표적은 기억한다**(P1-32②). 조준 1회의 비용은 사실상 전부 `zombies_in_radius` 이고,
+## 그 질의는 탄 × 좀비의 곱이다. 그런데 유도탄은 대개 같은 적을 계속 쫓으므로, 매번 처음부터
+## 다시 고르는 것은 **같은 답을 비싸게 다시 구하는 것**이다. 그래서 쫓던 표적이 아직 유효하면
+## 질의를 통째로 건너뛰고, 놓쳤을 때만(죽음·사거리 이탈·호 이탈) 다시 찾는다.
+##
+## 부수 효과로 탄이 표적에 **고정**된다 — 더 가까운 적이 나타나도 갈아타지 않는다.
+## 이것은 손해가 아니다: 명중 판정(`_check_swept_hit`)은 조준과 무관하게 지나가는 모든 적을
+## 훑으므로, 눈앞의 적은 조준 대상이 아니어도 그대로 맞는다.
 func _steer(delta: float) -> void:
+	var best: Node2D = _target if _target_ok(_target) else _acquire_target()
+	if best == null:
+		return
+	var want: Vector2 = (best.global_position - global_position).normalized()
+	direction = direction.rotated(clampf(direction.angle_to(want), -homing * delta, homing * delta))
+
+
+## 쫓던 표적을 계속 쫓아도 되는가. 참이면 반경 질의를 건너뛴다 — 이 판정은 거리·각도 계산
+## 두 번이라 질의(후보 55마리 순회)보다 두 자릿수 싸다.
+## ⚠️ 아래 조건은 `_acquire_target()` 의 필터와 **정확히 같아야** 한다. 어긋나면 캐시가
+## 스캔이라면 고르지 않았을 표적을 계속 쫓게 된다.
+func _target_ok(t: Node2D) -> bool:
+	if t == null or not is_instance_valid(t) or not t.is_in_group("zombies"):
+		return false   # 풀 반납된 좀비는 인스턴스가 유효한 채 그룹만 빠진다
+	if _hit_ids.has(t.get_instance_id()):
+		return false   # 이미 벤 적은 다시 쫓지 않는다
+	var to: Vector2 = t.global_position - global_position
+	if to.length_squared() > HOMING_RANGE * HOMING_RANGE:
+		return false
+	return absf(direction.angle_to(to)) <= homing_arc
+
+
+func _acquire_target() -> Node2D:
 	var best: Node2D = null
 	var best_d := HOMING_RANGE * HOMING_RANGE
 	for z in Events.zombies_in_radius(global_position, HOMING_RANGE):
@@ -262,10 +298,8 @@ func _steer(delta: float) -> void:
 		if d < best_d:
 			best_d = d
 			best = z
-	if best == null:
-		return
-	var want: Vector2 = (best.global_position - global_position).normalized()
-	direction = direction.rotated(clampf(direction.angle_to(want), -homing * delta, homing * delta))
+	_target = best
+	return best
 
 
 ## 폭발형 무기: 명중 지점 주변의 모든 좀비에게 피해 + 확산 이펙트.
