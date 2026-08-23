@@ -59,6 +59,7 @@ var is_crit: bool = false          # 이 탄이 크리티컬인지(Player._shoot
 var pierce: int = 0                # 관통 가능 적 수(0=첫 명중에 소멸). 석궁 등 관통 무기가 주입.
 var knockback: float = 0.0         # 직격 넉백 세기(0=기본 _KNOCKBACK). 산탄총 등이 크게 준다.
 var _pierced: int = 0              # 지금까지 관통한 적 수
+var _did_hit: bool = false         # 이 탄이 한 번이라도 맞혔는가(명중률 계측용)
 var _hit_ids: Dictionary = {}      # 이미 명중한 적(중복 타격 방지) — 관통 시에만 의미
 var _age: float = 0.0
 var _alive: bool = false
@@ -77,6 +78,13 @@ var _hit_r: float = -1.0
 const STEER_EVERY := 3
 var _steer_phase: int = 0   # 개체마다 위상을 달리해 한 프레임에 몰리지 않게 한다
 var _steer_accum: float = 0.0
+
+## 유도탄 명중률 계측 — 조준 주기를 건드리면 "프레임은 좋아졌는데 안 맞는다"가 될 수 있는데,
+## `kills_per_s` 는 전체 무기가 섞여 있어 그걸 못 가른다(런간 산포 ±6, 유도탄 몫은 그 아래).
+## 그래서 **유도탄만** 센다: 소멸한 유도탄 수와 그중 한 번이라도 맞힌 수.
+## 카운터 2개와 소멸 시 분기 하나뿐이라 상시 켜 둬도 프레임에 영향이 없다.
+static var stat_homing_gone: int = 0
+static var stat_homing_hit: int = 0
 
 const _ZOMBIE_RADIUS := 14.0   # Zombie.tscn 충돌 반경
 const _BOSS_RADIUS := 38.0     # Boss.tscn 충돌 반경
@@ -98,6 +106,7 @@ func on_spawn() -> void:
 	pierce = 0
 	knockback = 0.0
 	_pierced = 0
+	_did_hit = false
 	_hit_r = -1.0          # 발사 측이 scale 을 주입한 뒤 첫 틱에서 다시 잰다
 	_steer_phase = randi() % STEER_EVERY
 	_steer_accum = 0.0
@@ -178,6 +187,7 @@ func _check_swept_hit(from: Vector2, to: Vector2) -> void:
 
 
 func _resolve_hit(c: Node, pos: Vector2) -> void:
+	_did_hit = true
 	if splash_radius > 0.0:      # 폭발형: 지점 이동 후 범위 피해, 즉시 소멸(관통 없음)
 		global_position = pos
 		_splash_hit()
@@ -262,4 +272,8 @@ func _splash_hit() -> void:
 
 func _despawn() -> void:
 	_alive = false
+	if homing > 0.0:
+		stat_homing_gone += 1
+		if _did_hit:
+			stat_homing_hit += 1
 	Pool.release(self)

@@ -192,6 +192,12 @@ func _process(delta: float) -> bool:
 	if _kills0 < 0:
 		_kills0 = int(_events.total_kills)
 		_tick_ms.clear()   # 예열 구간의 틱은 버린다
+		# 유도탄 명중률도 예열분을 뺀다 — 계측 카운터가 없는 예전 리비전과도 같은
+		# 하네스로 비교할 수 있게 안전하게 읽는다(없으면 0 으로 남는다).
+		var _bs: Variant = load("res://scripts/Bullet.gd")
+		if _bs != null:
+			_homing_gone0 = int(_bs.stat_homing_gone)
+			_homing_hit0 = int(_bs.stat_homing_hit)
 	# 정지 구간이 길면 표본이 사라진다 — **누가** 잡고 있는지 세어 둔다. 그게 없으면
 	# "표본 114/1800" 만 보고 원인을 못 찾는다(실제로 레벨업인 줄 알고 헛다리를 짚었다).
 	if paused:
@@ -225,6 +231,13 @@ func _process(delta: float) -> bool:
 		_finished = true
 		quit(0)
 	return false
+
+
+## 측정 구간에서 소멸한 유도탄 수 / 그중 맞힌 수(예열 구간은 뺀다).
+var _homing_gone0: int = -1
+var _homing_hit0: int = -1
+var _homing_gone: int = 0
+var _homing_hit: int = 0
 
 
 func _setup() -> void:
@@ -821,6 +834,10 @@ func _stat(a: Array) -> Dictionary:
 func _report() -> void:
 	var f := _stat(_frames)
 	var fps_med: float = (1000.0 / float(f["med"])) if float(f["med"]) > 0.0 else 0.0
+	var _bs2: Variant = load("res://scripts/Bullet.gd")
+	if _bs2 != null and _homing_gone0 >= 0:
+		_homing_gone = int(_bs2.stat_homing_gone) - _homing_gone0
+		_homing_hit = int(_bs2.stat_homing_hit) - _homing_hit0
 	var rec := {
 		"build": String(_args.get("build", "engineer_late")),
 		"min": float(_args.get("min", "26")),
@@ -842,6 +859,11 @@ func _report() -> void:
 		"draw_calls": _stat(_draw_calls),
 		"collision_pairs": _stat(_pairs),
 		"nodes": int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
+		# 유도탄 명중률 — 조준 주기를 건드릴 때의 안전망. kills_per_s 는 전체 무기가 섞여
+		# 유도탄의 명중 변화를 못 가른다(런간 산포가 유도탄 몫보다 크다).
+		"homing_gone": _homing_gone,
+		"homing_hit": _homing_hit,
+		"homing_hit_rate": snappedf(float(_homing_hit) / maxf(float(_homing_gone), 1.0), 0.001),
 		"kills_per_s": snappedf(float(int(_events.total_kills) - maxi(_kills0, 0)) / maxf(_measure, 0.001), 0.1),
 		"level": int(_events.level),
 		"counts": _counts_last,
@@ -873,6 +895,9 @@ func _report() -> void:
 	var b: float = float(rec["zg_builds"]["med"])
 	print("  공간해시    질의 %6.0f/프레임  그중 9칸 순회 %6.0f  → 건너뜀 %4.0f%%"
 		% [q, b, (1.0 - b / maxf(q, 1.0)) * 100.0])
+	if int(rec["homing_gone"]) > 0:
+		print("  유도탄      소멸 %5d발  그중 명중 %5d발  → 명중률 %4.1f%%"
+			% [rec["homing_gone"], rec["homing_hit"], float(rec["homing_hit_rate"]) * 100.0])
 	# GPU 로 나가는 양(기기 무관). 실제 GPU 사용률은 여기서 못 잰다 — 실기기/브라우저에서 볼 것.
 	if float(rec["items"]["max"]) <= 0.0:
 		print("  GPU 제출량  — 헤드리스(더미 렌더러)라 0 이다. 실렌더로 재려면:")
