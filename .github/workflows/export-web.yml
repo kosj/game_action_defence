@@ -128,6 +128,10 @@ jobs:
           godot --headless --path . --script res://tools/verify_ui_icons.gd
           godot --headless --path . --script res://tools/verify_late_speed.gd
           godot --headless --path . --script res://tools/verify_hotpath.gd
+          # 조준 주기(STEER_EVERY)를 늘리면 프레임은 좋아지고 명중률은 나빠진다. 전체 판으로는
+          # 그 대가를 판정할 수 없어(런간 산포 5.5pp) 조준만 격리한 결정론 검사를 쓴다.
+          # ⚠️ --fixed-fps 60 이 없으면 실시간 60Hz 를 기다려 80초 걸린다(결과는 같다).
+          godot --headless --path . --fixed-fps 60 --script res://tools/verify_homing_accuracy.gd
           godot --headless --path . --fixed-fps 60 --script res://tools/verify_bullet_budget.gd
           godot --headless --path . --script res://tools/verify_late_hp.gd
           godot --headless --path . --script res://tools/verify_pickups.gd

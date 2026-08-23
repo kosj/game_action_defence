@@ -20,6 +20,8 @@ extends SceneTree
 ##   warm=6        측정 전 예열(초) — 스폰·풀 워밍이 끝나야 정상 상태다
 ##   measure=20    측정 구간(초)
 ##   build=...     인벤토리 프리셋 이름(아래 BUILDS)
+##   seed=N        전역 RNG 시드 고정. 주면 같은 판을 재현한다 — A/B 에서 "두 조건이 서로
+##                 다른 판이라 생긴 차이"를 지운다. 안 주면 매 실행이 다른 판이다.
 ##   fill=1        측정 시작 시 좀비를 동시 출현 상한까지 채운다
 ##   probe=gold:N  대조 실험 모드 — 스포너·오토플레이를 끄고 **그 개체만 N 개** 놓고 잰다.
 ##                 개체 수를 바꿔 가며 재면 개체당 프레임 비용(µs)이 직접 나온다.
@@ -192,6 +194,12 @@ func _process(delta: float) -> bool:
 	if _kills0 < 0:
 		_kills0 = int(_events.total_kills)
 		_tick_ms.clear()   # 예열 구간의 틱은 버린다
+		# 유도탄 명중률도 예열분을 뺀다 — 계측 카운터가 없는 예전 리비전과도 같은
+		# 하네스로 비교할 수 있게 안전하게 읽는다(없으면 0 으로 남는다).
+		var _bs: Variant = load("res://scripts/Bullet.gd")
+		if _bs != null:
+			_homing_gone0 = int(_bs.stat_homing_gone)
+			_homing_hit0 = int(_bs.stat_homing_hit)
 	# 정지 구간이 길면 표본이 사라진다 — **누가** 잡고 있는지 세어 둔다. 그게 없으면
 	# "표본 114/1800" 만 보고 원인을 못 찾는다(실제로 레벨업인 줄 알고 헛다리를 짚었다).
 	if paused:
@@ -227,8 +235,23 @@ func _process(delta: float) -> bool:
 	return false
 
 
+## 측정 구간에서 소멸한 유도탄 수 / 그중 맞힌 수(예열 구간은 뺀다).
+var _homing_gone0: int = -1
+var _homing_hit0: int = -1
+var _homing_gone: int = 0
+var _homing_hit: int = 0
+
+
 func _setup() -> void:
 	_parse_args()
+	# 전역 RNG 를 고정한다. Godot 은 시작할 때마다 자동으로 무작위 시드를 잡으므로,
+	# 아무것도 안 하면 A/B 두 판이 **서로 다른 판**이 된다 — 실제로 같은 코드를 3번 재서
+	# 명중률이 86.8~92.3% 로 5.5pp 흔들렸다. 그 산포보다 작은 차이는 판정할 수 없다.
+	# 시드를 맞추면 두 조건이 같은 초기 상태에서 출발해 그 몫이 빠진다.
+	# ⚠️ 완전한 결정론은 아니다 — 코드가 바뀌면 RNG 소비 순서가 달라져 궤적이 갈라진다.
+	#    그래서 여러 시드로 재고 **시드별로 짝지어** 비교해야 한다(단일 시드는 우연일 수 있다).
+	if _args.has("seed"):
+		seed(int(_args.get("seed", "0")))
 	_warm = float(_args.get("warm", "6"))
 	_measure = float(_args.get("measure", "20"))
 	_events = root.get_node("Events")
@@ -821,6 +844,10 @@ func _stat(a: Array) -> Dictionary:
 func _report() -> void:
 	var f := _stat(_frames)
 	var fps_med: float = (1000.0 / float(f["med"])) if float(f["med"]) > 0.0 else 0.0
+	var _bs2: Variant = load("res://scripts/Bullet.gd")
+	if _bs2 != null and _homing_gone0 >= 0:
+		_homing_gone = int(_bs2.stat_homing_gone) - _homing_gone0
+		_homing_hit = int(_bs2.stat_homing_hit) - _homing_hit0
 	var rec := {
 		"build": String(_args.get("build", "engineer_late")),
 		"min": float(_args.get("min", "26")),
@@ -842,6 +869,11 @@ func _report() -> void:
 		"draw_calls": _stat(_draw_calls),
 		"collision_pairs": _stat(_pairs),
 		"nodes": int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
+		# 유도탄 명중률 — 조준 주기를 건드릴 때의 안전망. kills_per_s 는 전체 무기가 섞여
+		# 유도탄의 명중 변화를 못 가른다(런간 산포가 유도탄 몫보다 크다).
+		"homing_gone": _homing_gone,
+		"homing_hit": _homing_hit,
+		"homing_hit_rate": snappedf(float(_homing_hit) / maxf(float(_homing_gone), 1.0), 0.001),
 		"kills_per_s": snappedf(float(int(_events.total_kills) - maxi(_kills0, 0)) / maxf(_measure, 0.001), 0.1),
 		"level": int(_events.level),
 		"counts": _counts_last,
@@ -873,6 +905,9 @@ func _report() -> void:
 	var b: float = float(rec["zg_builds"]["med"])
 	print("  공간해시    질의 %6.0f/프레임  그중 9칸 순회 %6.0f  → 건너뜀 %4.0f%%"
 		% [q, b, (1.0 - b / maxf(q, 1.0)) * 100.0])
+	if int(rec["homing_gone"]) > 0:
+		print("  유도탄      소멸 %5d발  그중 명중 %5d발  → 명중률 %4.1f%%"
+			% [rec["homing_gone"], rec["homing_hit"], float(rec["homing_hit_rate"]) * 100.0])
 	# GPU 로 나가는 양(기기 무관). 실제 GPU 사용률은 여기서 못 잰다 — 실기기/브라우저에서 볼 것.
 	if float(rec["items"]["max"]) <= 0.0:
 		print("  GPU 제출량  — 헤드리스(더미 렌더러)라 0 이다. 실렌더로 재려면:")
