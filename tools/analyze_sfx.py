@@ -36,6 +36,14 @@ def resolve(name: str) -> Path:
     sys.exit(f"찾을 수 없다: {name}")
 
 
+def native_channels(path: Path) -> int:
+    """파일의 원래 채널 수. 모노를 -ac 2 로 늘리면 ffmpeg 이 전력 보존으로 3dB 를 깎기
+    때문에, 원래 채널 수로 디코드하지 않으면 음량이 실제보다 3dB 작게 나온다."""
+    info = subprocess.run([FFMPEG, "-hide_banner", "-i", str(path)],
+                          capture_output=True, text=True).stderr
+    return 2 if "stereo" in info else 1
+
+
 def decode(path: Path, channels: int = 1) -> np.ndarray:
     out = subprocess.run(
         [FFMPEG, "-v", "error", "-i", str(path), "-f", "f32le", "-ac", str(channels),
@@ -103,6 +111,22 @@ def envelope_stats(x: np.ndarray) -> tuple:
     return float(np.percentile(d, 95) - np.percentile(d, 50)), float(np.percentile(d, 95) - np.percentile(d, 10))
 
 
+def attack_stats(x: np.ndarray) -> tuple:
+    """어택의 날카로움 — 파고율(피크/RMS)과 피크 도달 시간.
+
+    타격음인데 피크가 수십 ms 뒤에 오면 '때리는 순간'이 없는 것이다. 생성음은 겉보기에
+    멀쩡해도 서서히 부풀어 오르는 텍스처인 경우가 있어서, 이 두 값이 아니면 못 잡는다.
+    참고: 좀비 사망음 19.5dB / 1ms, 유리 깨짐 18.9dB / 103ms.
+    """
+    rms = float(np.sqrt(np.mean(x ** 2)))
+    crest = db(np.abs(x).max()) - db(rms)
+    b = SR // 1000
+    if len(x) < b * 4:
+        return crest, 0
+    e = np.array([np.sqrt(np.mean(x[i:i + b] ** 2)) for i in range(0, len(x) - b, b)])
+    return crest, int(np.argmax(e))
+
+
 def impact_rate(x: np.ndarray) -> float:
     """초당 타격 수 — 에너지가 급상승하는 지점을 센다."""
     h = 480
@@ -115,9 +139,9 @@ def impact_rate(x: np.ndarray) -> float:
 
 
 def report(path: Path) -> dict:
-    st = decode(path, 2)
-    stereo = bool(np.any(np.abs(st[:, 0] - st[:, 1]) > 1e-4))
-    x = st.mean(axis=1)          # 분석은 모노 합으로 — 대역·구조는 채널 합이 기준
+    stereo = native_channels(path) == 2
+    st = decode(path, 2) if stereo else None
+    x = st.mean(axis=1) if stereo else decode(path, 1)   # 분석은 모노 합 기준
     f, s, p = spectrum(x)
 
     def band(lo, hi):
@@ -128,13 +152,15 @@ def report(path: Path) -> dict:
     loud = np.where(np.abs(x) > 10 ** (-50 / 20))[0]
     onset = loud[0] / SR * 1000 if len(loud) else -1.0
     pk_med, pk_floor = envelope_stats(x)
+    crest, peak_ms = attack_stats(x)
     # 스테레오는 채널별로 재야 한다 — 모노 합만 보면 상관도 높은 소리가 실제보다 크게 나온다.
     ch_rms = [db(np.sqrt(np.mean(st[:, i] ** 2))) for i in range(2)] if stereo else None
     m = dict(name=path.stem.replace("sfx_", ""), dur=len(x) / SR, stereo=stereo,
              rms=max(ch_rms) if ch_rms else db(np.sqrt(np.mean(x ** 2))),
-             peak=db(np.abs(st).max()), mono_peak=db(np.abs(x).max()), onset=onset, aw=a_weighted(x), phone=phone_level(x),
+             peak=db(np.abs(st).max()) if stereo else db(np.abs(x).max()),
+             mono_peak=db(np.abs(x).max()), onset=onset, aw=a_weighted(x), phone=phone_level(x),
              centroid=float((f * p).sum()), flat=flat, pk_med=pk_med, pk_floor=pk_floor,
-             rate=impact_rate(x), sub=band(0, 200), low=band(200, 800), mid=band(800, 3000),
+             crest=crest, peak_ms=peak_ms, rate=impact_rate(x), sub=band(0, 200), low=band(200, 800), mid=band(800, 3000),
              hi=band(3000, 8000), air=band(8000, 24000))
 
     print(f"\n═══ {m['name']}  ({m['dur']:.2f}s) ═══")
@@ -143,6 +169,8 @@ def report(path: Path) -> dict:
           f"{'  ← 어택이 늦다(화면 연출과 어긋남)' if m['onset'] > 15 else ''}")
     if m["stereo"] and m["mono_peak"] > -1.0:
         print("  ⚠ 모노로 합쳐지면 피크가 넘친다 — 폰 스피커(모노 재생)에서 찌그러진다")
+    print(f"  어택      파고율={m['crest']:5.1f}dB  피크도달={m['peak_ms']:3d}ms"
+          f"{'  ← 피크가 늦다. 타격음이라면 때리는 순간이 없는 것(휘두르기·스웰이면 정상)' if m['peak_ms'] > 25 and m['dur'] < 1.0 else ''}")
     print(f"  체감      A-가중={m['aw']:6.1f}dB  폰스피커={m['phone']:6.1f}dB"
           f"{'  ← 폰에서 거의 안 들린다' if m['phone'] < -32 else ''}")
     print(f"  대역      ~200={m['sub']:4.1f}%  200-800={m['low']:4.1f}%  0.8-3k={m['mid']:4.1f}%  "
