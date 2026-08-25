@@ -63,7 +63,7 @@ var _magnet_tween: Tween = null
 var _revive_btn: Button = null
 var _revive_used: bool = false
 
-# 게임오버 패널 뒤 화면 블러(시인성). 패널이 뜰 때만 활성화한다.
+# 게임오버 패널 뒤 배경 블러 + 터치 차단막. 패널이 뜰 때만 활성화한다.
 var _blur_bbc: BackBufferCopy = null
 var _blur_rect: ColorRect = null
 
@@ -857,8 +857,11 @@ const _Z_SLOT_FRAME := 0
 const _Z_SLOT_ICON := 1
 const _Z_SLOT_BADGE := 2
 ## 로드아웃보다 뒤에 만들어져 그 위에 그려지던 것들 — z 를 명시해 그 관계를 유지한다.
-## (안 올리면 아이콘·뱃지가 일시정지 딤이나 블러 위로 새어 나온다)
+## (안 올리면 아이콘·뱃지가 일시정지 딤 위로 새어 나온다)
 const _Z_OVERLAY := 10
+## 게임오버 배경 블러 전용 — HUD 요소(전부 0 이상)보다 **아래**. 이 값이 양수면 블러가 UI 를 덮는다.
+const _Z_UNDER_UI := -1
+
 
 func _build_loadout() -> void:
 	# 밝은 필드 위에서도 잘 읽히도록 반투명 어두운 패널을 배경에 깔고(내용에 맞춰 자동 크기).
@@ -1076,13 +1079,23 @@ func _build_revive_button() -> void:
 	box.move_child(_revive_btn, restart_button.get_index())   # 다시하기 버튼 바로 위로
 
 
-## 게임오버 패널 뒤 화면을 흐리게 — BackBufferCopy 로 화면을 떠 두고 블러 셰이더 ColorRect 로 덮는다.
-## 그리기 순서를 패널 바로 앞(아래)으로 옮겨, 화면 전체를 블러한 위에 패널만 선명히 표시한다.
+## 게임오버 패널 뒤 **배경만** 흐리게 — BackBufferCopy 로 그 시점까지 그려진 화면을 떠 두고
+## 블러 셰이더 ColorRect 로 덮는다. HUD 는 CanvasLayer(레이어 1)라 월드(레이어 0)가 먼저 그려지므로,
+## 이 둘을 HUD 안에서 **가장 먼저** 그리면 떠 오는 내용이 월드뿐이다.
+##
+## ⚠️ 그 "가장 먼저"를 만드는 것은 트리 순서가 아니라 **z_index** 다. 예전에는 z 를 _Z_OVERLAY(10)
+## 로 주고 move_child 로 패널 앞에 끼워 넣었는데, z 는 트리 순서를 이기므로 블러가 게임오버 패널·
+## 상단 바·디버그 오버레이까지 전부 덮어 UI 가 통째로 뭉개졌다(사용자 스크린샷으로 확인).
+## HUD 의 다른 요소는 전부 z 0 이상이니 여기만 음수로 두면 배경만 흐려진다.
+##
+## 트리 순서는 여전히 의미가 있다 — 입력 픽킹은 z 가 아니라 트리 순서를 따른다. 패널 바로 앞에
+## 두어야 패널이 터치를 먼저 먹고, 패널 바깥 터치는 이 막이 삼킨다(HUD 는 PROCESS_MODE_ALWAYS 라
+## 정지 중에도 조이스틱이 입력을 받는다 — 막이 없으면 뒤 게임으로 샌다).
 func _build_blur_overlay() -> void:
 	_blur_bbc = BackBufferCopy.new()
 	_blur_bbc.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
 	_blur_bbc.visible = false
-	_blur_bbc.z_index = _Z_OVERLAY
+	_blur_bbc.z_index = _Z_UNDER_UI
 	add_child(_blur_bbc)
 
 	_blur_rect = ColorRect.new()
@@ -1093,7 +1106,7 @@ func _build_blur_overlay() -> void:
 	mat.shader = load("res://assets/shaders/gameover_blur.gdshader")
 	_blur_rect.material = mat
 	_blur_rect.visible = false
-	_blur_rect.z_index = _Z_OVERLAY
+	_blur_rect.z_index = _Z_UNDER_UI
 	add_child(_blur_rect)
 
 	var idx := game_over_panel.get_index()

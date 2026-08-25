@@ -16,8 +16,9 @@
 
 ### A-1. 씬 전환 & 흐름 ✅ 대부분 완료
 - [x] **씬 페이드 트랜지션** — `SceneFade` 오토로드(`transition_to`)로 메뉴↔게임↔재시작 전환에 적용.
-- [x] **일시정지 오버레이 블러** — `HUD._set_blur()` 가 일시정지·게임오버에서 배경을 흐린다
-      (`assets/shaders/gameover_blur.gdshader`).
+- [x] **게임오버 배경 블러** — `HUD._set_blur()` 가 게임오버에서 **배경(월드)만** 흐린다
+      (`assets/shaders/gameover_blur.gdshader`). ⚠️ 블러 노드의 `z_index` 는 반드시 음수
+      (`_Z_UNDER_UI`)여야 한다 — 양수면 z 가 트리 순서를 이겨 패널·상단 바까지 덮는다.
 - [ ] **게임 시작 연출** — 인트로 스토리(`IntroStory`)는 있으나 전투 진입 순간의 연출은 없다.
 
 ### A-2. 타격감 (hit feedback) 🔴
