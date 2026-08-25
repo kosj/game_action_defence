@@ -490,7 +490,21 @@ func _random_spawn_pos() -> Vector2:
 # 훑어 살짝 밀어내 겹쳐 쌓이는 것을 막는다. 이웃 검사 수를 상한 처리해 대량에서도 O(n·k).
 const SEP_RADIUS := 26.0
 const SEP_CELL := 26.0
-const SEP_STRENGTH := 0.55   # 2프레임에 1번 실행하므로 1회 밀어내는 양을 2배 근사로 키운다
+## 분리 패스를 몇 물리 프레임마다 돌릴지. 2 → 3 (30Hz → 20Hz, P1-33).
+##
+## 최대 부하 교대 A/B 3쌍, 3/3 일관 — **프레임과 겹침이 동시에 좋아진다:**
+##   2프레임: 물리 틱 6.160ms · 겹침(1마리당 26px 안 이웃) 1.14
+##   3프레임: 물리 틱 5.810ms · 겹침 0.95        → -0.35ms · 겹침도 -17%
+##
+## 겹침이 나빠지지 않는 이유는 **1회 보정량을 비례해서 키우기 때문**이다(아래 SEP_STRENGTH).
+## 초당 밀어내는 총량이 같으므로 겹침 해소 속도는 유지되고, 순회 횟수만 2/3 이 된다.
+##
+## ⚠️ `SEP_MAX_PUSH` 는 **올리지 않았다.** 1.5배로 같이 올리면 더 좋지만(5.680ms · 겹침 0.70)
+## 1회 최대 이동이 8 → 12px 이 되어 밀집 구간에서 움직임이 계단처럼 보일 수 있다.
+## 그건 실제 플레이로만 판정할 수 있어 보수적인 쪽을 택했다 — 검증되면 그때 올릴 것.
+const SEP_EVERY := 3
+## 3프레임에 1번 실행하므로 1회 밀어내는 양을 그만큼 키운다(0.55 × 3/2).
+const SEP_STRENGTH := 0.825
 const SEP_MAX_PUSH := 8.0
 const SEP_MAX_NEIGHBORS := 6
 ## 플레이어로부터 이 거리 안의 좀비만 분리 처리한다. 화면 밖 좀비는 겹쳐도 보이지 않으므로
@@ -507,9 +521,9 @@ var _sep_pos: PackedVector2Array = PackedVector2Array()
 func _physics_process(_delta: float) -> void:
 	if _game_over or not is_instance_valid(player):
 		return
-	# 분리는 30Hz(2 물리 프레임에 1번)로 충분하다 — 겹침 해소는 누적 효과라 시각 차이가 없고,
-	# 대량 좀비에서 프레임 비용이 절반으로 준다(SEP_STRENGTH/MAX_PUSH 로 1회 보정량을 키움).
-	if Engine.get_physics_frames() % 2 != 0:
+	# 분리는 20Hz(SEP_EVERY 물리 프레임에 1번)로 충분하다 — 겹침 해소는 누적 효과라
+	# 1회 보정량을 비례해 키우면 초당 총량이 같다(SEP_EVERY 주석의 실측 참고).
+	if Engine.get_physics_frames() % SEP_EVERY != 0:
 		return
 	var zs := Events.live_zombies()
 	if zs.size() < 2:

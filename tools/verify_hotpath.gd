@@ -46,6 +46,7 @@ func _init() -> void:
 	await _check_near_cache()
 	await _check_radius_path()
 	_check_homing_throttle()
+	_check_separation_scaling()
 	print("")
 	if _fail == 0:
 		print("핫패스 가드 통과")
@@ -256,6 +257,30 @@ func _check_radius_path() -> void:
 ## 조준 질의(`zombies_in_radius(pos, 420)`)의 비용은 **탄 × 좀비의 곱**이다 — 통제 실험에서
 ## 유도탄 200발 기준 좀비 0 → 150 만으로 1.85ms → 12.19ms 였다. 60Hz 로 되돌리면 최대 부하에서
 ## 따라잡기 틱(렌더 1프레임당 물리 4회)이 되살아난다. 상수를 되돌리는 것을 여기서 막는다.
+## ⑦ 분리 패스의 주기와 1회 보정량이 **비례**한다.
+##
+## 주기(SEP_EVERY)를 늘리면 프레임은 싸지지만, 1회 밀어내는 양(SEP_STRENGTH)을 같이 키우지
+## 않으면 **초당 밀어내는 총량이 줄어 좀비가 겹쳐 쌓인다.** 그 겹침은 기존 회귀 테스트가
+## 보지 않는다 — ContactSeparationTest 는 플레이어-좀비만 본다. 실측 지표는
+## `bench_lategame.gd` 의 "좀비 겹침" 줄이고, 여기서는 그 둘의 비례만 잠근다.
+##
+## 기준: 2프레임에 0.55 (= 프레임당 0.275). 이 비율이 유지되면 초당 총량이 같다.
+func _check_separation_scaling() -> void:
+	var sc := load("res://scripts/ZombieSpawner.gd") as GDScript
+	if sc == null:
+		return
+	var every: float = float(sc.get("SEP_EVERY"))
+	var strength: float = float(sc.get("SEP_STRENGTH"))
+	if every <= 0.0:
+		_check("분리 패스 주기가 유효하다", false, "SEP_EVERY=%s" % every)
+		return
+	var per_frame := strength / every
+	_check("분리 보정이 주기에 비례한다 (SEP_EVERY=%d · STRENGTH=%.3f · 프레임당 %.4f)"
+			% [int(every), strength, per_frame],
+		absf(per_frame - 0.275) < 0.02,
+		"프레임당 보정이 0.275 에서 벗어났다 — 주기만 바꾸고 SEP_STRENGTH 를 안 고치면 좀비가 겹쳐 쌓인다")
+
+
 func _check_homing_throttle() -> void:
 	var sc := load("res://scripts/Bullet.gd") as GDScript
 	var every: int = int(sc.get("STEER_EVERY")) if sc != null else 1

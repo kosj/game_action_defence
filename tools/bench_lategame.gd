@@ -223,6 +223,8 @@ func _process(delta: float) -> bool:
 		_pairs.append(Performance.get_monitor(Performance.PHYSICS_2D_COLLISION_PAIRS))
 		# 공간 해시 질의 수와 그중 실제로 9칸을 돈 수 — 같은 셀 재질의 건너뛰기의 적중률.
 		# 계측 카운터가 없는 예전 리비전과도 같은 하네스로 비교할 수 있게 안전하게 읽는다.
+		if pf % 30 == 0:
+			_overlap.append(_sample_overlap())
 		var q = _events.get("zg_queries")
 		var b = _events.get("zg_builds")
 		_zg_q.append(float(q) if q != null else 0.0)
@@ -240,6 +242,10 @@ var _homing_gone0: int = -1
 var _homing_hit0: int = -1
 var _homing_gone: int = 0
 var _homing_hit: int = 0
+## 좀비끼리의 평균 겹침 이웃 수 — 분리 패스(ZombieSpawner.SEP_*)의 품질 지표다.
+## 주기를 늘리면 프레임은 싸지고 겹침은 늘어나는데, 기존 회귀 테스트는 **플레이어-좀비**만
+## 보므로 좀비끼리는 아무도 안 본다. 하네스 쪽에서만 재므로 게임에는 비용이 없다.
+var _overlap: Array = []
 
 
 func _setup() -> void:
@@ -871,6 +877,7 @@ func _report() -> void:
 		"nodes": int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
 		# 유도탄 명중률 — 조준 주기를 건드릴 때의 안전망. kills_per_s 는 전체 무기가 섞여
 		# 유도탄의 명중 변화를 못 가른다(런간 산포가 유도탄 몫보다 크다).
+		"overlap": _stat(_overlap),
 		"homing_gone": _homing_gone,
 		"homing_hit": _homing_hit,
 		"homing_hit_rate": snappedf(float(_homing_hit) / maxf(float(_homing_gone), 1.0), 0.001),
@@ -905,6 +912,9 @@ func _report() -> void:
 	var b: float = float(rec["zg_builds"]["med"])
 	print("  공간해시    질의 %6.0f/프레임  그중 9칸 순회 %6.0f  → 건너뜀 %4.0f%%"
 		% [q, b, (1.0 - b / maxf(q, 1.0)) * 100.0])
+	if not _overlap.is_empty():
+		print("  좀비 겹침    1마리당 26px 안 이웃 중앙 %.2f  p95 %.2f  (분리 패스 품질)"
+			% [rec["overlap"]["med"], rec["overlap"]["p95"]])
 	if int(rec["homing_gone"]) > 0:
 		print("  유도탄      소멸 %5d발  그중 명중 %5d발  → 명중률 %4.1f%%"
 			% [rec["homing_gone"], rec["homing_hit"], float(rec["homing_hit_rate"]) * 100.0])
@@ -958,6 +968,28 @@ func _report() -> void:
 			print("    %-22s %4d" % [k, int(_counts_last[k])])
 	print("")
 	print("BENCH %s" % JSON.stringify(rec))
+
+
+## 좀비 1마리당 SEP_RADIUS(26px) 안에 있는 다른 좀비 수. 분리가 잘 되면 낮다.
+func _sample_overlap() -> float:
+	var zs: Array = _events.live_zombies()
+	if zs.size() < 2:
+		return 0.0
+	var r_sq := 26.0 * 26.0
+	var pairs := 0
+	var n := 0
+	for z in zs:
+		if not is_instance_valid(z) or not z.is_in_group("zombies"):
+			continue
+		n += 1
+		var zp: Vector2 = z.global_position
+		# ⚠️ 공유 버퍼다 — 받은 자리에서 바로 순회하고 보관하지 않는다(CLAUDE.md §4).
+		for o in _events.zombies_near(zp):
+			if o == z or not is_instance_valid(o):
+				continue
+			if zp.distance_squared_to(o.global_position) < r_sq:
+				pairs += 1
+	return float(pairs) / maxf(float(n), 1.0)
 
 
 func _parse_args() -> void:
