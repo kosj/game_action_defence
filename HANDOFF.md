@@ -64,6 +64,7 @@
 | P1-30 잔여 29콜 원인 규명(최소 재현) + check_text_fit 를 CI 로 | I | ✅ (5ccb678) 원인=텍스트 외곽선 | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-21 |
 | P1-31 낡은 문서 정리 — 이번 측정으로 뒤집힌 서술 회수 | I | ✅ (22a07ce) | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-21 |
 | P1-32 유도탄 조준 비용 — 갱신 주기 + 표적 캐싱 | I | ✅ (머지 후 sha 기입) · 물리 틱 5.93→4.98ms | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-23 |
+| P1-33 배포(웹) 빌드 프레임 — 렌더 귀속 + 로드아웃 뱃지 구운 숫자 | I | ✅ (머지 후 sha 기입) · 웹 fps 19.9→21.9 | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-25 |
 | P1-18 후반 성능 — 계측 + 원인 규명 | F | ✅ (39c5456) | claude/f-lane-lategame-perf | 2026-08-20 |
 | P1-19 후반 탄 수 — 수를 줄이고 발당 위력을 올린다 | F | ✅ (ca19513) | claude/f-lane-bullet-budget | 2026-08-20 |
 | P1-20 후반 난이도 — 유입을 줄이고 질을 올린다 | F | ✅ (c711f84) | claude/f-lane-late-hp | 2026-08-20 |

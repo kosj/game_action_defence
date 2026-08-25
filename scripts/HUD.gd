@@ -973,16 +973,16 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 		tex.z_index = _Z_SLOT_ICON
 		slot.add_child(tex)
 
-	var badge := Label.new()
-	badge.text = str(lv)
-	badge.add_theme_font_size_override("font_size", 13)
-	badge.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
-	badge.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
-	badge.add_theme_constant_override("outline_size", 4)
+	# 뱃지는 **외곽선 라벨이 아니라 구운 비트맵 숫자**다(P1-33). 외곽선 라벨은 하나가
+	# 드로우 콜 2개고 슬롯 15칸이면 30콜인데, 배포 빌드에서 HUD 는 프레임의 14% 였다
+	# (§5-R: HUD 를 숨기면 48.7 → 41.7ms). 구운 숫자는 전부 같은 아틀라스라 한 배치로 묶인다.
+	var badge := BitmapNumber.new()
+	badge.font_size = 13.0
+	badge.number_color = Color(1.0, 0.95, 0.8)
+	badge.align = BitmapNumber.Align.RIGHT
+	badge.value = lv
 	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	badge.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	badge.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	badge.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	badge.set_anchors_preset(Control.PRESET_FULL_RECT)
 	badge.offset_right = -3.0
 	badge.offset_bottom = -1.0
 	badge.z_index = _Z_SLOT_BADGE
