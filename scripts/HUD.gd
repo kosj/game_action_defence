@@ -3,6 +3,11 @@ extends CanvasLayer
 
 const FOG_TEX := preload("res://assets/ui/fog_vision.png")   # 주변 시야 제한 오버레이(방사형 암전)
 const _UIStyle := preload("res://scripts/UIStyle.gd")
+const _Timeline := preload("res://scripts/TimelineBar.gd")
+## 카운트다운 임계값. 보스는 대비할 시간이 필요해 길게, 엘리트는 "곧 온다"만 알리면 되어 짧게.
+const BOSS_WARN_SEC := 60.0
+const ELITE_WARN_SEC := 20.0
+
 const _PerfOverlay := preload("res://scripts/PerfOverlay.gd")
 
 @onready var top_bg: Panel = $TopBg
@@ -13,7 +18,7 @@ const _PerfOverlay := preload("res://scripts/PerfOverlay.gd")
 @onready var hp_label: Label = $HpBar/HpLabel
 @onready var weapon_label: Label = $WeaponLabel
 @onready var buff_label: Label = $BuffLabel
-@onready var wave_label: Label = $WaveLabel
+@onready var kills_label: Label = $KillsLabel
 @onready var time_label: Label = $TimeLabel
 @onready var score_label: Label = $ScoreLabel
 @onready var high_score_label: Label = $HighScoreLabel
@@ -23,8 +28,9 @@ const _PerfOverlay := preload("res://scripts/PerfOverlay.gd")
 @onready var boss_bg: Panel = $BossBar/BarBg
 @onready var boss_fill: Panel = $BossBar/BarFill
 @onready var boss_name_label: Label = $BossBar/BossName
-@onready var wave_clear_bg: Panel = $WaveClearBg
-@onready var wave_clear_label: Label = $WaveClearLabel
+## 화면 중앙 대형 배너 — 30분 클리어와 보스 처치 마일스톤이 함께 쓴다.
+@onready var banner_bg: Panel = $BannerBg
+@onready var banner_label: Label = $BannerLabel
 @onready var game_over_panel: Panel = $GameOverPanel
 @onready var game_over_label: Label = $GameOverPanel/Margin/VBoxContainer/GameOverLabel
 @onready var stats_label: Label = $GameOverPanel/Margin/VBoxContainer/StatsLabel
@@ -57,17 +63,23 @@ var _magnet_tween: Tween = null
 var _revive_btn: Button = null
 var _revive_used: bool = false
 
-# 게임오버 패널 뒤 화면 블러(시인성). 패널이 뜰 때만 활성화한다.
+# 게임오버 패널 뒤 배경 블러 + 터치 차단막. 패널이 뜰 때만 활성화한다.
 var _blur_bbc: BackBufferCopy = null
 var _blur_rect: ColorRect = null
 
 # 게임오버 통계 위젯(아이콘 그리드) — 코드로 생성해 텍스트 라벨을 대체.
 var _go_medal: UIIcon = null
 var _go_record: Label = null
-var _go_vals: Dictionary = {}   # "score"/"best"/"wave"/"kills"/"time" -> Label
+var _go_vals: Dictionary = {}   # "score"/"best"/"kills"/"time" -> Label
 
 # 스웜 경고 배너 — 코드로 생성. 무리/엘리트 팩 등장 직전 화면 중앙 상단에 붉게 번쩍.
 var _swarm_banner: Label = null
+## 런 타임라인 바(P1-4) — 상단 바 아래 가장자리. 다음 엘리트/보스/클리어 눈금을 얹는다.
+var _timeline: Control = null
+## 카운트다운 배너를 한 마일스톤당 한 번만 띄우기 위한 잠금. 예정 시각이 바뀌면(다음 회차로
+## 넘어가거나 치트로 밀리면) 풀린다 — 같은 배너가 매초 다시 뜨면 화면이 깜박인다.
+var _boss_warned_at: float = -1.0
+var _elite_warned_at: float = -1.0
 var _swarm_tween: Tween = null
 
 # 인게임 레벨 표시 — 코드로 생성. 화면 최상단 경험치 바 + 상단바 중앙의 레벨 뱃지(알약형).
@@ -95,6 +107,8 @@ var _stat_icons: Array = []               # 상단 우측 스탯 아이콘들 �
 var _cheat_box: VBoxContainer = null      # 일시정지 메뉴의 치트 하위 메뉴(접이식)
 var _cheat_auto_btn: Button = null        # 자동플레이 토글 버튼(라벨 ON/OFF 갱신)
 var _cheat_perf_btn: Button = null        # 성능 오버레이 토글 버튼(라벨 ON/OFF 갱신)
+var _cheat_day_btn: Button = null         # 낮/밤 시간 처리 토글 버튼(라벨 ON/OFF 갱신)
+var _cheat_weather_btn: Button = null     # 날씨 연출 토글 버튼(라벨 ON/OFF 갱신)
 var _perf_overlay: Control = null         # 성능 디버그 오버레이(좌상단)
 var _auto_tag: Label = null               # 자동플레이 중임을 알리는 화면 표시
 
@@ -108,14 +122,19 @@ func _ready() -> void:
 		top_bg.add_theme_stylebox_override("panel", bar_box)
 	else:
 		top_bg.add_theme_stylebox_override("panel", _UIStyle.bottom_bar(Color(0.05, 0.06, 0.09, 0.62)))
-	wave_clear_bg.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.30, 0.14, 0.92), Color(1.0, 0.85, 0.2), 26, 3))
+	banner_bg.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.30, 0.14, 0.92), Color(1.0, 0.85, 0.2), 26, 3))
 	game_over_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.05, 0.06, 0.96), Color(0.85, 0.25, 0.22), 22, 3))
 	_UIStyle.apply_button_style(restart_button, Color(0.55, 0.16, 0.16), Color(0.95, 0.35, 0.3))
 	_UIStyle.apply_button_style(main_menu_button, Color(0.18, 0.20, 0.26), Color(0.5, 0.55, 0.65))
 	_style_bars()
 	# 전장 위에 뜨는 상단 라벨들에 어두운 외곽선을 넣어 가독성을 확보한다.
-	for lbl in [gold_label, score_label, wave_label, time_label, high_score_label, hp_label]:
+	# clip_text: 이들은 앵커로 폭이 고정돼 있어 늘어날 수 없다. 번역이나 수치가 예상보다
+	# 길어져도 글자가 전장 위로 새지 않도록 위젯 안에서 잘라낸다(현재는 전부 여유가 있다 —
+	# tools/check_text_fit.py 로 검증). 안전장치이지 상시 동작하는 기능이 아니다.
+	for lbl in [gold_label, score_label, kills_label, time_label, high_score_label, hp_label,
+			weapon_label, buff_label, boss_name_label]:
 		UITheme.outline_label(lbl)
+		lbl.clip_text = true
 	UITheme.outline_label(boss_name_label, 6, Color(0.18, 0.0, 0.0, 0.75))
 	restart_button.text = Locale.t("go_retry")
 	main_menu_button.text = Locale.t("go_menu")
@@ -123,7 +142,9 @@ func _ready() -> void:
 	_build_revive_button()
 	_build_hud_icons()
 	_build_xp_bar()
+	_build_threat_badge()
 	_build_swarm_banner()
+	_build_timeline()
 	_build_perf_overlay()
 	_build_loadout()
 	_build_goal_hint()
@@ -131,17 +152,18 @@ func _ready() -> void:
 	_build_blur_overlay()
 	_build_pause_menu()
 	_apply_safe_area()
-	UITheme.heading(wave_clear_label)
+	UITheme.heading(banner_label)
 	UITheme.heading($GameOverPanel/Margin/VBoxContainer/GameOverLabel)
 	call_deferred("_init_pivots")
 
 	Events.gold_changed.connect(_on_gold_changed)
 	Events.player_health_changed.connect(_on_player_health_changed)
 	Events.player_died.connect(_on_player_died)
-	Events.wave_changed.connect(_on_wave_changed)
+	Events.kills_changed.connect(_on_kills_changed)
 	Events.run_progress.connect(_on_run_progress)
+	Events.forecast_changed.connect(_on_forecast)
 	Events.run_cleared.connect(_on_run_cleared)
-	Events.wave_complete.connect(_on_wave_complete)
+	Events.milestone_reached.connect(_on_milestone_reached)
 	Events.weapon_equipped.connect(_on_weapon_equipped)
 	Events.weapon_timer_changed.connect(_on_weapon_timer_changed)
 	Events.gold_magnet_changed.connect(_on_gold_magnet_changed)
@@ -151,18 +173,20 @@ func _ready() -> void:
 	Events.boss_health_changed.connect(_on_boss_health_changed)
 	Events.boss_died.connect(_on_boss_died)
 	Events.swarm_incoming.connect(_on_swarm_incoming)
+	Events.weather_changed.connect(_on_weather_changed)
 	Events.xp_changed.connect(_on_xp_changed)
 	Events.inventory_changed.connect(_on_inventory_changed)
 	Events.game_won.connect(_on_game_won)
 	Events.achievement_unlocked.connect(_on_achievement_unlocked)
 	Events.quest_completed.connect(_on_quest_completed)
+	Events.maxed_level_gold.connect(_on_maxed_level_gold)
 	restart_button.pressed.connect(_on_restart_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
 	AdManager.rewarded_granted.connect(_on_rewarded_granted)
 	_on_gold_changed(Events.total_gold)
 	if Events.player_max_health > 0:
 		_on_player_health_changed(Events.player_health, Events.player_max_health)
-	_on_wave_changed(Events.total_kills)
+	_on_kills_changed(Events.total_kills)
 	_on_run_progress(Events.elapsed_time, GameData.difficulty.clear_seconds)
 	_on_score_changed(Events.score)
 	_on_high_score_changed(Events.high_score)
@@ -175,8 +199,8 @@ func _init_pivots() -> void:
 	gold_label.pivot_offset = gold_label.size * 0.5
 	score_label.pivot_offset = score_label.size * 0.5
 	weapon_label.pivot_offset = weapon_label.size * 0.5
-	wave_clear_bg.pivot_offset = wave_clear_bg.size * 0.5
-	wave_clear_label.pivot_offset = wave_clear_label.size * 0.5
+	banner_bg.pivot_offset = banner_bg.size * 0.5
+	banner_label.pivot_offset = banner_label.size * 0.5
 	game_over_panel.pivot_offset = game_over_panel.size * 0.5
 
 
@@ -276,6 +300,37 @@ func _on_boss_died() -> void:
 
 
 ## 스웜 경고 배너 — 화면 상단 중앙에 코드로 생성(씬 수정 없이).
+## 타임라인 바 — 상단 패널(TopBg, 높이 96) 안쪽 아래에 둔다.
+## y84~92 인 이유: 위로는 타이머/골드 줄(~y85)에 닿지 않고, 아래로는 패널의 장식 테두리선
+## (y94~96)을 피한다. 테두리에 겹쳐 놓았더니 빈 구간이 테두리와 뭉개져 읽히지 않았다(실렌더 확인).
+## 점수/최고점 줄은 y96 부터라 침범하지 않는다.
+func _build_timeline() -> void:
+	_timeline = _Timeline.new()
+	_timeline.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_timeline.offset_top = 84.0
+	_timeline.offset_bottom = 92.0
+	add_child(_timeline)
+
+
+## 마일스톤 카운트다운 — 보스 60초 전, 엘리트 20초 전에 기존 스웜 배너로 한 줄 예고한다.
+## 임계값이 다른 이유: 보스는 대비(위치 잡기·자원 쓰기)에 시간이 필요하고, 엘리트는 그냥
+## "곧 몰려온다"만 알면 된다. 예정 시각을 잠금 키로 써서 같은 회차는 한 번만 띄운다.
+func _on_forecast(next_boss: float, next_elite: float) -> void:
+	var now: float = Events.elapsed_time
+	if next_boss > 0.0:
+		var to_boss := next_boss - now
+		if to_boss > 0.0 and to_boss <= BOSS_WARN_SEC and _boss_warned_at != next_boss:
+			_boss_warned_at = next_boss
+			_show_banner(Locale.t("hud_boss_in_fmt") % int(ceil(to_boss)), Color(1.0, 0.35, 0.3))
+	if next_elite > 0.0:
+		var to_elite := next_elite - now
+		if to_elite > 0.0 and to_elite <= ELITE_WARN_SEC and _elite_warned_at != next_elite:
+			_elite_warned_at = next_elite
+			# 보스 예고가 떠 있는 동안에는 덮어쓰지 않는다 — 더 큰 위협이 먼저다.
+			if _boss_warned_at != next_boss or next_boss <= 0.0:
+				_show_banner(Locale.t("hud_elite_in_fmt") % int(ceil(to_elite)), Color(1.0, 0.6, 0.3))
+
+
 func _build_swarm_banner() -> void:
 	_swarm_banner = Label.new()
 	_swarm_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -294,8 +349,18 @@ func _build_swarm_banner() -> void:
 func _on_swarm_incoming(elite: bool) -> void:
 	if _swarm_banner == null:
 		return
-	_swarm_banner.text = Locale.t("hud_elite") if elite else Locale.t("hud_swarm")
-	_swarm_banner.add_theme_color_override("font_color", Color(1.0, 0.55, 0.25) if elite else Color(1.0, 0.85, 0.25))
+	_show_banner(Locale.t("hud_elite") if elite else Locale.t("hud_swarm"),
+		Color(1.0, 0.55, 0.25) if elite else Color(1.0, 0.85, 0.25))
+
+
+## 상단 예고 배너 한 줄 — 스웜/엘리트 등장 경고와 마일스톤 카운트다운이 함께 쓴다.
+## 같은 컴포넌트를 재사용하는 이유는 이 자리에 두 줄이 겹치면 무엇을 피해야 할지 읽히지 않기
+## 때문이다. 늦게 온 쪽이 이긴다(트윈을 죽이고 새로 띄운다).
+func _show_banner(text: String, col: Color) -> void:
+	if _swarm_banner == null:
+		return
+	_swarm_banner.text = text
+	_swarm_banner.add_theme_color_override("font_color", col)
 	if _swarm_tween and _swarm_tween.is_valid():
 		_swarm_tween.kill()
 	_swarm_banner.modulate.a = 0.0
@@ -308,6 +373,13 @@ func _on_swarm_incoming(elite: bool) -> void:
 	_swarm_tween.tween_property(_swarm_banner, "modulate:a", 0.0, 0.4)
 
 
+## 날씨 전환 알림 — 상시 위젯을 두지 않고(시간 표시 과밀 방지) 바뀌는 순간만 짧게 띄운다.
+## key == "" 는 '맑아짐'.
+func _on_weather_changed(key: String) -> void:
+	var col := Color(0.72, 0.86, 1.0) if key != "" else Color(0.85, 0.88, 0.92)
+	_show_toast(Locale.t("weather_clear" if key == "" else "weather_" + key), col, 215.0)
+
+
 ## 도전과제 달성 토스트 — 화면 상단 중앙에 잠깐 떴다 사라진다(코드로 즉석 생성).
 func _on_achievement_unlocked(title: String) -> void:
 	SoundManager.play_ui("gold", 0.0, 1.4)   # 달성 보상 하이톤 차임
@@ -318,6 +390,34 @@ func _on_achievement_unlocked(title: String) -> void:
 func _on_quest_completed(title: String, reward: int) -> void:
 	SoundManager.play_ui("gold", 0.0, 1.5)
 	_show_toast("[+]  Quest: %s   +%d gold waiting" % [title, reward], Color(0.6, 1.0, 0.6), 190.0)
+
+
+# 만렙 레벨업 골드 보상 알림 — 후반에는 레벨업이 초당 몇 번씩 들어와 토스트가 겹친다.
+# 짧은 창(_MAXED_MERGE_SEC) 동안 모아 한 줄로 합쳐 띄운다.
+const _MAXED_MERGE_SEC := 0.8
+var _maxed_gold_sum: int = 0
+var _maxed_gold_count: int = 0
+var _maxed_gold_pending: bool = false
+
+
+func _on_maxed_level_gold(_level: int, gold: int) -> void:
+	_maxed_gold_sum += gold
+	_maxed_gold_count += 1
+	if _maxed_gold_pending:
+		return
+	_maxed_gold_pending = true
+	# 정지 중에도 흐르는 실시간 타이머 — 레벨업 패널이 떠 있어도 알림이 멈추지 않는다.
+	await get_tree().create_timer(_MAXED_MERGE_SEC, true, false, true).timeout
+	if not is_inside_tree():
+		return
+	var total := _maxed_gold_sum
+	var count := _maxed_gold_count
+	_maxed_gold_sum = 0
+	_maxed_gold_count = 0
+	_maxed_gold_pending = false
+	SoundManager.play_ui("gold", 0.0, 1.35)
+	var head := "MAX BUILD" if count == 1 else "MAX BUILD x%d" % count
+	_show_toast("%s   +%d gold" % [head, total], Color(1.0, 0.85, 0.35), 190.0)
 
 
 ## 화면 상단 중앙에 잠깐 떠오르는 토스트 알림(달성/과제 공용).
@@ -359,7 +459,7 @@ func _update_hp_bar(health: int, max_health: int) -> void:
 	var cur := clampi(health, 0, mx)
 	var ratio := float(cur) / float(mx)
 	var target := _hp_fill_max * ratio
-	hp_label.text = "HP %d / %d" % [cur, mx]
+	hp_label.text = Locale.t("hud_hp_fmt") % [cur, mx]
 	# 연속 피격(접촉 데미지)에서 트윈을 새로 만들기만 하면 여러 트윈이 같은 size:x 를 놓고 다퉈
 	# 바가 튀고 트윈 객체도 누적된다 — 잔상 바(_hp_ghost_tween)처럼 직전 트윈을 반드시 정리한다.
 	if _hp_fill_tween and _hp_fill_tween.is_valid():
@@ -567,9 +667,9 @@ func _on_gold_magnet_changed(active: bool, time_left: float) -> void:
 		_magnet_tween.tween_callback(func(): buff_label.visible = false)
 
 
-## 엔들리스 — "웨이브" 대신 누적 처치 수를 표시한다(신호는 wave_changed 를 재사용).
-func _on_wave_changed(kills: int) -> void:
-	wave_label.text = Locale.t("hud_kills_fmt") % kills
+## 엔들리스 — 상단 우측에 누적 처치 수를 표시한다(웨이브 개념은 없다).
+func _on_kills_changed(kills: int) -> void:
+	kills_label.text = Locale.t("hud_kills_fmt") % kills
 
 
 ## 메인 타이머 — 클리어(30분)까지의 "남은 시간" 카운트다운 하나만 보여준다(경과·진행률 라벨 통합).
@@ -592,26 +692,26 @@ func _on_run_progress(elapsed: float, clear: float) -> void:
 func _on_run_cleared() -> void:
 	if SoundManager.has_stream("victory"):
 		SoundManager.play_ui("victory", 0.02, 1.0)   # 30분 클리어 징글(파일 있을 때만)
-	wave_clear_label.text = Locale.t("run_cleared")
-	wave_clear_label.visible = true
-	wave_clear_bg.visible = true
-	wave_clear_label.modulate.a = 1.0
-	wave_clear_bg.modulate.a = 1.0
-	wave_clear_label.scale = Vector2(0.7, 0.7)
-	wave_clear_bg.scale = Vector2(0.7, 0.7)
+	banner_label.text = Locale.t("run_cleared")
+	banner_label.visible = true
+	banner_bg.visible = true
+	banner_label.modulate.a = 1.0
+	banner_bg.modulate.a = 1.0
+	banner_label.scale = Vector2(0.7, 0.7)
+	banner_bg.scale = Vector2(0.7, 0.7)
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(wave_clear_label, "scale", Vector2.ONE, 0.30).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(wave_clear_bg, "scale", Vector2.ONE, 0.30).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(banner_label, "scale", Vector2.ONE, 0.30).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(banner_bg, "scale", Vector2.ONE, 0.30).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.set_parallel(false)
 	tw.tween_interval(2.2)
 	tw.set_parallel(true)
-	tw.tween_property(wave_clear_label, "modulate:a", 0.0, 0.6)
-	tw.tween_property(wave_clear_bg, "modulate:a", 0.0, 0.6)
+	tw.tween_property(banner_label, "modulate:a", 0.0, 0.6)
+	tw.tween_property(banner_bg, "modulate:a", 0.0, 0.6)
 	tw.set_parallel(false)
 	tw.tween_callback(func():
-		wave_clear_label.visible = false
-		wave_clear_bg.visible = false)
+		banner_label.visible = false
+		banner_bg.visible = false)
 	Events.shake(8.0)
 
 
@@ -626,6 +726,26 @@ func _build_fog() -> void:
 	fog.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(fog)
 	move_child(fog, 0)   # 최하단으로 — 월드 위, 모든 HUD 위젯 아래
+
+
+## 위협 등급 표시(P1-12) — 레벨 뱃지 바로 아래, 상단바 중앙.
+## **등급 1 에서는 만들지 않는다.** 등급을 아직 해금하지 못한 사람에게 "R1" 은 아무 정보가
+## 아니고, 상단바만 붐빈다 — 사다리를 오르기 시작한 사람에게만 보이면 된다.
+func _build_threat_badge() -> void:
+	if ThreatManager.selected_rank() <= 1:
+		return
+	var lbl := Label.new()
+	lbl.text = Locale.t("threat_badge_fmt") % ThreatManager.selected_rank()
+	lbl.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	lbl.offset_top = 72.0
+	lbl.offset_bottom = 92.0
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.add_theme_color_override("font_color", UITheme.SEC_THREAT_TXT)
+	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+	lbl.add_theme_constant_override("outline_size", 3)
+	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(lbl)
 
 
 ## 경험치 바 — 화면 최상단 엣지(전 너비) + 상단바 중앙의 알약형 레벨 뱃지.
@@ -730,6 +850,18 @@ func _on_xp_changed(xp: int, xp_to_next: int, level: int) -> void:
 ## 텍스트 리스트(후반 16줄+)가 화면 좌측을 덮던 것을 슬롯 두 줄로 압축한다.
 ## 레벨은 슬롯 우하단 뱃지 숫자로, 신규 획득/레벨업 슬롯은 잠깐 펄스로 알린다.
 const _LOADOUT_SLOT_PX := 44
+## 로드아웃 슬롯을 종류별로 묶어 그리기 위한 z 층(아래 _make_loadout_slot 주석 참고).
+## 프레임 → 아이콘 → 뱃지 순서는 슬롯 안에서와 똑같지만, z 로 올리면 그 순서가
+## **슬롯을 가로질러** 적용돼 같은 텍스처끼리 붙는다.
+const _Z_SLOT_FRAME := 0
+const _Z_SLOT_ICON := 1
+const _Z_SLOT_BADGE := 2
+## 로드아웃보다 뒤에 만들어져 그 위에 그려지던 것들 — z 를 명시해 그 관계를 유지한다.
+## (안 올리면 아이콘·뱃지가 일시정지 딤 위로 새어 나온다)
+const _Z_OVERLAY := 10
+## 게임오버 배경 블러 전용 — HUD 요소(전부 0 이상)보다 **아래**. 이 값이 양수면 블러가 UI 를 덮는다.
+const _Z_UNDER_UI := -1
+
 
 func _build_loadout() -> void:
 	# 밝은 필드 위에서도 잘 읽히도록 반투명 어두운 패널을 배경에 깔고(내용에 맞춰 자동 크기).
@@ -820,6 +952,11 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 		var tint: Color = meta.get("color", Color.WHITE)
 		sb.border_color = Color(tint.r, tint.g, tint.b, 0.55)   # 아이템 색은 테두리 힌트로만
 		frame.add_theme_stylebox_override("panel", sb)
+	# 슬롯 15칸이 프레임→아이콘→뱃지를 번갈아 쌓으면 텍스처가 매번 바뀌어 배치가 끊긴다
+	# (실측: 로드아웃 하나가 HUD 92콜 중 53콜). z 로 종류를 갈라 같은 텍스처끼리 붙인다 —
+	# 프레임은 전부 hud_slot_small.png, 아이콘은 전부 ui.png 아틀라스, 뱃지는 전부 폰트 아틀라스다.
+	# 슬롯끼리 겹치지 않으므로 보이는 결과는 같다(펄스 중에는 아래 _pulse_slot_now 가 z 를 올린다).
+	frame.z_index = _Z_SLOT_FRAME
 	slot.add_child(frame)
 
 	var icon = meta.get("icon")
@@ -836,6 +973,7 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tex.z_index = _Z_SLOT_ICON
 		slot.add_child(tex)
 
 	var badge := Label.new()
@@ -850,6 +988,7 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 	badge.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	badge.offset_right = -3.0
 	badge.offset_bottom = -1.0
+	badge.z_index = _Z_SLOT_BADGE
 	slot.add_child(badge)
 	return slot
 
@@ -865,8 +1004,15 @@ func _pulse_slot_now(slot: Control) -> void:
 		return
 	slot.pivot_offset = slot.size * 0.5
 	slot.scale = Vector2(1.35, 1.35)
+	# 확대된 슬롯은 이웃과 겹친다. 평소에는 z 로 종류를 갈라 두므로 그대로 두면 이웃 아이콘이
+	# 확대된 프레임 위에 얹힌다 — 펄스 동안만 슬롯째 올려 예전과 같은 겹침 순서를 만든다.
+	# (자식 z 는 상대값이라 슬롯을 올리면 프레임·아이콘·뱃지가 함께 올라간다)
+	slot.z_index = _Z_SLOT_BADGE + 1
 	var tw := create_tween()
 	tw.tween_property(slot, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		if is_instance_valid(slot):
+			slot.z_index = 0)
 
 
 ## 목표 힌트 — 게임 시작 직후 잠깐만 보여주고 페이드 아웃(카운트다운 타이머가 이후 목표를 전달).
@@ -882,6 +1028,7 @@ func _build_goal_hint() -> void:
 	_goal_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 	_goal_label.add_theme_constant_override("outline_size", 3)
 	_goal_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_goal_label.z_index = _Z_OVERLAY
 	add_child(_goal_label)
 	# 이어하기(경과 진행 중)로 들어온 판은 즉시, 새 판은 8초 후 사라진다.
 	var hold := 8.0 if Events.elapsed_time < 5.0 else 2.0
@@ -891,30 +1038,32 @@ func _build_goal_hint() -> void:
 	tw.tween_callback(func(): _goal_label.visible = false)
 
 
-func _on_wave_complete(wave: int) -> void:
+## 마일스톤(보스 처치) 배너 — 예전 웨이브 클리어 연출을 그대로 재활용한다.
+## 발신자가 없어 72줄 연출과 스팅어가 통째로 도달 불가였다(P0-2).
+func _on_milestone_reached(index: int) -> void:
 	if SoundManager.has_stream("wave_clear"):
-		SoundManager.play_ui("wave_clear", 0.02, 1.0)   # 웨이브 클리어 스팅어(파일 있을 때만)
-	wave_clear_label.text = Locale.t("wave_clear_fmt") % wave
-	wave_clear_label.visible = true
-	wave_clear_bg.visible = true
-	wave_clear_label.modulate.a = 1.0
-	wave_clear_bg.modulate.a = 1.0
-	wave_clear_label.scale = Vector2(0.7, 0.7)
-	wave_clear_bg.scale = Vector2(0.7, 0.7)
+		SoundManager.play_ui("wave_clear", 0.02, 1.0)   # 마일스톤 스팅어(파일 있을 때만)
+	banner_label.text = Locale.t("boss_cleared") % index
+	banner_label.visible = true
+	banner_bg.visible = true
+	banner_label.modulate.a = 1.0
+	banner_bg.modulate.a = 1.0
+	banner_label.scale = Vector2(0.7, 0.7)
+	banner_bg.scale = Vector2(0.7, 0.7)
 
 	var tw := create_tween()
 	tw.set_parallel(true)
-	tw.tween_property(wave_clear_label, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(wave_clear_bg, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(banner_label, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(banner_bg, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tw.set_parallel(false)
 	tw.tween_interval(1.3)
 	tw.set_parallel(true)
-	tw.tween_property(wave_clear_label, "modulate:a", 0.0, 0.5)
-	tw.tween_property(wave_clear_bg, "modulate:a", 0.0, 0.5)
+	tw.tween_property(banner_label, "modulate:a", 0.0, 0.5)
+	tw.tween_property(banner_bg, "modulate:a", 0.0, 0.5)
 	tw.set_parallel(false)
 	tw.tween_callback(func():
-		wave_clear_label.visible = false
-		wave_clear_bg.visible = false)
+		banner_label.visible = false
+		banner_bg.visible = false)
 
 
 ## 게임오버 패널 최상단에 "광고 보고 부활" 버튼을 코드로 생성(보상형 광고 유도).
@@ -930,12 +1079,23 @@ func _build_revive_button() -> void:
 	box.move_child(_revive_btn, restart_button.get_index())   # 다시하기 버튼 바로 위로
 
 
-## 게임오버 패널 뒤 화면을 흐리게 — BackBufferCopy 로 화면을 떠 두고 블러 셰이더 ColorRect 로 덮는다.
-## 그리기 순서를 패널 바로 앞(아래)으로 옮겨, 화면 전체를 블러한 위에 패널만 선명히 표시한다.
+## 게임오버 패널 뒤 **배경만** 흐리게 — BackBufferCopy 로 그 시점까지 그려진 화면을 떠 두고
+## 블러 셰이더 ColorRect 로 덮는다. HUD 는 CanvasLayer(레이어 1)라 월드(레이어 0)가 먼저 그려지므로,
+## 이 둘을 HUD 안에서 **가장 먼저** 그리면 떠 오는 내용이 월드뿐이다.
+##
+## ⚠️ 그 "가장 먼저"를 만드는 것은 트리 순서가 아니라 **z_index** 다. 예전에는 z 를 _Z_OVERLAY(10)
+## 로 주고 move_child 로 패널 앞에 끼워 넣었는데, z 는 트리 순서를 이기므로 블러가 게임오버 패널·
+## 상단 바·디버그 오버레이까지 전부 덮어 UI 가 통째로 뭉개졌다(사용자 스크린샷으로 확인).
+## HUD 의 다른 요소는 전부 z 0 이상이니 여기만 음수로 두면 배경만 흐려진다.
+##
+## 트리 순서는 여전히 의미가 있다 — 입력 픽킹은 z 가 아니라 트리 순서를 따른다. 패널 바로 앞에
+## 두어야 패널이 터치를 먼저 먹고, 패널 바깥 터치는 이 막이 삼킨다(HUD 는 PROCESS_MODE_ALWAYS 라
+## 정지 중에도 조이스틱이 입력을 받는다 — 막이 없으면 뒤 게임으로 샌다).
 func _build_blur_overlay() -> void:
 	_blur_bbc = BackBufferCopy.new()
 	_blur_bbc.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
 	_blur_bbc.visible = false
+	_blur_bbc.z_index = _Z_UNDER_UI
 	add_child(_blur_bbc)
 
 	_blur_rect = ColorRect.new()
@@ -946,6 +1106,7 @@ func _build_blur_overlay() -> void:
 	mat.shader = load("res://assets/shaders/gameover_blur.gdshader")
 	_blur_rect.material = mat
 	_blur_rect.visible = false
+	_blur_rect.z_index = _Z_UNDER_UI
 	add_child(_blur_rect)
 
 	var idx := game_over_panel.get_index()
@@ -966,7 +1127,8 @@ func _on_revive_pressed() -> void:
 	AdManager.show_rewarded("revive")
 
 
-## 보상형 시청 완료 콜백. 부활 placement 만 처리(상점 보상은 ShopPanel 이 처리).
+## 보상형 시청 완료 콜백. 지금 쓰는 placement 는 부활 하나뿐이다
+## (인게임 상점은 2026-08 폐기 — P0-3).
 func _on_rewarded_granted(placement: String) -> void:
 	if placement != "revive" or _revive_used:
 		return
@@ -990,7 +1152,7 @@ func _on_rewarded_granted(placement: String) -> void:
 func _build_hud_icons() -> void:
 	score_label.visible = false
 	high_score_label.visible = false
-	_right_stat_icon("skull",  wave_label,       Color(0.95, 0.6, 0.6))
+	_right_stat_icon("skull",  kills_label,       Color(0.95, 0.6, 0.6))
 	_right_stat_icon("clock",  time_label,       Color(0.82, 0.86, 0.95))
 
 
@@ -1124,6 +1286,10 @@ func _show_end_panel(victory: bool) -> void:
 
 
 func _on_restart_pressed() -> void:
+	# 메인 메뉴와 같은 이유로 **Events.reset() 보다 먼저** 기록한다(P0-9).
+	# 이게 없으면 리셋된 값(경과 0·처치 1·레벨 2)이 진행 스냅샷을 덮어써, 그 판이
+	# "0점짜리 기록"으로 남는다 — 실제로 30분 클리어 판이 그렇게 저장됐다.
+	Telemetry.end_run("left")
 	Events.pause_release_all()   # 새 판 시작 전 정지 소유권 전부 해제
 	MetaManager.bank(Events.total_gold)   # 이번 판 골드를 영구 은행에 적립
 	Events.reset()
@@ -1143,6 +1309,7 @@ func _build_pause_menu() -> void:
 	_pause_btn.offset_bottom = 70.0
 	_UIStyle.apply_button_style(_pause_btn, Color(0.12, 0.13, 0.18, 0.9), Color(0.5, 0.55, 0.68))
 	_pause_btn.pressed.connect(_on_pause_pressed)
+	_pause_btn.z_index = _Z_OVERLAY
 	add_child(_pause_btn)
 	# VARCO 원형 버튼 텍스처(⏸ 아이콘 포함)가 있으면 플레이트 대신 사용 —
 	# 스타일박스는 비우고 텍스처를 얼굴로 깐다(눌림 팝은 UITheme 전역 스케일이 담당).
@@ -1179,6 +1346,7 @@ func _build_pause_menu() -> void:
 	_pause_dim.color = Color(0, 0, 0, 0.7)
 	_pause_dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_pause_dim.visible = false
+	_pause_dim.z_index = _Z_OVERLAY
 	add_child(_pause_dim)
 
 	_pause_panel = PanelContainer.new()
@@ -1188,6 +1356,7 @@ func _build_pause_menu() -> void:
 	_pause_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_pause_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.09, 0.13, 0.97), Color(0.5, 0.6, 0.8), 22, 3))
 	_pause_panel.visible = false
+	_pause_panel.z_index = _Z_OVERLAY
 	add_child(_pause_panel)
 
 	var margin := MarginContainer.new()
@@ -1195,7 +1364,7 @@ func _build_pause_menu() -> void:
 		margin.add_theme_constant_override("margin_" + m, 26)
 	_pause_panel.add_child(margin)
 
-	# CHEATS 를 펼치면 버튼이 6개 더 붙어 패널이 화면 높이에 육박한다. 스크롤이 없으면
+	# CHEATS 를 펼치면 버튼이 8개 더 붙어 패널이 화면 높이에 육박한다. 스크롤이 없으면
 	# 그 순간 아래쪽이 잘려 손댈 수가 없으므로, 내용을 스크롤 영역에 담는다.
 	# (높이는 _fit_pause_scroll() 이 "내용 높이 vs 화면 여유" 중 작은 쪽으로 맞춘다)
 	_pause_scroll = ScrollContainer.new()
@@ -1242,29 +1411,41 @@ func _build_pause_menu() -> void:
 	vb.add_child(menu)
 
 	# ── 치트 하위 메뉴(접이식) — 자동플레이/시간 점프/골드/레벨업 ─────────────
-	var cheats := Button.new()
-	cheats.text = "CHEATS"
-	cheats.custom_minimum_size = Vector2(0, 48)
-	cheats.add_theme_font_size_override("font_size", 19)
-	_UIStyle.apply_button_style(cheats, Color(0.26, 0.16, 0.30), Color(0.7, 0.5, 0.85))
-	vb.add_child(cheats)
+	# 배포 빌드에는 만들지 않는다. 여기 있는 것들이 점수·랭킹·도전과제·퀘스트·메타 골드를
+	# 전부 오염시키기 때문이다(P0-1). 판정은 Cheats.enabled 한 곳에 모여 있다 —
+	# 에디터·디버그 빌드는 그대로, 릴리스 export 는 custom_features 에 "cheats" 가 있을 때만.
+	# 노드를 아예 만들지 않으므로 아래 _cheat_* 참조는 전부 null 로 남는다(_refresh_cheat_ui 가
+	# 필드마다 null 을 확인하고 넘어간다 — 잠긴 빌드에서 그 경로가 실제로 도는 자리다).
+	if Cheats.enabled:
+		var cheats := Button.new()
+		cheats.text = "CHEATS"
+		cheats.custom_minimum_size = Vector2(0, 48)
+		cheats.add_theme_font_size_override("font_size", 19)
+		_UIStyle.apply_button_style(cheats, Color(0.26, 0.16, 0.30), Color(0.7, 0.5, 0.85))
+		vb.add_child(cheats)
 
-	_cheat_box = VBoxContainer.new()
-	_cheat_box.add_theme_constant_override("separation", 8)
-	_cheat_box.visible = false
-	vb.add_child(_cheat_box)
-	cheats.pressed.connect(func():
-		_cheat_box.visible = not _cheat_box.visible
-		call_deferred("_fit_pause_scroll"))   # 펼침/접힘 후 바뀐 높이로 다시 맞춘다
+		_cheat_box = VBoxContainer.new()
+		_cheat_box.add_theme_constant_override("separation", 8)
+		_cheat_box.visible = false
+		vb.add_child(_cheat_box)
+		cheats.pressed.connect(func():
+			_cheat_box.visible = not _cheat_box.visible
+			call_deferred("_fit_pause_scroll"))   # 펼침/접힘 후 바뀐 높이로 다시 맞춘다
 
-	_cheat_auto_btn = _make_cheat_button("AUTO-PLAY: OFF", _on_cheat_autoplay)
-	_make_cheat_button("TIME +5 MIN", func(): Cheats.time_skip.emit(300.0))
-	_make_cheat_button("SPAWN TO CAP", func(): Cheats.spawn_fill.emit())
-	_make_cheat_button("GOLD +500", func(): Events.add_gold(500))
-	_make_cheat_button("LEVEL UP +1", func(): Events.bonus_level())
-	_cheat_perf_btn = _make_cheat_button("PERF HUD: OFF", func(): Cheats.toggle_perf_overlay())
-	Cheats.changed.connect(_refresh_cheat_ui)
-	_refresh_cheat_ui()   # 씬 재진입 시 이미 켜져 있던 토글이 라벨에 반영되도록 초기 1회 갱신
+		_cheat_auto_btn = _make_cheat_button("AUTO-PLAY: OFF", _on_cheat_autoplay)
+		_make_cheat_button("TIME +5 MIN", func(): Cheats.request_time_skip(300.0))
+		_make_cheat_button("SPAWN TO CAP", func(): Cheats.request_spawn_fill())
+		# 보스전을 10분씩 기다리지 않고 확인 — 누를 때마다 회차가 올라 강화 곡선도 같이 볼 수 있다.
+		_make_cheat_button("SPAWN BOSS", func(): Cheats.request_spawn_boss())
+		_make_cheat_button("GOLD +500", func(): Events.add_gold(500))
+		_make_cheat_button("LEVEL UP +1", func(): Events.bonus_level())
+		_cheat_perf_btn = _make_cheat_button("PERF HUD: OFF", func(): Cheats.toggle_perf_overlay())
+		# 낮/밤 시간 틴트를 통째로 끈다(날씨는 유지) — 밤 구간에서 화면이 어두워 확인이 어려울 때.
+		_cheat_day_btn = _make_cheat_button("DAY/NIGHT: ON", func(): Cheats.toggle_daynight())
+		# 비·눈과 번개를 통째로 끈다(=상시 맑음). 스케줄은 계속 돌아 다시 켜면 이어진다.
+		_cheat_weather_btn = _make_cheat_button("WEATHER: ON", func(): Cheats.toggle_weather())
+		Cheats.changed.connect(_refresh_cheat_ui)
+		_refresh_cheat_ui()   # 씬 재진입 시 이미 켜져 있던 토글이 라벨에 반영되도록 초기 1회 갱신
 
 	# 자동플레이 동작 중 표시 — 일시정지 버튼 아래 작은 태그.
 	_auto_tag = Label.new()
@@ -1320,17 +1501,21 @@ func _on_cheat_autoplay() -> void:
 
 func _refresh_cheat_ui() -> void:
 	if _cheat_auto_btn:
-		_cheat_auto_btn.text = "AUTO-PLAY: ON" if Cheats.autoplay else "AUTO-PLAY: OFF"
+		_cheat_auto_btn.text = "AUTO-PLAY: ON" if Cheats.autoplay_active() else "AUTO-PLAY: OFF"
 	if _auto_tag:
-		_auto_tag.visible = Cheats.autoplay
+		_auto_tag.visible = Cheats.autoplay_active()
 	if _cheat_perf_btn:
 		_cheat_perf_btn.text = "PERF HUD: ON" if Cheats.perf_overlay else "PERF HUD: OFF"
 	if _perf_overlay:
 		_perf_overlay.visible = Cheats.perf_overlay
+	if _cheat_day_btn:
+		_cheat_day_btn.text = "DAY/NIGHT: ON" if Cheats.daynight else "DAY/NIGHT: OFF"
+	if _cheat_weather_btn:
+		_cheat_weather_btn.text = "WEATHER: ON" if Cheats.weather else "WEATHER: OFF"
 
 
 func _on_pause_pressed() -> void:
-	if get_tree().paused:   # 레벨업/상점 등 다른 정지 중이면 무시
+	if get_tree().paused:   # 레벨업/보물상자 등 다른 정지 중이면 무시
 		return
 	if _pause_time:
 		var m := int(Events.elapsed_time) / 60
@@ -1365,7 +1550,7 @@ func _apply_safe_area() -> void:
 	top_bg.offset_bottom += inset   # 바 배경은 노치 뒤까지 채우고, 내용만 아래로 민다
 	# 뱃지 모드에선 라벨이 뱃지의 풀렉트 자식이라 뱃지 쪽을 옮긴다.
 	var lv_node: Control = _level_badge if _level_badge else _level_label
-	for c in [get_node("CoinIcon"), gold_label, hp_bar, wave_label, time_label,
+	for c in [get_node("CoinIcon"), gold_label, hp_bar, kills_label, time_label,
 			lv_node, _xp_bg, _pause_btn, _auto_tag, boss_bar, weapon_label, buff_label] + _stat_icons:
 		if c is Control:
 			c.offset_top += inset
@@ -1373,6 +1558,9 @@ func _apply_safe_area() -> void:
 
 
 func _on_main_menu_pressed() -> void:
+	# Events.reset() 보다 **먼저** 기록한다 — 리셋 뒤엔 경과·레벨·처치가 전부 0 이다.
+	# 씬 전환만으로는 텔레메트리에 아무 신호도 가지 않아, 이 한 줄이 없으면 그 판이 사라진다.
+	Telemetry.end_run("left")
 	Events.pause_release_all()   # 씬 전환 전 정지 소유권 전부 해제
 	MetaManager.bank(Events.total_gold)   # 이번 판 골드를 영구 은행에 적립
 	Events.reset()

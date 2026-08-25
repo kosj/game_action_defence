@@ -42,11 +42,11 @@ func _physics_process(delta: float) -> void:
 func _draw() -> void:
 	var fade := clampf(_life / 1.0, 0.0, 1.0)
 	var bubble := 1.0 + 0.04 * sin(_age * 4.0)
-	draw_circle(Vector2.ZERO, RADIUS * bubble, Color(0.35, 0.85, 0.25, 0.16 * fade))
-	draw_circle(Vector2.ZERO, RADIUS * 0.62 * bubble, Color(0.5, 1.0, 0.35, 0.14 * fade))
-	draw_arc(Vector2.ZERO, RADIUS * bubble, 0.0, TAU, 36, Color(0.55, 1.0, 0.4, 0.4 * fade), 2.0, true)
+	QuadDraw.disc(self, Vector2.ZERO, RADIUS * bubble, Color(0.35, 0.85, 0.25, 0.16 * fade))
+	QuadDraw.disc(self, Vector2.ZERO, RADIUS * 0.62 * bubble, Color(0.5, 1.0, 0.35, 0.14 * fade))
+	QuadDraw.ring(self, Vector2.ZERO, RADIUS * bubble, Color(0.55, 1.0, 0.4, 0.4 * fade), 2.0, 36)
 	# 보글대는 독 방울 몇 개.
 	for i in 5:
 		var a := _age * 1.5 + TAU * float(i) / 5.0
 		var rr := RADIUS * (0.3 + 0.4 * absf(sin(_age + float(i))))
-		draw_circle(Vector2.from_angle(a) * rr, 3.0, Color(0.6, 1.0, 0.4, 0.5 * fade))
+		QuadDraw.disc(self, Vector2.from_angle(a) * rr, 3.0, Color(0.6, 1.0, 0.4, 0.5 * fade))

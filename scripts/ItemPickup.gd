@@ -1,6 +1,13 @@
-extends Area2D
+extends Node2D
 ## 필드 픽업: 보물상자(먹으면 랜덤 골드) 또는 폭탄(화면 내 잡몹 일소). 방치 시 사라진다.
 ## 풀링되며 "item_pickups" 그룹으로 동시 등장 수를 제한한다.
+##
+## 물리 노드가 아니다: 수집 판정은 아래 _process() 의 collect_radius 거리 계산뿐이다.
+## 예전에는 Area2D 였는데 **충돌 도형도 없이 monitoring/monitorable 을 둘 다 꺼 둔** 상태였다.
+## 즉 Area2D 의 기능은 하나도 안 쓰면서 타입만 물리 노드였다 — Gold 가 있던 상태와 같다.
+## (그 상태가 위험한 이유는 프레임이 아니라 오해다. "Area2D 니까 body_entered 를 쓰면 되겠다"고
+##  집었다가 신호가 영영 안 와서 디버깅하게 된다. 실측 프레임 차이는 0 이었다 — 정지 상태의
+##  Area2D 는 600개에서도 0.003ms 다. `tools/node_cost.gd` · OPTIMIZATION_PLAN.md §5-M)
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 const _ChestReward := preload("res://scripts/ChestRewardPanel.gd")
@@ -16,10 +23,19 @@ const BOMB_DAMAGE := 40           # 폭탄: 화면 내 잡몹 일소(보스 제�
 const CHEST_GOLD_MIN := 12        # 보물상자 골드 획득 범위
 const CHEST_GOLD_MAX := 55
 
+# 상자 아트 — 있으면 스프라이트로, 없으면 아래 절차 드로잉으로 그린다.
+# (Pool.acquire 가 kind 를 지정하기 "전에" on_spawn 을 부르므로 미리 정할 수 없어
+#  그리는 시점에 kind 를 보고 한 번만 로드해 캐시한다.)
+const CHEST_TEX_PATH := "res://assets/atlas/chest_treasure.tres"
+const EVOCHEST_TEX_PATH := "res://assets/atlas/chest_evolution.tres"
+const CHEST_DRAW_PX := 46.0   # 화면에 그릴 긴 변 크기
+
 var kind: String = "chest"   # "chest" | "bomb" — 스포너가 스폰 시 지정
 var player: Node2D = null
 var _alive: bool = false
 var _t: float = 0.0
+var _tex: Texture2D = null
+var _tex_kind: String = ""   # _tex 를 어느 kind 로 캐시했는지
 
 
 func _icon_color() -> Color:
@@ -31,15 +47,13 @@ func _icon_color() -> Color:
 
 func _label() -> String:
 	match kind:
-		"bomb": return "Bomb"
-		"evochest": return "Evolution"
-		_: return "Treasure"
+		"bomb": return Locale.t("pickup_bomb")
+		"evochest": return Locale.t("pickup_evolution")
+		_: return Locale.t("pickup_treasure")
 
 
 func _ready() -> void:
 	add_to_group("item_pickups")
-	monitoring = false
-	monitorable = false
 
 
 func on_spawn() -> void:
@@ -128,38 +142,72 @@ func _draw() -> void:
 	else:
 		_draw_chest(center, alpha)   # chest/evochest — 금속 밴드 색은 _icon_color()
 	var font := ThemeDB.fallback_font
-	draw_string(font, center + Vector2(-60.0, -34.0), _label(), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 14, Color(1.0, 1.0, 1.0, alpha))
+	draw_string(font, center + Vector2(-60.0, -34.0), _label(), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 14, Color(1.0, 1.0, 1.0, alpha))   # batching-exempt: 임의 로케일 문자열이라 비트맵으로 못 굽는다. 동시 표시 수가 한 자릿수라 배치 손실이 그만큼뿐이다
+
+
+## 종류에 맞는 상자 텍스처(없으면 null). 파일이 없으면 절차 드로잉으로 폴백하므로
+## 에셋이 아직 안 들어와도 게임은 그대로 돌아간다.
+func _chest_texture() -> Texture2D:
+	if _tex_kind == kind:
+		return _tex
+	_tex_kind = kind
+	_tex = null
+	var path := EVOCHEST_TEX_PATH if kind == "evochest" else CHEST_TEX_PATH
+	if ResourceLoader.exists(path):
+		var r = load(path)
+		if r is Texture2D:
+			_tex = r
+	return _tex
 
 
 func _draw_chest(center: Vector2, alpha: float) -> void:
 	var pulse := 1.0 + sin(_t * 4.0) * 0.05
 	var band := _icon_color()   # 보물=금색 / 진화=보라
-	draw_circle(center, 20.0 * pulse, Color(band.r, band.g, band.b, 0.22 * alpha))   # 후광
+	var tex := _chest_texture()
+	if tex:
+		# 스프라이트(긴 변 46px)는 절차 드로잉(폭 30px)보다 커서 반경 20 짜리 후광이
+		# 상자 뒤에 완전히 가린다. 반경을 키우되 단색 원판이 되지 않도록 여러 겹으로
+		# 쌓아 바깥으로 갈수록 옅어지게 한다.
+		for i in 5:
+			var f := float(i) / 5.0
+			QuadDraw.disc(self, center, (33.0 - 13.0 * f) * pulse, Color(band.r, band.g, band.b, 0.05 * alpha))
+	else:
+		QuadDraw.disc(self, center, 20.0 * pulse, Color(band.r, band.g, band.b, 0.22 * alpha))
+
+	if tex:
+		# 비율을 유지한 채 긴 변을 CHEST_DRAW_PX 에 맞추고, 후광과 같은 맥동을 준다.
+		var ts := Vector2(tex.get_size())
+		var longest := maxf(ts.x, ts.y)
+		if longest > 0.0:
+			var dst := ts * (CHEST_DRAW_PX * pulse / longest)
+			draw_texture_rect(tex, Rect2(center - dst * 0.5, dst), false, Color(1, 1, 1, alpha))
+			return
+
 	var gold := Color(band.r, band.g, band.b, alpha)
 	var wood := Color(0.5, 0.32, 0.15, alpha)
 	var wood_d := Color(0.38, 0.24, 0.11, alpha)
 	var dark := Color(0.12, 0.08, 0.05, alpha)
 	var w := 15.0
-	draw_rect(Rect2(center + Vector2(-w, -2.0), Vector2(2.0 * w, 14.0)), wood)      # 몸통
-	draw_rect(Rect2(center + Vector2(-w, -11.0), Vector2(2.0 * w, 10.0)), wood_d)   # 뚜껑
-	draw_rect(Rect2(center + Vector2(-w, -2.0), Vector2(2.0 * w, 3.0)), gold)       # 중앙 금속 밴드
-	draw_rect(Rect2(center + Vector2(-w, 10.0), Vector2(2.0 * w, 2.0)), gold)       # 하단 밴드
-	draw_rect(Rect2(center + Vector2(-2.5, -11.0), Vector2(5.0, 23.0)), gold)       # 세로 밴드
-	draw_circle(center + Vector2(0.0, 4.0), 3.0, gold)                              # 자물쇠
-	draw_circle(center + Vector2(0.0, 4.0), 1.3, dark)
-	draw_rect(Rect2(center + Vector2(-w, -11.0), Vector2(2.0 * w, 23.0)), dark, false, 1.5)
+	QuadDraw.rect(self, Rect2(center + Vector2(-w, -2.0), Vector2(2.0 * w, 14.0)), wood)      # 몸통
+	QuadDraw.rect(self, Rect2(center + Vector2(-w, -11.0), Vector2(2.0 * w, 10.0)), wood_d)   # 뚜껑
+	QuadDraw.rect(self, Rect2(center + Vector2(-w, -2.0), Vector2(2.0 * w, 3.0)), gold)       # 중앙 금속 밴드
+	QuadDraw.rect(self, Rect2(center + Vector2(-w, 10.0), Vector2(2.0 * w, 2.0)), gold)       # 하단 밴드
+	QuadDraw.rect(self, Rect2(center + Vector2(-2.5, -11.0), Vector2(5.0, 23.0)), gold)       # 세로 밴드
+	QuadDraw.disc(self, center + Vector2(0.0, 4.0), 3.0, gold)                              # 자물쇠
+	QuadDraw.disc(self, center + Vector2(0.0, 4.0), 1.3, dark)
+	QuadDraw.rect(self, Rect2(center + Vector2(-w, -11.0), Vector2(2.0 * w, 23.0)), dark)
 
 
 func _draw_bomb(center: Vector2, alpha: float) -> void:
 	var col := BOMB_COLOR
 	var pulse := 1.0 + sin(_t * 5.0) * 0.07
 	var glow_r := 22.0 * pulse
-	draw_circle(center, glow_r, Color(col.r, col.g, col.b, 0.30 * alpha))
-	draw_arc(center, glow_r * 0.8, 0.0, TAU, 28, Color(col.r, col.g, col.b, 0.6 * alpha), 2.5, true)
+	QuadDraw.disc(self, center, glow_r, Color(col.r, col.g, col.b, 0.30 * alpha))
+	QuadDraw.ring(self, center, glow_r * 0.8, Color(col.r, col.g, col.b, 0.6 * alpha), 2.5, 28)
 	for i in 6:
 		var a := _t * 2.0 + TAU * float(i) / 6.0
 		var p := center + Vector2.from_angle(a) * (glow_r + 4.0)
-		draw_circle(p, 2.2, Color(col.r, col.g, col.b, 0.7 * alpha))
+		QuadDraw.disc(self, p, 2.2, Color(col.r, col.g, col.b, 0.7 * alpha))
 	var r := 11.0 * pulse
-	draw_circle(center, r, Color(col.r, col.g, col.b, 0.92 * alpha))
-	draw_circle(center, r * 0.55, Color(1.0, 1.0, 1.0, 0.85 * alpha))
+	QuadDraw.disc(self, center, r, Color(col.r, col.g, col.b, 0.92 * alpha))
+	QuadDraw.disc(self, center, r * 0.55, Color(1.0, 1.0, 1.0, 0.85 * alpha))

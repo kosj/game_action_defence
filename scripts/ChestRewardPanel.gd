@@ -18,17 +18,17 @@ const _RARITY := [
 ]
 
 ## 카드 앞면 아이콘 — 아이템은 카탈로그 아이콘, 나머지는 종류별 범용 아이콘/엠블럼.
-const _ICON_XP := preload("res://assets/ui/icons/hud_xp.png")
-const _ICON_MAGNET := preload("res://assets/ui/icons/passive_magnet.png")
-const _ICON_HEAL := preload("res://assets/ui/icons/passive_regen.png")
+const _ICON_XP := preload("res://assets/atlas/ui/hud_xp.tres")
+const _ICON_MAGNET := preload("res://assets/atlas/ui/passive_magnet.tres")
+const _ICON_HEAL := preload("res://assets/atlas/ui/passive_regen.tres")
 
 ## 전용 보상 아이콘(선택) — 파일이 있으면 사용하고 없으면 종류색 다이아 엠블럼으로 폴백.
 ## 아트가 준비되는 대로 아래 경로에 넣기만 하면 코드 수정 없이 적용된다.
 const _REWARD_ICON_PATHS := {
-	"gold": "res://assets/ui/icons/reward_gold.png",
-	"levelup": "res://assets/ui/icons/reward_levelup.png",
-	"revive": "res://assets/ui/icons/reward_revive.png",
-	"meta": "res://assets/ui/icons/reward_meta.png",
+	"gold": "res://assets/atlas/ui/reward_gold.tres",
+	"levelup": "res://assets/atlas/ui/reward_levelup.tres",
+	"revive": "res://assets/atlas/ui/reward_revive.tres",
+	"meta": "res://assets/atlas/ui/reward_meta.tres",
 }
 
 static func _reward_icon(kind: String) -> Texture2D:
@@ -418,7 +418,10 @@ func _reveal() -> void:
 	for i in n:
 		var card := PanelContainer.new()
 		card.custom_minimum_size = Vector2(cw, ch)
-		card.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 1.0), col, 14, 3))
+		# 콘텐츠 여백 18 → 10: 카드가 128px 밖에 안 돼 기본 여백으로는 글자 자리가 92px 만
+		# 남는데, 아이템 이름 중 "Thunderstorm"(94.5px)·"Flamethrower"(92.4px) 가 그보다 넓어
+		# 카드 밖으로 삐져나왔다. 여백을 줄여 안쪽을 108px 로 넓힌다.
+		card.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.10, 0.11, 0.16, 1.0), col, 14, 3, 10))
 		card.pivot_offset = Vector2(cw * 0.5, ch * 0.5)
 		card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.clip_contents = true   # 긴 보상 텍스트가 카드 밖으로 흘러넘치지 않게
@@ -447,7 +450,7 @@ func _reveal() -> void:
 	_auto_left += 1.0 + 0.34 * float(n)   # 확대+플립이 다 보이도록 자동 닫힘 여유 추가
 
 	var hint := Label.new()
-	hint.text = "tap to continue"
+	hint.text = Locale.t("tap_continue")
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 15)
 	hint.add_theme_color_override("font_color", Color(0.55, 0.58, 0.66))

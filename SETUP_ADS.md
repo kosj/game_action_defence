@@ -1,12 +1,12 @@
 # 안드로이드 보상형 광고(AdMob) 연동 가이드
 
 이 문서는 **AdMob 보상형(Rewarded) 광고**를 안드로이드 빌드에 붙이는 절차다.
-게임 코드는 이미 광고 자리(“revive”·“shop_gold”)가 배선돼 있고, 실제 SDK 연동은
+게임 코드는 이미 광고 자리(“revive”)가 배선돼 있고, 실제 SDK 연동은
 `scripts/AdManager.gd` 의 `_admob_*` 4개 메서드에만 채우면 되도록 격리해 놓았다.
 
 - **웹·에디터·PC**: `USE_STUB = true` 유지 → SDK 없이 내장 더미 광고로 동작(현행 그대로).
 - **안드로이드 실광고 빌드**: 플러그인을 설치하고 `USE_STUB = false` 로 바꾼 뒤 아래 스니펫으로
-  `_admob_*` 메서드 본문을 채운다. 호출부(HUD·상점)는 한 줄도 고치지 않는다.
+  `_admob_*` 메서드 본문을 채운다. 호출부(HUD)는 한 줄도 고치지 않는다.
 
 > 플러그인이 **설치돼 있지 않아도** `AdManager.gd` 가 정상 파싱된다. 플러그인 클래스를
 > 직접 참조하는 코드가 없기 때문이다. 그래서 웹/에디터 빌드는 애드온 없이도 깨지지 않는다.
@@ -255,7 +255,7 @@ const REWARDED_UNIT_REAL := "ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ"
 | --- | --- |
 | 1 | 플러그인 설치·활성화, 데모 씬 API 로 `_admob_*` 4개 채움 |
 | 2 | AndroidManifest 에 `AD_ID` 권한 + `APPLICATION_ID` meta-data(=`admob_app_id()`) |
-| 3 | `USE_STUB=false`, **`USE_TEST_ADS=true`** 로 실기기 테스트 광고 노출 확인(revive/shop_gold 둘 다) |
+| 3 | `USE_STUB=false`, **`USE_TEST_ADS=true`** 로 실기기 테스트 광고 노출 확인(revive) |
 | 4 | 지급/닫힘 가드(3장) 검증 — 끝까지 시청 시 보상 1회만, 중도 닫으면 0회 |
 | 5 | UMP 동의 흐름 확인(EEA 시뮬레이션) |
 | 6 | app-ads.txt 게시 + Play 데이터 보안 설문 |
@@ -267,5 +267,4 @@ const REWARDED_UNIT_REAL := "ca-app-pub-XXXXXXXXXXXXXXXX/ZZZZZZZZZZ"
 
 - `scripts/AdManager.gd` — 광고 매니저(스텁/실연동 어댑터). **여기만 손대면 됨.**
 - `scripts/HUD.gd` — “revive”(부활) 보상 광고 호출 (`AdManager.show_rewarded("revive")`).
-- `scripts/ShopPanel.gd` — “shop_gold”(골드 보상) 호출.
 - `USE_STUB=true` 인 동안 웹/에디터는 내장 더미 오버레이로 흐름을 그대로 시연할 수 있다.

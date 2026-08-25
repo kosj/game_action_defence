@@ -4,8 +4,8 @@ extends Node2D
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 const _SpriteFX := preload("res://scripts/SpriteFX.gd")
-const _FX_EXPLOSION := preload("res://assets/sprites/fx/fx_explosion.png")
-const _FX_SMOKE := preload("res://assets/sprites/fx/fx_smoke.png")
+const _FX_EXPLOSION := preload("res://assets/atlas/fx_explosion.tres")
+const _FX_SMOKE := preload("res://assets/atlas/fx_smoke.tres")
 
 const TRIGGER_R := 52.0
 const EXPLODE_R := 150.0
@@ -28,7 +28,8 @@ func _ready() -> void:
 	z_index = -1
 	_player = get_tree().get_first_node_in_group("player")
 	_spr = Sprite2D.new()
-	_spr.texture = preload("res://assets/sprites/props/prop_wreck_car.png")
+	# 도심 전용 기믹이라 도심 프롭 아틀라스를 그대로 쓴다(PropField 와 같은 시트).
+	_spr.texture = preload("res://assets/atlas/props/city/prop_wreck_car.tres")
 	_spr.scale = Vector2(0.34, 0.34)
 	_spr.modulate = Color(0.7, 0.62, 0.6)
 	add_child(_spr)
@@ -80,8 +81,8 @@ func _explode() -> void:
 func _draw() -> void:
 	var blink := 0.5 + 0.5 * sin(_pulse * 6.0)
 	if _armed >= ARM_TIME:   # 무장 후 깜빡이는 경고 링
-		draw_arc(Vector2.ZERO, TRIGGER_R * 0.8, 0.0, TAU, 24, Color(1.0, 0.4, 0.1, 0.25 + 0.4 * blink), 2.0, true)
+		QuadDraw.ring(self, Vector2.ZERO, TRIGGER_R * 0.8, Color(1.0, 0.4, 0.1, 0.25 + 0.4 * blink), 2.0, 24)
 	for i in 3:   # 차 위 불꽃 일렁임
 		var fxp := -8.0 + 8.0 * float(i)
 		var fyp := -14.0 - 6.0 * absf(sin(_pulse * 5.0 + float(i)))
-		draw_circle(Vector2(fxp, fyp), 3.5 + blink * 1.5, Color(1.0, 0.5 + 0.3 * blink, 0.1, 0.7))
+		QuadDraw.disc(self, Vector2(fxp, fyp), 3.5 + blink * 1.5, Color(1.0, 0.5 + 0.3 * blink, 0.1, 0.7))

@@ -58,10 +58,16 @@ static func spawn(parent: Node, pos: Vector2, p_color: Color, p_max_radius: floa
 	fx._time = 0.0
 	fx._active = true
 	fx.visible = true
-	if fx.get_parent() != parent:
+	# 이펙트는 Y 정렬이 필요 없다 — 전용 레이어(Events.fx_layer)에 붙여 유닛 스트림에서 빼면
+	# 유닛 스프라이트 사이에 다른 텍스처/절차 드로우가 끼지 않아 배칭이 유지된다.
+	# 레이어를 못 얻는 상황(씬 밖 호출)에서는 넘겨받은 parent 로 폴백한다.
+	var host: Node = Events.fx_layer()
+	if host == null:
+		host = parent
+	if fx.get_parent() != host:
 		if fx.get_parent() != null:
 			fx.get_parent().remove_child(fx)
-		parent.add_child(fx)
+		host.add_child(fx)
 	fx.global_position = pos
 	fx.queue_redraw()
 
@@ -98,13 +104,27 @@ static func clear_pool() -> void:
 	_active_count = 0
 
 
+## ⚠️ 원은 **텍스처 쿼드**로 그린다 — draw_circle 을 쓰지 않는다.
+## FXBurst 는 동시에 최대 MAX_ACTIVE(48)개가 뜨고 각자 별도 CanvasItem 이다. draw_circle 은
+## 폴리곤 프리미티브라 아틀라스 쿼드와도, 서로도 안 묶여 48개가 그대로 배치를 갈랐다 —
+## 이 하나가 모든 무기의 타격 이펙트라 오브 하나만 들어도 상한에 붙는다(실측 오브 +121 중
+## 상당 부분). decal_blob 은 가장자리 2px 만 감쇠한 단단한 원판이라 draw_circle 과 같게 보인다.
+const _BLOB := preload("res://assets/atlas/decal_blob.tres")
+
+
 func _draw() -> void:
 	if not _active or start_delay > 0.0:
 		return
 	var t := _time / duration
 	# expanding outer ring
-	draw_circle(Vector2.ZERO, max_radius * t, Color(color.r, color.g, color.b, (1.0 - t) * 0.55))
+	_disc(max_radius * t, Color(color.r, color.g, color.b, (1.0 - t) * 0.55))
 	# bright inner flash (only early)
 	if t < 0.45:
 		var ft := t / 0.45
-		draw_circle(Vector2.ZERO, max_radius * 0.38 * (1.0 - ft), Color(1.0, 1.0, 0.8, (1.0 - ft) * 0.85))
+		_disc(max_radius * 0.38 * (1.0 - ft), Color(1.0, 1.0, 0.8, (1.0 - ft) * 0.85))
+
+
+func _disc(r: float, col: Color) -> void:
+	if r <= 0.0:
+		return
+	draw_texture_rect(_BLOB, Rect2(-r, -r, r * 2.0, r * 2.0), false, col)

@@ -3,12 +3,44 @@ name: Export Web (Godot 4)
 on:
   push:
     branches: [main]
+  # 병렬 세션이 각자 브랜치로 작업하므로, 회귀는 머지 전에 잡아야 한다.
+  # (예전에는 main 푸시에서만 돌아서 "머지된 뒤에야 깨진 걸 아는" 구조였다.)
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
+  # 파이썬 도구 회귀 — **컨테이너 밖에서 돈다.**
+  # `build` 잡은 barichello/godot-ci 이미지 안에서 도는데 그 이미지에 python3 가 없다
+  # (그래서 이 워크플로에 파이썬 스텝이 하나도 없었다). 거기에 그냥 넣으면
+  # `python3: not found` 로 exit 127 이 난다 — 실제로 한 번 그렇게 깨졌다.
+  # ubuntu-latest 러너에는 python3 가 기본으로 있으므로 잡을 나눈다. Godot 이 필요 없어
+  # 몇 초면 끝나고, build 잡과 병렬로 돈다.
+  tools:
+    name: Python tool regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # 프리즈 판정은 P0-5(프리즈 원인 규명)가 딛고 서는 바닥인데 그 바닥이 틀려 있었다.
+      # fps 30 · 프레임 80ms 인 판 셋을 "지표 정상"으로 분류했고, 그 판정 위에서 원인 규명을
+      # "성능 붕괴 아님"으로 좁혔다. 그 세 판을 고정 입력으로 박아 판정을 잠근다(P0-10).
+      - name: Freeze triage regression
+        run: python3 tools/verify_triage.py
+
+      # CLAUDE.md §3 이 "UI 를 건드렸으면 돌려라"라고 요구하는 검사인데 여기에 없었다.
+      # 그래서 로컬에서 빠뜨리면 아무도 안 돌린다 — 실제로 P1-28 에서 이 컨테이너에 Pillow 가
+      # 없어 건너뛰어졌고, PR 본문에 "못 돌렸다, 영향 없을 것"이라는 추정이 남았다.
+      # 폰트는 체크아웃에 있고 Godot 이 필요 없어 몇 초면 끝난다.
+      - name: Install Pillow
+        run: pip install --quiet pillow
+
+      - name: Text fit (en/ko/ja)
+        run: python3 tools/check_text_fit.py
+
   build:
     name: Build WebGL
     runs-on: ubuntu-latest
@@ -56,6 +88,57 @@ jobs:
       - name: Check font coverage
         run: godot --headless --script res://tools/check_font_coverage.gd
 
+      # 좀비·보스·그림자·젬·투사체·FX 스프라이트는 아틀라스 한 장으로 묶여 있다. 새 이미지를
+      # 추가하고 아틀라스를 다시 만들지 않거나 PNG 를 직접 참조하면, 그 스프라이트만 아틀라스 밖
+      # 텍스처가 되어 드로우 배칭이 다시 끊긴다 — 눈으로는 안 보이고 프레임만 떨어진다.
+      # 절차는 ASSET_PIPELINE.md 참고.
+      - name: Check texture atlas
+        run: godot --headless --script res://tools/check_atlas.gd
+
+      - name: Check canvas batching
+        run: godot --headless --script res://tools/verify_batching.gd
+
+      # 회귀 테스트 — 씬 7종은 get_tree().quit(0/1), verify_*.gd 는 quit(실패건수) 로
+      # 성패를 종료 코드에 담는다. 따라서 실행 줄만 있으면 CI 게이트가 된다(로그 파싱 불필요).
+      # 셸이 dash 라 pipefail 을 못 쓰므로, 파이프 없이 한 줄씩 그대로 실행한다.
+      # 로컬에서 같은 목록을 돌리는 방법은 CLAUDE.md §3 참고.
+      - name: Regression tests (scenes)
+        run: |
+          set -e
+          godot --headless --path . res://scenes/ContactSeparationTest.tscn
+          godot --headless --path . res://scenes/ContinueSaveTest.tscn
+          godot --headless --path . res://scenes/FxLeakTest.tscn
+          godot --headless --path . res://scenes/PauseWatchdogTest.tscn
+          godot --headless --path . res://scenes/TelemetryTest.tscn
+          godot --headless --path . res://scenes/CodexTest.tscn
+          godot --headless --path . res://scenes/ThreatTest.tscn
+
+      # 시뮬레이션형 검증은 프레임 수에 의존하므로 --fixed-fps 60 을 반드시 준다
+      # (없으면 헤드리스가 가변 프레임으로 돌아 타이밍 판정이 흔들린다).
+      - name: Regression tests (verify scripts)
+        run: |
+          set -e
+          godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_arena.gd
+          godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_heal.gd
+          godot --headless --path . --fixed-fps 60 --script res://tools/verify_environment.gd
+          godot --headless --path . --script res://tools/verify_character_sheets.gd
+          godot --headless --path . --script res://tools/verify_cheat_gate.gd
+          godot --headless --path . --script res://tools/verify_quest_tracks.gd
+          godot --headless --path . --script res://tools/verify_event_forecast.gd
+          godot --headless --path . --script res://tools/verify_ui_icons.gd
+          godot --headless --path . --script res://tools/verify_late_speed.gd
+          godot --headless --path . --script res://tools/verify_hotpath.gd
+          # 조준 주기(STEER_EVERY)를 늘리면 프레임은 좋아지고 명중률은 나빠진다. 전체 판으로는
+          # 그 대가를 판정할 수 없어(런간 산포 5.5pp) 조준만 격리한 결정론 검사를 쓴다.
+          # ⚠️ --fixed-fps 60 이 없으면 실시간 60Hz 를 기다려 80초 걸린다(결과는 같다).
+          godot --headless --path . --fixed-fps 60 --script res://tools/verify_homing_accuracy.gd
+          godot --headless --path . --fixed-fps 60 --script res://tools/verify_bullet_budget.gd
+          godot --headless --path . --script res://tools/verify_late_hp.gd
+          godot --headless --path . --script res://tools/verify_pickups.gd
+          # ⛔ 웹 빌드가 이 설정 없이는 몇 분 만에 wasm 힙 2GB 를 쳐서 죽는다(P0-5).
+          # 데스크톱에서는 재현되지 않으므로(Dummy 오디오 드라이버) 이 게이트가 유일한 방어선이다.
+          godot --headless --path . --script res://tools/verify_audio_playback.gd
+
       - name: Export to Web
         run: |
           mkdir -p build/web
@@ -83,7 +166,9 @@ jobs:
 
   deploy:
     name: Deploy to external Pages repo
-    needs: build
+    needs: [build, tools]   # 도구 회귀도 초록이어야 라이브로 나간다
+    # PR 검증 실행에서는 배포하지 않는다 — main 에 실제로 머지된 것만 라이브로 나간다.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     # 배포는 Godot 컨테이너가 아닌 "호스트 러너"에서 수행한다. godot-ci 이미지에는 ssh-agent
     # (openssh-client)가 없어 peaceiris 의 SSH 배포가 'ssh-agent ENOENT' 로 실패하기 때문.
     # ubuntu-latest 호스트에는 ssh-agent·git 이 기본 포함돼 있다.

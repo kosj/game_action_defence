@@ -67,7 +67,8 @@ func delete_save() -> void:
 		DirAccess.remove_absolute(SAVE_PATH)
 
 
-## 웨이브 클리어/상점 종료/무기 획득 시점에 호출 — player 의 현재 체력·무기를 기록.
+## 체크포인트 저장 — player 의 현재 체력·무기를 기록.
+## 호출 시점: 주기 자동저장(20초) · 무기 획득 · 앱 백그라운드 전환.
 func save_game(player: Node) -> void:
 	var data := {
 		# 캐릭터/테마 — 이어하기가 "저장 당시의 그 판"을 그대로 재현하려면 반드시 필요하다.
@@ -75,11 +76,12 @@ func save_game(player: Node) -> void:
 		# 스탯·트레잇·외형·궁극기가 통째로 달라진다.
 		"character_id": CharacterManager.selected_id(),
 		"theme_id": ThemeManager.selected_id(),
+		"threat_rank": ThreatManager.selected_rank(),   # 이어하기가 다른 등급으로 재개되지 않게
 		"total_gold": Events.total_gold,
 		"total_kills": Events.total_kills,
 		"score": Events.score,
-		"current_wave": Events.current_wave,
 		"elapsed_time": Events.elapsed_time,
+		"env_seed": Events.env_seed,         # 이어하기가 저장 당시와 같은 날씨 타임라인을 복원하도록
 		"player_health": player.health,
 		"level": Events.level,               # 레벨업 곡선 진행(누락 시 이어하기마다 Lv1 로 리셋되던 것 보강)
 		"xp": Events.xp,
@@ -131,8 +133,9 @@ func apply_to_events(data: Dictionary) -> void:
 	Events.total_gold = data.get("total_gold", 0)
 	Events.total_kills = data.get("total_kills", 0)
 	Events.score = data.get("score", 0)
-	Events.current_wave = data.get("current_wave", 1)
 	Events.elapsed_time = data.get("elapsed_time", 0.0)
+	# 구 세이브에는 없다 — 그 경우 reset() 이 방금 발급한 새 시드를 그대로 쓴다.
+	Events.env_seed = int(data.get("env_seed", Events.env_seed))
 	Events.level = int(data.get("level", 1))
 	Events.xp = int(data.get("xp", 0))
 	Events.xp_to_next = int(data.get("xp_to_next", Events.xp_to_next))
@@ -153,8 +156,8 @@ func apply_to_events(data: Dictionary) -> void:
 	# 인벤토리 복원(뱀서식 슬롯). 신버전 세이브면 인벤토리로 upgrade_* 를 정합 재계산한다.
 	# (JSON 은 dict 값을 float 로 파싱하므로 int 로 변환해 보관.)
 	if data.has("weapons"):
-		Events.weapons = _to_int_dict(data.get("weapons", {}))
-		Events.passives = _to_int_dict(data.get("passives", {}))
+		Events.weapons = _known_only(_to_int_dict(data.get("weapons", {})))
+		Events.passives = _known_only(_to_int_dict(data.get("passives", {})))
 		if Events.weapons.is_empty():
 			Events.weapons = {"gun": 1}
 		ItemDB.recompute(Events.weapons, Events.passives)
@@ -179,6 +182,22 @@ func _restore_selection(data: Dictionary) -> void:
 	if tid != "" and tid != ThemeManager.selected_id() and not ThemeManager.select(tid):
 		push_warning("[SaveManager] 저장된 아레나 '%s' 를 선택할 수 없어 '%s' 로 이어간다"
 			% [tid, ThemeManager.selected_id()])
+	# 위협 등급(P1-12). 등급이 바뀐 채 이어지면 저장 시점과 다른 난이도로 재개된다.
+	# 구버전 세이브에는 이 키가 없다 — 그때는 등급 1로 본다(그 시절의 난이도가 그것이다).
+	var rank := int(data.get("threat_rank", 1))
+	if rank != ThreatManager.selected_rank() and not ThreatManager.select(rank):
+		push_warning("[SaveManager] 저장된 위협 등급 %d 를 선택할 수 없어 %d 로 이어간다"
+			% [rank, ThreatManager.selected_rank()])
+
+
+## 카탈로그에서 사라진 아이템 id 를 걷어낸다(예: 삭제된 성수/십자가).
+## 남겨두면 HUD 에는 안 보이는데 슬롯만 차지해, 새 무기를 못 받는 유령 칸이 된다.
+func _known_only(src: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for k in src:
+		if not ItemDB.meta(String(k)).is_empty():
+			out[k] = src[k]
+	return out
 
 
 ## JSON 이 숫자를 float 로 파싱하므로 인벤토리 dict 의 값(아이템 레벨)을 int 로 변환한다.

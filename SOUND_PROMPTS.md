@@ -190,7 +190,6 @@ compatible, clean, no music, no voice, no silence at the beginning
 | `sfx_wave_clear.ogg` | 0.8~1.2s | `short positive achievement stinger, two or three bright ascending notes with a satisfying finish, clean and crisp, not a long fanfare` |
 | `sfx_revive.ogg` | 1.5~2s | `heroic revival sound, a soft holy choir-like chime swelling up with a warm energy surge and a heartbeat resuming, uplifting and dramatic` |
 | `sfx_swing.ogg` | 0.25s | `a quick heavy bat swing whoosh cutting through air, short and dry, no impact, no hit` |
-| `sfx_holy_splash.ogg` | 0.6~0.9s | `a glass vial shattering on the ground and holy water splashing, bright glass shards with a soft magical shimmer, wet and crisp` |
 | `sfx_spit.ogg` | 0.4s | `a wet guttural acid spit projectile launch from a monster, short slimy hawking burst, disgusting and organic` |
 
 ## 볼륨 기준 (SoundManager 에 이미 설정됨)
@@ -203,7 +202,7 @@ ffmpeg -i in.wav -af loudnorm=I=-16:TP=-1 -c:a libvorbis -q:a 6 assets/audio/sfx
 ```
 
 ## 주의
-- `swing`/`spit`/`holy_splash`/`bomber_fuse` 는 **반복 재생**되는 소리다.
+- `swing`/`spit`/`bomber_fuse` 는 **반복 재생**되는 소리다.
   꼬리가 길거나 개성이 강하면 몇 분 만에 귀에 거슬린다 — 짧고 건조하게(`dry`, `short`).
 - `bomber_blast` 는 기존 `boom`(샷건/폭발물)과 구분되어야 한다. 파편·살점 느낌을 넣고
   잔향을 줄여 "가까이서 터진 좀비"로 들리게 한다.

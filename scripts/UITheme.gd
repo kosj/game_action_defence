@@ -26,6 +26,8 @@ const SEC_ARENA   := Color(0.50, 0.85, 0.50)   # 아레나(테마)
 const SEC_QUEST   := Color(0.45, 0.90, 0.50)   # 과제
 const SEC_ACHIEVE := Color(0.90, 0.75, 0.30)   # 도전과제
 const SEC_REWARD  := Color(1.00, 0.85, 0.35)   # 보상함
+const SEC_CODEX   := Color(0.55, 0.70, 0.95)   # 도감
+const SEC_THREAT  := Color(0.95, 0.45, 0.35)   # 위협 등급
 
 # 메인 메뉴 버튼 3단 위계 — 플레이트는 모두 같은 금속으로 두고 위계는 크기·명도로 만든다.
 # (색을 8가지 쓰면 오히려 구분이 안 된다: 예전엔 도전과제/보상/랭킹이 틴트 후 거의 같은 금색이었다.)
@@ -38,6 +40,7 @@ const MENU_ICON_REWARD := Color(1.00, 0.82, 0.30)   # 보상 계열(도전과제
 const MENU_ICON_QUEST  := Color(0.55, 0.95, 0.55)   # 과제
 const MENU_ICON_POWER  := Color(0.78, 0.58, 1.00)   # 영구 강화
 const MENU_ICON_PLAIN  := Color(0.70, 0.74, 0.84)   # 설정
+const MENU_ICON_CODEX  := Color(0.68, 0.82, 1.00)   # 도감
 
 const SEC_POWER_TXT   := Color(0.85, 0.70, 1.00)
 const SEC_CHAR_TXT    := Color(0.60, 0.90, 1.00)
@@ -45,6 +48,8 @@ const SEC_ARENA_TXT   := Color(0.70, 1.00, 0.70)
 const SEC_QUEST_TXT   := Color(0.60, 1.00, 0.60)
 const SEC_ACHIEVE_TXT := Color(1.00, 0.85, 0.40)
 const SEC_REWARD_TXT  := Color(1.00, 0.88, 0.45)
+const SEC_CODEX_TXT   := Color(0.72, 0.84, 1.00)
+const SEC_THREAT_TXT  := Color(1.00, 0.68, 0.55)
 
 const FONT_PATH := "res://assets/fonts/NotoSansCJK-Subset.otf"
 const BOLD_PATH := "res://assets/fonts/NotoSansCJK-Subset-Bold.otf"
@@ -218,7 +223,7 @@ static func outline_label(label: Label, size: int = 5, col: Color = Color(0.0, 0
 	label.add_theme_color_override("font_outline_color", col)
 
 
-## 세로 그라데이션 배경(TextureRect, 전체 앵커). 메뉴/상점 등 단색 배경 대체용.
+## 세로 그라데이션 배경(TextureRect, 전체 앵커). 메뉴/팝업 등 단색 배경 대체용.
 static func make_gradient_bg(top: Color, bottom: Color) -> TextureRect:
 	var g := Gradient.new()
 	g.set_color(0, top)

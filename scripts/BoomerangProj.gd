@@ -9,7 +9,7 @@ const RETURN_ACCEL := 2600.0 # 귀환 가속
 const CATCH_R := 26.0        # 플레이어 도달 판정
 const LIFE_MAX := 5.0        # 안전장치 — 어떤 이유로든 못 돌아오면 자멸
 
-const _SPRITE_PATH := "res://assets/sprites/weapon_boomerang.png"
+const _SPRITE_PATH := "res://assets/atlas/weapon_boomerang.tres"
 
 var _player: Node2D = null
 var _dir := Vector2.RIGHT
@@ -102,6 +102,9 @@ func _draw() -> void:
 	for f in [1.0, -1.0]:
 		var arm := PackedVector2Array([
 			Vector2(0, 0) , Vector2(20.0 * S * f, -6.0 * S), Vector2(19.0 * S * f, 3.0 * S), Vector2(2.0 * S * f, 6.0 * S)])
+		# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 		draw_colored_polygon(arm, wood)
+		# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 		draw_polyline(PackedVector2Array([Vector2(0, -2.0 * S), Vector2(18.0 * S * f, -6.0 * S)]), edge, 2.5)
+	# batching-exempt: 텍스처가 없을 때만 도는 폴백 — 아틀라스에 그림이 있어 도달하지 않는다
 	draw_circle(Vector2.ZERO, 3.4 * S, edge)

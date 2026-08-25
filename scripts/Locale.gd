@@ -27,23 +27,25 @@ var current: String = DEFAULT_LANG
 
 ## 키 → { 언어코드: 문자열 }. 번역이 없는 언어는 영어(DEFAULT_LANG)로 폴백된다.
 const STRINGS: Dictionary = {
-	# ── 인트로: "The Last Beacon" (마지막 송신탑) ──────────────────────────
-	"intro_title":  {"en": "THE LAST BEACON",        "ko": "마지막 송신탑",        "ja": "最後のビーコン"},
+	# ── 인트로: "Hold the Ground" (이 구역을 사수하라) ─────────────────────
+	# 비컨(송신탑)은 구조 요청이 아니라 "한 구역을 30분 지켜내면 켜지는 표식"이다.
+	# 클리어 조건(30분 생존)·캐릭터 3종(부대 생존자)·테마 진행(교외→도심→연구소)과 맞춘다.
+	"intro_title":  {"en": "HOLD THE GROUND",        "ko": "이 구역을 사수하라",   "ja": "このエリアを守れ"},
 	"intro_l1":     {"en": "Day 47 since the outbreak.",
 					 "ko": "감염 발생 +47일.",
 					 "ja": "感染発生から47日。"},
 	"intro_l2":     {"en": "The cities fell silent.\nThe dead now hunt the living.",
 					 "ko": "도시는 침묵했고,\n죽은 자가 산 자를 사냥한다.",
 					 "ja": "都市は沈黙し、\n死者が生者を狩る。"},
-	"intro_l3":     {"en": "You are the last signal tech\nof a broken unit.",
-					 "ko": "당신은 무너진 부대의\n마지막 통신 기술병.",
-					 "ja": "あなたは壊滅した部隊の\n最後の通信兵。"},
-	"intro_l4":     {"en": "One automated beacon still calls for rescue.",
-					 "ko": "자동 송신탑 하나가\n아직 구조를 외치고 있다.",
-					 "ja": "自動ビーコンが今も\n救助を呼び続けている。"},
-	"intro_l5":     {"en": "Hold the line.\nKeep the signal alive.",
-					 "ko": "전선을 사수하라.\n신호를 살려두어라.",
-					 "ja": "戦線を守れ。\n信号を絶やすな。"},
+	"intro_l3":     {"en": "Your unit is gone.\nThree of you walked out.",
+					 "ko": "부대는 무너졌다.\n걸어 나온 것은 셋뿐.",
+					 "ja": "部隊は壊滅した。\nぬけだせたのは、ほんのわずか。"},
+	"intro_l4":     {"en": "Hold one zone for thirty minutes\nand its beacon comes alive.",
+					 "ko": "한 구역을 30분 버텨내면\n그곳의 송신탑이 살아난다.",
+					 "ja": "ひとつのエリアを30:00 守りぬけば\nその信号がよみがえる。"},
+	"intro_l5":     {"en": "Suburb. Downtown.\nThen the lab where it began.",
+					 "ko": "교외에서 도심으로,\n그리고 모든 것이 시작된 연구소까지.",
+					 "ja": "まちはずれから都市へ、\nそして全てが始まったラボへ。"},
 	"intro_skip":   {"en": "Skip",   "ko": "건너뛰기",   "ja": "スキップ"},
 	"intro_begin":  {"en": "BEGIN",  "ko": "시작",       "ja": "開始"},
 
@@ -53,7 +55,7 @@ const STRINGS: Dictionary = {
 	"menu_new_game":   {"en": "New Game",   "ko": "새 게임",   "ja": "ニューゲーム"},
 	"menu_continue":   {"en": "Continue",   "ko": "이어하기",  "ja": "つづける"},
 	"menu_language":   {"en": "Language",   "ko": "언어",      "ja": "言語"},
-	"title_tagline":   {"en": "SURVIVE THE OUTBREAK", "ko": "감염에서 살아남아라", "ja": "アウトブレイクを生き延びろ"},
+	"title_tagline":   {"en": "SURVIVE THE OUTBREAK", "ko": "감염에서 살아남아라", "ja": "アウトブレイクを生きのびろ"},
 	"title_tap":       {"en": "TAP TO START", "ko": "화면을 터치해 시작", "ja": "タップしてスタート"},
 	"menu_sound":      {"en": "Sound",       "ko": "사운드",    "ja": "サウンド"},
 	"sound_on":        {"en": "On",          "ko": "켜짐",      "ja": "オン"},
@@ -61,17 +63,62 @@ const STRINGS: Dictionary = {
 	"menu_options":    {"en": "Options",     "ko": "옵션",      "ja": "オプション"},
 	"menu_close":      {"en": "Close",       "ko": "닫기",      "ja": "とじる"},
 	"menu_ranking":    {"en": "Ranking",     "ko": "랭킹",      "ja": "ランキング"},
-	# 서브셋 폰트에 実/績/強 글리프가 없어 일본어는 가나 표기를 쓴다(報酬는 사용 가능).
+	# 일본어는 가나 표기가 기본이다 — 서브셋 폰트의 한자는 89자뿐이고, 원본에도 없어 되살릴 수
+	# 없는 글자가 많다(実/績/強/選/択/宝/箱/体/分 등). tools/font_known_absent.txt 참고.
 	"menu_achievements": {"en": "Achievements", "ko": "도전과제",  "ja": "アチーブメント"},
 	"menu_quests":       {"en": "Quests",       "ko": "퀘스트",    "ja": "クエスト"},
 	"menu_rewards":      {"en": "Rewards",      "ko": "보상함",    "ja": "報酬"},
 	"menu_powerup":      {"en": "Power Up",     "ko": "영구 강화", "ja": "パワーアップ"},
+	"menu_codex":        {"en": "Codex",         "ko": "도감",      "ja": "コレクション"},
 	"rewards_src_quest": {"en": "Quest reward",       "ko": "퀘스트 보상",   "ja": "クエスト報酬"},
 	"rewards_src_ach":   {"en": "Achievement reward", "ko": "도전과제 보상", "ja": "アチーブメント報酬"},
 	"rewards_empty":     {"en": "No rewards waiting", "ko": "받을 보상이 없습니다", "ja": "受け取る報酬はありません"},
 
 	# ── 팝업 제목/문구 (전부 하드코딩 영어·한국어였다) ────────────────────
+	"opt_copy_log":      {"en": "COPY PLAY LOG (%d)", "ko": "플레이 기록 복사 (%d)",
+		"ja": "プレイ記録をコピー (%d)"},
+	"opt_copy_log_done": {"en": "COPIED", "ko": "복사했습니다", "ja": "コピーしました"},
+	"opt_log_hint":      {"en": "Runs saved on this device. Nothing is sent anywhere.",
+		"ko": "이 기기에만 저장된 플레이 기록입니다. 어디로도 전송되지 않습니다.",
+		"ja": "このデバイスにだけのこります。どこにもおくりません。"},
 	"popup_power":       {"en": "PERMANENT UPGRADES", "ko": "영구 강화", "ja": "パワーアップ"},
+
+	# ── 도감(P1-13) ───────────────────────────────────────────────────────
+	# 일본어는 **가나만** 쓴다. 서브셋 폰트의 한자는 89자뿐이고 図/鑑/項/目/名/前/隠 이 전부
+	# 없다(subset_fonts.py 문서 참고). 되살릴 원본도 없으므로 한자를 피하는 것이 유일한 길이다.
+	# 항목 이름(무기·캐릭터·아레나)은 카탈로그의 display 라서 전 언어 공통 영어다.
+	"codex_hint":        {"en": "Undiscovered entries keep their name hidden.",
+		"ko": "아직 보지 못한 항목은 이름이 가려집니다.",
+		"ja": "まだみつけていないものはシルエットのままです。"},
+	"codex_progress":    {"en": "Discovered %d / %d", "ko": "발견 %d / %d",
+		"ja": "みつけた %d / %d"},
+	"codex_sec_weapon":    {"en": "WEAPONS",    "ko": "무기",    "ja": "ウェポン"},
+	"codex_sec_evolution": {"en": "EVOLUTIONS", "ko": "진화",    "ja": "エボリューション"},
+	"codex_sec_passive":   {"en": "PASSIVES",   "ko": "패시브",  "ja": "パッシブ"},
+	"codex_sec_zombie":    {"en": "ZOMBIES",    "ko": "좀비",    "ja": "ゾンビ"},
+	"codex_sec_boss":      {"en": "BOSSES",     "ko": "보스",    "ja": "ボス"},
+	"codex_sec_survivor":  {"en": "SURVIVORS",  "ko": "생존자",  "ja": "サバイバー"},
+	"codex_sec_arena":     {"en": "ARENAS",     "ko": "아레나",  "ja": "アリーナ"},
+
+	# ── 위협 등급(P1-12) ──────────────────────────────────────────────────
+	# 일본어는 가나 표기다(서브셋 폰트 제약 — 위 도감 주석과 같은 이유).
+	"popup_threat":      {"en": "THREAT RANK", "ko": "위협 등급", "ja": "スレットランク"},
+	"threat_badge_fmt":  {"en": "THREAT %d",   "ko": "위협 %d",   "ja": "スレット %d"},
+	"threat_rank_fmt":   {"en": "RANK %d",     "ko": "등급 %d",   "ja": "ランク %d"},
+	"threat_hint":       {"en": "Clearing a boss unlocks the next rank.",
+		"ko": "보스를 처치하면 다음 등급이 열립니다.",
+		"ja": "ボスをたおすとつぎのランクがひらきます。"},
+	"threat_locked":     {"en": "Locked", "ko": "잠김", "ja": "ロック"},
+	"threat_best_fmt":   {"en": "Best %s", "ko": "최고 %s", "ja": "ベスト %s"},
+	"threat_base":       {"en": "Baseline difficulty", "ko": "기본 난이도",
+		"ja": "きほんのむずかしさ"},
+	"threat_rule_enemy_hp":    {"en": "Enemy HP %s",       "ko": "적 체력 %s",     "ja": "てきのHP %s"},
+	"threat_rule_enemy_speed": {"en": "Enemy speed %s",    "ko": "적 이동속도 %s", "ja": "てきのそくど %s"},
+	"threat_rule_boss_hp":     {"en": "Boss HP %s",        "ko": "보스 체력 %s",   "ja": "ボスのHP %s"},
+	"threat_rule_boss_heal":   {"en": "Boss self-heal %s", "ko": "보스 자가회복 %s", "ja": "ボスのかいふく %s"},
+	"threat_rule_chest":       {"en": "Chest interval %s", "ko": "보물상자 주기 %s", "ja": "たからばこのかんかく %s"},
+	"threat_rule_elite":       {"en": "Elite interval %s", "ko": "엘리트 주기 %s", "ja": "エリートのかんかく %s"},
+	"threat_rule_start_hp":    {"en": "Starting HP %s",    "ko": "시작 체력 %s",   "ja": "スタートHP %s"},
 	"popup_character":   {"en": "CHOOSE YOUR SURVIVOR", "ko": "생존자 선택", "ja": "サバイバー"},
 	"popup_achievements":{"en": "ACHIEVEMENTS", "ko": "도전과제", "ja": "アチーブメント"},
 	"popup_quests":      {"en": "QUESTS", "ko": "퀘스트", "ja": "クエスト"},
@@ -87,25 +134,48 @@ const STRINGS: Dictionary = {
 	"rewards_claim_all": {"en": "CLAIM ALL", "ko": "모두 받기", "ja": "すべて受け取る"},
 	"rewards_total_fmt": {"en": "Total waiting  %d", "ko": "대기 중 합계  %d", "ja": "トータル  %d"},
 
+	# ── 공용: 골드·해금 상태 (P2-3, 캐릭터/아레나 팝업이 함께 쓴다) ──────────
+	"gold_fmt":        {"en": "Gold: %d", "ko": "골드: %d", "ja": "ゴールド: %d"},
+	"unlock_cost_fmt": {"en": "Unlock: %d gold  (tap to buy)",
+						"ko": "해금: %d 골드  (탭하여 구매)",
+						"ja": "アンロック: %d ゴールド（タップ）"},
+	"locked":          {"en": "Locked", "ko": "잠금", "ja": "ロック"},
+	"locked_by_fmt":   {"en": "Locked — %s", "ko": "잠금 — %s", "ja": "ロック — %s"},
+	"locked_by_ach":   {"en": "complete an achievement", "ko": "도전과제 달성 필요",
+						"ja": "アチーブメントでアンロック"},
+
+	# ── 레벨업 모달 (레벨업마다 뜬다 — 인게임 최다 노출) ────────────────────
+	"levelup_title_fmt": {"en": "LEVEL %d  ·  CHOOSE AN UPGRADE",
+						  "ko": "레벨 %d  ·  강화 선택",
+						  "ja": "レベル %d  ·  アップグレードをえらぶ"},
+
+	# ── 보물상자 보상 카드 ────────────────────────────────────────────────
+	"tap_continue":    {"en": "tap to continue", "ko": "탭하여 계속", "ja": "タップでつづける"},
+
+	# ── 필드 아이템 픽업 라벨(월드에 그린다) ───────────────────────────────
+	"pickup_bomb":     {"en": "Bomb", "ko": "폭탄", "ja": "ボム"},
+	"pickup_evolution": {"en": "Evolution", "ko": "진화", "ja": "エボリューション"},
+	"pickup_treasure": {"en": "Treasure", "ko": "보물", "ja": "トレジャー"},
+
 	# ── 랭킹 오버레이 ─────────────────────────────────────────────────────
 	"rank_title":      {"en": "RANKING",     "ko": "랭킹",      "ja": "ランキング"},
 	"rank_local_note": {"en": "Best score per mode (this device)",
 						"ko": "모드별 최고 점수 (이 기기)",
-						"ja": "モード別ハイスコア（この端末）"},
+						"ja": "モードごとのハイスコア（このデバイス）"},
 	"rank_online":     {"en": "View Google Play Leaderboard",
 						"ko": "Google Play 랭킹 보기",
-						"ja": "Google Play ランキングを見る"},
+						"ja": "Google Play ランキングへ"},
 	"diff_easy":       {"en": "Easy",       "ko": "쉬움",      "ja": "イージー"},
 	"diff_normal":     {"en": "Normal",     "ko": "보통",      "ja": "ノーマル"},
 	"diff_hard":       {"en": "Hard",       "ko": "어려움",    "ja": "ハード"},
 
 	# ── HUD (포맷 문자열은 %d 자리 유지) ──────────────────────────────────
 	"hud_score_fmt":   {"en": "Score %d",   "ko": "점수 %d",   "ja": "スコア %d"},
+	"hud_hp_fmt":      {"en": "HP %d / %d", "ko": "체력 %d / %d", "ja": "HP %d / %d"},
 	"hud_best_fmt":    {"en": "Best %d",    "ko": "최고 %d",   "ja": "ベスト %d"},
-	"hud_wave_fmt":    {"en": "Wave %d",    "ko": "웨이브 %d", "ja": "ウェーブ %d"},
-	"hud_kills_fmt":   {"en": "%d Kills",   "ko": "%d 처치",   "ja": "%d 体"},
-	"wave_clear_fmt":  {"en": "Wave %d Clear!", "ko": "웨이브 %d 클리어!", "ja": "ウェーブ %d クリア！"},
-	"run_cleared":     {"en": "SURVIVED 30:00\nCLEAR!", "ko": "30분 생존\n클리어!", "ja": "30分 生存\nクリア！"},
+	"hud_kills_fmt":   {"en": "%d Kills",   "ko": "%d 처치",   "ja": "%d キル"},
+	"boss_cleared":    {"en": "Boss %d Clear!", "ko": "보스 %d 클리어!", "ja": "ボス %d クリア！"},
+	"run_cleared":     {"en": "SURVIVED 30:00\nCLEAR!", "ko": "30분 생존\n클리어!", "ja": "30:00 生存\nクリア！"},
 	"hud_magnet_fmt":  {"en": "XP Magnet  %ds", "ko": "잼 자석  %d초", "ja": "ジェム磁石  %d秒"},
 	"hud_revive":      {"en": "REVIVE  (Watch Ad)", "ko": "부활  (광고 시청)", "ja": "復活（広告を視聴）"},
 	# 서브셋 폰트 주의: 일본어는 한자 글리프가 서브셋에 없을 수 있어 가나 위주로 쓴다.
@@ -113,6 +183,17 @@ const STRINGS: Dictionary = {
 	"hud_overtime":    {"en": "OVERTIME", "ko": "연장전", "ja": "OVERTIME"},
 	"hud_swarm":       {"en": "!! SWARM !!", "ko": "!! 좀비 무리 !!", "ja": "!! ゾンビラッシュ !!"},
 	"hud_elite":       {"en": "!! ELITE PACK !!", "ko": "!! 정예 무리 !!", "ja": "!! エリート !!"},
+	# 마일스톤 카운트다운(P1-4). 기존 문구의 글자만 조합해 폰트 서브셋을 늘리지 않는다.
+	"hud_boss_in_fmt":  {"en": "BOSS IN %ds",  "ko": "보스 %d초",  "ja": "ボス %d秒"},
+	"hud_elite_in_fmt": {"en": "ELITE IN %ds", "ko": "정예 %d초", "ja": "エリート %d秒"},
+
+	# ── 날씨 전환 배너(WeatherSystem) ─────────────────────────────────────
+	# ja 는 가나로 적는다 — 번들 폰트에 한자가 89자뿐이라 雨/雪/霧/砂嵐/晴 이 들어 있지 않다.
+	# (게임 HUD 에서 가타카나 외래어 표기는 일본어로도 자연스럽다)
+	"weather_rain":    {"en": "RAIN",       "ko": "비",         "ja": "レイン"},
+	"weather_snow":    {"en": "SNOW",       "ko": "눈",         "ja": "スノー"},
+	"weather_clear":   {"en": "CLEARING",   "ko": "날이 갠다",  "ja": "はれてきた"},
+
 	"go_victory":      {"en": "VICTORY!", "ko": "승리!", "ja": "VICTORY!"},
 	"pause_title":     {"en": "PAUSED", "ko": "일시정지", "ja": "ポーズ"},
 	"pause_time_fmt":  {"en": "Time  %s", "ko": "생존 시간  %s", "ja": "タイム  %s"},
@@ -121,49 +202,9 @@ const STRINGS: Dictionary = {
 	"go_score_fmt":      {"en": "Score  %d", "ko": "점수  %d", "ja": "スコア  %d"},
 	"go_new_best_fmt":   {"en": "NEW BEST!  %d", "ko": "신기록!  %d", "ja": "新記録！  %d"},
 	"go_best_fmt":       {"en": "Best  %d", "ko": "최고  %d", "ja": "ベスト  %d"},
-	"go_wave_kills_fmt": {"en": "Wave %d   Kills %d", "ko": "웨이브 %d   처치 %d", "ja": "ウェーブ %d   撃破 %d"},
 	"go_retry":          {"en": "Retry",     "ko": "다시하기",   "ja": "リトライ"},
 	"go_menu":           {"en": "Main Menu", "ko": "메인 메뉴",  "ja": "メインメニュー"},
 	"pause_resume":      {"en": "Resume", "ko": "계속하기", "ja": "再開"},
-
-	# ── 상점 ──────────────────────────────────────────────────────────────
-	"shop_clear_title":  {"en": "Wave Clear!", "ko": "웨이브 클리어!", "ja": "ウェーブクリア！"},
-	"shop_continue":     {"en": "Continue ->", "ko": "계속 ->", "ja": "つづける →"},
-	"shop_max":          {"en": "MAX", "ko": "최대", "ja": "最大"},
-	"shop_ad_claimed":   {"en": "Bonus claimed", "ko": "보너스 받음", "ja": "ボーナス受取済"},
-	"shop_ad_unavail":   {"en": "Free Gold (ad unavailable)", "ko": "무료 골드 (광고 없음)", "ja": "無料ゴールド（広告なし）"},
-	"shop_ad_gold_fmt":  {"en": "+%d Gold  (Watch Ad)", "ko": "+%d 골드  (광고 시청)", "ja": "+%d ゴールド（広告視聴）"},
-	"sec_weapon":    {"en": "WEAPON",    "ko": "무기",   "ja": "武器"},
-	"sec_orb":       {"en": "ORB",       "ko": "오브",   "ja": "オーブ"},
-	"sec_lightning": {"en": "LIGHTNING", "ko": "번개",   "ja": "稲妻"},
-	"sec_survival":  {"en": "SURVIVAL",  "ko": "생존",   "ja": "生存"},
-
-	# 업그레이드 이름/설명
-	"upg_speed_name":            {"en": "Move Speed",     "ko": "이동 속도",    "ja": "移動速度"},
-	"upg_speed_desc":            {"en": "+30 move speed", "ko": "+30 이동 속도", "ja": "+30 移動速度"},
-	"upg_atk_speed_name":        {"en": "Atk Speed",      "ko": "공격 속도",    "ja": "攻撃速度"},
-	"upg_atk_speed_desc":        {"en": "-15% fire delay","ko": "-15% 발사 딜레이", "ja": "-15% 発射ディレイ"},
-	"upg_bullet_damage_name":    {"en": "Bullet Dmg",     "ko": "총알 데미지",  "ja": "弾ダメージ"},
-	"upg_bullet_damage_desc":    {"en": "+1 bullet damage","ko": "+1 총알 데미지","ja": "+1 弾ダメージ"},
-	"upg_multi_bullet_name":     {"en": "Multi-Shot",     "ko": "멀티샷",       "ja": "マルチショット"},
-	"upg_multi_bullet_desc":     {"en": "+1 extra bullet","ko": "+1 추가 총알", "ja": "+1 追加弾"},
-	"upg_orbs_name":             {"en": "Orb Shield",     "ko": "오브 실드",    "ja": "オーブシールド"},
-	"upg_orbs_desc":             {"en": "+1 orbiting orb","ko": "+1 공전 오브", "ja": "+1 周回オーブ"},
-	"upg_orb_damage_name":       {"en": "Orb Dmg",        "ko": "오브 데미지",  "ja": "オーブダメージ"},
-	"upg_orb_damage_desc":       {"en": "+1 orb damage",  "ko": "+1 오브 데미지","ja": "+1 オーブダメージ"},
-	"upg_lightning_name":        {"en": "Lightning Bolt", "ko": "번개",         "ja": "稲妻"},
-	"upg_lightning_desc":        {"en": "Faster strikes", "ko": "더 빠른 낙뢰", "ja": "落雷が高速化"},
-	"upg_lightning_count_name":  {"en": "Lightning Count","ko": "번개 갯수",     "ja": "稲妻の数"},
-	"upg_lightning_count_desc":  {"en": "+1 lightning bolt","ko": "+1 번개 가닥","ja": "+1 稲妻"},
-	"upg_lightning_damage_name": {"en": "Lightning Dmg",  "ko": "번개 데미지",  "ja": "稲妻ダメージ"},
-	"upg_lightning_damage_desc": {"en": "+1 lightning damage","ko": "+1 번개 데미지","ja": "+1 稲妻ダメージ"},
-	"upg_max_health_name":       {"en": "Max HP",         "ko": "최대 체력",    "ja": "最大HP"},
-	"upg_max_health_desc":       {"en": "+1 heart (heals)","ko": "+1 하트 (회복)","ja": "+1 ハート（回復）"},
-	"upg_heal_name":             {"en": "Heal HP",        "ko": "체력 회복",    "ja": "HP回復"},
-	"upg_heal_desc":             {"en": "Full HP restore","ko": "체력 전부 회복","ja": "HP全回復"},
-	# 기반 아이템 없이 강화만 사는 헛구매 방지용 잠금 안내
-	"upg_requires_orbs":      {"en": "Buy Orb Shield first",      "ko": "오브 실드를 먼저 구매하세요",  "ja": "先にオーブシールドを購入"},
-	"upg_requires_lightning": {"en": "Buy Lightning Count first", "ko": "번개 갯수를 먼저 구매하세요",  "ja": "先に稲妻の数を購入"},
 
 	# ── 보상형 광고 오버레이 ──────────────────────────────────────────────
 	"ad_title":      {"en": "REWARDED AD", "ko": "보상형 광고", "ja": "リワード広告"},

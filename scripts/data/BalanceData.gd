@@ -40,6 +40,29 @@ extends Resource
 @export var boss_rage_seconds: float = 35.0
 @export var boss_rage_max: float = 1.9         # 격화 상한(공격 빈도 배수)
 @export var boss_summon_ring: float = 300.0    # 호위 소환 위치: 플레이어 주변 이 반경의 링
+## 회복 스킬(전 아키타입 공용) — 체력이 boss_heal_trigger 이하로 떨어지면 쿨타임마다 그 자리에
+## 멈춰 시전한다. 시전을 끝내면 최대 체력의 boss_heal_ratio 만큼 회복하지만, 시전 중
+## boss_heal_break_ratio 만큼 피해를 누적시키면 회복을 끊을 수 있다. 시전 횟수가
+## boss_heal_charges 로 제한되므로 총 회복량에 상한이 있다(저 DPS 에서도 전투가 끝난다).
+@export var boss_heal_trigger: float = 0.55    # 이 체력 비율 이하에서만 발동
+@export var boss_heal_ratio: float = 0.15      # 1회 회복량 = 최대 체력 × 이 값
+@export var boss_heal_cooldown: float = 15.0   # 회복 시도 간격(초) — 발동 체력 이하일 때만 흐른다
+@export var boss_heal_break_ratio: float = 0.07 # 시전 중 이만큼(최대 체력 비율) 주면 저지
+@export var boss_heal_charges: int = 2         # 보스 1마리당 시전 횟수(저지당해도 소모)
+## 보스 격리 구역 — 보스전 동안 플레이어를 가두는 원형 경계(BossArena). 월드에 벽이 없고 보스가
+## 플레이어보다 항상 느려서 보스전이 "뒤로 걸으며 딜"로 끝나던 것을 막는다. 회차가 오를수록
+## 좁아져(= 압박 증가) 체력 말고도 난이도가 오르는 축이 된다.
+## 반경 상한은 화면이 정한다: 뷰포트 720×1280(줌 1.0)이라 플레이어 기준 세로 ±640 까지만 보인다.
+## 640 을 넘기면 경계가 화면 밖이라 "갇혔다"가 전혀 안 읽힌다(620 으로 처음 넣었다가 겪었다).
+## 하한은 보스가 정한다: 보스 유지 거리가 최대 340(바머)이라, 그보다 넉넉히 커야 보스가 경계
+## 밖에 자리잡고 근접 무기가 안 닿는 상황이 안 생긴다.
+@export var boss_arena_radius: float = 480.0        # 1회차 반경
+@export var boss_arena_shrink_per_count: float = 16.0   # 회차마다 좁아지는 양
+@export var boss_arena_radius_min: float = 400.0    # 이보다 좁아지지는 않는다(회피 공간 보장)
+## 경계 감전. 간격을 Player.take_hit 의 자체 무적(contact_cooldown 0.25초)보다 길게 잡아야 한다 —
+## 그대로 두면 초당 4대라, 최대 체력 5인 플레이어가 벽에 스치는 순간 죽는다.
+@export var boss_arena_shock_damage: int = 1
+@export var boss_arena_shock_interval: float = 0.6
 
 @export_group("Chest")
 @export var chest_interval_min: float = 24.0   # 필드 보물상자 스폰 주기(초)
@@ -55,3 +78,12 @@ extends Resource
 
 @export_group("Gem")
 @export var gem_live_cap: int = 140            # 필드 동시 경험치 젬 상한(초과분 자동 흡수)
+
+@export_group("Level up")
+## 강화 카드가 하나도 없을 때(보유 아이템 전부 만렙 + 슬롯 만석) 레벨업 1회당 지급하는 골드.
+## 지급량 = clamp(base + per_level × 레벨, 0, max). 메타 '탐욕'·패시브 '토끼발' 배수는
+## Events.add_gold 가 추가로 곱한다.
+## 후반에는 레벨업이 아무 보상 없이 지나가 경험치를 모을 이유가 사라진다 — 그 구간을 메운다.
+@export var maxed_level_gold_base: int = 20
+@export var maxed_level_gold_per_level: float = 2.0
+@export var maxed_level_gold_max: int = 80

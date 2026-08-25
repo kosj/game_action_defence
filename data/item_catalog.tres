@@ -1,240 +1,235 @@
-[gd_resource type="Resource" script_class="ItemCatalogDB" load_steps=98 format=3]
+[gd_resource type="Resource" script_class="ItemCatalogDB" load_steps=96 format=3]
 
-[ext_resource type="Script" path="res://scripts/data/EvolutionData.gd" id="1_npvid"]
-[ext_resource type="Script" path="res://scripts/data/PassiveData.gd" id="2_trnf4"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/passive_armor.png" id="3_h0uds"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/passive_swift.png" id="4_wpulx"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/passive_haste.png" id="5_uutgo"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/passive_crit.png" id="6_75ynu"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/passive_magnet.png" id="7_bnw15"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/passive_regen.png" id="8_4r2i2"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/passive_ammo_belt.png" id="9_6o5xu"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/passive_gunpowder.png" id="10_8eidu"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/passive_battery.png" id="11_6585m"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/passive_rabbits_foot.png" id="12_fryju"]
-[ext_resource type="Script" path="res://scripts/data/ItemCatalogDB.gd" id="13_ogmwu"]
-[ext_resource type="Script" path="res://scripts/data/WeaponData.gd" id="14_20nvg"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_gun.png" id="15_6k80r"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_orb.png" id="16_caltl"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_lightning.png" id="17_k25ak"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_garlic.png" id="18_3evq3"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_holy.png" id="19_exhiq"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_shotgun.png" id="20_iylne"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_machinegun.png" id="21_u4iyw"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_crossbow.png" id="22_nxlbi"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_flamethrower.png" id="23_fpjjd"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_molotov.png" id="24_ph5i8"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_mine.png" id="25_bym6v"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_spikedbat.png" id="26_hfe73"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_chainsaw.png" id="27_y1yr8"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_turret.png" id="28_pp36u"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_drone.png" id="29_f11ww"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_tesla.png" id="30_kmtcy"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_railgun.png" id="31_kp5iu"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_sawstorm.png" id="32_k1lq8"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_thunderstorm.png" id="33_7114j"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_sanctuary.png" id="34_38up6"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_crucifix.png" id="35_ojo8c"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_dragonsbreath.png" id="36_dl23q"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_gatling.png" id="37_m0jvr"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_ballista.png" id="38_wwa4h"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_inferno.png" id="39_jeja3"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_napalm.png" id="40_ij36c"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_claymore.png" id="41_cn3ak"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_stormcoil.png" id="42_miuke"]
-[ext_resource type="Texture2D" path="res://assets/ui/icons/weapon_boomerang.png" id="43_bmrg2"]
+[ext_resource type="Script" path="res://scripts/data/EvolutionData.gd" id="1_q5m42"]
+[ext_resource type="Script" path="res://scripts/data/PassiveData.gd" id="2_l3xqy"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/passive_armor.tres" id="3_2uupv"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/passive_swift.tres" id="4_laafw"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/passive_haste.tres" id="5_fk0vk"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/passive_crit.tres" id="6_maj4o"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/passive_magnet.tres" id="7_ggn65"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/passive_regen.tres" id="8_hp10x"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/passive_ammo_belt.tres" id="9_iy735"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/passive_gunpowder.tres" id="10_spfb1"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/passive_battery.tres" id="11_4h47u"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/passive_rabbits_foot.tres" id="12_bmes1"]
+[ext_resource type="Script" path="res://scripts/data/ItemCatalogDB.gd" id="13_om03g"]
+[ext_resource type="Script" path="res://scripts/data/WeaponData.gd" id="14_u1smn"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_gun.tres" id="15_6u3rw"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_orb.tres" id="16_rjlub"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_lightning.tres" id="17_qupg3"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_garlic.tres" id="18_b4jk0"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_shotgun.tres" id="19_l2fdd"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_machinegun.tres" id="20_aj8f1"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_crossbow.tres" id="21_dixsd"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_flamethrower.tres" id="22_yrsd3"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_molotov.tres" id="23_gcrss"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_mine.tres" id="24_kouvm"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_sawblade.tres" id="25_hly7g"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_chainsaw.tres" id="26_xh7fh"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_turret.tres" id="27_psw1l"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_drone.tres" id="28_0jb2k"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_tesla.tres" id="29_tnq3m"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_railgun.tres" id="30_iw5ky"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_sawstorm.tres" id="31_amr15"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_thunderstorm.tres" id="32_2utny"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_sanctuary.tres" id="33_a2vob"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_dragonsbreath.tres" id="34_mfokp"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_gatling.tres" id="35_f4say"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_ballista.tres" id="36_xun0g"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_inferno.tres" id="37_m7va5"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_napalm.tres" id="38_sw3dx"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_claymore.tres" id="39_sfhuw"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_stormcoil.tres" id="40_7ilod"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_boomerang.tres" id="41_vyi8d"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_ult_quake.tres" id="42_kor5k"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_ult_arrowstorm.tres" id="43_dbbok"]
+[ext_resource type="Texture2D" path="res://assets/atlas/ui/weapon_ult_orbital.tres" id="44_uhr52"]
 
-[sub_resource type="Resource" id="Resource_ysekj"]
-script = ExtResource("1_npvid")
+[sub_resource type="Resource" id="Resource_34w37"]
+script = ExtResource("1_q5m42")
 base_id = "gun"
 passive_id = "crit"
 into_id = "railgun"
 
-[sub_resource type="Resource" id="Resource_xiw26"]
-script = ExtResource("1_npvid")
+[sub_resource type="Resource" id="Resource_ay5an"]
+script = ExtResource("1_q5m42")
 base_id = "orb"
 passive_id = "swift"
 into_id = "sawstorm"
 
-[sub_resource type="Resource" id="Resource_20xfe"]
-script = ExtResource("1_npvid")
+[sub_resource type="Resource" id="Resource_x76h6"]
+script = ExtResource("1_q5m42")
 base_id = "lightning"
 passive_id = "crit"
 into_id = "thunderstorm"
 
-[sub_resource type="Resource" id="Resource_roa8l"]
-script = ExtResource("1_npvid")
+[sub_resource type="Resource" id="Resource_54508"]
+script = ExtResource("1_q5m42")
 base_id = "garlic"
 passive_id = "armor"
 into_id = "sanctuary"
 
-[sub_resource type="Resource" id="Resource_2wntj"]
-script = ExtResource("1_npvid")
-base_id = "holy"
-passive_id = "haste"
-into_id = "crucifix"
-
-[sub_resource type="Resource" id="Resource_qpij3"]
-script = ExtResource("1_npvid")
+[sub_resource type="Resource" id="Resource_klo2r"]
+script = ExtResource("1_q5m42")
 base_id = "shotgun"
 passive_id = "gunpowder"
 into_id = "dragonsbreath"
 
-[sub_resource type="Resource" id="Resource_qfltj"]
-script = ExtResource("1_npvid")
+[sub_resource type="Resource" id="Resource_tpeti"]
+script = ExtResource("1_q5m42")
 base_id = "machinegun"
 passive_id = "ammo_belt"
 into_id = "gatling"
 
-[sub_resource type="Resource" id="Resource_vpue0"]
-script = ExtResource("1_npvid")
+[sub_resource type="Resource" id="Resource_png2s"]
+script = ExtResource("1_q5m42")
 base_id = "crossbow"
 passive_id = "crit"
 into_id = "ballista"
 
-[sub_resource type="Resource" id="Resource_0jyiy"]
-script = ExtResource("1_npvid")
+[sub_resource type="Resource" id="Resource_xjkht"]
+script = ExtResource("1_q5m42")
 base_id = "flamethrower"
 passive_id = "battery"
 into_id = "inferno"
 
-[sub_resource type="Resource" id="Resource_p4uto"]
-script = ExtResource("1_npvid")
+[sub_resource type="Resource" id="Resource_gkwe6"]
+script = ExtResource("1_q5m42")
 base_id = "molotov"
 passive_id = "gunpowder"
 into_id = "napalm"
 
-[sub_resource type="Resource" id="Resource_k81bh"]
-script = ExtResource("1_npvid")
+[sub_resource type="Resource" id="Resource_l11ij"]
+script = ExtResource("1_q5m42")
 base_id = "mine"
 passive_id = "battery"
 into_id = "claymore"
 
-[sub_resource type="Resource" id="Resource_nnv0g"]
-script = ExtResource("1_npvid")
+[sub_resource type="Resource" id="Resource_bwuw7"]
+script = ExtResource("1_q5m42")
 base_id = "tesla"
 passive_id = "haste"
 into_id = "stormcoil"
 
-[sub_resource type="Resource" id="Resource_rh71o"]
-script = ExtResource("2_trnf4")
+[sub_resource type="Resource" id="Resource_ckjbb"]
+script = ExtResource("2_l3xqy")
 id = "armor"
 display = "Body Armor"
 desc = "+1 max HP (heals)"
 color = Color(0.45, 0.85, 0.5, 1)
 max_level = 8
-icon = ExtResource("3_h0uds")
+icon = ExtResource("3_2uupv")
 effect = "max_health"
 per_level = 1.0
 
-[sub_resource type="Resource" id="Resource_n7ycd"]
-script = ExtResource("2_trnf4")
+[sub_resource type="Resource" id="Resource_x0nlh"]
+script = ExtResource("2_l3xqy")
 id = "swift"
 display = "Sneakers"
 desc = "+30 move speed / lvl"
 color = Color(0.72, 0.72, 0.85, 1)
 max_level = 8
-icon = ExtResource("4_wpulx")
+icon = ExtResource("4_laafw")
 effect = "move_speed"
 per_level = 1.0
 
-[sub_resource type="Resource" id="Resource_yt0yw"]
-script = ExtResource("2_trnf4")
+[sub_resource type="Resource" id="Resource_sac4n"]
+script = ExtResource("2_l3xqy")
 id = "haste"
 display = "Energy Drink"
 desc = "-15% fire delay / lvl"
 color = Color(1, 0.75, 0.2, 1)
 max_level = 8
-icon = ExtResource("5_uutgo")
+icon = ExtResource("5_fk0vk")
 effect = "atk_speed"
 per_level = 1.0
 
-[sub_resource type="Resource" id="Resource_ssecv"]
-script = ExtResource("2_trnf4")
+[sub_resource type="Resource" id="Resource_gk1rw"]
+script = ExtResource("2_l3xqy")
 id = "crit"
 display = "Scope"
 desc = "+8% crit (double dmg)"
 color = Color(1, 0.75, 0.2, 1)
 max_level = 7
-icon = ExtResource("6_75ynu")
+icon = ExtResource("6_maj4o")
 effect = "crit"
 per_level = 1.0
 
-[sub_resource type="Resource" id="Resource_ng0ac"]
-script = ExtResource("2_trnf4")
+[sub_resource type="Resource" id="Resource_1dqm1"]
+script = ExtResource("2_l3xqy")
 id = "magnet"
 display = "Magnet"
 desc = "+30% pickup range"
 color = Color(0.72, 0.72, 0.85, 1)
 max_level = 6
-icon = ExtResource("7_bnw15")
+icon = ExtResource("7_ggn65")
 effect = "pickup"
 per_level = 1.0
 
-[sub_resource type="Resource" id="Resource_fhi5r"]
-script = ExtResource("2_trnf4")
+[sub_resource type="Resource" id="Resource_l2lys"]
+script = ExtResource("2_l3xqy")
 id = "regen"
 display = "First Aid"
 desc = "Heal over time"
 color = Color(0.45, 0.85, 0.5, 1)
 max_level = 6
-icon = ExtResource("8_4r2i2")
+icon = ExtResource("8_hp10x")
 effect = "regen"
 per_level = 1.0
 
-[sub_resource type="Resource" id="Resource_bygr5"]
-script = ExtResource("2_trnf4")
+[sub_resource type="Resource" id="Resource_v05h4"]
+script = ExtResource("2_l3xqy")
 id = "ammo_belt"
 display = "Ammo Belt"
 desc = "Extra bullets"
 color = Color(1, 0.75, 0.2, 1)
 max_level = 6
-icon = ExtResource("9_6o5xu")
+icon = ExtResource("9_iy735")
 effect = "multishot"
 per_level = 0.34
 
-[sub_resource type="Resource" id="Resource_bvlkp"]
-script = ExtResource("2_trnf4")
+[sub_resource type="Resource" id="Resource_cv1md"]
+script = ExtResource("2_l3xqy")
 id = "gunpowder"
 display = "Gunpowder"
 desc = "+1 bullet dmg / lvl"
 color = Color(1, 0.75, 0.2, 1)
 max_level = 8
-icon = ExtResource("10_8eidu")
+icon = ExtResource("10_spfb1")
 effect = "bullet_damage"
 per_level = 1.0
 
-[sub_resource type="Resource" id="Resource_oso51"]
-script = ExtResource("2_trnf4")
+[sub_resource type="Resource" id="Resource_t24c2"]
+script = ExtResource("2_l3xqy")
 id = "battery"
 display = "Battery"
 desc = "+8% effect area/lvl"
 color = Color(0.72, 0.72, 0.85, 1)
 max_level = 6
-icon = ExtResource("11_6585m")
+icon = ExtResource("11_4h47u")
 effect = "area"
 per_level = 1.0
 
-[sub_resource type="Resource" id="Resource_p7g4n"]
-script = ExtResource("2_trnf4")
+[sub_resource type="Resource" id="Resource_37ubx"]
+script = ExtResource("2_l3xqy")
 id = "rabbits_foot"
 display = "Rabbit's Foot"
 desc = "+8% gold & XP / lvl"
 color = Color(0.45, 0.85, 0.5, 1)
 max_level = 6
-icon = ExtResource("12_fryju")
+icon = ExtResource("12_bmes1")
 effect = "greed"
 per_level = 1.0
 
-[sub_resource type="Resource" id="Resource_b5sf2"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_ib36j"]
+script = ExtResource("14_u1smn")
 id = "gun"
 display = "Auto Gun"
 desc = "Damage & extra bullets"
 color = Color(1, 0.75, 0.2, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("15_6k80r")
+icon = ExtResource("15_6u3rw")
 module = ""
 fire_interval = 0.5
 pellets = 1
@@ -245,18 +240,22 @@ proj_speed = 700.0
 proj_damage = 1
 dmg_per_level = 1
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_2uxij"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_r6aue"]
+script = ExtResource("14_u1smn")
 id = "orb"
 display = "Orb Shield"
 desc = "Orbiting blades"
 color = Color(0.45, 0.82, 1, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("16_caltl")
+icon = ExtResource("16_rjlub")
 module = ""
 fire_interval = 0.5
 pellets = 1
@@ -267,18 +266,22 @@ proj_speed = 700.0
 proj_damage = 1
 dmg_per_level = 1
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_wuykr"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_s6yw1"]
+script = ExtResource("14_u1smn")
 id = "lightning"
 display = "Lightning"
 desc = "Strikes nearby foes"
 color = Color(0.65, 0.55, 1, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("17_k25ak")
+icon = ExtResource("17_qupg3")
 module = ""
 fire_interval = 0.5
 pellets = 1
@@ -289,18 +292,22 @@ proj_speed = 700.0
 proj_damage = 1
 dmg_per_level = 1
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_et8pr"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_md87l"]
+script = ExtResource("14_u1smn")
 id = "garlic"
 display = "Sunlight Aura"
 desc = "Sunlight zombies hate"
 color = Color(1, 0.85, 0.45, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("18_3evq3")
+icon = ExtResource("18_b4jk0")
 module = ""
 fire_interval = 0.5
 pellets = 1
@@ -311,40 +318,22 @@ proj_speed = 700.0
 proj_damage = 1
 dmg_per_level = 1
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_mqr3a"]
-script = ExtResource("14_20nvg")
-id = "holy"
-display = "Holy Water"
-desc = "Blasts random nearby spots"
-color = Color(0.65, 0.55, 1, 1)
-max_level = 8
-evolved = false
-icon = ExtResource("19_exhiq")
-module = ""
-fire_interval = 0.5
-pellets = 1
-spread = 0.0
-pierce = 0
-knockback = 0.0
-proj_speed = 700.0
-proj_damage = 1
-dmg_per_level = 1
-proj_scale = 1.0
-area_radius = 80.0
-area_duration = 0.0
-
-[sub_resource type="Resource" id="Resource_brm1b"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_nw4n2"]
+script = ExtResource("14_u1smn")
 id = "shotgun"
 display = "Shotgun"
 desc = "Wide spread + strong knockback"
 color = Color(1, 0.55, 0.15, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("20_iylne")
+icon = ExtResource("19_l2fdd")
 module = "projectile"
 fire_interval = 0.85
 pellets = 5
@@ -355,40 +344,48 @@ proj_speed = 620.0
 proj_damage = 1
 dmg_per_level = 1
 proj_scale = 0.85
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 1.6
+proj_homing_arc = 0.663225
 area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_d5nkj"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_jw4qd"]
+script = ExtResource("14_u1smn")
 id = "machinegun"
 display = "Machine Gun"
-desc = "Very fast, low damage"
+desc = "Fast, low damage"
 color = Color(0.8, 0.95, 0.25, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("21_u4iyw")
+icon = ExtResource("20_aj8f1")
 module = "projectile"
-fire_interval = 0.16
+fire_interval = 0.32
 pellets = 1
 spread = 0.12
 pierce = 0
 knockback = 0.0
 proj_speed = 760.0
-proj_damage = 1
-dmg_per_level = 1
-proj_scale = 0.6
+proj_damage = 2
+dmg_per_level = 2
+proj_scale = 0.72
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 3.0
+proj_homing_arc = 0.959931
 area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_y3lj6"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_sjtfk"]
+script = ExtResource("14_u1smn")
 id = "crossbow"
 display = "Crossbow"
 desc = "Piercing high-damage bolt"
 color = Color(0.55, 0.85, 1, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("22_nxlbi")
+icon = ExtResource("21_dixsd")
 module = "projectile"
 fire_interval = 0.95
 pellets = 1
@@ -399,18 +396,22 @@ proj_speed = 900.0
 proj_damage = 3
 dmg_per_level = 2
 proj_scale = 1.15
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 4.5
+proj_homing_arc = 1.13446
 area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_ty2ne"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_tqbet"]
+script = ExtResource("14_u1smn")
 id = "flamethrower"
 display = "Flamethrower"
 desc = "Cone of continuous fire"
 color = Color(1, 0.5, 0.12, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("23_fpjjd")
+icon = ExtResource("22_yrsd3")
 module = "flamethrower"
 fire_interval = 0.25
 pellets = 1
@@ -421,18 +422,22 @@ proj_speed = 700.0
 proj_damage = 1
 dmg_per_level = 1
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 165.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_h3kib"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_6keb4"]
+script = ExtResource("14_u1smn")
 id = "molotov"
 display = "Molotov"
 desc = "Throws a lingering fire pool"
 color = Color(1, 0.42, 0.1, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("24_ph5i8")
+icon = ExtResource("23_gcrss")
 module = "molotov"
 fire_interval = 2.6
 pellets = 1
@@ -443,18 +448,22 @@ proj_speed = 700.0
 proj_damage = 2
 dmg_per_level = 1
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 82.0
 area_duration = 3.2
 
-[sub_resource type="Resource" id="Resource_ffcci"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_c7voo"]
+script = ExtResource("14_u1smn")
 id = "mine"
 display = "Land Mine"
 desc = "Deploys mines that explode"
 color = Color(1, 0.45, 0.15, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("25_bym6v")
+icon = ExtResource("24_kouvm")
 module = "mine"
 fire_interval = 1.9
 pellets = 1
@@ -465,40 +474,48 @@ proj_speed = 700.0
 proj_damage = 4
 dmg_per_level = 2
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 72.0
 area_duration = 9.0
 
-[sub_resource type="Resource" id="Resource_b3dfo"]
-script = ExtResource("14_20nvg")
-id = "spikedbat"
-display = "Spiked Bat"
-desc = "Wide melee swing + knockback"
+[sub_resource type="Resource" id="Resource_n1mw7"]
+script = ExtResource("14_u1smn")
+id = "sawblade"
+display = "Buzz Blade"
+desc = "Spinning blade that cuts through a line of foes"
 color = Color(0.9, 0.75, 0.35, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("26_hfe73")
-module = "melee_arc"
+icon = ExtResource("25_hly7g")
+module = "projectile"
 fire_interval = 1.0
 pellets = 1
-spread = 1.15
-pierce = 0
-knockback = 270.0
-proj_speed = 700.0
-proj_damage = 3
+spread = 0.0
+pierce = 3
+knockback = 150.0
+proj_speed = 430.0
+proj_damage = 4
 dmg_per_level = 2
-proj_scale = 1.0
-area_radius = 118.0
+proj_scale = 1.35
+proj_style = "blade"
+proj_spin = 14.0
+proj_homing = 3.4
+proj_homing_arc = 0.785398
+area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_iwi26"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_w18yb"]
+script = ExtResource("14_u1smn")
 id = "chainsaw"
 display = "Chainsaw"
 desc = "Point-blank grinder"
 color = Color(0.85, 0.88, 0.95, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("27_y1yr8")
+icon = ExtResource("26_xh7fh")
 module = "chainsaw"
 fire_interval = 0.16
 pellets = 1
@@ -509,18 +526,22 @@ proj_speed = 700.0
 proj_damage = 1
 dmg_per_level = 1
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 78.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_7eqki"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_1itw4"]
+script = ExtResource("14_u1smn")
 id = "turret"
 display = "Turret"
 desc = "Deploys auto-firing sentries"
 color = Color(0.6, 0.75, 0.95, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("28_pp36u")
+icon = ExtResource("27_psw1l")
 module = "turret"
 fire_interval = 3.0
 pellets = 1
@@ -531,18 +552,22 @@ proj_speed = 700.0
 proj_damage = 2
 dmg_per_level = 1
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 300.0
 area_duration = 6.0
 
-[sub_resource type="Resource" id="Resource_rqy8n"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_g15pe"]
+script = ExtResource("14_u1smn")
 id = "drone"
 display = "Drone"
 desc = "Orbiting auto-fire drones"
 color = Color(0.4, 0.9, 0.85, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("29_f11ww")
+icon = ExtResource("28_0jb2k")
 module = "drone"
 fire_interval = 0.6
 pellets = 1
@@ -553,18 +578,22 @@ proj_speed = 700.0
 proj_damage = 1
 dmg_per_level = 1
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 96.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_n8jci"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_ovw6r"]
+script = ExtResource("14_u1smn")
 id = "tesla"
 display = "Tesla Coil"
 desc = "Chain lightning"
 color = Color(0.6, 0.85, 1, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("30_kmtcy")
+icon = ExtResource("29_tnq3m")
 module = "tesla"
 fire_interval = 0.9
 pellets = 1
@@ -575,18 +604,22 @@ proj_speed = 700.0
 proj_damage = 3
 dmg_per_level = 2
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 300.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_2o11w"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_1n7u5"]
+script = ExtResource("14_u1smn")
 id = "railgun"
 display = "Railgun"
 desc = "Evolved Auto Gun"
 color = Color(1, 0.75, 0.2, 1)
 max_level = 5
 evolved = true
-icon = ExtResource("31_kp5iu")
+icon = ExtResource("30_iw5ky")
 module = ""
 fire_interval = 0.5
 pellets = 1
@@ -597,18 +630,22 @@ proj_speed = 700.0
 proj_damage = 1
 dmg_per_level = 1
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_mlbls"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_rwx12"]
+script = ExtResource("14_u1smn")
 id = "sawstorm"
 display = "Saw Storm"
 desc = "Evolved Orb Shield"
 color = Color(0.45, 0.82, 1, 1)
 max_level = 5
 evolved = true
-icon = ExtResource("32_k1lq8")
+icon = ExtResource("31_amr15")
 module = ""
 fire_interval = 0.5
 pellets = 1
@@ -619,18 +656,22 @@ proj_speed = 700.0
 proj_damage = 1
 dmg_per_level = 1
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_tjdw4"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_kco46"]
+script = ExtResource("14_u1smn")
 id = "thunderstorm"
 display = "Thunderstorm"
 desc = "Evolved Lightning"
 color = Color(0.65, 0.55, 1, 1)
 max_level = 5
 evolved = true
-icon = ExtResource("33_7114j")
+icon = ExtResource("32_2utny")
 module = ""
 fire_interval = 0.5
 pellets = 1
@@ -641,18 +682,22 @@ proj_speed = 700.0
 proj_damage = 1
 dmg_per_level = 1
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_xpfej"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_vayu8"]
+script = ExtResource("14_u1smn")
 id = "sanctuary"
 display = "Sanctuary"
-desc = "Evolved Garlic Aura"
+desc = "Evolved Sunlight Aura"
 color = Color(0.45, 0.82, 1, 1)
 max_level = 5
 evolved = true
-icon = ExtResource("34_38up6")
+icon = ExtResource("33_a2vob")
 module = ""
 fire_interval = 0.5
 pellets = 1
@@ -663,40 +708,22 @@ proj_speed = 700.0
 proj_damage = 1
 dmg_per_level = 1
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_th4eu"]
-script = ExtResource("14_20nvg")
-id = "crucifix"
-display = "Crucifix"
-desc = "Evolved Holy Water"
-color = Color(0.65, 0.55, 1, 1)
-max_level = 5
-evolved = true
-icon = ExtResource("35_ojo8c")
-module = ""
-fire_interval = 0.5
-pellets = 1
-spread = 0.0
-pierce = 0
-knockback = 0.0
-proj_speed = 700.0
-proj_damage = 1
-dmg_per_level = 1
-proj_scale = 1.0
-area_radius = 80.0
-area_duration = 0.0
-
-[sub_resource type="Resource" id="Resource_n3p4e"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_261le"]
+script = ExtResource("14_u1smn")
 id = "dragonsbreath"
 display = "Dragon's Breath"
 desc = "Evolved Shotgun"
 color = Color(1, 0.4, 0.1, 1)
 max_level = 5
 evolved = true
-icon = ExtResource("36_dl23q")
+icon = ExtResource("34_mfokp")
 module = "projectile"
 fire_interval = 0.75
 pellets = 8
@@ -707,40 +734,48 @@ proj_speed = 660.0
 proj_damage = 2
 dmg_per_level = 2
 proj_scale = 0.95
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 1.6
+proj_homing_arc = 0.663225
 area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_13fla"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_d0llu"]
+script = ExtResource("14_u1smn")
 id = "gatling"
 display = "Gatling Gun"
 desc = "Evolved Machine Gun"
 color = Color(0.9, 0.95, 0.2, 1)
 max_level = 5
 evolved = true
-icon = ExtResource("37_m0jvr")
+icon = ExtResource("35_f4say")
 module = "projectile"
-fire_interval = 0.1
+fire_interval = 0.2
 pellets = 2
 spread = 0.14
 pierce = 1
 knockback = 0.0
 proj_speed = 820.0
-proj_damage = 1
-dmg_per_level = 2
-proj_scale = 0.65
+proj_damage = 2
+dmg_per_level = 4
+proj_scale = 0.78
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 3.2
+proj_homing_arc = 0.959931
 area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_mbldu"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_g3qjk"]
+script = ExtResource("14_u1smn")
 id = "ballista"
 display = "Ballista"
 desc = "Evolved Crossbow"
 color = Color(0.45, 0.8, 1, 1)
 max_level = 5
 evolved = true
-icon = ExtResource("38_wwa4h")
+icon = ExtResource("36_xun0g")
 module = "projectile"
 fire_interval = 0.75
 pellets = 1
@@ -751,18 +786,22 @@ proj_speed = 1000.0
 proj_damage = 5
 dmg_per_level = 3
 proj_scale = 1.4
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 5.0
+proj_homing_arc = 1.22173
 area_radius = 80.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_suojf"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_drmcg"]
+script = ExtResource("14_u1smn")
 id = "inferno"
 display = "Inferno"
 desc = "Evolved Flamethrower"
 color = Color(1, 0.42, 0.08, 1)
 max_level = 5
 evolved = true
-icon = ExtResource("39_jeja3")
+icon = ExtResource("37_m7va5")
 module = "flamethrower"
 fire_interval = 0.18
 pellets = 1
@@ -773,18 +812,22 @@ proj_speed = 700.0
 proj_damage = 2
 dmg_per_level = 2
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 210.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_1d04s"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_ys6s8"]
+script = ExtResource("14_u1smn")
 id = "napalm"
 display = "Napalm"
 desc = "Evolved Molotov"
 color = Color(1, 0.35, 0.08, 1)
 max_level = 5
 evolved = true
-icon = ExtResource("40_ij36c")
+icon = ExtResource("38_sw3dx")
 module = "molotov"
 fire_interval = 2.0
 pellets = 1
@@ -795,18 +838,22 @@ proj_speed = 700.0
 proj_damage = 3
 dmg_per_level = 2
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 100.0
 area_duration = 4.5
 
-[sub_resource type="Resource" id="Resource_0wvrx"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_1o8tw"]
+script = ExtResource("14_u1smn")
 id = "claymore"
 display = "Claymore"
 desc = "Evolved Land Mine"
 color = Color(1, 0.42, 0.12, 1)
 max_level = 5
 evolved = true
-icon = ExtResource("41_cn3ak")
+icon = ExtResource("39_sfhuw")
 module = "mine"
 fire_interval = 1.5
 pellets = 1
@@ -817,18 +864,22 @@ proj_speed = 700.0
 proj_damage = 6
 dmg_per_level = 3
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 95.0
 area_duration = 9.0
 
-[sub_resource type="Resource" id="Resource_nmib0"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_rnyuq"]
+script = ExtResource("14_u1smn")
 id = "stormcoil"
 display = "Storm Coil"
 desc = "Evolved Tesla Coil"
 color = Color(0.55, 0.85, 1, 1)
 max_level = 5
 evolved = true
-icon = ExtResource("42_miuke")
+icon = ExtResource("40_7ilod")
 module = "tesla"
 fire_interval = 0.7
 pellets = 1
@@ -839,18 +890,22 @@ proj_speed = 700.0
 proj_damage = 4
 dmg_per_level = 3
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 340.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_boomr1"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_hknh5"]
+script = ExtResource("14_u1smn")
 id = "boomerang"
 display = "Boomerang"
 desc = "Returning blade, hits twice"
 color = Color(0.95, 0.7, 0.35, 1)
 max_level = 8
 evolved = false
-icon = ExtResource("43_bmrg2")
+icon = ExtResource("41_vyi8d")
 module = "boomerang"
 fire_interval = 1.35
 pellets = 1
@@ -861,17 +916,22 @@ proj_speed = 560.0
 proj_damage = 3
 dmg_per_level = 2
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 250.0
 area_duration = 0.0
 
-[sub_resource type="Resource" id="Resource_ultqk"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_smn64"]
+script = ExtResource("14_u1smn")
 id = "ult_quake"
 display = "Seismic Wrath"
 desc = "Ultimate: quakes crush every enemy on screen"
 color = Color(0.95, 0.42, 0.3, 1)
 max_level = 8
 evolved = true
+icon = ExtResource("42_kor5k")
 module = "ultimate"
 fire_interval = 24.0
 pellets = 1
@@ -882,17 +942,22 @@ proj_speed = 0.0
 proj_damage = 3
 dmg_per_level = 2
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 720.0
 area_duration = 3.0
 
-[sub_resource type="Resource" id="Resource_ultas"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_2u6yw"]
+script = ExtResource("14_u1smn")
 id = "ult_arrowstorm"
 display = "Arrow Tempest"
 desc = "Ultimate: arrow rain pierces the whole field"
 color = Color(0.5, 0.85, 1, 1)
 max_level = 8
 evolved = true
+icon = ExtResource("43_dbbok")
 module = "ultimate"
 fire_interval = 24.0
 pellets = 1
@@ -903,17 +968,22 @@ proj_speed = 0.0
 proj_damage = 3
 dmg_per_level = 2
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 720.0
 area_duration = 3.0
 
-[sub_resource type="Resource" id="Resource_ultob"]
-script = ExtResource("14_20nvg")
+[sub_resource type="Resource" id="Resource_0slvo"]
+script = ExtResource("14_u1smn")
 id = "ult_orbital"
 display = "Orbital Barrage"
 desc = "Ultimate: bombardment blankets the screen"
 color = Color(0.55, 0.95, 0.6, 1)
 max_level = 8
 evolved = true
+icon = ExtResource("44_uhr52")
 module = "ultimate"
 fire_interval = 24.0
 pellets = 1
@@ -924,11 +994,15 @@ proj_speed = 0.0
 proj_damage = 3
 dmg_per_level = 2
 proj_scale = 1.0
+proj_style = ""
+proj_spin = 0.0
+proj_homing = 0.0
+proj_homing_arc = 0.785398
 area_radius = 720.0
 area_duration = 3.0
 
 [resource]
-script = ExtResource("13_ogmwu")
-weapons = Array[ExtResource("14_20nvg")]([SubResource("Resource_b5sf2"), SubResource("Resource_2uxij"), SubResource("Resource_wuykr"), SubResource("Resource_et8pr"), SubResource("Resource_mqr3a"), SubResource("Resource_brm1b"), SubResource("Resource_d5nkj"), SubResource("Resource_y3lj6"), SubResource("Resource_ty2ne"), SubResource("Resource_h3kib"), SubResource("Resource_ffcci"), SubResource("Resource_b3dfo"), SubResource("Resource_iwi26"), SubResource("Resource_7eqki"), SubResource("Resource_rqy8n"), SubResource("Resource_n8jci"), SubResource("Resource_2o11w"), SubResource("Resource_mlbls"), SubResource("Resource_tjdw4"), SubResource("Resource_xpfej"), SubResource("Resource_th4eu"), SubResource("Resource_n3p4e"), SubResource("Resource_13fla"), SubResource("Resource_mbldu"), SubResource("Resource_suojf"), SubResource("Resource_1d04s"), SubResource("Resource_0wvrx"), SubResource("Resource_nmib0"), SubResource("Resource_boomr1"), SubResource("Resource_ultqk"), SubResource("Resource_ultas"), SubResource("Resource_ultob")])
-passives = Array[ExtResource("2_trnf4")]([SubResource("Resource_rh71o"), SubResource("Resource_n7ycd"), SubResource("Resource_yt0yw"), SubResource("Resource_ssecv"), SubResource("Resource_ng0ac"), SubResource("Resource_fhi5r"), SubResource("Resource_bygr5"), SubResource("Resource_bvlkp"), SubResource("Resource_oso51"), SubResource("Resource_p7g4n")])
-evolutions = Array[ExtResource("1_npvid")]([SubResource("Resource_ysekj"), SubResource("Resource_xiw26"), SubResource("Resource_20xfe"), SubResource("Resource_roa8l"), SubResource("Resource_2wntj"), SubResource("Resource_qpij3"), SubResource("Resource_qfltj"), SubResource("Resource_vpue0"), SubResource("Resource_0jyiy"), SubResource("Resource_p4uto"), SubResource("Resource_k81bh"), SubResource("Resource_nnv0g")])
+script = ExtResource("13_om03g")
+weapons = Array[ExtResource("14_u1smn")]([SubResource("Resource_ib36j"), SubResource("Resource_r6aue"), SubResource("Resource_s6yw1"), SubResource("Resource_md87l"), SubResource("Resource_nw4n2"), SubResource("Resource_jw4qd"), SubResource("Resource_sjtfk"), SubResource("Resource_tqbet"), SubResource("Resource_6keb4"), SubResource("Resource_c7voo"), SubResource("Resource_n1mw7"), SubResource("Resource_w18yb"), SubResource("Resource_1itw4"), SubResource("Resource_g15pe"), SubResource("Resource_ovw6r"), SubResource("Resource_1n7u5"), SubResource("Resource_rwx12"), SubResource("Resource_kco46"), SubResource("Resource_vayu8"), SubResource("Resource_261le"), SubResource("Resource_d0llu"), SubResource("Resource_g3qjk"), SubResource("Resource_drmcg"), SubResource("Resource_ys6s8"), SubResource("Resource_1o8tw"), SubResource("Resource_rnyuq"), SubResource("Resource_hknh5"), SubResource("Resource_smn64"), SubResource("Resource_2u6yw"), SubResource("Resource_0slvo")])
+passives = Array[ExtResource("2_l3xqy")]([SubResource("Resource_ckjbb"), SubResource("Resource_x0nlh"), SubResource("Resource_sac4n"), SubResource("Resource_gk1rw"), SubResource("Resource_1dqm1"), SubResource("Resource_l2lys"), SubResource("Resource_v05h4"), SubResource("Resource_cv1md"), SubResource("Resource_t24c2"), SubResource("Resource_37ubx")])
+evolutions = Array[ExtResource("1_q5m42")]([SubResource("Resource_34w37"), SubResource("Resource_ay5an"), SubResource("Resource_x76h6"), SubResource("Resource_54508"), SubResource("Resource_klo2r"), SubResource("Resource_tpeti"), SubResource("Resource_png2s"), SubResource("Resource_xjkht"), SubResource("Resource_gkwe6"), SubResource("Resource_l11ij"), SubResource("Resource_bwuw7")])

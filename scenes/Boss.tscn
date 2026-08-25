@@ -1,8 +1,7 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://scripts/Boss.gd" id="1"]
-[ext_resource type="Texture2D" path="res://assets/sprites/boss_brute.png" id="2"]
-[ext_resource type="Texture2D" path="res://assets/sprites/shadow.png" id="3"]
+[ext_resource type="Texture2D" path="res://assets/atlas/shadow.tres" id="3"]
 
 [sub_resource type="CircleShape2D" id="shape_boss"]
 radius = 38.0
@@ -20,7 +19,6 @@ texture = ExtResource("3")
 
 [node name="Body" type="Sprite2D" parent="."]
 scale = Vector2(1.1, 1.1)
-texture = ExtResource("2")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("shape_boss")

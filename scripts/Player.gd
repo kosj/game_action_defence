@@ -6,13 +6,12 @@ extends CharacterBody2D
 @export var max_health: int = 5
 @export var contact_damage: int = 1
 @export var contact_cooldown: float = 0.4   # 좀비 접촉 피해 간격(= 피격 후 무적 시간)
-@export var contact_radius: float = 26.0    # 실제 접촉으로 인정할 중심간 거리(스프라이트가 겹쳤을 때만 피해)
+@export var contact_radius: float = 26.0    # 플레이어 몸통 반경 — 겹침 해소와 접촉 피해가 함께 쓴다
 
 const BULLET := preload("res://scenes/Bullet.tscn")
 const _OrbClass := preload("res://scripts/Orb.gd")
 const _LightningClass := preload("res://scripts/Lightning.gd")
 const _GarlicClass := preload("res://scripts/GarlicAura.gd")
-const _HolyClass := preload("res://scripts/HolyWater.gd")
 # 데이터 구동 무기 모듈: WeaponData.module 문자열 → 모듈 스크립트. 새 모듈 무기는
 # 여기에 한 줄 + 카탈로그(.tres) 항목만 추가하면 Player 가 자동으로 생성/유지한다.
 const _MODULE_CLASSES := {
@@ -20,7 +19,6 @@ const _MODULE_CLASSES := {
 	"flamethrower": preload("res://scripts/Flamethrower.gd"),
 	"molotov": preload("res://scripts/Molotov.gd"),
 	"mine": preload("res://scripts/MineLayer.gd"),
-	"melee_arc": preload("res://scripts/MeleeArc.gd"),
 	"chainsaw": preload("res://scripts/Chainsaw.gd"),
 	"turret": preload("res://scripts/Turret.gd"),
 	"drone": preload("res://scripts/Drone.gd"),
@@ -30,7 +28,7 @@ const _MODULE_CLASSES := {
 }
 const _FXBurst  := preload("res://scripts/FXBurst.gd")
 const _SpriteFX := preload("res://scripts/SpriteFX.gd")
-const _FX_MUZZLE := preload("res://assets/sprites/fx/fx_muzzle.png")
+const _FX_MUZZLE := preload("res://assets/atlas/fx_muzzle.tres")
 const _WeaponDB := preload("res://scripts/WeaponDB.gd")
 const BASE_BULLET_SPEED := 700.0
 
@@ -59,12 +57,14 @@ var _trait_key: String = ""
 var _still_time: float = 0.0    # 정지 지속 시간(사냥꾼 치명타 램프)
 var _kill_heal_accum: int = 0   # 처치 누적(베테랑 전투 회복)
 
-# 주기적 자동저장: 웨이브 클리어/상점 체크포인트 사이에 종료해도 점수·골드·진행이
-# 유실되지 않도록 일정 간격으로 현재 상태를 저장한다(_notification 으로 백그라운드/종료 시에도).
+# 주기적 자동저장: 어느 시점에 종료해도 점수·골드·진행이 유실되지 않도록 일정 간격으로
+# 현재 상태를 저장한다(_notification 으로 백그라운드/종료 시에도).
+# 예전에는 웨이브 클리어·상점 종료라는 체크포인트가 따로 있었으나 둘 다 사라졌다(P0-2·P0-3) —
+# 지금 런 저장을 받치는 것은 이 주기 저장과 백그라운드 전환뿐이다.
 var _autosave_accum: float = 0.0
 # 웹에서 user:// 저장은 IndexedDB 동기화라 JSON 직렬화보다 훨씬 비싸고 간헐적 히칭을 만든다.
-# 웨이브 클리어·상점 종료·앱 백그라운드 전환에서 이미 체크포인트 저장을 하므로, 주기 저장은
-# 안전망 역할만 하면 된다 — 4초는 웹 기준으로 과했다(유실 위험은 거의 그대로, 히칭만 1/5).
+# 앱 백그라운드 전환에서도 저장하므로 주기 저장은 안전망 역할만 하면 된다 —
+# 4초는 웹 기준으로 과했다(유실 위험은 거의 그대로, 히칭만 1/5).
 const AUTOSAVE_INTERVAL := 20.0
 var _base_move_speed: float
 var _base_attack_cooldown: float
@@ -72,7 +72,6 @@ var _base_max_health: int
 var _orbs: Array = []
 var _lightning: Node2D = null
 var _garlic: Node2D = null
-var _holy: Node2D = null
 var _weapon_modules: Dictionary = {}   # weapon_id -> 모듈 노드(데이터 구동 무기: 발사체/화염/장판/지뢰)
 var current_weapon: Dictionary = _WeaponDB.default_weapon()
 
@@ -100,8 +99,12 @@ func _ready() -> void:
 	_fit_shadow()
 	_base_move_speed = move_speed
 	_base_attack_cooldown = attack_cooldown
+	# 위협 등급의 "시작 체력 -N"(P1-12). 기본값을 낮춘 뒤 이걸 기준으로 강화가 쌓인다 —
+	# apply_upgrades 는 최대 체력을 올리기만 하므로 여기서 미리 깎지 않으면 반영되지 않는다.
+	max_health = maxi(1, max_health + ThreatManager.start_health_add())
 	_base_max_health = max_health
 	contact_cooldown = GameData.balance.contact_cooldown   # 밸런스 테이블(res://data/balance.tres)
+	Events.player_body_radius = contact_radius   # 좀비가 겹침 해소에 쓰는 값 — 접촉 판정과 동일
 	_recompute_combat_stats()
 	health = max_health
 	# 시작 인벤토리 반영 — Events.reset() 은 메뉴에서 Player 가 생기기 전에 실행되므로
@@ -111,11 +114,8 @@ func _ready() -> void:
 	health = max_health   # 보너스 최대 체력까지 가득 채운 상태로 시작
 	_hurt_timer = GameData.balance.start_invuln   # 시작 무적 (프리워밍·첫 좀비 도착 전 보호)
 	Events.update_player_health(health, max_health)
-	Events.shop_closed.connect(apply_upgrades)
 	Events.inventory_changed.connect(apply_upgrades)   # 상자 보상 등 어떤 경로로 무기를 얻어도 즉시 모듈 부착
-	Events.shop_closed.connect(_autosave)
 	Events.screen_shake_requested.connect(_on_screen_shake)
-	Events.wave_complete.connect(func(_wave: int): _autosave())
 	var _char: CharacterData = CharacterManager.selected()
 	_trait_key = _char.trait_key if _char != null else ""
 	Events.zombie_killed.connect(_on_kill_for_trait)   # 베테랑 전투 회복
@@ -148,8 +148,12 @@ func _apply_character_sprite() -> void:
 	if muzzle != null and c.muzzle_offset != Vector2.ZERO:
 		muzzle.position = c.muzzle_offset
 	_proj_style = c.projectile_style
-	var run_path := "res://assets/sprites/run_%s.png" % c.id
-	var idle_path := "res://assets/sprites/idle_%s.png" % c.id
+	# 러닝 시트 경로. 지금은 세 캐릭터 모두 run_frames = 0 이라 이 분기에 들어오지 않고,
+	# 시트 PNG 도 저장소에서 빼 뒀다(안 쓰는 그림이 아틀라스 한 변을 두 배로 키우고 있었다).
+	# 되살리려면 run_<id>.png 를 assets/sprites/ 에 넣고 build_atlas.py 를 돌린 뒤
+	# 캐릭터 데이터의 run_frames 만 프레임 수로 바꾸면 된다(코드 수정 불필요).
+	var run_path := "res://assets/atlas/run_%s.tres" % c.id   # hframes 는 AtlasTexture region 을 분할한다
+	var idle_path := "res://assets/atlas/idle_%s.tres" % c.id   # 게임플레이 아틀라스
 	if c.run_frames >= 2 and ResourceLoader.exists(run_path):
 		var sheet = load(run_path)
 		if sheet is Texture2D:
@@ -209,11 +213,14 @@ func _physics_process(delta: float) -> void:
 		return
 	_tick_buffs(delta)
 	_tick_regen(delta)
-	# 무적 중 깜빡임 — 플레이어가 언제까지 안전한지 시각적으로 표시
+	# 무적 중 깜빡임 — 플레이어가 언제까지 안전한지 시각적으로 표시.
+	# 값이 바뀔 때만 쓴다: modulate 대입은 매번 렌더 서버로 나가고, 스프라이트의 modulate 가
+	# 이웃과 달라지면 캔버스 배칭도 끊긴다(ASSET_PIPELINE.md 1절).
+	var want_a := 1.0
 	if _hurt_timer > 0.0:
-		body.modulate.a = 1.0 if fmod(_hurt_timer, 0.4) > 0.2 else 0.35
-	else:
-		body.modulate.a = 1.0
+		want_a = 1.0 if fmod(_hurt_timer, 0.4) > 0.2 else 0.35
+	if body.modulate.a != want_a:
+		body.modulate.a = want_a
 	_check_contact_damage()
 	_handle_move()
 	_update_trait_mods(delta)   # 캐릭터 조건부 트레잇(velocity 확정 후)
@@ -273,16 +280,26 @@ func _tick_regen(delta: float) -> void:
 		Events.update_player_health(health, max_health)
 
 
+## 접촉 피해 판정 반경은 겹침 해소 반경과 같다 — 즉 "몸이 맞닿으면 반드시 아프다".
+## 예전에는 상대 크기와 무관하게 중심거리 26px 고정이라, 플레이어 반폭(32px)보다도 작았다.
+## 그래서 스프라이트가 뚜렷이 겹쳐 보이는데도 판정이 안 나는 사각지대가 있었다.
+const _CONTACT_SLACK := 2.0     # 밀려나 정확히 맞닿은 상태에서도 판정이 나도록 하는 여유
+
 func _check_contact_damage() -> void:
 	if _hurt_timer > 0.0:
 		return
-	var contact_r_sq := contact_radius * contact_radius
 	# Area2D 물리 질의(get_overlapping_bodies) 대신 공유 공간 해시에서 주변 좀비만 본다 —
 	# 좀비가 수천이어도 비용이 주변 몇 마리로 고정된다.
 	for body_node in Events.zombies_near(global_position):
 		if is_instance_valid(body_node) and body_node.is_in_group("zombies"):
-			# 스프라이트가 실제로 겹친 경우(중심거리 ≤ contact_radius)에만 피해를 준다.
-			if global_position.distance_squared_to(body_node.global_position) > contact_r_sq:
+			# 몬스터 몸통 반경이 있으면 "맞닿음"(겹침 해소 반경과 동일) 기준으로 판정한다.
+			# 없으면(보스) 종전대로 중심거리 기준 — 보스는 스프라이트가 266px 라 같은 규칙을
+			# 쓰면 접촉 사거리가 135px 가 되어 난이도가 통째로 달라진다. 밸런스를 건드리지 않는다.
+			var other: Variant = body_node.get("sep_radius")
+			var touch: float = contact_radius
+			if other != null:
+				touch += _CONTACT_SLACK + float(other)
+			if global_position.distance_squared_to(body_node.global_position) > touch * touch:
 				continue
 			var dmg := contact_damage
 			if body_node.has_method("get_contact_damage"):
@@ -297,7 +314,7 @@ func _handle_move() -> void:
 		joystick = get_tree().get_first_node_in_group("joystick")
 
 	var input := Vector2.ZERO
-	if Cheats.autoplay:
+	if Cheats.autoplay_active():
 		input = Cheats.auto_move_dir(self)   # 자동플레이 치트 — 조종 AI 가 이동을 대신한다
 	elif joystick:
 		input = joystick.get_value()
@@ -328,6 +345,20 @@ func _update_facing() -> void:
 		_facing = -1.0 if velocity.x < 0.0 else 1.0
 
 
+## 캐릭터가 들고 쏘는 무기 모듈이 쓰는 조준 기준.
+## 모듈이 제각각 360° 자동 조준하면 좌우 플립만 있는 그림과 어긋나(등 뒤로 발사) 어색하다.
+## 손에 든 무기는 이 둘을 써서 그림 속 총구에서 바라보는 쪽으로 나가게 한다.
+func aim_facing() -> float:
+	return _facing
+
+func muzzle_position() -> Vector2:
+	return muzzle.global_position if muzzle != null else global_position
+
+## 이 캐릭터가 쏘는 탄의 기본 모양(예광탄/볼트/못). 무기가 고유 모양을 지정하면 그쪽이 이긴다.
+func projectile_style() -> String:
+	return _proj_style
+
+
 ## 그림자를 스프라이트 폭에 맞춘 납작한 타원으로 발밑에 배치(shadow.png 128x72).
 func _fit_shadow() -> void:
 	if body.texture == null:
@@ -335,13 +366,13 @@ func _fit_shadow() -> void:
 	var tex: Vector2 = body.texture.get_size()
 	tex.x /= float(maxi(1, body.hframes))   # 러닝 시트면 프레임 1칸 폭 기준
 	# 그림 폭에는 앞으로 뻗은 무기와 벌어진 보폭이 들어 있어 실제 몸통보다 훨씬 넓다
-	# (그림자가 ~2배로 커지는 원인). 기준 단일 스프라이트가 있으면 그 폭으로 잡는다 —
+	# (그림자가 ~2배로 커지는 원인). 캐릭터 데이터에 몸통 기준 폭이 있으면 그걸로 잡는다 —
 	# 시트든 한 장이든 발밑 그림자 크기가 같게 유지된다.
+	# (예전에는 이 값을 얻으려고 옛 스프라이트를 통째로 load() 했다. 폭 하나 때문에
+	#  안 그리는 그림 3장이 아틀라스에 남아 있었어서 숫자로 바꿨다.)
 	var c: CharacterData = CharacterManager.selected()
-	if c != null and c.sprite_path != "" and ResourceLoader.exists(c.sprite_path):
-		var single = load(c.sprite_path)
-		if single is Texture2D:
-			tex.x = single.get_size().x
+	if c != null and c.shadow_ref_width > 0.0:
+		tex.x = c.shadow_ref_width
 	# 그림자를 캐릭터 폭보다 넉넉하게(1.8x) — 새 키포즈 아트의 벌어진 보폭까지 덮어
 	# 발밑 존재감을 준다(단일 스프라이트 폭 기준이라 프레임에 따라 변하지 않는다).
 	var sx: float = (tex.x * _body_base_scale.x * 1.8) / 128.0
@@ -415,7 +446,7 @@ func _shoot_dir(base_dir: Vector2) -> void:
 			var steps: int = count / 2
 			angle_off = side * spread * float(pair) / float(maxi(steps, 1))
 		var dir := base_dir.rotated(angle_off)
-		var b := Pool.acquire(BULLET, get_tree().current_scene)
+		var b := Pool.acquire(BULLET, Events.fx_layer())
 		b.global_position = muzzle.global_position
 		b.direction = dir
 		b.rotation = dir.angle() + PI / 2
@@ -494,7 +525,8 @@ func revive() -> void:
 	Events.player_revived.emit()
 
 
-## 상점에서 업그레이드 구매 후 또는 웨이브 시작 시 호출.
+## 강화 카운터(Events.upgrade_*)를 실제 스탯에 반영한다.
+## 호출처: 런 시작 · 레벨업 카드 선택(LevelUpPanel) · 인벤토리 변경(상자 보상 등).
 func apply_upgrades() -> void:
 	move_speed = _base_move_speed + 30.0 * Events.upgrade_speed
 	_recompute_combat_stats()
@@ -505,25 +537,19 @@ func apply_upgrades() -> void:
 		Events.update_player_health(health, max_health)
 	_update_orbs()
 	_update_lightning()
-	_update_singleton_weapon("garlic")
-	_update_singleton_weapon("holy")
+	_update_garlic()
 	_update_weapon_modules()
 
 
-## 단일 인스턴스 무기(마늘·성수 등) 보유 여부에 맞춰 노드를 생성/해제.
-func _update_singleton_weapon(id: String) -> void:
-	var owned: bool = (Events.upgrade_garlic > 0) if id == "garlic" else (Events.upgrade_holy > 0)
-	var node: Node2D = _garlic if id == "garlic" else _holy
-	if owned and node == null:
-		node = (_GarlicClass.new() if id == "garlic" else _HolyClass.new())
-		add_child(node)
-	elif not owned and node != null:
-		node.queue_free()
-		node = null
-	if id == "garlic":
-		_garlic = node
-	else:
-		_holy = node
+## 마늘 오라 — 단일 인스턴스 무기라 보유 여부에 맞춰 노드를 생성/해제한다.
+func _update_garlic() -> void:
+	var owned: bool = Events.upgrade_garlic > 0
+	if owned and _garlic == null:
+		_garlic = _GarlicClass.new()
+		add_child(_garlic)
+	elif not owned and _garlic != null:
+		_garlic.queue_free()
+		_garlic = null
 
 
 ## 데이터 구동 무기 모듈(module!="") — 보유한 것만 모듈 노드로 생성/유지.
@@ -572,7 +598,7 @@ func _update_lightning() -> void:
 		_lightning = null
 
 
-## 상점의 회복 아이템 구매 시 호출.
+## 체력을 가득 채운다. 지금 호출처는 최대 체력 강화(+1 하트) 시점뿐이다.
 func heal_full() -> void:
 	health = max_health
 	Events.update_player_health(health, max_health)

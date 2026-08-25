@@ -7,27 +7,24 @@ extends Node
 
 const ZOMBIE := preload("res://scenes/Zombie.tscn")
 const BOSS := preload("res://scenes/Boss.tscn")
+const _BossArena := preload("res://scripts/BossArena.gd")
 
 @export var spawn_margin: float = 80.0
 
-## 보스 아키타입 테이블. archetype 은 Boss.gd 의 행동 분기 키.
-const BOSS_TYPES: Dictionary = {
-	"brute":    {"archetype": "melee",    "name": "BRUTE",    "hp_mul": 1.00, "speed_mul": 1.00, "contact": 2, "tint": Color(0.55, 0.12, 0.14), "proj": Color(1, 1, 1)},
-	"gunner":   {"archetype": "gunner",   "name": "GUNNER",   "hp_mul": 0.78, "speed_mul": 0.80, "contact": 1, "tint": Color(0.16, 0.34, 0.62), "proj": Color(0.55, 0.85, 1.0)},
-	"summoner": {"archetype": "summoner", "name": "SUMMONER", "hp_mul": 0.92, "speed_mul": 0.55, "contact": 2, "tint": Color(0.24, 0.52, 0.28), "proj": Color(0.5, 1.0, 0.6)},
-	"bomber":   {"archetype": "bomber",   "name": "BOMBER",   "hp_mul": 0.85, "speed_mul": 0.65, "contact": 1, "tint": Color(0.62, 0.40, 0.14), "proj": Color(1.0, 0.55, 0.15)},
-	"berserk":  {"archetype": "berserk",  "name": "BERSERKER","hp_mul": 1.05, "speed_mul": 1.00, "contact": 3, "tint": Color(0.60, 0.14, 0.34), "proj": Color(1, 1, 1)},
-}
-const BOSS_SEQUENCE: Array = ["brute", "gunner", "summoner", "bomber", "berserk"]
-
-## 테마 전용 보스(Phase 6-C). ThemeData.boss_key → 보스 정의. 기존 아키타입 행동을 재사용(Boss.gd 무변경)해
-## 프레젠테이션(이름/색/스탯)만 테마화한다. 선택 테마에 boss_key 가 있으면 해당 아레나의 모든 보스로 쓰인다.
+## 보스 정의는 **테마 보스 3종이 전부다**(P1-1, 2026-08).
+## 예전에는 아키타입 5종 테이블(BOSS_TYPES)을 회차마다 순환시키는 경로가 따로 있었는데,
+## 세 테마가 전부 boss_key 를 갖게 되면서 그 경로는 한 번도 실행되지 않았다 — 코드가 아니라
+## 유지 대상만 늘리는 자산이었다. 보스를 늘리려면 아키타입을 되살리는 대신 여기에 테마를 추가한다.
+##
+## 테마 전용 보스(Phase 6-C). ThemeData.boss_key → 보스 정의. Boss.gd 의 아키타입 행동을 재사용해
+## 프레젠테이션(이름/색/스탯)만 테마화한다. 선택 테마의 boss_key 가 해당 아레나의 모든 보스다.
 ##   교외=변이 사냥개(광폭 근접), 도심=견인 변이체(폭파형 탱커), 연구소=프라임 변이체(소환형 다단계).
-## sprite: 테마 보스 전용 아트(빈 문자열이면 아키타입 기본 텍스처 사용). 사이드뷰·오른쪽 향함.
+## sprite: **필수**. 아키타입 기본 텍스처 폴백을 없앴으므로 비우면 보스가 투명해진다 —
+## tools/verify_boss_arena.gd 가 세 항목의 sprite 존재를 CI 에서 검사한다. 사이드뷰·오른쪽 향함.
 const THEME_BOSSES: Dictionary = {
-	"mutant_dog": {"archetype": "berserk",  "name": "MUTANT HOUND",   "hp_mul": 0.85, "speed_mul": 1.35, "contact": 2, "tint": Color(0.58, 0.40, 0.24), "proj": Color(1, 1, 1),          "sprite": "res://assets/sprites/boss_mutant_dog.png"},
-	"wrecker":    {"archetype": "bomber",   "name": "THE WRECKER",    "hp_mul": 1.30, "speed_mul": 0.70, "contact": 3, "tint": Color(0.40, 0.42, 0.48), "proj": Color(1.0, 0.55, 0.15), "sprite": "res://assets/sprites/boss_wrecker.png"},
-	"mutation":   {"archetype": "summoner", "name": "PRIME MUTATION", "hp_mul": 1.20, "speed_mul": 0.60, "contact": 2, "tint": Color(0.42, 0.85, 0.35), "proj": Color(0.5, 1.0, 0.6),   "sprite": "res://assets/sprites/boss_mutation.png"},
+	"mutant_dog": {"archetype": "berserk",  "name": "MUTANT HOUND",   "hp_mul": 0.85, "speed_mul": 1.35, "contact": 2, "tint": Color(0.58, 0.40, 0.24), "proj": Color(1, 1, 1),          "sprite": "res://assets/atlas/boss_mutant_dog.tres"},
+	"wrecker":    {"archetype": "bomber",   "name": "THE WRECKER",    "hp_mul": 1.30, "speed_mul": 0.70, "contact": 3, "tint": Color(0.40, 0.42, 0.48), "proj": Color(1.0, 0.55, 0.15), "sprite": "res://assets/atlas/boss_wrecker.tres"},
+	"mutation":   {"archetype": "summoner", "name": "PRIME MUTATION", "hp_mul": 1.20, "speed_mul": 0.60, "contact": 2, "tint": Color(0.42, 0.85, 0.35), "proj": Color(0.5, 1.0, 0.6),   "sprite": "res://assets/atlas/boss_mutation.tres"},
 }
 
 ## 스웜 이벤트: 주기적으로 한 무리가 떼로 몰려온다(뱀서식 긴장 스파이크).
@@ -67,6 +64,7 @@ func _build_types() -> void:
 	ZOMBIE_TYPES.clear()
 	for zd in GameData.zombie_list:
 		ZOMBIE_TYPES.append({
+			"id": zd.id,   # 도감 기록용 — 처치한 종을 Zombie 가 알아야 한다(CodexManager)
 			"speed": zd.speed, "max_health": zd.max_health, "modulate": zd.modulate,
 			"score": zd.score, "scale": zd.scale, "contact": zd.contact,
 			"behavior": zd.behavior, "texture": zd.texture,
@@ -84,6 +82,7 @@ var _start_delay: float = 5.0   # 초반 유예(플레이어 무적 시간과 �
 # 보스 상태
 var _boss_alive: bool = false
 var _boss_count: int = 0        # 지금까지 등장한 보스 수(아키타입 순환·강화에 사용)
+var _arena: Node2D = null       # 현재 보스전의 격리 구역(보스 처치 시 스스로 사라진다)
 var _next_boss_at: float = 0.0  # 이 경과 시각(초)에 도달하면 보스 등장
 var _next_elite_at: float = 0.0 # 이 경과 시각(초)에 도달하면 엘리트 팩 등장
 var _cleared: bool = false      # 30분 생존 클리어를 이미 알렸는가(1회)
@@ -104,30 +103,57 @@ func _ready() -> void:
 	# 이어하기 대비: 경과 시간 기준으로 다음 보스·엘리트 시점, 보스 회차, 클리어 여부를 정렬한다.
 	_boss_count = int(_elapsed / _diff.boss_seconds)
 	_next_boss_at = float(_boss_count + 1) * _diff.boss_seconds
-	_next_elite_at = (floor(_elapsed / _diff.elite_seconds) + 1.0) * _diff.elite_seconds
+	_next_elite_at = (floor(_elapsed / _elite_seconds()) + 1.0) * _elite_seconds()
 	_cleared = Events.did_clear
 	_swarm_cd = randf_range(_bal.swarm_interval_min, _bal.swarm_interval_max)
 	Cheats.time_skip.connect(_on_time_skip)
 	Cheats.spawn_fill.connect(_on_spawn_fill)
-	Events.wave_changed.emit(Events.total_kills)                 # HUD 킬 카운트 초기화
+	Cheats.spawn_boss.connect(_on_spawn_boss_cheat)
+	Events.kills_changed.emit(Events.total_kills)                # HUD 킬 카운트 초기화
 	Events.run_progress.emit(_elapsed, _diff.clear_seconds)      # HUD 클리어 진행바 초기화
+	_emit_forecast()
+
+
+## 다음 마일스톤 예정 시각을 HUD 에 알린다. 스포너만이 실제 예약 시각을 안다 —
+## 보스는 전투 중이면 미뤄지고(_boss_alive), 치트로도 밀린다. 보스가 이미 나와 있으면
+## "다음 보스"는 아직 정해지지 않은 것이라 -1 로 보내 눈금·카운트다운을 모두 끈다.
+func _emit_forecast() -> void:
+	Events.forecast_changed.emit(-1.0 if _boss_alive else _next_boss_at, _next_elite_at)
 
 
 ## 치트: 경과 시간 점프 — 난이도 시계를 앞으로 당기고 보스/엘리트 예약 시각을 재정렬한다.
+## 세 핸들러 모두 게이트를 한 번 더 본다(P0-1). Cheats.request_* 가 이미 막고 있지만, 신호를
+## 직접 쏘는 우회 경로를 가정한 방어선이다 — 여기서 통과시키면 난이도 시계·보스 회차·킬 수가
+## 그대로 점수와 랭킹에 들어간다.
 func _on_time_skip(seconds: float) -> void:
+	if not Cheats.enabled:
+		return
 	_elapsed += seconds
 	Events.elapsed_time = _elapsed
 	_boss_count = int(_elapsed / _diff.boss_seconds)
 	_next_boss_at = float(_boss_count + 1) * _diff.boss_seconds
-	_next_elite_at = (floor(_elapsed / _diff.elite_seconds) + 1.0) * _diff.elite_seconds
+	_next_elite_at = (floor(_elapsed / _elite_seconds()) + 1.0) * _elite_seconds()
 	Events.elapsed_changed.emit(_elapsed)
 	Events.run_progress.emit(_elapsed, _diff.clear_seconds)
+	_emit_forecast()
+
+
+## 치트: 보스 즉시 등장. 마일스톤을 기다리지 않고 그 자리에서 다음 회차 보스를 부른다.
+## 동시 1마리 규칙은 그대로라 이미 보스가 있으면 무시하고, 예약된 다음 마일스톤은 지금부터
+## 다시 센다(치트로 부른 직후 정규 보스가 겹쳐 나오지 않게).
+func _on_spawn_boss_cheat() -> void:
+	if not Cheats.enabled:
+		return
+	if _boss_alive or _game_over or not is_instance_valid(player):
+		return
+	_next_boss_at = _elapsed + _diff.boss_seconds
+	_spawn_boss()
 
 
 ## 치트: 좀비를 현재 동시 출현 상한(_max_z)까지 채운다 — 대량 전투/성능 확인용.
 ## 스폰 큐로 분산 생성되므로 수백 마리도 프레임 스파이크 없이 순차 등장한다.
 func _on_spawn_fill() -> void:
-	if not is_instance_valid(player):
+	if not Cheats.enabled or not is_instance_valid(player):
 		return
 	var room := _max_z() - _effective_alive()
 	for i in range(room):
@@ -140,12 +166,22 @@ func _on_spawn_fill() -> void:
 
 
 # ── 난이도 곡선(경과 시간 기준) ──────────────────────────────────────
+## 엘리트 팩 주기 — 위협 등급이 짧게 만든다(P1-12). 등급 1 은 1.0 배라 기존과 같다.
+func _elite_seconds() -> float:
+	return maxf(30.0, _diff.elite_seconds * ThreatManager.elite_interval_mult())
+
+
 func _tier() -> int:
 	return clampi(int(_elapsed / _diff.tier_seconds), 0, WEIGHTS.size() - 1)
 
 func _spawn_interval() -> float:
 	var t := clampf(_elapsed / _diff.spawn_interval_full_at, 0.0, 1.0)
-	return lerpf(_diff.spawn_interval_base, _diff.spawn_interval_min, t)
+	var iv := lerpf(_diff.spawn_interval_base, _diff.spawn_interval_min, t)
+	# 후반 전용 스폰 감속(P1-20) — 개체 유입이 곧 처치 수이자 프레임 비용이다.
+	# 체력 가속과 같은 시각에 시작해 "수를 줄이고 질을 올린다"가 한 쌍으로 움직인다.
+	if _elapsed > _diff.late_hp_start_s:
+		iv *= 1.0 + ((_elapsed - _diff.late_hp_start_s) / 60.0) * _diff.late_spawn_slow_per_min
+	return iv
 
 func _max_z() -> int:
 	var t := clampf(_elapsed / _diff.max_z_full_at, 0.0, 1.0)
@@ -155,6 +191,12 @@ func _hp_mult() -> float:
 	var mins := _elapsed / 60.0
 	# 선형 + 2차 가속 — 후반에 급격히 단단해져 플레이어의 곱연산 파워 성장을 따라잡는다.
 	var m := 1.0 + mins * _diff.hp_per_min + mins * mins * _diff.hp_accel_per_min2
+	# 후반 전용 가속(P1-20) — 사람 실측에서 분당 처치가 초반 110 → 35분대 760 으로 7배가 됐다.
+	# 빌드 파워가 이 곡선을 앞질러 좀비가 녹고, 녹이느라 쏟아내는 탄이 곧 프레임을 먹는다
+	# (BALANCE.md §3-10/§3-11). 2차항을 올리면 중반까지 같이 어려워지므로, 시작 시각이 있는
+	# 선형 항으로 20분 이후만 집는다.
+	if _elapsed > _diff.late_hp_start_s:
+		m += ((_elapsed - _diff.late_hp_start_s) / 60.0) * _diff.late_hp_per_min
 	if _elapsed > _diff.clear_seconds:   # 클리어 이후 무한 하드모드 — 분당 추가 체력
 		m += ((_elapsed - _diff.clear_seconds) / 60.0) * _diff.overtime_hp_per_min
 	return m * Events.diff_enemy_hp_mult()
@@ -198,7 +240,7 @@ func _process(delta: float) -> void:
 
 	# 엘리트 팩 — _diff.elite_seconds 마다 강제 엘리트 스웜(보스전 중엔 미룬다).
 	if _elapsed >= _next_elite_at:
-		_next_elite_at += _diff.elite_seconds
+		_next_elite_at += _elite_seconds()
 		if not _boss_alive and _swarm_tel <= 0.0:
 			_trigger_swarm(true)
 			Events.elite_pack.emit()   # 진화 보물상자 드롭 트리거
@@ -221,12 +263,13 @@ func _tick_elapsed() -> void:
 		Events.elapsed_time = _elapsed
 		Events.elapsed_changed.emit(_elapsed)
 		Events.run_progress.emit(_elapsed, _diff.clear_seconds)   # HUD 클리어 진행바(초당 1회)
+		_emit_forecast()
 
 
 func _on_zombie_killed() -> void:
 	_alive_zombies = maxi(0, _alive_zombies - 1)
 	Events.total_kills += 1
-	Events.wave_changed.emit(Events.total_kills)   # HUD 킬 카운트
+	Events.kills_changed.emit(Events.total_kills)   # HUD 킬 카운트
 
 
 ## 살아있는 좀비 + 스폰 대기열 — 상한 판정은 대기열까지 포함해야 큐가 쌓인 동안 초과 스폰이 없다.
@@ -330,7 +373,9 @@ func _spawn_swarm() -> void:
 func _theme_boss() -> Dictionary:
 	var t: ThemeData = ThemeManager.selected()
 	if t != null and THEME_BOSSES.has(t.boss_key):
-		return THEME_BOSSES[t.boss_key]
+		# 도감에 어느 보스를 잡았는지 남기려면 키가 필요하다 — 정의에 얹어 돌려준다
+		# (merged 는 새 dict 를 만들므로 const 원본은 그대로다).
+		return (THEME_BOSSES[t.boss_key] as Dictionary).merged({"key": t.boss_key})
 	return {}
 
 
@@ -341,13 +386,23 @@ func _spawn_boss() -> void:
 	_boss_alive = true
 	_boss_count += 1
 
-	# 선택 테마에 전용 보스가 있으면 그 아레나의 보스로 사용, 없으면 기존 아키타입 순환.
+	# 선택 테마의 전용 보스를 쓴다. 세 테마 모두 boss_key 를 가지므로 항상 채워진다 —
+	# 그래도 빈 dict 면 데이터 사고이므로 조용히 넘기지 않고 여기서 멈춘다(투명 보스 방지).
 	var bt: Dictionary = _theme_boss()
 	if bt.is_empty():
-		bt = BOSS_TYPES[BOSS_SEQUENCE[(_boss_count - 1) % BOSS_SEQUENCE.size()]]
+		push_error("보스 정의를 찾지 못했습니다 — ThemeData.boss_key 가 THEME_BOSSES 에 없습니다.")
+		_boss_alive = false
+		_boss_count -= 1
+		return
+	# 격리 구역 반경을 먼저 구한다 — 보스를 그 안쪽에 세워야 하기 때문이다.
+	# 예전에는 화면 밖(_random_spawn_pos)에 세워서, 보스가 울타리 밖에서 걸어 들어올 때까지
+	# 플레이어는 갇힌 채 기다려야 했다. 이제 구역 안 링 위에 등장해 바로 전투가 시작된다.
+	var arena_r: float = maxf(_bal.boss_arena_radius_min,
+			_bal.boss_arena_radius - _bal.boss_arena_shrink_per_count * float(_boss_count - 1))
 	var boss := BOSS.instantiate()
 	get_tree().current_scene.add_child(boss)
-	boss.global_position = _random_spawn_pos()
+	boss.global_position = player.global_position \
+			+ Vector2.from_angle(randf() * TAU) * (arena_r * BOSS_SPAWN_RING)
 	# 좀비 체력 곡선을 boss_curve_scale 만큼 반영해 보스도 후반까지 녹지 않게 한다.
 	# (예전의 분당 +3% 는 후반 보스를 순삭되게 만들었다.)
 	var time_scale := 1.0 + (_hp_mult() / Events.diff_enemy_hp_mult() - 1.0) * _diff.boss_curve_scale
@@ -363,8 +418,15 @@ func _spawn_boss() -> void:
 		"proj_color": bt["proj"],
 		"name": bt["name"],
 		"sprite": bt.get("sprite", ""),   # 테마 보스 전용 아트(없으면 아키타입 기본)
+		"key": bt.get("key", ""),         # 도감 기록용 보스 키
 	}
 	boss.setup(stats)
+
+	# 격리 구역 — 플레이어를 중심으로 전개해 도주로를 막는다. 보스도 같은 경계 안에 갇힌다
+	# (BossArena._confine_bosses). 회차가 오를수록 좁아진다.
+	if is_instance_valid(_arena):
+		_arena.queue_free()   # 이전 보스가 처치 없이 사라진 예외 상황 대비
+	_arena = _BossArena.spawn(get_tree().current_scene, player.global_position, arena_r)
 
 	# 호위 정예 좀비 — 빠른(스프린터)/탱커(공사장) 혼합.
 	var escorts := _bal.boss_escort_base + _boss_count
@@ -393,6 +455,9 @@ func _on_boss_summon(count: int) -> void:
 
 func _on_boss_died() -> void:
 	_boss_alive = false   # 엔들리스 — 승리 없이 계속 진행, 다음 마일스톤에 새 보스.
+	# 이 게임에 남은 유일한 자연스러운 마일스톤이다. 퀘스트·도전과제가 이 시점에 진행분을
+	# 디스크로 내린다 — 웹에서 탭을 닫으면 그 판의 진행이 통째로 날아가던 문제를 막는다(P0-2).
+	Events.milestone_reached.emit(_boss_count)
 
 
 func _pick_type(weights: Array) -> Dictionary:
@@ -406,6 +471,11 @@ func _pick_type(weights: Array) -> Dictionary:
 		if roll < cum:
 			return ZOMBIE_TYPES[i]
 	return ZOMBIE_TYPES[0]
+
+
+## 보스 등장 위치 — 격리 구역 반경의 이 비율만큼 떨어진 링 위. 플레이어와 겹치지 않으면서
+## 화면 안(뷰포트 반대각 ≈ 734)에 들어와, 등장 순간이 눈에 보인다.
+const BOSS_SPAWN_RING := 0.72
 
 
 func _random_spawn_pos() -> Vector2:

@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="ArenaThemeDB" load_steps=6 format=3]
 
-[ext_resource type="Script" path="res://scripts/data/ThemeDB.gd" id="1_hasdl"]
-[ext_resource type="Script" path="res://scripts/data/ThemeData.gd" id="2_a7705"]
+[ext_resource type="Script" path="res://scripts/data/ThemeDB.gd" id="1_jech1"]
+[ext_resource type="Script" path="res://scripts/data/ThemeData.gd" id="2_mg65s"]
 
-[sub_resource type="Resource" id="Resource_dcyiu"]
-script = ExtResource("2_a7705")
+[sub_resource type="Resource" id="Resource_62ck4"]
+script = ExtResource("2_mg65s")
 id = "suburb"
 display = "Suburb"
 desc = "Quiet outskirts. The outbreak begins."
@@ -16,12 +16,13 @@ detail_style = "grass"
 unlock_cost = 0
 unlock_achievement = ""
 gimmick_key = ""
-gimmick_keys = PackedStringArray()
-prop_keys = PackedStringArray()
 boss_key = "mutant_dog"
+gimmick_keys = PackedStringArray()
+prop_keys = PackedStringArray("mailbox", "bush", "forsale", "hydrant")
+weather_keys = PackedStringArray("rain")
 
-[sub_resource type="Resource" id="Resource_6xvj3"]
-script = ExtResource("2_a7705")
+[sub_resource type="Resource" id="Resource_11ex3"]
+script = ExtResource("2_mg65s")
 id = "city"
 display = "Downtown"
 desc = "Concrete jungle. Danger everywhere."
@@ -33,12 +34,13 @@ detail_style = "stone"
 unlock_cost = 400
 unlock_achievement = ""
 gimmick_key = "falling_debris"
-gimmick_keys = PackedStringArray("falling_debris", "steam_vent", "burning_car", "fly_swarm")
-prop_keys = PackedStringArray()
 boss_key = "wrecker"
+gimmick_keys = PackedStringArray("falling_debris", "steam_vent", "burning_car", "fly_swarm")
+prop_keys = PackedStringArray("wreck_car", "barrier", "dumpster", "barrel", "rubble")
+weather_keys = PackedStringArray("rain")
 
-[sub_resource type="Resource" id="Resource_eiv06"]
-script = ExtResource("2_a7705")
+[sub_resource type="Resource" id="Resource_es8an"]
+script = ExtResource("2_mg65s")
 id = "lab"
 display = "Lab"
 desc = "Where it all started. No way out."
@@ -50,10 +52,11 @@ detail_style = "frozen"
 unlock_cost = 0
 unlock_achievement = "survive_15"
 gimmick_key = "toxic_pool"
-gimmick_keys = PackedStringArray("toxic_pool", "cryo_vent", "tesla_coil")
-prop_keys = PackedStringArray()
 boss_key = "mutation"
+gimmick_keys = PackedStringArray("toxic_pool", "cryo_vent", "tesla_coil")
+prop_keys = PackedStringArray("console", "drum")
+weather_keys = PackedStringArray("snow")
 
 [resource]
-script = ExtResource("1_hasdl")
-themes = Array[ExtResource("2_a7705")]([SubResource("Resource_dcyiu"), SubResource("Resource_6xvj3"), SubResource("Resource_eiv06")])
+script = ExtResource("1_jech1")
+themes = Array[ExtResource("2_mg65s")]([SubResource("Resource_62ck4"), SubResource("Resource_11ex3"), SubResource("Resource_es8an")])

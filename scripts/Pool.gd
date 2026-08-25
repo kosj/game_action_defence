@@ -20,6 +20,10 @@ var _free: Dictionary = {}   # scene_path(String) -> Array[Node]
 
 
 func acquire(scene: PackedScene, parent: Node) -> Node:
+	# 호출부가 Events.fx_layer() 를 넘기는데, 씬 전환 순간처럼 레이어를 만들 수 없는 상태에서는
+	# null 이 온다 — 그때는 현재 씬에 붙여 최소한 동작하게 한다.
+	if parent == null:
+		parent = get_tree().current_scene
 	var key := scene.resource_path
 	var node: Node
 	var bucket: Array = _free.get(key, [])

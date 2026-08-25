@@ -3,6 +3,7 @@ extends WeaponModule
 ## _data: fire_interval=방전 주기, area_radius=첫 표적 사거리, proj_damage/dmg_per_level=타격당 피해.
 ## 연쇄 수는 레벨로 늘어난다.
 
+const _FXMaterial := preload("res://scripts/FXMaterial.gd")
 const CHAIN_RANGE := 170.0   # 다음 연쇄 대상까지 허용 거리
 const ARC_FADE := 0.22       # 아크 잔상 지속 — 번개가 "번쩍하고 남는" 여운
 const JAG_STEP := 26.0       # 지그재그 분할 간격(px) — 짧을수록 세밀한 번개
@@ -22,9 +23,7 @@ func _chain_count(lvl: int) -> int:
 
 func _ready() -> void:
 	# 가산 블렌드 — 번개 겹칠수록 빛나는 이미시브 발광(FXLightning 과 동일 규약).
-	var mat := CanvasItemMaterial.new()
-	mat.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
-	material = mat
+	material = _FXMaterial.additive()   # 공유 인스턴스 — 개별 생성 시 드로우 배치가 쪼개진다
 
 
 func _physics_process(delta: float) -> void:
@@ -55,7 +54,7 @@ func _zap() -> void:
 	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1)
 	var chain := _chain_count(lvl)
 	var hit: Dictionary = {}
-	var prev: Vector2 = global_position
+	var prev: Vector2 = _muzzle()   # 첫 아크는 캐릭터 몸통이 아니라 그림 속 총구에서 뻗는다
 	var cur: Node2D = first
 	_segs.clear()
 	for _i in range(chain):
@@ -126,6 +125,9 @@ func _next_chain(from: Vector2, hit: Dictionary) -> Node2D:
 
 ## 볼류메트릭 번개: 굵고 옅은 외곽 광륜 → 중간 → 흰 코어의 다층 폴리라인(가산 블렌드로 발광).
 ## 타격점에는 대기 글로우 + 코어 섬광을 겹친다.
+## ⚠️ 폴리라인·원은 **QuadDraw(텍스처 쿼드)** 로 그린다 — 프리미티브를 직접 쓰지 않는다.
+## 연쇄 6단이면 폴리라인 24 + 곁가지 12 + 원 18 이 나가는데, 종류가 섞여 전부 따로 배치됐다
+## (실측 테슬라 +112). 쿼드로 바꾸면 게임플레이 아틀라스 배치에 그대로 합류한다.
 func _draw() -> void:
 	if _arc_t <= 0.0 or _bolts.is_empty():
 		return
@@ -135,19 +137,19 @@ func _draw() -> void:
 		var local := PackedVector2Array()
 		for p in pts:
 			local.append(p - gp)
-		draw_polyline(local, Color(0.25, 0.45, 1.0, a * 0.16), 16.0, true)   # 깊은 파랑 외곽 광륜
-		draw_polyline(local, Color(0.45, 0.75, 1.0, a * 0.30), 8.5, true)
-		draw_polyline(local, Color(0.75, 0.92, 1.0, a * 0.65), 4.0, true)
-		draw_polyline(local, Color(1.0, 1.0, 1.0, a), 1.8, true)             # 흰 코어
+		QuadDraw.polyline(self, local, Color(0.25, 0.45, 1.0, a * 0.16), 16.0)   # 깊은 파랑 외곽 광륜
+		QuadDraw.polyline(self, local, Color(0.45, 0.75, 1.0, a * 0.30), 8.5)
+		QuadDraw.polyline(self, local, Color(0.75, 0.92, 1.0, a * 0.65), 4.0)
+		QuadDraw.polyline(self, local, Color(1.0, 1.0, 1.0, a), 1.8)             # 흰 코어
 	for pts in _branches:
 		var local2 := PackedVector2Array()
 		for p in pts:
 			local2.append(p - gp)
-		draw_polyline(local2, Color(0.45, 0.75, 1.0, a * 0.25), 5.0, true)
-		draw_polyline(local2, Color(0.95, 0.98, 1.0, a * 0.8), 1.5, true)
+		QuadDraw.polyline(self, local2, Color(0.45, 0.75, 1.0, a * 0.25), 5.0)
+		QuadDraw.polyline(self, local2, Color(0.95, 0.98, 1.0, a * 0.8), 1.5)
 	# 타격점 발광 — 연쇄가 꽂힌 곳마다 전기 스파크 코어.
 	for seg in _segs:
 		var p1: Vector2 = seg[1] - gp
-		draw_circle(p1, 13.0, Color(0.35, 0.6, 1.0, a * 0.22))
-		draw_circle(p1, 6.5, Color(0.7, 0.9, 1.0, a * 0.55))
-		draw_circle(p1, 2.8, Color(1.0, 1.0, 1.0, a))
+		QuadDraw.disc(self, p1, 13.0, Color(0.35, 0.6, 1.0, a * 0.22))
+		QuadDraw.disc(self, p1, 6.5, Color(0.7, 0.9, 1.0, a * 0.55))
+		QuadDraw.disc(self, p1, 2.8, Color(1.0, 1.0, 1.0, a))

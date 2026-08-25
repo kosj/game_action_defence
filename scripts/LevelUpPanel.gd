@@ -34,7 +34,7 @@ func _process(delta: float) -> void:
 			_advance_or_close()
 		return
 	_stuck_t = 0.0
-	if not (_showing and Cheats.autoplay):
+	if not (_showing and Cheats.autoplay_active()):
 		_auto_t = 0.0
 		return
 	_auto_t += delta
@@ -44,13 +44,13 @@ func _process(delta: float) -> void:
 	var cards := _card_box.get_children()
 	if cards.is_empty():
 		return
-	var btn := cards[randi() % cards.size()] as Button
+	var btn := Cheats.auto_pick(cards)   # 페르소나(무작위/탐욕)에 따라 고른다
 	if btn != null:
 		btn.pressed.emit()
 
 
 func _ready() -> void:
-	layer = 11   # 상점(10)보다 위. 실제로는 상점과 동시에 뜨지 않는다(상점=웨이브 간, 레벨업=전투 중).
+	layer = 11   # HUD(10)보다 위 — 카드 선택 중에는 이 패널이 화면을 덮는다.
 	visible = false
 	process_mode = Node.PROCESS_MODE_ALWAYS   # 트리를 멈춰도 이 UI 는 동작해야 한다
 	Events.level_up.connect(_on_level_up)
@@ -91,6 +91,11 @@ func _build_ui() -> void:
 
 	_title = Label.new()
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	# 영어 제목("LEVEL 99  ·  CHOOSE AN UPGRADE")은 34px 에서 544px 라 패널 폭(440)을 넘겨
+	# 패널 자체를 밀어 넓히고 있었다 — 프레임에 글자가 닿아 여백이 사라진다(실렌더 확인, P2-3).
+	# 크기를 줄이는 대신 줄바꿈을 켠다. 한국어·일본어는 짧아 한 줄로 유지된다.
+	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_title.custom_minimum_size = Vector2(440, 0)
 	_title.add_theme_font_size_override("font_size", 34)
 	_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	vb.add_child(_title)
@@ -101,6 +106,12 @@ func _build_ui() -> void:
 
 
 func _on_level_up(_level: int) -> void:
+	# 고를 카드가 하나도 없으면(보유 아이템 전부 만렙 + 슬롯 만석) 패널을 아예 띄우지 않는다.
+	# 띄워봐야 정지·징글·폭죽만 깜빡이고 아무 보상 없이 닫힌다 — 후반에는 이게 초당 몇 번씩
+	# 반복된다. 대신 골드로 보상한다.
+	if not _showing and _draw_choices(1).is_empty():
+		Events.grant_maxed_level_gold()
+		return
 	_pending += 1
 	if not _showing:
 		_present()
@@ -156,10 +167,11 @@ func _refresh() -> void:
 	# 대기 레벨업이 많이 쌓여도 스택이 깊어지지 않게 한다.
 	var choices: Array = []
 	while _pending > 0:
-		_title.text = "LEVEL %d  ·  CHOOSE AN UPGRADE" % Events.level
+		_title.text = Locale.t("levelup_title_fmt") % Events.level
 		choices = _draw_choices(3)
 		if not choices.is_empty():
 			break
+		Events.grant_maxed_level_gold()   # 고를 게 없는 레벨업은 골드로 보상하고 넘긴다
 		_pending -= 1
 	if choices.is_empty():
 		_advance_or_close()
@@ -248,6 +260,7 @@ func _make_item_card(a: Dictionary) -> Button:
 	_UIStyle.apply_button_style(btn, Color(col.r * 0.28, col.g * 0.28, col.b * 0.28, 1.0), col)
 	_set_card_icon(btn, item.get("icon"))
 	btn.pressed.connect(_on_pick.bind(String(item["id"])))
+	btn.set_meta("pick_id", String(item["id"]))   # 오토플레이 빌드 페르소나가 읽는다
 	return btn
 
 
@@ -260,6 +273,7 @@ func _make_evolve_card(rule: Dictionary) -> Button:
 	btn.add_theme_color_override("font_color", gold)
 	_set_card_icon(btn, into.get("icon"))
 	btn.pressed.connect(_on_evolve.bind(String(rule["base"]), String(rule["into"])))
+	btn.set_meta("pick_id", "evolve:" + String(rule["into"]))
 	return btn
 
 
@@ -322,7 +336,7 @@ func _close_evo() -> void:
 func _apply_and_advance() -> void:
 	var player := get_tree().get_first_node_in_group("player")
 	if is_instance_valid(player) and player.has_method("apply_upgrades"):
-		player.apply_upgrades()   # shop_closed 를 쓰지 않는다(그건 새 웨이브를 시작시킨다)
+		player.apply_upgrades()   # 강화 카운터 → 실제 스탯 반영(인게임 상점은 2026-08 폐기, P0-3)
 	_consume_and_advance()
 
 

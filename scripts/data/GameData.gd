@@ -16,7 +16,7 @@ const THEME_DB_PATH := "res://data/themes.tres"
 var zombie_list: Array[ZombieData] = []   # 정의 순서 유지(스포너 가중치 인덱스와 정렬)
 var _zombie_by_id: Dictionary = {}
 
-var meta_upgrades: Array[MetaUpgradeData] = []   # 상점 표시 순서
+var meta_upgrades: Array[MetaUpgradeData] = []   # 파워업 패널 표시 순서
 
 var difficulty: DifficultyData = null     # 시간 기반 난이도 곡선
 var balance: BalanceData = null           # 전투/보상 밸런스 테이블

@@ -16,6 +16,16 @@ func setup(id: String) -> void:
 	_data = GameData.weapon_def(id)
 
 
+## 캐릭터가 들고 쏘는 무기의 발사 원점 — 그림 속 총구 위치(캐릭터마다 다르다).
+## 모듈은 Player 의 자식이라 global_position 이 캐릭터 중심이므로, 그대로 쓰면 발사체가
+## 몸통 한가운데서 튀어나온다. Player 가 없는 상황(테스트 등)에서는 모듈 위치로 폴백.
+func _muzzle() -> Vector2:
+	var p := get_parent()
+	if p != null and p.has_method("muzzle_position"):
+		return p.muzzle_position()
+	return global_position
+
+
 ## 현재 강화 레벨(1..max).
 func _level() -> int:
 	var m: int = _data.max_level if _data != null else 8

@@ -12,6 +12,7 @@ extends Node
 ##   T4 사망하면 체크포인트가 삭제된다(메타 골드 중복 적립 방지)
 ##   T5 캐릭터 id 가 없는 구버전 세이브도 크래시 없이 이어진다
 ##   T6 저장된 캐릭터가 잠겨 있거나 없는 id 면 폴백하고 이어하기를 막지 않는다
+##   T7 카탈로그에서 삭제된 아이템(성수 등)은 이어하기 때 인벤토리에서 걷어낸다
 
 ## save_game() 이 읽는 필드만 가진 최소 스텁 — 실제 Player 씬 없이 세이브를 만든다.
 class FakePlayer extends Node:
@@ -104,6 +105,16 @@ func _run() -> void:
 	SaveManager.apply_to_events(SaveManager.load_save())
 	_check("T6 알 수 없는 캐릭터 id 는 폴백하고 진행은 유지",
 		CharacterManager.selected_id() != "" and Events.total_gold == 77)
+
+	# --- T7: 삭제된 아이템 id 가 슬롯을 차지한 채 살아남지 않는가 ---
+	_write_raw({"character_id": "veteran", "total_gold": 10, "level": 2, "player_health": 4,
+		"weapons": {"gun": 2, "holy": 5, "crucifix": 3}, "passives": {"armor": 1, "no_such": 2}})
+	SaveManager.apply_to_events(SaveManager.load_save())
+	_check("T7 삭제된 아이템은 인벤토리에서 제거됨",
+		not Events.weapons.has("holy") and not Events.weapons.has("crucifix")
+		and not Events.passives.has("no_such"))
+	_check("T7 살아있는 아이템은 그대로 유지됨",
+		int(Events.weapons.get("gun", 0)) == 2 and int(Events.passives.get("armor", 0)) == 1)
 
 	SaveManager.delete_save()
 	print("RESULT ok=%d/%d" % [_ok, _total])

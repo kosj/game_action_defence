@@ -1,0 +1,325 @@
+# 에셋 파이프라인 — 새 이미지·글자를 추가할 때
+
+> 이 프로젝트는 **모바일 웹(WebGL)** 이 주 타깃이라, 에셋을 그냥 추가하면 조용히 성능이
+> 떨어지는 구조가 몇 군데 있다. 눈으로는 정상으로 보이고 프레임만 깎이기 때문에 알아채기
+> 어렵다. 그래서 규칙을 CI 검사로 강제해 두었다 — 아래 절차만 지키면 된다.
+
+---
+
+## 1. 스프라이트(PNG)를 추가할 때
+
+### 왜 그냥 추가하면 안 되나
+
+Godot 의 2D 배칭은 **연속해서 그리는 아이템이 같은 텍스처·같은 머티리얼일 때만** 하나로 묶인다.
+그런데 `Main` 은 `y_sort_enabled = true` 라 좀비들이 Y 좌표 순서로 정렬되고, 좀비 하나는
+그림자 + 몸통 두 스프라이트다. 텍스처가 서로 다르면 그리는 순서가
+
+```
+shadow.png → zombie_walker.png → shadow.png → zombie_brute.png → ...
+```
+
+이 되어 **아이템마다 배치가 끊긴다**. 좀비 300마리면 그것만으로 약 600 드로우 콜이었다.
+그래서 이 스프라이트들은 아틀라스(`assets/atlas/gameplay.png`) 한 장으로 묶여 있다.
+
+### 아틀라스는 6장이다 — 넣을 곳을 먼저 고른다
+
+| 아틀라스 | 원본 위치 | `.tres` 위치 | 언제 로드되나 |
+|---|---|---|---|
+| `gameplay` | `assets/sprites/{,fx/,turret/}*.png` | `assets/atlas/*.tres` | 항상 |
+| `ui` | `assets/ui/icons/*.png` | `assets/atlas/ui/*.tres` | 항상 |
+| `menu` | `assets/ui/{portraits,thumbs}/*.png` | `assets/atlas/menu/*.tres` | **메인메뉴에서만** |
+| `props/suburb` | `assets/sprites/props/suburb/*.png` | `assets/atlas/props/suburb/*.tres` | **그 테마를 고른 판에서만** |
+| `props/city` | `assets/sprites/props/city/*.png` | `assets/atlas/props/city/*.tres` | 〃 |
+| `props/lab` | `assets/sprites/props/lab/*.png` | `assets/atlas/props/lab/*.tres` | 〃 |
+
+오른쪽 칸이 이 표의 요점이다. **배칭 때문에 나누는 게 아니라 VRAM 때문에 나눈다.**
+
+- 프롭: 한 판에서 뜨는 테마는 하나뿐인데 한 장에 합치면 안 쓰는 두 테마까지 늘 올라간다.
+  `PropField` 는 선택 테마의 폴더만 `load()` 하므로 나머지 두 장은 아예 열리지 않는다.
+- 메뉴: 초상화 3장 + 테마 썸네일 3장은 원본이 커서(357~512px) 이것들만으로 `ui` 시트 면적의
+  60% 를 먹고 한 변을 2048 로 밀어올렸다 — 그 16MB 가 게임 내내 상주했다. 갈라 두니
+  `ui` 가 1024×1024(4MB)로 내려갔다.
+
+**"항상" 이 아닌 칸에 넣으려면 조건이 있다** — 그 시트를 물고 있는 참조가 전부 끊겨야 실제로
+해제된다. 셋 다 만족해야 한다.
+
+1. `preload`(= `const`) 로 잡지 않는다. `preload` 는 스크립트가 로드되는 순간 영구히 물린다
+2. `.tscn`/`.tres` 의 `ext_resource` 로 고정하지 않는다 — 씬이 살아 있는 한 같이 산다
+3. 그 화면을 벗어날 때 씬이 실제로 해제된다(`change_scene_to_file` 등)
+
+셋 중 하나라도 어기면 폴더만 갈라지고 VRAM 은 그대로다. 검증은 실측이 확실하다 —
+인게임 씬·아이콘을 전부 `load()` 한 뒤 `ResourceLoader.has_cached("res://assets/atlas/menu.png")`
+가 `false` 인지 본다(실제로 이 방법으로 확인했다).
+
+> **새 프롭을 추가할 때는 폴더 = 테마 id** 다(`suburb`/`city`/`lab` — `ThemeData.id`).
+> 세 곳이 같은 이름을 쓴다: `assets/sprites/props/<테마>/`, `build_atlas.py` 의
+> `ATLASES["props_<테마>"]`, `PropField._CATALOG` 의 `"theme"` 값.
+> 여러 테마에서 쓰고 싶은 프롭은 **한 테마에만 두고 그 테마 전용으로 취급한다**(중복 저장 금지).
+> 실제로 `prop_wreck_car` 는 도심 소속이고, 도심 전용 기믹인 `BurningCar` 가 같은 시트를 쓴다.
+
+### 절차
+
+```bash
+# 1) PNG 를 위 표의 "원본 위치" 에 넣는다
+
+# 2) 아틀라스를 다시 만든다
+python3 tools/build_atlas.py
+
+# 3) 참조는 PNG 가 아니라 생성된 AtlasTexture 를 가리킨다
+#      X  res://assets/sprites/zombie_new.png
+#      O  res://assets/atlas/zombie_new.tres              (게임플레이)
+#      O  res://assets/atlas/ui/weapon_new.tres           (인게임 UI 아이콘)
+#      O  res://assets/atlas/menu/portrait_new.tres       (메뉴 전용)
+#      O  res://assets/atlas/props/city/prop_new.tres     (도심 프롭)
+```
+
+3번은 `.tscn` · `.tres` · `.gd` 어디서든 동일하다. `ext_resource type="Texture2D"` 가
+`.tres` 를 가리켜도 정상 동작한다(AtlasTexture 는 Texture2D 다).
+
+원본 PNG 를 지우면 `build_atlas.py` 가 짝이 없어진 `.tres` 를 **자동으로 정리한다**. 남겨두면
+region 이 그 자리에 새로 들어온 다른 그림을 가리켜 엉뚱한 스프라이트가 그려진다.
+
+### 아틀라스에 넣지 않는 것
+
+| 대상 | 이유 |
+|---|---|
+| `assets/tiles/*` | `texture_repeat` 로 반복 샘플링해야 해서 아틀라스에 넣을 수 없다. **`sprites/` 밖에 둔다** — 아래 참조 |
+| `assets/ui/frames/*`·`hud/*` | `StyleBoxTexture` 나인패치 + 무손실 고정(아래 3절) |
+| `assets/ui` 루트의 **전체화면 그림**(배경·로고·비네트·fog_vision) | 한 번에 한 장만 뜨는 큰 그림이라 배칭 이득이 없다 |
+
+> ⚠️ **"assets/ui 루트" 를 통째로 제외하지 말 것.** 이 분류는 "전체화면 큰 그림" 에만
+> 해당한다. 실제로 이걸 한 번 틀렸다 — `ui_coin` · `ui_heart_full/empty` ·
+> `ui_joystick_base/knob`(48×48·36×36)이 "루트에 있으니 큰 그림" 으로 묶여 아틀라스 밖에
+> 남아 있었다. 전부 **인게임에서 매 프레임 그려지는 작은 아이콘**이다.
+> `assets/ui/icons/` 로 옮겼다.
+>
+> **기준은 위치가 아니라 크기와 표시 빈도다** — 작고 매 프레임 다른 것들과 섞여 그려지면
+> 아틀라스로 간다.
+
+캐릭터 러닝 시트는 아틀라스에 넣어도 된다 — `Sprite2D.hframes` 는 AtlasTexture 의 region 을
+분할하므로 그대로 동작한다(실측 확인).
+
+### 알파는 `modulate` 가 아니라 텍스처에 굽는다
+
+Godot 의 2D 배처는 연속해서 그리는 아이템이 같은 텍스처·같은 머티리얼일 때만 묶는다 —
+그리고 **`modulate` 가 다르면 그것만으로도 배치가 끊긴다.** 아틀라스로 텍스처를 통일해도
+여기서 새는 것을 한동안 못 봤다.
+
+실제로 그랬다. `Zombie.tscn` 의 `Shadow` 에 `modulate = Color(1,1,1,0.5)` 가 걸려 있어
+좀비마다 `그림자(α0.5) → 몸통(흰색)` 이 번갈아 나오며 아이템마다 배치가 끊겼다.
+좀비 320마리 실측(실렌더):
+
+| | 드로우 콜 | 아이템 |
+|---|---|---|
+| 그림자에 modulate 0.5 | 152 | 188 |
+| **modulate 를 없애고 알파를 텍스처에 구움** | **37** | 176 |
+
+그림자는 **그대로 다 그려지는데**(아이템 수 동일) 드로우 콜만 1/4 이 됐다. 전체 게임에서도
+435 → 239(-45%)다. 외형 차이는 최대 1/255(손실 압축 반올림 수준)로 사실상 없다.
+
+**그래서 개체가 수백인 유닛의 스프라이트에는 `modulate` 를 걸지 않는다.** 반투명이 필요하면
+알파를 구운 전용 PNG 를 만든다 — 좀비 그림자가 `shadow.png` 대신 `shadow_soft.png`
+(알파 ×0.5)를 쓰는 이유다. 나머지(플레이어·보스·터렛·프롭·지뢰)는 알파가 제각각인 데다
+개체가 한둘이라 공유 `shadow.png` 를 그대로 쓴다 — 그쪽 배치가 한 번 끊기는 건 무시할 만하다.
+
+### 반복해서 그리는 것은 프리미티브가 아니라 텍스처 쿼드로
+
+위 규칙은 **서로 다른 CanvasItem 사이**의 이야기다. 한 아이템 안(`_draw()` 안)에는 다른 규칙이 있다.
+
+| | 배칭이 깨지나 |
+|---|---|
+| 명령마다 **색**이 다름 | ❌ 안 깨진다 — 색은 정점 데이터다 |
+| 명령마다 **프리미티브 종류**가 다름 | ✅ 깨진다 — `draw_circle`·`draw_line`·`draw_polygon` 은 텍스처 쿼드와도, 서로도 안 묶인다 |
+
+`Ground._draw_decals` 가 `draw_circle` 42개 + `draw_line` 45개를 발행해 Ground 격리
+드로우 콜이 93이었다. **색은 그대로 두고** 같은 그림을 텍스처 쿼드로만 바꾸니 43 이 됐다.
+
+색을 텍스처에 구울 필요는 없다는 점이 중요하다 — 테마의 `mark` 색이 `themes.tres` 에서
+오는 데이터 구동인데, 색을 구웠다면 그 연결이 끊어졌을 것이다. 대신 흰색+알파 모양만 담은
+`decal_blob.png` / `decal_streak.png` 를 만들고 색은 `draw_texture_rect` 의 틴트로 넘긴다.
+
+> 모양은 **원본과 같게** 만든다. 처음에 부드러운 그라데이션으로 만들었더니 도심·연구소의
+> 얼룩이 뚜렷한 원반에서 흐릿한 자국으로 바뀌었다 — 성능을 위해 아트를 조용히 바꾸면 안 된다.
+> 내부는 불투명하게 채우고 가장자리 2px 만 감쇠시키니 픽셀 차이가 평균 0.02/255,
+> 최대 21/255(테두리 안티앨리어싱)로 떨어졌다.
+
+`_draw()` 안에서 프리미티브를 **루프로** 발행하면 `verify_batching.gd` 가 잡는다. 루프 밖의
+한두 개 고정 발행은 드로우 콜이 안 늘어나므로 통과시킨다. 핫패스가 아닌 곳(도달 불가한
+폴백 등)은 `# batching-exempt: <이유>` 를 함수 선언 위나 해당 줄에 두면 넘어간다 —
+**파일 통째 예외는 없다.** 이유를 코드 옆에 남겨야 새로 들어오는 위반이 계속 잡힌다.
+
+```bash
+godot --headless --script res://tools/verify_batching.gd   # CI 도 이걸 돌린다
+```
+
+이 검사가 핫 씬(좀비)의 스프라이트에 `modulate`/`self_modulate` 가 걸리거나 서로 다른
+아틀라스를 쓰면 빌드를 실패시킨다. **눈으로는 안 보이고 프레임만 깎이는 종류**라 안전망이 필요하다.
+
+프레임 부하를 실제로 재려면 `tools/profile_frame.gd` (실렌더 프로파일러)를 쓴다 —
+헤드리스는 더미 렌더러라 드로우 콜이 전부 0 이다.
+
+### 안 쓰는 그림은 저장소에 두지 않는다
+
+아틀라스에서 안 쓰는 그림은 "용량이 조금 늘어나는" 정도가 아니다. **시트 한 변이 한 단계
+올라가면 VRAM 이 4배가 된다.** 실제로 러닝 시트 3장 + 옛 캐릭터 4장(쓰이지 않던 것)을 빼자
+게임플레이 시트가 2048×2048 → 1024×1024 로 내려갔다(16MB → 4MB).
+
+그래서 **아트를 교체하면 옛 PNG 를 같은 커밋에서 지운다.** 되살릴 일이 생기면 git 히스토리에
+있다. "나중에 쓸지도 모르니 남겨둔다" 는 항상 시트 한 변을 잡아먹는다.
+
+판정 기준은 "파일이 참조되는가" 가 아니라 **"런타임에 실제로 그려지는가"** 다. 두 번 걸렸다.
+- `run_<id>.png` — `Player.gd` 가 경로를 문자열로 조립해 참조가 grep 에 안 잡혔다. 실제로는
+  세 캐릭터 모두 `run_frames = 0` 이라 **한 번도 로드되지 않았다**.
+- `player_<id>.png` — `CharacterData.sprite_path` 가 가리켜 "쓰는 것" 처럼 보였지만,
+  `_fit_shadow()` 가 `get_size().x` **숫자 하나** 를 얻으려고 load 할 뿐 그리지는 않았다.
+  지금은 그 숫자를 `CharacterData.shadow_ref_width` 로 들고 있다. 그림 하나를 폭 하나 때문에
+  시트에 남기지 말 것.
+
+### 원본은 익스포트에서 제외된다
+
+아틀라스에 들어간 원본 PNG 는 `export_presets.cfg` 의 `exclude_filter` 로 웹 빌드에서 빠진다.
+안 그러면 아틀라스와 원본이 **둘 다** pck 에 들어가 1.4MB 가 그대로 중복된다.
+
+> ⚠️ **Godot 의 와일드카드는 `/` 까지 매칭한다.** `assets/sprites/*.png` 는 하위 폴더인
+> `assets/sprites/tiles/tile_grass.png` 까지 지운다. 실제로 이것 때문에 바닥 타일이 빌드에서
+> 통째로 사라진 적이 있다(에디터에서는 멀쩡해 더 헷갈린다). 그래서 **아틀라스에 못 넣는 것은
+> `assets/sprites/` 밖에 둔다** — 타일이 `assets/tiles/` 에 있는 이유다.
+>
+> `python3 tools/build_atlas.py --check` 가 "제외 대상인데 아틀라스에도 없는 파일"을 찾아
+> 빌드를 실패시킨다. 새 폴더를 추가할 때는 `ATLASES` 와 `EXPORT_EXCLUDE` 를 함께 갱신할 것.
+>
+> 와일드카드가 `/` 를 삼키는 성질은 뒤집어 쓰면 편하다. `exclude_filter` 는 **폴더 하나에
+> 패턴 하나**만 두면 하위 폴더까지 다 걸린다 — `assets/sprites/*.png` 하나가
+> `props/city/*.png` 까지 덮는다. 그래서 `exclude_filter` 의 항목과 `EXPORT_EXCLUDE` 의
+> 접두사는 **1:1 로 같은 4개**다. 이 대응이 깨지면 `--check` 의 검사가 헐거워진다.
+
+### 크기는 "표시 크기 × 2" 가 기준
+
+원본을 무작정 크게 넣으면 아틀라스만 커진다. 다만 **줄여도 되는 것과 아닌 것이 갈린다**.
+
+| 구분 | 예 | 축소 가능? |
+|---|---|---|
+| 코드가 크기를 정규화 | FX(`SpriteFX` size_px), 투사체(`Bullet._TEX_SIDE`), 프롭(카탈로그 `w`), 상자(`CHEST_DRAW_PX`) | ✅ 원본을 줄여도 화면 크기 그대로 |
+| 고정 스케일 | 젬(`COLLECT_SCALE`), 터렛(`SPR_SCALE`), 좀비·캐릭터(`sprite_scale`) | ❌ 줄이면 **화면에서도 작아진다** |
+
+축소 기준은 **최대 표시 크기 × 2** 다. `display/window/stretch/mode="canvas_items"` 라
+고DPI 단말에서는 2D 가 실제 해상도로 그려지므로(720 설계 → 1440 단말이면 2배) 그만큼 여유가 필요하다.
+
+> 아래쪽 표는 "원본을 줄이면 화면도 줄어든다" 는 경고지만, **화면에서도 줄이고 싶을 때는
+> 원본을 줄이는 것이 맞는 방법**이다. 스케일 상수를 건드리면 트윈·자석·수집 연출이 전부
+> 그 상수를 곱해 쓰고 있어 같이 틀어진다. 젬을 0.8배로 줄인 것이 이 경우다 —
+> `xp_gem.png` 80×72 → 64×58 로 리샘플했고 `COLLECT_SCALE` 은 0.4 그대로다
+> (화면 32×28.8px → 25.6×23.2px).
+
+넣어야 할지 애매하면 기준은 하나다 — **`Main` 아래에서 y_sort 스트림에 섞여 그려지는가?**
+
+### 검사
+
+```bash
+python3 tools/build_atlas.py --check                      # 아틀라스가 원본과 최신인지
+godot --headless --script res://tools/check_atlas.gd      # 직접 참조 / 크기 불일치
+godot --headless --script res://tools/verify_batching.gd  # 핫 씬의 modulate·아틀라스 일치
+```
+
+CI(`Check texture atlas`)가 같은 검사를 돌려 **빌드를 실패시킨다**. 잡는 것은 두 가지다.
+1. 아틀라스 대상 스프라이트를 `.png` 경로로 직접 참조 → 그 스프라이트만 배칭이 끊긴다
+2. AtlasTexture region 크기가 원본과 다름 → `get_size()` 로 스케일·그림자를 잡는 코드가 조용히 틀어진다
+
+---
+
+## 2. 새 문자열(한글·일본어)을 추가할 때
+
+CJK 폰트는 **실제로 표시하는 글자만** 남긴 서브셋이다(2.36MB → 0.22MB). 지원 언어는
+`Locale.SUPPORTED = ["en", "ko", "ja"]` 세 가지이며, 세 언어에서 쓰는 글자를 모두 담고 있다.
+
+폰트에 없는 글자를 쓰면 화면에 **두부(□)** 로 나온다. 그래서:
+
+```bash
+godot --headless --script res://tools/check_font_coverage.gd   # CI 도 이걸 돌린다
+```
+
+검사가 실패하면 원본 Noto Sans CJK 를 받아 다시 서브셋해야 한다 —
+자세한 안내는 `tools/subset_fonts.py` 의 docstring 참고.
+
+> 이미 알려진 결손: 일본어 UI 의 한자 12자(`体 先 入 分 別 延 数 末 端 見 購 実`)는
+> **원본 폰트에도 없어** 서브셋 이전부터 두부였다. `tools/font_known_absent.txt` 에 기록돼
+> 있어 CI 를 막지 않는다. 고치려면 위 재서브셋 절차가 필요하다.
+
+---
+
+## 3. 텍스처 압축 기본값
+
+`project.godot` 의 `[importer_defaults]` 가 텍스처 기본값을 **손실 압축(WebP, 품질 0.95)** 으로
+잡는다. `.import` 파일은 `.gitignore` 대상이라 CI 가 매 빌드 재생성하고, 그때 이 기본값이 적용된다.
+따라서 **새 PNG 는 아무것도 안 해도 자동으로 손실 압축**된다.
+
+예외가 하나 있다 — `assets/ui/frames/*` 와 `assets/ui/hud/*` 는 `StyleBoxTexture` 나인패치로
+**늘려서** 쓰기 때문에 테두리의 손실 아티팩트가 띠로 번져 보인다. 이 폴더의 `.import` 는
+무손실(`compress/mode=0`)로 고정해 저장소에 커밋해 두었고, `.gitignore` 에 예외가 있다.
+
+**나인패치로 쓸 새 UI 텍스처를 추가한다면** 이 두 폴더 중 하나에 넣어야 같은 예외가 적용된다.
+
+---
+
+## 4. 오디오
+
+웹 pck 는 전량 다운로드해야 첫 프레임이 뜨므로 **오디오가 곧 초기 로딩 시간**이다. BGM 은
+두 단계로 줄여 뒀다.
+
+1. **96kb/s 모노** 재인코딩(원본 190~210kb/s 스테레오). BGM 은 `AudioStreamPlayer` 비위치
+   재생이라 스테레오 이미징이 쓰이지 않는다.
+2. **루프 구간으로 절단**(3:08 / 5:48 / 3:11 → 56 / 65 / 67초). 8.34MB → 2.15MB(-74%).
+
+새 BGM 도 같은 절차를 밟는다.
+
+```bash
+ffmpeg -i in.mp3 -ac 1 -ar 44100 -c:a libmp3lame -b:a 96k assets/audio/bgm_new.mp3
+python3 tools/make_bgm_loop.py assets/audio/bgm_new.mp3            # 미리보기(분석만)
+python3 tools/make_bgm_loop.py --write assets/audio/bgm_new.mp3    # 실제 교체
+```
+
+`make_bgm_loop.py` 는 곡의 반복 주기를 찾아 그 정수배 길이로 자르고, 되돌아가는 지점을
+크로스페이드로 마감한 뒤 **세 곡 공통 라우드니스(-12 dBFS RMS)** 로 정규화한다.
+`--write` 없이 돌리면 분석 결과만 찍는다 — 아래 세 값이 판정 기준이다.
+
+| 지표 | 뜻 | 기준 |
+|---|---|---|
+| 클릭 | 되돌아가는 지점의 파형 변화가 **이 곡의 통상 샘플 간 변화**에서 몇 % 지점인가 | 낮을수록 좋다. 절대값으로 보면 안 된다 — 크로스페이드 덕에 경계는 원곡이 그냥 이어질 때의 변화다 |
+| 튐 | 전환 구간의 스펙트럼 변화량이 **이 루프 구간 자체**의 변화량 분포에서 몇 % 지점인가 | 30% 이하면 음악의 일부처럼 지나간다 |
+| 음량 | 정규화 후 dBFS 와 리미터가 만진 샘플 비율 | 세 곡이 -12.5dBFS 부근에 모이고 리미터 1% 대 |
+
+> **원본 3곡의 음량이 서로 3.8dB 어긋나 있었다**(-14.2 / -11.2 / -10.4 dBFS). 테마마다 BGM 이
+> 바뀌는 게임이라 그대로 두면 테마를 옮길 때 음량이 튄다. 자르면서 어차피 재인코딩하므로
+> 이참에 공통 기준으로 맞췄다. 새 곡도 같은 도구를 쓰면 자동으로 맞는다.
+
+지표를 만들 때 **선택 기준과 검증 기준을 다르게 두면 안 된다** — "점수는 좋은데 들으면 튀는"
+지점을 고르게 된다(실제로 세 번 겪었다). 기준 분포도 원곡 전체가 아니라 루프 구간이어야 한다.
+플레이어가 반복해서 듣는 것이 그 구간이고, 귀는 그 변화 폭에 적응한다.
+
+코덱은 **MP3 를 유지한다.** Ogg Vorbis 로 바꿔 보았으나 원본이 이미 MP3 라 탠덤 손실이 커져
+오히려 나빴다(멜 거리: MP3 재인코딩 0.72dB vs Vorbis 2.01dB). 재인코딩 2세대 손실 자체는
+0.72dB 로 작다 — 비트레이트를 64k 로 낮출 때(1.37dB)의 절반이다.
+
+효과음(OGG)은 합계가 작아 그대로 두면 된다.
+
+> 이 도구는 `numpy` 와 `imageio-ffmpeg` 가 필요하다(`pip install numpy imageio-ffmpeg`).
+> CI 는 돌리지 않는다 — 에셋을 바꿀 때 손으로 한 번 실행하고 결과를 커밋하는 방식이다.
+
+---
+
+## 5. 용량 상한
+
+CI 의 `Check build size` 가 웹 `index.pck` 를 **15MB** 상한으로 검사한다(현재 약 12MB).
+에셋을 크게 추가하면 여기서 걸린다. 의도한 증가라면 워크플로의 `LIMIT_KB` 를 함께 올린다.
+
+---
+
+## 관련 파일
+
+| 파일 | 역할 |
+|---|---|
+| `tools/build_atlas.py` | 아틀라스 + AtlasTexture 생성 (`--check` 로 최신 확인) |
+| `tools/check_atlas.gd` | CI: 직접 참조·크기 불일치 검사 |
+| `tools/subset_fonts.py` | 폰트 서브셋 재생성 |
+| `tools/check_font_coverage.gd` | CI: 폰트 글리프 커버리지 검사 |
+| `OPTIMIZATION_PLAN.md` | 최적화 작업 전체 기록과 남은 과제 |

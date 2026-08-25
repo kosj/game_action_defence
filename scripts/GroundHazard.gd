@@ -45,6 +45,6 @@ func _draw() -> void:
 	# 수명 말기에 옅어지며 사라진다. 불규칙한 일렁임.
 	var fade := clampf(_life / 0.6, 0.0, 1.0)
 	var flick := 1.0 + 0.05 * sin(_age * 16.0)
-	draw_circle(Vector2.ZERO, radius * flick, Color(color.r, color.g, color.b, 0.16 * fade))
-	draw_circle(Vector2.ZERO, radius * 0.6 * flick, Color(color.r, min(1.0, color.g + 0.2), color.b, 0.20 * fade))
-	draw_arc(Vector2.ZERO, radius * flick, 0.0, TAU, 40, Color(color.r, color.g, color.b, 0.35 * fade), 2.0, true)
+	QuadDraw.disc(self, Vector2.ZERO, radius * flick, Color(color.r, color.g, color.b, 0.16 * fade))
+	QuadDraw.disc(self, Vector2.ZERO, radius * 0.6 * flick, Color(color.r, min(1.0, color.g + 0.2), color.b, 0.20 * fade))
+	QuadDraw.ring(self, Vector2.ZERO, radius * flick, Color(color.r, color.g, color.b, 0.35 * fade), 2.0, 40)

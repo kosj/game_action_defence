@@ -7,10 +7,12 @@ const TILE := 80
 const TILE_DARKEN := Color(0.55, 0.55, 0.60)
 
 ## 테마별 전용 바닥 타일 텍스처(있으면 체커+절차 장식 대신 타일링). 없는 테마(desert 등)는 폴백.
+## 타일은 assets/sprites 가 아니라 assets/tiles 에 둔다 — sprites/ 는 통째로 아틀라스 대상이자
+## 익스포트 제외 대상인데, 타일은 texture_repeat 로 화면을 채워야 해서 아틀라스에 못 넣는다.
 const _TILE_TEX := {
-	"grass":  preload("res://assets/sprites/tiles/tile_grass.png"),
-	"stone":  preload("res://assets/sprites/tiles/tile_stone.png"),
-	"frozen": preload("res://assets/sprites/tiles/tile_frozen.png"),
+	"grass":  preload("res://assets/tiles/tile_grass.png"),
+	"stone":  preload("res://assets/tiles/tile_stone.png"),
+	"frozen": preload("res://assets/tiles/tile_frozen.png"),
 }
 
 ## name: 로직 분기용 식별자
@@ -87,6 +89,12 @@ func _resolve_theme() -> Dictionary:
 ## 재드로우 격자. _draw() 의 모든 좌표는 global_position 을 빼서 월드에 고정되므로, 노드가
 ## 플레이어를 픽셀 단위로 따라다닐 필요가 없다 — 격자에 스냅해도 화면에 보이는 그림은 동일하다.
 const SNAP := 128.0
+## 데칼용 텍스처 — 흰색 + 알파 모양만 담고 색은 그리는 쪽에서 틴트로 넣는다.
+## 그래야 테마의 mark 색이 데이터 구동으로 유지된다(색을 텍스처에 구우면 themes.tres 를
+## 고쳐도 데칼이 안 따라온다). 세로 획은 회전을 피하려고 미리 돌려 둔 별도 텍스처를 쓴다.
+const _DECAL_BLOB := preload("res://assets/atlas/decal_blob.tres")
+const _DECAL_STREAK := preload("res://assets/atlas/decal_streak.tres")
+const _DECAL_STREAK_V := preload("res://assets/atlas/decal_streak_v.tres")
 
 
 func _process(_delta: float) -> void:
@@ -152,11 +160,16 @@ func _draw() -> void:
 		_draw_decals(wx, wy, half_w, half_h, theme_name, mark)
 		return
 
+	# 타일 텍스처가 없는 detail_style 용 폴백(절차적 체커보드). 지금 세 테마는 전부
+	# grass/stone/frozen 이라 위에서 return 으로 빠지므로 여기는 돌지 않는다 — 도달하는
+	# 유일한 경로는 ThemeManager.selected() 가 null 이고 THEMES 추첨이 "desert" 를 뽑는
+	# 경우다. 핫패스가 아니므로 프리미티브를 그대로 둔다.
 	for tx in range(tx0, tx1):
 		for ty in range(ty0, ty1):
 			var lx := float(tx * TILE) - wx
 			var ly := float(ty * TILE) - wy
 			var col := tile_a if (tx + ty) & 1 == 0 else tile_b
+			# batching-exempt: 위 주석 참고 — 실제 테마 3종은 여기 오지 않는다
 			draw_rect(Rect2(lx, ly, float(TILE), float(TILE)), col)
 			_draw_detail(theme_name, lx, ly, tx, ty, mark)
 
@@ -196,6 +209,12 @@ func _draw_overlay(wx: float, wy: float, half_w: float, half_h: float) -> void:
 
 
 ## (2) 패치 데칼 — 월드 셀 해시로 흩뿌린 작은 얼룩/자국. 테마 색을 옅게 써서 바닥에 녹아들게 한다.
+##
+## ⚠️ **모든 데칼은 텍스처 쿼드로 그린다** — draw_circle / draw_line 을 쓰지 않는다.
+## Godot 캔버스 배처는 한 아이템 안에서도 **프리미티브 종류가 다르면 배치를 끊는다.**
+## 색은 정점 데이터라 명령마다 달라도 묶이지만(그래서 mark 색을 그대로 쓴다), 원·선은
+## 쿼드와 섞이지 않는다. 예전에는 draw_circle 42 + draw_line 45 를 발행해 Ground 격리
+## 드로우 콜이 93이었다 — 같은 그림을 쿼드로만 바꾸니 43 이 됐다(ASSET_PIPELINE.md 1절).
 func _draw_decals(wx: float, wy: float, half_w: float, half_h: float, theme_name: String, mark: Color) -> void:
 	var c := DECAL_CELL
 	var x0 := int(floor((wx - half_w) / c)) - 1
@@ -215,37 +234,67 @@ func _draw_decals(wx: float, wy: float, half_w: float, half_h: float, theme_name
 			match theme_name:
 				"grass":
 					if kind == 0:      # 마른 흙 얼룩
-						draw_circle(p, r, Color(0.30, 0.24, 0.13, 0.16))
+						_blob(p, r, Color(0.30, 0.24, 0.13, 0.16))
 					elif kind == 1:    # 짙은 풀 무리
-						draw_circle(p, r * 0.8, Color(mark.r, mark.g, mark.b, 0.18))
+						_blob(p, r * 0.8, Color(mark.r, mark.g, mark.b, 0.18))
 					else:              # 잔풀 몇 포기
 						for i in 3:
 							var o := Vector2(float((h / (7 + i)) % 18) - 9.0, float((h / (11 + i)) % 14) - 7.0)
-							draw_line(p + o + Vector2(0, 4), p + o - Vector2(0, 5), Color(mark.r, mark.g, mark.b, 0.5), 1.6)
+							_streak(p + o + Vector2(0, 4), p + o - Vector2(0, 5),
+								Color(mark.r, mark.g, mark.b, 0.5), 1.6)
 				"stone":
 					if kind == 0:      # 기름/물 얼룩
-						draw_circle(p, r, Color(0.05, 0.05, 0.07, 0.22))
+						_blob(p, r, Color(0.05, 0.05, 0.07, 0.22))
 					elif kind == 1:    # 흩어진 자갈
 						for i in 4:
 							var o2 := Vector2(float((h / (5 + i)) % 30) - 15.0, float((h / (9 + i)) % 24) - 12.0)
-							draw_circle(p + o2, 2.0 + float(i % 2), Color(mark.r, mark.g, mark.b, 0.40))
+							_blob(p + o2, 2.0 + float(i % 2), Color(mark.r, mark.g, mark.b, 0.40))
 					else:              # 갈라진 금
-						draw_line(p + Vector2(-r * 0.7, -r * 0.3), p + Vector2(0, r * 0.15), Color(0.06, 0.06, 0.08, 0.35), 1.8)
-						draw_line(p + Vector2(0, r * 0.15), p + Vector2(r * 0.65, r * 0.45), Color(0.06, 0.06, 0.08, 0.35), 1.8)
+						_streak(p + Vector2(-r * 0.7, -r * 0.3), p + Vector2(0, r * 0.15),
+							Color(0.06, 0.06, 0.08, 0.35), 1.8)
+						_streak(p + Vector2(0, r * 0.15), p + Vector2(r * 0.65, r * 0.45),
+							Color(0.06, 0.06, 0.08, 0.35), 1.8)
 				"frozen":
 					if kind == 0:      # 성에 낀 자리
-						draw_circle(p, r, Color(0.75, 0.90, 1.0, 0.10))
+						_blob(p, r, Color(0.75, 0.90, 1.0, 0.10))
 					elif kind == 1:    # 얼음 균열
 						for i in 3:
 							var a := TAU * float(i) / 3.0 + float(h % 7)
-							draw_line(p, p + Vector2.from_angle(a) * r * 0.9, Color(0.80, 0.93, 1.0, 0.22), 1.5)
+							_streak(p, p + Vector2.from_angle(a) * r * 0.9,
+								Color(0.80, 0.93, 1.0, 0.22), 1.5)
 					else:              # 눈 무더기
-						draw_circle(p, r * 0.7, Color(0.90, 0.95, 1.0, 0.13))
+						_blob(p, r * 0.7, Color(0.90, 0.95, 1.0, 0.13))
 				_:
-					draw_circle(p, r, Color(mark.r, mark.g, mark.b, 0.13))
+					_blob(p, r, Color(mark.r, mark.g, mark.b, 0.13))
+
+
+## 원형 얼룩 한 장. draw_circle 대체 — 같은 아틀라스의 쿼드라 다른 데칼과 배칭된다.
+func _blob(p: Vector2, r: float, col: Color) -> void:
+	draw_texture_rect(_DECAL_BLOB, Rect2(p.x - r, p.y - r, r * 2.0, r * 2.0), false, col)
+
+
+## 획 하나. draw_line 대체. 세로/가로로 누운 것은 회전 없이 그린다 —
+## draw_set_transform 은 명령이 하나 더 붙으므로 필요할 때만 쓴다.
+func _streak(a: Vector2, b: Vector2, col: Color, w: float) -> void:
+	var d := b - a
+	if absf(d.x) < 0.01:                                   # 수직
+		var top := minf(a.y, b.y)
+		draw_texture_rect(_DECAL_STREAK_V,
+			Rect2(a.x - w * 0.5, top, w, absf(d.y)), false, col)
+		return
+	if absf(d.y) < 0.01:                                   # 수평
+		var left := minf(a.x, b.x)
+		draw_texture_rect(_DECAL_STREAK,
+			Rect2(left, a.y - w * 0.5, absf(d.x), w), false, col)
+		return
+	draw_set_transform(a, d.angle(), Vector2.ONE)
+	draw_texture_rect(_DECAL_STREAK, Rect2(0.0, -w * 0.5, d.length(), w), false, col)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 ## 테마별 타일 장식. 월드 타일 좌표(tx, ty)를 해시로 사용해 이동해도 패턴이 유지됨.
+## batching-exempt: 위 폴백 경로에서만 불린다(타일 텍스처가 없는 detail_style).
+## 지금 세 테마는 전부 grass/stone/frozen 이라 여기 도달하지 않으므로 핫패스가 아니다.
 func _draw_detail(theme: String, lx: float, ly: float, tx: int, ty: int, mark: Color) -> void:
 	var cx := lx + TILE * 0.5
 	var cy := ly + TILE * 0.5

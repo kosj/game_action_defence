@@ -230,21 +230,18 @@ static func _slot(kind: String, col: Color, state: int) -> Control:
 	root.add_child(ic)
 
 	# 완료 표시 — 슬롯 우하단에 작은 초록 체크(달성/수령 완료를 한눈에).
+	# 예전에는 소문자 `"v"` 를 라벨로 찍었다. 폰트 서브셋에 글자를 늘리지 않으려던 아스키
+	# 대체였는데, 체크가 아니라 글자로 읽힌다(HANDOFF P2-4). 아이콘은 글리프가 필요 없어
+	# 서브셋과 무관하고 언어와도 무관하다.
 	if state == STATE_DONE:
-		var chk := Label.new()
-		chk.text = "v"
-		chk.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		chk.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		chk.add_theme_font_size_override("font_size", 13)
-		chk.add_theme_color_override("font_color", Color(0.55, 1.0, 0.55))
-		chk.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
-		chk.add_theme_constant_override("outline_size", 4)
+		var chk := UIIcon.make("check", 15, Color(0.55, 1.0, 0.55))
 		chk.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 		chk.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 		chk.grow_vertical = Control.GROW_DIRECTION_BEGIN
-		chk.offset_right = -2.0
-		chk.offset_bottom = 0.0
-		chk.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		chk.offset_left = -15.0
+		chk.offset_top = -15.0
+		chk.offset_right = 1.0
+		chk.offset_bottom = 1.0
 		root.add_child(chk)
 	return root
 

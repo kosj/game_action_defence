@@ -33,10 +33,16 @@ static func spawn(parent: Node, pos: Vector2, p_warn: float, p_radius: float, p_
 	s._active = true
 	s._exploded = false
 	s.visible = true
-	if s.get_parent() != parent:
+	# 이펙트는 Y 정렬이 필요 없다 — 전용 레이어(Events.fx_layer)에 붙여 유닛 스트림에서 빼면
+	# 유닛 스프라이트 사이에 다른 텍스처/절차 드로우가 끼지 않아 배칭이 유지된다.
+	# 레이어를 못 얻는 상황(씬 밖 호출)에서는 넘겨받은 parent 로 폴백한다.
+	var host: Node = Events.fx_layer()
+	if host == null:
+		host = parent
+	if s.get_parent() != host:
 		if s.get_parent() != null:
 			s.get_parent().remove_child(s)
-		parent.add_child(s)
+		host.add_child(s)
 	s.global_position = pos
 	s.queue_redraw()
 
@@ -85,9 +91,9 @@ func _draw() -> void:
 		return
 	var t := clampf(_t / warn_time, 0.0, 1.0)
 	# 고정 경고 테두리 링
-	draw_arc(Vector2.ZERO, blast_radius, 0.0, TAU, 48, Color(color.r, color.g, color.b, 0.9), 3.0, true)
+	QuadDraw.ring(self, Vector2.ZERO, blast_radius, Color(color.r, color.g, color.b, 0.9), 3.0, 48)
 	# 임박할수록 채워지는 내부(폭발 직전 가장 진하게 — "지금 벗어나라" 신호)
-	draw_circle(Vector2.ZERO, blast_radius * t, Color(color.r, color.g, color.b, 0.12 + 0.28 * t))
+	QuadDraw.disc(self, Vector2.ZERO, blast_radius * t, Color(color.r, color.g, color.b, 0.12 + 0.28 * t))
 	# 조준 십자
-	draw_line(Vector2(-blast_radius, 0), Vector2(blast_radius, 0), Color(color.r, color.g, color.b, 0.5), 1.5)
-	draw_line(Vector2(0, -blast_radius), Vector2(0, blast_radius), Color(color.r, color.g, color.b, 0.5), 1.5)
+	QuadDraw.segment(self, Vector2(-blast_radius, 0), Vector2(blast_radius, 0), Color(color.r, color.g, color.b, 0.5), 1.5)
+	QuadDraw.segment(self, Vector2(0, -blast_radius), Vector2(0, blast_radius), Color(color.r, color.g, color.b, 0.5), 1.5)

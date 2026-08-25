@@ -1,5 +1,5 @@
 extends CanvasLayer
-## 새 게임 시작 시 한 줄씩 페이드인되는 풀스크린 인트로(서사) — "The Last Beacon".
+## 새 게임 시작 시 한 줄씩 페이드인되는 풀스크린 인트로(서사) — "Hold the Ground".
 ## 모든 문구는 Locale 에서 가져와 다국어를 지원한다. 완료/건너뛰기/탭으로 마치면
 ## on_done 콜백을 정확히 1회 호출한다.
 ##
@@ -43,7 +43,7 @@ func _build_ui() -> void:
 	sky.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(sky)
 
-	# 2) 코드로 그린 분위기 배경 — 폐허 도시 + 송신탑 비컨("The Last Beacon")
+	# 2) 코드로 그린 분위기 배경 — 폐허 도시 + 송신탑 비컨("Hold the Ground")
 	var backdrop := _IntroBackdrop.new()
 	backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -106,10 +106,13 @@ func _build_ui() -> void:
 	skip.add_theme_font_size_override("font_size", 18)
 	skip.anchor_left = 1.0
 	skip.anchor_right = 1.0
-	skip.offset_left = -132.0
+	# 폭 108 이면 버튼 여백(좌우 18) 을 빼고 72px 만 남는데, 일본어 "スキップ" 가 정확히
+	# 72px 라 글자가 플레이트에 닿는다. 132 로 넓혀 여유를 25% 확보한다.
+	skip.offset_left = -156.0
 	skip.offset_top = 40.0
 	skip.offset_right = -24.0
 	skip.offset_bottom = 92.0
+	skip.clip_text = true   # 번역이 더 길어져도 플레이트 밖으로 새지 않게
 	_UIStyle.apply_button_style(skip, Color(0.16, 0.17, 0.22), Color(0.45, 0.48, 0.56))
 	skip.pressed.connect(_finish)
 	add_child(skip)
@@ -148,6 +151,7 @@ func _build_ui() -> void:
 	_begin_btn.offset_right = 130.0
 	_begin_btn.offset_top = 0.0
 	_begin_btn.offset_bottom = 68.0
+	_begin_btn.clip_text = true
 	_UIStyle.apply_button_style(_begin_btn, Color(0.14, 0.40, 0.20), Color(0.4, 0.85, 0.45))
 	_begin_btn.modulate.a = 0.0
 	_begin_btn.disabled = true

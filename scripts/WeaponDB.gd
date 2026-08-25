@@ -1,6 +1,6 @@
 extends RefCounted
 ## 무기 데이터베이스: 무기 종류(아키타입) + 희귀도(티어) 정의와 합성 로직.
-## 맵에서 주운 무기는 즉시 장착되며, 상점 강화(대미지/다중발사)는 어떤 무기를 들어도 그대로 적용된다.
+## 맵에서 주운 무기는 즉시 장착되며, 강화(대미지/다중발사)는 어떤 무기를 들어도 그대로 적용된다.
 
 const WEAPONS: Array = [
 	{"id": "pistol",  "name": "Pistol",          "shape": "circle",       "color": Color(1.00, 0.30, 0.10), "base_damage": 1, "cooldown_mult": 1.00, "bullet_speed_mult": 1.00, "pellet_count": 1, "spread": 0.22, "bullet_scale": 1.0, "splash_radius": 0.0, "sfx": "shoot", "sfx_pitch": 1.00},

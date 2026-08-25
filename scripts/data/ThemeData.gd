@@ -28,3 +28,7 @@ extends Resource
 ## 미장센(장식 프롭) 키 목록 — PropField 가 필드에 흩뿌린다. 비어 있으면 프롭 없음.
 ##   suburb=fence/wreck_car, city=wreck_car/tank, lab=(아트 준비 후 채움)
 @export var prop_keys: PackedStringArray = PackedStringArray()
+
+## 이 아레나에서 나올 수 있는 날씨 — WeatherSystem 이 슬롯마다 여기서 하나를 뽑는다(+ 맑음).
+##   rain / snow. 비어 있으면 항상 맑음.
+@export var weather_keys: PackedStringArray = PackedStringArray()

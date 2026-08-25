@@ -9,7 +9,7 @@ const ORBIT_SPEED := 1.4    # 공전 각속도(rad/s)
 const FIRE_RANGE := 420.0
 
 ## 전용 아트가 있으면 절차 드로잉 대신 스프라이트로 그린다(부메랑과 같은 규약).
-const _SPRITE_PATH := "res://assets/sprites/drone.png"
+const _SPRITE_PATH := "res://assets/atlas/drone.tres"
 
 var _orbit: float = 0.0
 var _t: float = 0.0
@@ -60,7 +60,7 @@ func _fire_all() -> void:
 		if target == null:
 			continue
 		var dir: Vector2 = (target.global_position - world).normalized()
-		var b := Pool.acquire(BULLET, get_tree().current_scene)
+		var b := Pool.acquire(BULLET, Events.fx_layer())
 		b.global_position = world
 		b.direction = dir
 		b.rotation = dir.angle() + PI / 2
@@ -98,6 +98,6 @@ func _draw() -> void:
 			draw_texture_rect(_tex, Rect2(p + Vector2(0.0, bob) - sz * 0.5, sz), false)
 		return
 	for p in _positions():
-		draw_circle(p, 7.0, Color(_data.color.r, _data.color.g, _data.color.b, 0.95))
-		draw_circle(p, 3.5, Color(1.0, 1.0, 1.0, 0.9))
-		draw_arc(p, 10.0, 0.0, TAU, 12, Color(_data.color.r, _data.color.g, _data.color.b, 0.4), 1.5, true)
+		QuadDraw.disc(self, p, 7.0, Color(_data.color.r, _data.color.g, _data.color.b, 0.95))
+		QuadDraw.disc(self, p, 3.5, Color(1.0, 1.0, 1.0, 0.9))
+		QuadDraw.ring(self, p, 10.0, Color(_data.color.r, _data.color.g, _data.color.b, 0.4), 1.5, 12)

@@ -6,14 +6,15 @@ class_name UIIcon
 @export var kind: String = "star"
 @export var color: Color = Color.WHITE
 
-const _KINDS := ["coin", "star", "flag", "clock", "trophy", "skull", "heart", "bolt", "sword", "orb", "gear"]
+const _KINDS := ["coin", "star", "flag", "clock", "trophy", "skull", "heart", "bolt", "sword", "orb", "gear",
+	"lock", "check", "book"]
 
 ## 전용 아트가 있는 종류는 절차적 드로잉 대신 텍스처를 그린다(색 modulate 없이 원색 사용).
 ## 파일이 있는 것만 배선 — 나머지는 아래 _draw 의 벡터 드로잉으로 폴백.
 const _KIND_TEX := {
-	"skull": preload("res://assets/ui/icons/hud_skull.png"),
-	"clock": preload("res://assets/ui/icons/hud_clock.png"),
-	"coin":  preload("res://assets/ui/ui_coin.png"),
+	"skull": preload("res://assets/atlas/ui/hud_skull.tres"),
+	"clock": preload("res://assets/atlas/ui/hud_clock.tres"),
+	"coin":  preload("res://assets/atlas/ui/ui_coin.tres"),
 }
 
 
@@ -52,6 +53,9 @@ func _draw() -> void:
 		"sword":  _sword(c, r)
 		"orb":    _orb(c, r)
 		"gear":   _gear(c, r)
+		"lock":   _lock(c, r)
+		"check":  _check(c, r)
+		"book":   _book(c, r)
 		_:        draw_circle(c, r * 0.7, color)
 
 
@@ -146,3 +150,42 @@ func _gear(c: Vector2, r: float) -> void:
 			c + dir * r * 0.58 - perp * r * 0.21]), color)
 	draw_circle(c, r * 0.66, color)
 	draw_circle(c, r * 0.27, Color(0, 0, 0, 0.6))
+
+
+## 자물쇠 — 잠긴 캐릭터/아레나 카드에 얹는다. 예전에는 이름 앞에 `"[-] "` 를 붙였는데,
+## 폰트 서브셋에 글자를 늘리지 않으려던 아스키 대체였다(HANDOFF P2-4). 아이콘은 글리프가
+## 필요 없으니 서브셋과 무관하고, 언어와도 무관하다.
+func _lock(c: Vector2, r: float) -> void:
+	var body := Rect2(c.x - r * 0.62, c.y - r * 0.10, r * 1.24, r * 0.92)
+	# 고리(shackle) — 몸통 위로 반원. 두께를 몸통보다 얇게 해 자물쇠로 읽히게 한다.
+	draw_arc(Vector2(c.x, body.position.y), r * 0.40, PI, TAU, 16, color, r * 0.22, true)
+	draw_rect(body, color, true)
+	# 열쇠 구멍 — 몸통 색을 뚫어 대비를 준다(작은 크기에서도 자물쇠임이 읽히는 유일한 디테일).
+	draw_circle(Vector2(c.x, c.y + r * 0.30), r * 0.17, Color(0, 0, 0, 0.75))
+
+
+## 체크 — 달성·수령 완료 표시. 슬롯 위에 얹히므로 어두운 밑선을 먼저 깔아 대비를 만든다
+## (예전 Label 이 outline_size 로 하던 역할).
+func _check(c: Vector2, r: float) -> void:
+	var pts := PackedVector2Array([
+		c + Vector2(-r * 0.62, r * 0.02),
+		c + Vector2(-r * 0.16, r * 0.50),
+		c + Vector2(r * 0.66, -r * 0.52),
+	])
+	draw_polyline(pts, Color(0, 0, 0, 0.85), maxf(r * 0.52, 3.0), true)
+	draw_polyline(pts, color, maxf(r * 0.30, 2.0), true)
+
+
+## 책 — 도감(Codex) 메뉴 표식. 펼친 책은 24px 에서 뭉개지므로 **덮인 책**으로 그린다:
+## 표지 한 장 + 왼쪽의 두꺼운 책등 + 오른쪽 면의 얇은 책배(페이지 단면).
+## 책등을 어둡게 깔아야 작은 크기에서도 "판때기"가 아니라 책으로 읽힌다.
+func _book(c: Vector2, r: float) -> void:
+	var w := r * 1.44
+	var h := r * 1.66
+	var cover := Rect2(c.x - w * 0.5, c.y - h * 0.5, w, h)
+	draw_rect(cover, color, true)
+	# 책등(왼쪽) — 표지보다 어둡게. 두께는 표지 폭의 약 1/4.
+	draw_rect(Rect2(cover.position, Vector2(w * 0.26, h)), color.darkened(0.45), true)
+	# 책배(오른쪽) — 페이지 단면을 밝은 얇은 띠로.
+	draw_rect(Rect2(cover.position + Vector2(w * 0.86, h * 0.06), Vector2(w * 0.14, h * 0.88)),
+		color.lightened(0.55), true)

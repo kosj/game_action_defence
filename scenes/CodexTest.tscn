@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://ccodextst0001"]
+
+[ext_resource type="Script" path="res://scenes/CodexTest.gd" id="1_cdxt"]
+
+[node name="CodexTest" type="Node"]
+script = ExtResource("1_cdxt")

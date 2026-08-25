@@ -38,7 +38,10 @@ AdManager="*res://scripts/AdManager.gd"
 Locale="*res://scripts/Locale.gd"
 UITheme="*res://scripts/UITheme.gd"
 Cheats="*res://scripts/Cheats.gd"
+Telemetry="*res://scripts/Telemetry.gd"
 SceneFade="*res://scripts/SceneFade.gd"
+CodexManager="*res://scripts/CodexManager.gd"
+ThreatManager="*res://scripts/ThreatManager.gd"
 
 [gui]
 
@@ -104,3 +107,7 @@ texture={
 2d_physics/layer_2="zombies"
 2d_physics/layer_3="bullets"
 2d_physics/layer_4="gold"
+
+[audio]
+
+driver/output_latency.web=160

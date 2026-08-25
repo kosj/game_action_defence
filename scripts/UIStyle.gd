@@ -1,6 +1,6 @@
 class_name UIStyle
 extends RefCounted
-## 공용 UI 스타일 팩토리 — 코드로 생성/구성되는 UI 전반(HUD, 상점)에서 재사용.
+## 공용 UI 스타일 팩토리 — 코드로 생성/구성되는 UI 전반(HUD·메뉴·레벨업)에서 재사용.
 
 # VARCO 생성 나인패치 패널 프레임(강철+골드 베벨 테두리). 320px 소스, 테두리 분할 40px.
 const _PANEL_FRAME_TEX := preload("res://assets/ui/frames/panel_frame.png")
@@ -11,7 +11,18 @@ const _PANEL_FRAME_MARGIN := 40      # 나인패치 코너/에지 분할(화면�
 #
 # 이전 button_plate.png 는 평균 밝기 227 의 "거의 흰 광택면"이라 채도 높은 색을 곱하면
 # 사탕/플라스틱 색이 됐다. 새 판은 평균 136 의 중간 톤 금속이라 같은 accent 로도 금속처럼 보인다.
-const _BTN_PLATE_TEX := preload("res://assets/ui/frames/btn_plate_metal.png")
+## 버튼 플레이트 3종(MENU_UI_PLAN Phase 2 / HANDOFF P2-2).
+## steel 은 무채색이라 accent 로 틴트해 쓰고, blood/dark 는 색을 **구워 넣은** 판이다.
+## 왜 나눴는가: modulate 는 픽셀 전체를 곱하므로 채도 높은 accent 를 주면 몸통뿐 아니라
+## 리벳과 상단 스페큘러까지 물든다 — 강철 하드웨어가 빨간 플라스틱 못처럼 보인다.
+## 한 장으로는 부위를 가릴 수 없어 구조상 못 고친다. 판을 나누면 리벳은 강철로, 하이라이트는
+## 크림으로 남는다. 판 생성은 tools/gen_menu_plates.py.
+const _PLATES := {
+	"steel": preload("res://assets/ui/frames/btn_plate_steel.png"),
+	"blood": preload("res://assets/ui/frames/btn_plate_blood.png"),
+	"dark":  preload("res://assets/ui/frames/btn_plate_dark.png"),
+}
+const PLATE_DEFAULT := "steel"
 const _BTN_PLATE_MARGIN := 14
 # 바탕이 이미 어두우므로 예전(0.42)만큼 낮출 필요가 없다. hover/pressed 가 범위를 벗어나지
 # 않도록 여유를 두고 잡는다(hover = 0.02, pressed = 0.32).
@@ -65,11 +76,16 @@ static func hud_top_bar_box() -> StyleBoxTexture:
 
 ## 텍스처 나인패치 패널. bg/border/radius/border_w 인자는 하위 호환용으로 유지하되
 ## 프레임 아트가 시각을 담당하므로 무시된다(콘텐츠 여백만 프레임 안쪽으로 잡는다).
-static func panel(_bg: Color, _border: Color, _radius: int = 18, _border_w: int = 3) -> StyleBoxTexture:
+##
+## content_margin: 기본 18 은 큰 패널 기준이다. 보상 카드처럼 폭이 128px 밖에 안 되는
+## 작은 패널에서는 좌우 36px 을 먹어 글자가 들어갈 자리가 92px 밖에 남지 않으므로,
+## 호출부가 줄일 수 있게 열어 둔다.
+static func panel(_bg: Color, _border: Color, _radius: int = 18, _border_w: int = 3,
+		content_margin: int = 18) -> StyleBoxTexture:
 	var sb := StyleBoxTexture.new()
 	sb.texture = _PANEL_FRAME_TEX
 	sb.set_texture_margin_all(_PANEL_FRAME_MARGIN)   # 코너는 원본 픽셀 크기로, 가운데는 늘어남
-	sb.set_content_margin_all(18)                    # 자식이 프레임 안쪽 어두운 영역에 앉도록
+	sb.set_content_margin_all(content_margin)        # 자식이 프레임 안쪽 어두운 영역에 앉도록
 	sb.draw_center = true
 	return sb
 
@@ -86,11 +102,20 @@ static func bottom_bar(bg: Color, radius: int = 24) -> StyleBoxFlat:
 
 
 ## 금속 플레이트 버튼 박스. accent(호출부의 강조색)로 틴트해 버튼별 의미 색을 유지한다.
-static func button_box(accent: Color, darken: float = _BTN_DARKEN) -> StyleBoxTexture:
+## 종류별 플레이트 텍스처. 모르는 이름은 기본(steel)으로 떨어진다 —
+## 오타 때문에 버튼이 통째로 사라지는 것보다 낫다.
+static func plate(kind: String = PLATE_DEFAULT) -> Texture2D:
+	return _PLATES.get(kind, _PLATES[PLATE_DEFAULT])
+
+
+## kind 를 지정하면 그 판을 쓴다. blood/dark 는 색이 이미 구워져 있으므로 accent 로 다시
+## 틴트하지 않는다(두 번 칠하면 어두워지기만 한다) — 밝기만 hover/pressed 에 맞춰 조절한다.
+static func button_box(accent: Color, darken: float = _BTN_DARKEN,
+		kind: String = PLATE_DEFAULT) -> StyleBoxTexture:
 	var sb := StyleBoxTexture.new()
-	sb.texture = _BTN_PLATE_TEX
+	sb.texture = plate(kind)
 	sb.set_texture_margin_all(_BTN_PLATE_MARGIN)
-	sb.modulate_color = accent.darkened(darken)
+	sb.modulate_color = (Color.WHITE if kind != PLATE_DEFAULT else accent).darkened(darken)
 	sb.content_margin_left = 18
 	sb.content_margin_right = 18
 	sb.content_margin_top = 11
@@ -101,11 +126,15 @@ static func button_box(accent: Color, darken: float = _BTN_DARKEN) -> StyleBoxTe
 ## 버튼에 normal/hover/pressed/disabled 4종 StyleBox 를 한 번에 적용.
 ## bg/radius 는 하위 호환용으로 남기며, 플레이트 아트가 형태를 담당하므로 무시된다.
 ## 색은 border(강조색)를 틴트로 써서 확인=초록·위험=빨강·잠금=진회색 같은 구분을 유지한다.
-static func apply_button_style(btn: Button, _bg: Color, border: Color, _radius: int = 16) -> void:
-	btn.add_theme_stylebox_override("normal", button_box(border))
-	btn.add_theme_stylebox_override("hover", button_box(border, _BTN_DARKEN - 0.14))
-	btn.add_theme_stylebox_override("pressed", button_box(border, _BTN_DARKEN + 0.16))
-	btn.add_theme_stylebox_override("disabled", button_box(Color(0.40, 0.40, 0.45), 0.45))
+## kind 는 **뒤에 붙인 선택 인자**다 — 기존 호출부(레벨업·게임오버 등 20여 곳)를 한 줄도
+## 고치지 않고 그대로 두기 위해서다(계획 문서가 요구한 시그니처 유지).
+static func apply_button_style(btn: Button, _bg: Color, border: Color, _radius: int = 16,
+		kind: String = PLATE_DEFAULT) -> void:
+	btn.add_theme_stylebox_override("normal", button_box(border, _BTN_DARKEN, kind))
+	btn.add_theme_stylebox_override("hover", button_box(border, _BTN_DARKEN - 0.14, kind))
+	btn.add_theme_stylebox_override("pressed", button_box(border, _BTN_DARKEN + 0.16, kind))
+	# 비활성은 종류와 무관하게 어두운 판으로 — "지금 누를 수 없다"가 재질로 읽히게 한다.
+	btn.add_theme_stylebox_override("disabled", button_box(Color(0.40, 0.40, 0.45), 0.30, "dark"))
 	btn.add_theme_color_override("font_disabled_color", Color(0.5, 0.5, 0.55))
 	# 포커스 시 그려지는 기본 흰색 아웃라인 제거(터치 UI 라 키보드 포커스 테두리가 불필요·거슬림).
 	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())

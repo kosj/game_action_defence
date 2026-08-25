@@ -1,20 +1,30 @@
 # 연출 완성도 개선 계획 & 필요 이미지 리스트
 
-> 현재 게임은 로직·시스템은 완성되었으나 비주얼/연출이 대부분 **절차적 드로잉(코드로 그림)** 이라
-> "프로토타입 느낌"이 남아 있다. 아래는 완성도를 상용 수준으로 끌어올리기 위한 (A) 연출 개선 계획과
-> (B) 필요한 이미지 에셋 리스트다. 우선순위: 🔴 높음 · 🟡 중간 · ⚪ 낮음.
+> (A) 연출 개선 계획과 (B) 필요한 이미지 에셋 리스트. 우선순위: 🔴 높음 · 🟡 중간 · ⚪ 낮음.
+>
+> ⚠️ **2026-08-20 현행화(P3-4).** 그 전 버전은 "좀비 11종 스프라이트 미착수" · "초상 썸네일
+> 미착수" · "보물상자는 절차적 드로잉" 으로 적고 있었으나 **셋 다 이미 존재한다.** 반대로
+> "아키타입 4종 텍스처 유지"는 그 자산이 **삭제된 뒤에도**(P1-1) 남아 있었다.
+> 아래 체크는 파일과 코드를 직접 열어 대조한 결과다.
+>
+> 에셋은 이제 "없어서 못 하는" 단계가 아니다 — 최소 필수 4종이 전부 확보됐다(§B 끝).
+> 남은 것은 대부분 **코드로 되는 연출**(§A)이다.
 
 ---
 
 ## A. 연출 개선 계획 (juice / polish)
 
-### A-1. 씬 전환 & 흐름 🔴
-- **씬 페이드 트랜지션**: 메뉴↔게임↔게임오버 전환이 즉시 끊긴다. 검은 화면 페이드 인/아웃(0.3s) 추가.
-- **게임 시작 연출**: 진입 시 카메라 살짝 줌아웃 + "SURVIVE" 배너. (인트로 스토리는 있으나 전투 진입이 �밋)
-- **일시정지 오버레이 블러**: 정지 시 배경 블러(이미 게임오버용 블러 오버레이 존재 → 재사용).
+### A-1. 씬 전환 & 흐름 ✅ 대부분 완료
+- [x] **씬 페이드 트랜지션** — `SceneFade` 오토로드(`transition_to`)로 메뉴↔게임↔재시작 전환에 적용.
+- [x] **게임오버 배경 블러** — `HUD._set_blur()` 가 게임오버에서 **배경(월드)만** 흐린다
+      (`assets/shaders/gameover_blur.gdshader`). ⚠️ 블러 노드의 `z_index` 는 반드시 음수
+      (`_Z_UNDER_UI`)여야 한다 — 양수면 z 가 트리 순서를 이겨 패널·상단 바까지 덮는다.
+- [ ] **게임 시작 연출** — 인트로 스토리(`IntroStory`)는 있으나 전투 진입 순간의 연출은 없다.
 
 ### A-2. 타격감 (hit feedback) 🔴
-- **히트스톱 튜닝**: 보스 사망에만 있음 → 큰 타격(크리티컬·엘리트 처치)에도 아주 짧게(0.03s) 적용.
+- **히트스톱 튜닝**: 여전히 **보스 사망 1곳뿐**이다(`Events.hit_stop()` 호출처 = `Boss._die`).
+  큰 타격(크리티컬·엘리트 처치)에도 아주 짧게(0.03s) 적용. ⚠️ 배속을 만지므로 `Events` 워치독과
+  함께 봐야 한다(`CLAUDE.md` §4).
 - **넉백 먼지**: 좀비 넉백 시 발밑 먼지 퍼프(작은 파티클) — 타격 무게감.
 - **데미지 숫자 개선**: 폰트 굵기·아웃라인·튀는 곡선(현재 단순 상승) + 크리티컬 강조 확대.
 - **좀비 사망 연출**: 현재 FXBurst 뿐 → 잠깐 흰색 실루엣 → 파편/재로 흩어지는 파티클.
@@ -25,13 +35,16 @@
 - **무기 임팩트**: 화염(일렁이는 불꽃 스프라이트), 번개(이미 지그재그), 폭발(링+파편).
 
 ### A-4. 카메라 연출 🟡
-- **보스 등장 줌**: 보스 스폰 시 0.5s 줌인 + 이름 배너 슬라이드(현재 체력바만).
-- **킬 스트릭/레벨업 펀치**: 레벨업·진화 시 화면 살짝 줌펀치 + 시간 슬로우(0.1s).
+- [x] **보스 등장 줌** — `Player._camera_zoom_punch(0.90, 0.55)` 가 `boss_spawned` 에 걸려 있다.
+- **킬 스트릭/레벨업 펀치**: 레벨업·진화 시 줌펀치 + 시간 슬로우(0.1s). 줌 펀치 함수는 이미
+  있으니 호출만 얹으면 된다.
 - **저체력 경고**: 화면 가장자리 붉은 맥동 비네트(체력 20% 이하) — 긴장감.
 
 ### A-5. UI/UX 마감 🔴
 - **버튼 피드백**: 눌림 애니메이션·호버 하이라이트·클릭 사운드 일관 적용.
-- **무기/패시브 아이콘**: 현재 색 사각형/텍스트 → 실제 아이콘(하단 로드아웃·레벨업 카드·상점).
+- [x] **무기/패시브 아이콘** — 전부 실제 아이콘이다(UI 아틀라스). 색 폴백은 아이콘이 없을 때만 쓴다.
+- [x] **버튼 판(plate)** — 나인패치 3종(steel/blood/dark)으로 위계를 만든다(P2-2).
+- [x] **잠금/완료 표시** — 아스키 대체(`[-]`·`v`)를 아이콘으로 교체(P2-4).
 - **레벨업/진화 카드 연출**: 카드 등장 stagger, 진화는 골드 광휘·파티클로 특별하게.
 - **HUD 정리**: 상단 바 아이콘화(골드/처치/시간), 체력 게이지 위 숫자 가독성.
 - **폰트**: 제목용 디스플레이 폰트 1종 추가(현재 본문 폰트로 제목까지 처리).
@@ -65,26 +78,33 @@
   - 데이터 배선: `CharacterData.sprite_path`/`sprite_scale` → `Player._apply_character_sprite()`.
   - 남은(선택) 개선: 각 캐릭터 **walk 2~4프레임** 시트(현재 idle 1프레임 + 절차적 바운스).
 
-### B-2. 좀비 (11종) 🔴
-- 종류별 실루엣이 구분되는 사이드뷰 스프라이트 11종:
-  워커·스프린터·블로터(비대)·거너/위버·공사장 인부(포어맨)·독성(토식)·스크리머·경찰(캅)·군인(솔저)·롱넥·정장(수트).
-- 최소 idle 1프레임씩. 가능하면 walk 2프레임.
+### B-2. 좀비 (11종) ✅ 완료 (idle 1프레임)
+- [x] 11종 전용 사이드뷰 스프라이트 — `assets/sprites/zombie_{walker,sprinter,bloater,gaunt,foreman,
+      toxic,screamer,cop,soldier,longneck,suit}.png`. 아틀라스 참조는 `assets/atlas/zombie_*.tres`,
+      배선은 `tools/gen_zombie_data.gd` 의 `tex` 필드 → `data/zombies/*.tres` → `Zombie.setup()`.
+- 남은(선택) 개선: walk 2~4프레임 시트. 현재는 `Zombie._animate_walk` 의 절차적 바운스다
+      (`ROADMAP.md` 4번의 대체 결정 참고 — 되돌리려면 pck 상한부터 다시 볼 것).
 
-### B-3. 보스 🟡 테마 보스 3종 완료 · 아키타입 4종 유지
+### B-3. 보스 ✅ 테마 보스 3종 완료 (아키타입 전용 아트는 폐기됨)
 - [x] **테마 보스 3종 전용 스프라이트** — 변이 사냥개·더 레커·프라임 변이체 적용 완료.
   - `assets/sprites/boss_{mutant_dog,wrecker,mutation}.png` (더 레커는 좌향 원본을 우향으로 플립).
   - 데이터 배선: `THEME_BOSSES[...].sprite` → `Boss.setup()`(없으면 아키타입 기본 텍스처로 폴백).
-- [ ] 아키타입 5종(brute/gunner/summoner/bomber/berserk): 현재 4종 텍스처 재사용(bomber=gunner 아트).
-  - 이상적(선택): 각 보스 idle + 격노(2단계) 컬러/포즈 변형.
+- ~~아키타입 5종(brute/gunner/summoner/bomber/berserk) 아트~~ → **해당 없음.** 세 테마가 전부
+  `boss_key` 를 갖게 되면서 아키타입 순환 경로가 죽었고, 미배치 아트 4종과 `gunner` 아키타입은
+  **삭제했다**(P1-1). 지금 아키타입은 테마 보스가 쓰는 berserk/bomber/summoner 셋 + 미지정
+  폴백 `melee` 뿐이고, 스프라이트는 `THEME_BOSSES[...].sprite` 로만 온다(폴백 없음 —
+  `tools/verify_boss_arena.gd` 가 세 항목의 존재를 CI 에서 검사한다).
+- [ ] 선택: 각 보스 격노(2단계) 컬러/포즈 변형.
 
-### B-4. 무기 아이콘 ✅ 완료 (28/28)
+### B-4. 무기 아이콘 ✅ 완료 (30/30)
 - 배선 완료: `WeaponData.icon` → 레벨업 카드(`LevelUpPanel`) + 로드아웃(`HUD`)에 표시, 없으면 색상 폴백.
   파일 규칙 `assets/ui/icons/weapon_<id>.png` → `gen_item_catalog` 이 자동 연결.
 - [x] **총기 계열 8종**: gun/railgun · machinegun/gatling · shotgun/dragonsbreath · crossbow/ballista
 - [x] **화염 계열 4종**: flamethrower/inferno · molotov/napalm
 - [x] **전기·회전 계열 6종**: lightning/thunderstorm · tesla/stormcoil · orb/sawstorm
-- [x] **신성·오라 4종**: garlic/sanctuary · holy/crucifix
-- [x] **설치·근접 6종**: mine/claymore · spikedbat · chainsaw · turret · drone
+- [x] **신성·오라 2종**: garlic/sanctuary  *(holy/crucifix 는 카탈로그에서 삭제된 무기다)*
+- [x] **설치·근접 5종**: mine/claymore · chainsaw · turret · drone  *(spikedbat 도 삭제됨)*
+- [x] **궁극기 3종**: ult_quake · ult_arrowstorm · ult_orbital (규약 경로로 자동 연결)
 - 발사체(화살/볼트·산탄·불꽃·톱날)는 선택 — 현재 드로잉으로 충분.
 
 ### B-5. 패시브 아이콘 ✅ 완료 (10/10)
@@ -93,25 +113,38 @@
 
 ### B-6. 픽업 / 오브젝트 🟡
 - [x] 경험치 젬(파란 다이아) · 골드 코인(`ui_coin.png` 교체) 적용 완료.
-- [ ] 보물상자·진화 상자·폭탄 — 현재 절차적 드로잉(`ItemPickup.gd`). 배선 시 스프라이트 교체 필요.
-- [~] 기믹 프롭 **에셋 준비됨**(`assets/sprites/props/prop_{wreck_car,fence,tank}.png`) — 아직 게임에 배치(스폰) 안 됨(장식 스폰 기능 필요).
+- [x] 보물상자·진화 상자 — 전용 아트 배선 완료(`ItemPickup.CHEST_TEX_PATH`/`EVOCHEST_TEX_PATH`
+      → `assets/atlas/chest_{treasure,evolution}.tres`). *폭탄 스폰은 제거됐다 — 필드 스폰은 상자뿐.*
+- [x] 미장센 프롭 15종 배치 완료 — `ThemeData.prop_keys` 에 테마별 목록을 넣어 `PropField` 가 필드에 흩뿌린다
+  (교외 5 · 도심 6 · 연구소 4). 아트는 `assets/sprites/props/<테마>/`, 참조는 테마별 아틀라스
+  `assets/atlas/props/<테마>/`. 밀도 손잡이는 `PropField.DENSITY`(30%), 장애물 비율은 `SOLID_SHARE`(30%).
 
 ### B-7. 배경 / 타일 🟡 바닥 타일 3종 적용 완료
 - [x] 테마 3종 바닥 타일 배선: `Ground._TILE_TEX`(grass=교외 · stone=도심 · frozen=연구소) → 월드 고정 타일링. (desert 는 기존 절차적 폴백)
-- [ ] 패럴랙스 배경 실루엣 — 미업로드.
+- [ ] 패럴랙스 배경 실루엣 — 미업로드(코드에도 `Parallax*` 노드가 없다).
 
 ### B-8. UI / 기타 🟡
 - [x] **타이틀 로고**("ZOMBIE BUSTER") — `TitleScreen`·`MainMenu` 텍스트를 `logo_title.png` 로 교체.
 - [x] HUD 아이콘 골드/처치/시간 — `UIIcon._KIND_TEX`(coin/skull/clock) 텍스처 배선.
-- [~] `hud_xp`(파란 별)·`ui_panel9`(9-slice)·FX 텍스처(폭발·머즐·스파크·연기) **에셋 준비됨** — 배선 대기(FX=`FXBurst` 절차 교체, panel=9-slice 적용).
-- [ ] 캐릭터/테마 선택 카드용 초상 썸네일 — 미착수.
+- [x] `hud_xp`(파란 별) — `ChestRewardPanel`·`MainMenu` 에 배선 완료.
+- [x] FX 텍스처 — `fx_explosion`·`fx_muzzle`·`fx_smoke`·`fx_hitspark` 아틀라스 배선 완료
+      (`Player` 머즐, `BurningCar`/`SteamVent` 폭발·연기 등).
+- [x] 9-slice 프레임 — `assets/ui/frames/{panel_frame,item_slot,button_plate,btn_plate_*}.png`
+      → `UIStyle.tex_box()` 의 `StyleBoxTexture`. ⚠️ 이 폴더는 **무손실 임포트가 규약**이다
+      (`CLAUDE.md` §2 — 새 PNG 는 `compress/mode=0` 으로 고쳐야 한다).
+- [x] 캐릭터/테마 선택 카드용 초상·썸네일 — `assets/atlas/menu/portrait_*.tres`·`theme_*.tres`
+      배선 완료(캐릭터 패널·아레나 패널·도감).
 
 ### 최소 필수(가성비 우선)
 1. [x] **캐릭터 3종 구분 스프라이트** — 완료(veteran/hunter/engineer).
 2. [x] **무기·패시브 아이콘 세트** (UI 완성도 직결) — 무기 28/28 ✅ + 패시브 10/10 ✅ 완료.
 3. [x] **테마 보스 3종 스프라이트** — 완료(mutant_dog/wrecker/mutation).
-4. [ ] **좀비 11종 구분 스프라이트** — 🔴 미착수(현재 절차적/기존 텍스처).
+4. [x] **좀비 11종 구분 스프라이트** — 완료.
 
-> 4개 중 2개(캐릭터·테마 보스) 확보 완료. 남은 것은 무기/패시브 아이콘 세트와 좀비 11종.
-> 나머지는 절차적 드로잉으로도 충분히 버틴다.
-> 에셋을 제공해 주시면(사이드뷰·투명배경) 즉시 적용 파이프라인(PIL 전처리 → 크기 정규화 → 배치)이 준비되어 있다.
+> **네 가지 모두 확보됐다.** 남은 것은 "있으면 더 좋은" 것들뿐이다 — walk 프레임 시트,
+> 보스 격노 포즈, 패럴랙스 배경. 나머지는 절차적 드로잉으로 충분히 버틴다.
+>
+> 에셋을 추가할 때의 파이프라인은 `ASSET_PIPELINE.md` 에 있다. 요약하면 셋을 반드시 지킨다:
+> ① 유닛은 `tools/make_icon.py --height 120 --black-halo` 로 정규화
+> ② **아틀라스에 넣는다**(PNG 직접 참조는 그 스프라이트만 배칭이 끊긴다)
+> ③ `assets/ui/frames`·`hud` 에 넣는 것은 `.import` 압축을 무손실로 고친다.

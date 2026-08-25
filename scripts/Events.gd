@@ -54,14 +54,22 @@ signal gold_changed(total: int)
 signal player_health_changed(health: int, max_health: int)
 signal player_died
 signal player_revived            # 보상형 광고 시청으로 사망 직후 부활
-signal wave_changed(wave: int)
+## 누적 처치 수 변경 — HUD 상단 카운터. 웨이브제 시절 이름(wave_changed)으로 킬 수를
+## 실어 나르던 것을 실제 의미로 고쳤다(P2-6). 이 게임에 웨이브는 없다.
+signal kills_changed(total: int)
 signal elapsed_changed(seconds: float)
-signal wave_complete(wave: int)
-signal wave_progress_changed(killed: int, total: int)
-signal run_progress(elapsed: float, clear: float)   # 시간 기반 진행(HUD 클리어 진행바)
+## 런 안의 마일스톤 도달 — 지금은 **보스 처치**가 유일한 마일스톤이다(600초 주기).
+## 웨이브제에서 시간 기반 디렉터로 갈아타면서 wave_complete 는 발신자가 사라져 죽어 있었고,
+## 그 바람에 퀘스트·도전과제의 주기 저장이 통째로 멈춰 있었다(P0-2). 이름을 실제 개념에 맞춘다.
+## index 는 그 판의 보스 회차(1부터).
+signal milestone_reached(index: int)
+signal run_progress(elapsed: float, clear: float)   # 시간 기반 진행(HUD 타이머·타임라인 바)
+## 다음 마일스톤 예정 시각(런 경과 초). HUD 타임라인 바의 눈금과 카운트다운 배너가 이 값을 따른다.
+## **스포너가 소유한 값을 그대로 흘린다** — 보스는 전투 중이면 미뤄지고 치트(TIME +5 MIN)로도
+## 밀리므로, HUD 가 주기 상수로 따로 계산하면 반드시 어긋난다(P1-4).
+signal forecast_changed(next_boss: float, next_elite: float)
 signal run_cleared                                  # 30분 생존 = 클리어 달성(1회)
 signal zombie_killed
-signal shop_closed
 signal weapon_equipped(stats: Dictionary)
 signal score_changed(score: int)
 signal high_score_changed(high_score: int)
@@ -87,21 +95,24 @@ signal level_up(level: int)
 signal inventory_changed        # 무기/패시브 인벤토리 변경 — HUD 장착 표시 갱신
 signal evolution_offer          # 진화 보물상자 개봉 — LevelUpPanel 이 진화 선택지를 띄운다
 signal elite_pack               # 예약 엘리트 팩 등장(주기적) — 진화 상자 드롭 트리거
+signal weather_changed(key: String)          # 날씨 전환("" = 맑음) — HUD 가 짧은 배너로 알린다
 signal achievement_unlocked(title: String)   # 도전과제 달성 — HUD 토스트 알림
 signal quest_completed(title: String, reward: int)   # 끝없는 과제 완료 — HUD 토스트 + 메타 골드 보상
+signal maxed_level_gold(level: int, gold: int)      # 고를 카드가 없는 레벨업 → 골드로 보상(HUD 알림)
 
 var total_gold: int = 0
 var total_kills: int = 0
 var did_clear: bool = false   # 이번 런에서 30분 클리어를 달성했는가
 var player_health: int = 0
 var player_max_health: int = 0
-var current_wave: int = 1
 var elapsed_time: float = 0.0
+
+## 이번 런의 환경 시드 — 날씨 스케줄이 (이 값 + 슬롯 인덱스)만으로 결정된다.
+## 세이브에 실려 이어하기가 같은 날씨 타임라인을 복원하고, 검증 스크립트가 재현할 수 있다.
+var env_seed: int = 0
 
 # 현재 보스의 표시 이름(타입) — HUD 체력바 라벨용. 보스가 setup() 에서 채우고 boss_spawned 직후 읽힌다.
 var boss_display_name: String = "BOSS"
-var wave_kill_progress: int = 0
-var wave_kill_total: int = 0
 
 # 골드 자동 줍기(자석) 버프 활성 여부 — Gold 이 매 프레임 참조하는 일시 상태(저장 안 함).
 var gold_magnet_active: bool = false
@@ -178,6 +189,22 @@ func bonus_level() -> void:
 	xp_changed.emit(xp, xp_to_next, level)
 
 
+## 고를 강화 카드가 하나도 없는 레벨업(보유 아이템 전부 만렙 + 슬롯 만석)을 골드로 보상한다.
+## 그대로 두면 후반 레벨업이 아무 보상 없이 지나가, 젬을 주우러 다닐 이유가 사라진다.
+## 실제 지급액은 add_gold 가 메타 '탐욕'·패시브 배수까지 곱한 값이라 여기서 되읽어 알린다.
+func grant_maxed_level_gold() -> int:
+	var b: BalanceData = GameData.balance
+	var amount: int = clampi(b.maxed_level_gold_base
+		+ int(round(b.maxed_level_gold_per_level * float(level))), 0, b.maxed_level_gold_max)
+	if amount <= 0:
+		return 0
+	var before := total_gold
+	add_gold(amount)
+	var gained := total_gold - before
+	maxed_level_gold.emit(level, gained)
+	return gained
+
+
 ## 광역/오라 무기 효과 반경 배수 — 패시브 '배터리'(upgrade_area)로 커진다.
 func area_mult() -> float:
 	return 1.0 + 0.08 * float(upgrade_area)
@@ -198,37 +225,25 @@ func add_xp(amount: int) -> void:
 var difficulty: int = 0
 const DIFFICULTY_NAMES: Array = ["Standard"]
 
-# 단일 모드 밸런스 배수(고정). 하드/헬 없이 접근성 있는 중간 곡선 — 후반 압박은 wave_pressure 로.
+# 단일 모드 밸런스 배수(고정). 하드/헬 없이 접근성 있는 중간 곡선.
 const _MODE_ENEMY_HP := 0.95
 const _MODE_ENEMY_SPEED := 0.98
-const _MODE_SPAWN := 1.02
 const _MODE_BOSS_HP := 1.00
-const _MODE_TOTAL := 0.95
 const _MODE_SCORE := 1.00
 
-## 무한 스케일링: 테이블이 끝나는 6웨이브 이후 매 웨이브 +12% 체력(복리).
-## 업그레이드가 만렙에 도달해도 언젠가는 반드시 한계가 오도록 하는 점수 러시 장치.
-const _PRESSURE_PER_WAVE := 1.12
-const _PRESSURE_SPEED_CAP := 1.30   # 이속은 최대 +30% 까지만(반응 불가능해지지 않게)
 
-
-func diff_enemy_hp_mult() -> float:    return _MODE_ENEMY_HP
-func diff_enemy_speed_mult() -> float: return _MODE_ENEMY_SPEED
-func diff_spawn_mult() -> float:       return _MODE_SPAWN
-func diff_boss_hp_mult() -> float:     return _MODE_BOSS_HP
-func diff_total_mult() -> float:       return _MODE_TOTAL
+## 위협 등급(P1-12)은 **이 배수 위에 곱한다.** 여기가 유일한 합류점이라 ZombieSpawner 의
+## 호출부 10여 곳을 건드리지 않아도 등급이 전 구간에 반영된다. 등급 1 은 1.0 이므로
+## 지금까지의 실측이 그대로 기준선으로 남는다.
+## 점수 배수는 등급을 곱하지 않는다 — 랭킹이 등급 섞인 점수로 오염되면 비교가 무의미해진다.
+func diff_enemy_hp_mult() -> float:    return _MODE_ENEMY_HP * ThreatManager.enemy_hp_mult()
+func diff_enemy_speed_mult() -> float: return _MODE_ENEMY_SPEED * ThreatManager.enemy_speed_mult()
+func diff_boss_hp_mult() -> float:     return _MODE_BOSS_HP * ThreatManager.boss_hp_mult()
 func diff_score_mult() -> float:       return _MODE_SCORE
-func difficulty_name() -> String:      return "Standard"
 
-
-## 6웨이브 이후 적 체력에 곱하는 복리 압박 배수(보스 포함).
-func wave_pressure_mult(wave: int) -> float:
-	return pow(_PRESSURE_PER_WAVE, maxi(wave - 6, 0))
-
-
-## 6웨이브 이후 적 이속 압박 배수 — 매 웨이브 +1.5%, 상한 +30%.
-func wave_speed_pressure(wave: int) -> float:
-	return minf(1.0 + 0.015 * maxi(wave - 6, 0), _PRESSURE_SPEED_CAP)
+## 후반 스케일링을 여기서 찾지 말 것 — 웨이브 기반 압박 배수(wave_pressure_mult 등)는
+## 호출처가 0건인 채 남아 "무한 스케일링이 있다"는 오해만 만들어서 2026-08 에 삭제했다(P2-6).
+## **실제 난이도 곡선은 `ZombieSpawner._hp_mult()` 의 2차 곡선과 `data/difficulty.tres` 다.**
 
 # 업그레이드 레벨 (0 = 미구매)
 var upgrade_speed: int = 0
@@ -248,7 +263,6 @@ var upgrade_crit: int = 0              # 크리티컬 확률 (+8%/레벨, 데미
 var upgrade_area: int = 0              # 광역/오라 무기 효과 반경 (+8%/레벨) — 패시브 '배터리'
 var upgrade_greed: int = 0             # 인게임 골드/경험치 획득 (+8%/레벨) — 패시브 '토끼발'
 var upgrade_garlic: int = 0            # 마늘 오라 무기 레벨(0=미보유)
-var upgrade_holy: int = 0              # 성수 무기 레벨(0=미보유)
 
 # 캐릭터 조건부 트레잇(Phase 4-B) — Player 가 매 프레임 갱신하는 동적 상태.
 var trait_damage_mult: float = 1.0    # 나가는 피해 배수(베테랑 저체력↑ 등) — 좀비/보스가 피격 시 곱함
@@ -269,6 +283,12 @@ var _z_frame: int = -1
 var _z_cache: Array = []
 
 
+## 플레이어 몸통 반경 — 좀비가 이 안으로 파고들지 못하게 하고, 접촉 피해 판정에도 같은 값을 쓴다.
+## Player 가 _ready 에서 자기 값(contact_radius)으로 채운다. 좀비 수백 마리가 매 프레임 읽으므로
+## 그룹 조회 대신 여기에 캐시해 둔다.
+var player_body_radius: float = 26.0
+
+
 func live_zombies() -> Array:
 	var f := Engine.get_physics_frames()
 	if f != _z_frame:
@@ -284,11 +304,34 @@ const _ZG_CELL := 64.0
 const _ZG_GC_FRAMES := 600   # 빈 셀 키 정리 주기(60fps 기준 10초) — 맵을 돌아다니면 키가 계속 쌓인다
 var _zg_frame: int = -1
 var _zg: Dictionary = {}     # Vector2i -> Array[Node2D]. 셀 배열 객체는 프레임 간 재사용한다.
+var _zg_filled: Array = []   # 이번 프레임에 실제로 채운 셀 키 — 다음 프레임에 이것만 비운다
 # 질의 결과용 재사용 버퍼. 호출부는 즉시 순회하고 보관하지 않는다는 전제이며,
 # 같은 함수를 순회 도중 다시 호출하면 안 된다(버퍼가 덮인다). 총알 순회 중 스플래시가
 # 겹치는 실제 사례가 있어 near/radius 는 서로 다른 버퍼를 쓴다.
 var _near_buf: Array = []
 var _radius_buf: Array = []
+
+# ── 같은 셀 재질의 건너뛰기 ────────────────────────────────────────────
+# zombies_near() 는 이 게임에서 가장 자주 불리는 함수다 — 탄 1발이 매 물리 프레임 1회이므로
+# 후반이면 초당 2만 회를 넘는다. 실측에서 호출당 4.8µs 로, 탄 1발 비용(10µs)의 절반이었다.
+#
+# 비싼 이유는 자료구조가 아니다. 바꿔 가며 재 봤지만 거의 같았다
+# (Vector2i 딕셔너리 2.32µs · int 키 딕셔너리 2.36µs · 평평한 버킷 배열 2.20µs).
+# 정체는 GDScript 가 3×3=9회 안쪽 루프를 도는 것 자체다 — 그러니 **횟수**를 줄여야 한다.
+#
+# 셀별 결과를 딕셔너리에 캐시하는 안을 먼저 재 봤는데 **더 느려졌다**(탄 200발 2.21 → 4.63ms,
+# p95 36ms). 탄이 서로 다른 셀에 흩어져 있으면 적중이 0인데 딕셔너리 삽입·배열 풀 비용만
+# 남기 때문이다. 그래서 버린다 — 최악을 나쁘게 만드는 최적화는 프레임 드랍 대책이 못 된다.
+#
+# 남긴 것은 **직전 셀 한 칸만 기억하는** 방식이다. 빗나가도 정수 비교 두 번이라 손해가 없고,
+# 산탄 8발·개틀링 연사처럼 같은 셀에서 함께 날아가는 탄이 9칸 순회를 건너뛴다.
+var _near_cell: Vector2i = Vector2i(0x7FFFFFFF, 0x7FFFFFFF)
+var _near_cell_frame: int = -1
+## 계측용 — 이번 프레임의 질의 수 / 그중 실제로 9칸을 돈 수. bench 가 적중률을 찍는다.
+var zg_queries: int = 0
+var zg_builds: int = 0
+## 직전 zombies_in_radius() 가 전수 스캔을 골랐는가 — 경로 선택을 회귀 테스트가 잠근다.
+var zg_radius_scanned: bool = false
 
 
 func _ensure_zgrid() -> void:
@@ -298,8 +341,11 @@ func _ensure_zgrid() -> void:
 	_zg_frame = f
 	# 셀 배열을 통째로 버리지 않고 비워서 재사용한다. _zg.clear() 로 매 프레임 점유 셀 수만큼
 	# (좀비 300+ 에서 150~300개) 새 Array 를 만드는 것이 이 시스템의 최대 상시 할당원이었다.
-	for key in _zg:
+	# 비울 대상은 **지난 프레임에 실제로 채운 셀**뿐이다 — 예전에는 딕셔너리 전체를 돌았고,
+	# 맵을 돌아다니면 빈 키가 GC 주기(600프레임)까지 쌓여 그만큼 헛도는 순회였다.
+	for key in _zg_filled:
 		(_zg[key] as Array).clear()
+	_zg_filled.clear()
 	for z in live_zombies():
 		if not is_instance_valid(z) or not z.is_in_group("zombies"):
 			continue
@@ -308,7 +354,10 @@ func _ensure_zgrid() -> void:
 		var arr: Variant = _zg.get(key)
 		if arr == null:
 			_zg[key] = [z]
+			_zg_filled.append(key)
 		else:
+			if (arr as Array).is_empty():
+				_zg_filled.append(key)
 			arr.append(z)
 	# 빈 셀을 계속 들고 있으면 위 clear 루프와 딕셔너리가 무한히 커진다 — 주기적으로 회수.
 	if f % _ZG_GC_FRAMES == 0:
@@ -322,11 +371,24 @@ func _ensure_zgrid() -> void:
 
 ## pos 주변(3×3 셀 ≈ ±96px)에 있는 좀비 후보만 반환. 정밀 거리 판정은 호출부가 수행한다.
 ## 셀(64px)이 최대 판정 반경(보스 38+총알 반경)보다 커서 3×3 스캔이면 누락 없이 커버된다.
-## 반환값은 공유 버퍼다 — 즉시 순회용이며, 다음 zombies_near() 호출 시 내용이 덮인다.
+##
+## 같은 물리 프레임 안에서 **직전 호출과 같은 셀이면 9칸 순회 없이 그대로 돌려준다**(위 주석 참고).
+## ⚠️ 반환값은 여전히 **공유 버퍼**다 — 즉시 순회용이며, 다른 셀로 다시 호출하면 내용이 덮인다.
+## (건너뛰기는 순회 횟수만 줄인다. 버퍼 계약은 예전과 똑같으니 호출부 규약도 그대로다)
 func zombies_near(pos: Vector2) -> Array:
 	_ensure_zgrid()
 	var cx := int(floor(pos.x / _ZG_CELL))
 	var cy := int(floor(pos.y / _ZG_CELL))
+	if _near_cell_frame != _zg_frame:
+		_near_cell_frame = _zg_frame
+		_near_cell = Vector2i(0x7FFFFFFF, 0x7FFFFFFF)   # 격자가 새로 서면 캐시도 버린다
+		zg_queries = 0
+		zg_builds = 0
+	zg_queries += 1
+	if _near_cell.x == cx and _near_cell.y == cy:
+		return _near_buf          # 직전 호출과 같은 셀 — 9칸 순회를 건너뛴다
+	_near_cell = Vector2i(cx, cy)
+	zg_builds += 1
 	_near_buf.clear()
 	for ox in range(-1, 2):
 		for oy in range(-1, 2):
@@ -345,9 +407,19 @@ func zombies_in_radius(pos: Vector2, r: float) -> Array:
 	_radius_buf.clear()
 	var r_sq := r * r
 	var span := int(ceil(r / _ZG_CELL))
-	# 반경이 아주 크면 셀 순회(25×25 이상)가 전수 스캔보다 비싸다 — 훑는 대상만 스냅샷으로 바꾸고
-	# 거리 필터는 그대로 적용한다(어느 경로로 오든 "반경 안"이라는 반환 계약은 동일해야 한다).
-	if span >= 12:
+	# 셀 순회와 전수 스캔 중 **싼 쪽을 그때그때 고른다.** 어느 경로로 오든 "반경 안"이라는
+	# 반환 계약은 동일하다 — 거리 필터를 양쪽 모두 적용하기 때문이다.
+	#
+	# 예전에는 `span >= 12`(25×25 셀) 고정 임계였는데, **이 게임에서 가장 비싼 질의가 그 아래에
+	# 걸려 있었다.** 유도탄의 조준 반경은 420px 이라 span=7 → 15×15 = 225칸이다. 후반 좀비는
+	# 25~40마리뿐이므로 전수 스캔이 훨씬 싸다(225칸 딕셔너리 조회 ≈ 61µs vs 40마리 거리 판정 ≈ 6µs).
+	# 유도탄 87발이 매 프레임 그 225칸을 돌아 물리 틱의 약 4.5ms 를 먹고 있었다(OPTIMIZATION_PLAN 5-L).
+	#
+	# 셀 조회 1칸은 전수 스캔 1마리보다 비싸므로 `칸 수 >= 마리 수` 를 기준으로 삼는다 —
+	# 보수적인 선(같은 값이면 전수 스캔)이라 뒤집혀도 손해가 나지 않는다.
+	var cells := (2 * span + 1) * (2 * span + 1)
+	zg_radius_scanned = cells >= live_zombies().size()
+	if zg_radius_scanned:
 		for z in live_zombies():
 			if not is_instance_valid(z):
 				continue
@@ -367,6 +439,34 @@ func zombies_in_radius(pos: Vector2, r: float) -> Array:
 				if pos.distance_squared_to(z.global_position) <= r_sq:
 					_radius_buf.append(z)
 	return _radius_buf
+
+
+# ── 이펙트 레이어 ────────────────────────────────────────────────────
+# Main 은 y_sort 라 자식들이 Y 순서로 정렬된다. 폭발·데미지 숫자 같은 이펙트가 그 사이에
+# 끼면 유닛 스프라이트 사이사이로 "다른 텍스처/절차 드로우"가 들어가 배칭이 계속 끊긴다.
+# 이펙트는 Y 정렬이 필요 없으므로 전용 컨테이너(y_sort 꺼짐)에 모아 유닛 스트림에서 뺀다.
+#
+# z_index 3 = 유닛(0) 위. 자식들의 z_index 는 상대값이라 서로의 순서(FXBurst 0 < SpriteFX 3
+# < DamageNumber 60)는 그대로 유지된다.
+const FX_LAYER_NAME := "FXLayer"
+const FX_LAYER_Z := 3
+
+
+## 현재 씬의 이펙트 레이어(없으면 생성). 씬이 없으면 null — 호출부가 원래 부모로 폴백한다.
+func fx_layer() -> Node:
+	var tree := get_tree()
+	if tree == null or tree.current_scene == null:
+		return null
+	var scene := tree.current_scene
+	var n := scene.get_node_or_null(NodePath(FX_LAYER_NAME))
+	if n == null:
+		var layer := Node2D.new()
+		layer.name = FX_LAYER_NAME
+		layer.y_sort_enabled = false
+		layer.z_index = FX_LAYER_Z
+		scene.add_child(layer)
+		n = layer
+	return n
 
 
 ## 화면 흔들림 요청 — 타격감이 필요한 순간(플레이어 피격·보스 사망·폭발 등)에 호출한다.
@@ -438,10 +538,8 @@ func reset() -> void:
 	did_clear = false
 	player_health = 0
 	player_max_health = 0
-	current_wave = 1
 	elapsed_time = 0.0
-	wave_kill_progress = 0
-	wave_kill_total = 0
+	env_seed = randi()   # 런마다 새 날씨 타임라인
 	gold_magnet_active = false
 	score = 0
 	_prev_high = high_score   # 이번 판이 깨야 할 기준점 = 현재 최고점 (high_score 는 유지)
@@ -467,7 +565,6 @@ func reset() -> void:
 	upgrade_regen = 0
 	upgrade_crit = 0
 	upgrade_garlic = 0
-	upgrade_holy = 0
 	# 시작 인벤토리 — 기본 자동총(gun) + 선택 캐릭터의 시작 무기/시그니처 패시브.
 	weapons = {"gun": 1}
 	passives = {}
@@ -487,7 +584,7 @@ func reset() -> void:
 
 
 # ── 일시정지 소유권 레지스트리 + 워치독 ─────────────────────────────────────────
-## 여러 모달(레벨업/보물상자/상점/게임오버/일시정지 메뉴)이 각자 get_tree().paused 를 켜고 끄면,
+## 여러 모달(레벨업/보물상자/게임오버/일시정지 메뉴)이 각자 get_tree().paused 를 켜고 끄면,
 ## 어느 하나가 해제를 빠뜨렸을 때 "화면엔 아무것도 없는데 게임만 멈춘" 상태로 영구히 갇힌다
 ## (장시간 웹 플레이 중 보고된 프리즈 증상). 그래서 정지는 여기서만 소유권 기반으로 관리한다.
 ##  · pause_push(owner) / pause_pop(owner) — 살아있는 소유자가 하나라도 있으면 정지, 비면 자동 해제.

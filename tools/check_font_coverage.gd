@@ -14,8 +14,14 @@ const FONTS := [
 	"res://assets/fonts/NotoSansCJK-Subset.otf",
 	"res://assets/fonts/NotoSansCJK-Subset-Bold.otf",
 ]
-## 서브셋 이전 원본에도 없던 글자 — 이번 축소로 잃은 것이 아니라서 빌드를 막지 않는다.
-## (이 목록에 실제 표시 문자가 있다면 그건 폰트 커버리지 버그로 따로 다뤄야 한다)
+## 서브셋 이전 **원본에도** 없던 글자 목록. 이 검사는 이 목록을 **면제가 아니라 분류에만** 쓴다 —
+## 여기 있는 글자를 문자열에 쓰면 그것도 실패다. 되살릴 수 없는 것과 써도 되는 것은 다르기 때문이다.
+##
+## 예전에는 이 목록의 글자를 검사에서 건너뛰었다. 그래서 일본어 문자열 10개가 이 글자들을 쓰는데도
+## CI 는 초록이었고 화면에는 두부(□)가 떴다(HANDOFF P1-17 — 23자). "고칠 수 없으니 묻지 않는다"가
+## "써도 된다"로 읽힌 것이다. 지금은 묻는다. 대신 실패 메시지에서 둘을 갈라 준다:
+##   · 재서브셋으로 살릴 수 있는 글자 → tools/subset_fonts.py 를 다시 돌린다
+##   · 원본에도 없는 글자          → 되살릴 방법이 없다. 그 글자를 피해 문구를 바꾼다
 const KNOWN_ABSENT := "res://tools/font_known_absent.txt"
 ## 표시 문자열이 들어 있는 데이터 폴더(아이템/캐릭터 이름·설명 등).
 const DATA_DIR := "res://data"
@@ -80,7 +86,8 @@ func _initialize() -> void:
 	var used := {}
 	_collect_locale(used)
 	_collect_data(used)
-	print("[FONT] 표시 문자 %d자 수집 (원본 결손 제외 대상 %d자)" % [used.size(), absent.size()])
+	print("[FONT] 표시 문자 %d자 수집 (원본에도 없는 글자 %d자 — 쓰면 실패한다)"
+		% [used.size(), absent.size()])
 
 	for p in FONTS:
 		var font: Font = load(p)
@@ -91,17 +98,27 @@ func _initialize() -> void:
 		for sample in ["Zombie Buster", "감염에서 살아남아라", "アウトブレイク"]:
 			if font.get_string_size(sample, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x <= 0.0:
 				_fails.append("%s: \"%s\" 폭이 0" % [p.get_file(), sample])
-		var miss: Array = []
+		# 없는 글리프를 둘로 나눈다 — 고치는 방법이 다르기 때문이다(위 KNOWN_ABSENT 주석 참고).
+		var resubset: Array = []   # 원본에는 있다 → 다시 서브셋하면 살아난다
+		var hopeless: Array = []   # 원본에도 없다 → 문구를 바꾸는 수밖에 없다
 		for ch in used.keys():
 			var c: String = ch
-			if absent.has(c) or c.strip_edges() == "":
+			if c.strip_edges() == "":
 				continue
-			if not font.has_char(c.unicode_at(0)):
-				miss.append(c)
-		if miss.is_empty():
+			if font.has_char(c.unicode_at(0)):
+				continue
+			if absent.has(c):
+				hopeless.append(c)
+			else:
+				resubset.append(c)
+		if resubset.is_empty() and hopeless.is_empty():
 			print("[FONT] %s: OK" % p.get_file())
-		else:
-			_fails.append("%s: 글리프 %d자 누락 → %s" % [p.get_file(), miss.size(), "".join(miss)])
+		if not resubset.is_empty():
+			_fails.append("%s: 글리프 %d자 누락(재서브셋으로 복구 가능) → %s"
+				% [p.get_file(), resubset.size(), "".join(resubset)])
+		if not hopeless.is_empty():
+			_fails.append("%s: 글리프 %d자 누락(원본에도 없음 — 문구를 바꿔야 한다) → %s"
+				% [p.get_file(), hopeless.size(), "".join(hopeless)])
 
 	if _fails.is_empty():
 		print("[FONT] 커버리지 검사 통과")
@@ -109,5 +126,7 @@ func _initialize() -> void:
 		return
 	for x in _fails:
 		print("[FONT] 실패: " + x)
-	print("[FONT] tools/subset_fonts.py 의 안내에 따라 폰트를 다시 서브셋하세요.")
+	print("[FONT] '재서브셋으로 복구 가능' 은 tools/subset_fonts.py 를 다시 돌리면 된다.")
+	print("[FONT] '원본에도 없음' 은 되살릴 방법이 없다 — 그 글자를 피해 문구를 바꿔라")
+	print("[FONT]   (일본어는 가나 표기로 우회한다. scripts/Locale.gd 의 선례 참고).")
 	quit(1)
