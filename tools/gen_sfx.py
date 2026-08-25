@@ -52,16 +52,20 @@ def one_pole_lp(x: np.ndarray, fc: float) -> np.ndarray:
 
 
 def synth_zombie_hit(rng: np.random.Generator) -> np.ndarray:
-    """좀비 피격 — 실제 생성음 두 테이크를 겹쳐 만든다.
+    """좀비 피격 — 생성음의 젖은 질감에 '때리는 순간'을 만들어 붙인다.
 
-    앞서 절차적으로(노이즈+감쇠 정현파) 만든 버전은 대역 수치는 맞췄지만 타격으로 들리지
-    않았다. 감쇠 정현파 몸통이 '악기음'처럼 들리는 게 원인으로 보인다 — 실제 살점 타격은
-    비조화 노이즈 덩어리다. 그래서 생성 소스를 재료로 쓴다.
+    소스를 그대로 쓸 수 없었던 이유: 포락선이 150ms 에 걸쳐 -53dB 에서 -4dB 로 서서히
+    부풀어 오른다. 타격이 아니라 질척한 텍스처만 뽑힌 것이다. 그대로 자르면 파고율
+    10.2dB, 피크 도달 86ms 로 뭉툭했다(게임의 좀비 사망음은 피크 도달 1ms).
 
-    원본에는 성격이 다른 테이크가 둘 들어있다. 하나는 저역(200Hz 이하 66%)의 둔중한
-    몸통이고 다른 하나는 고역(3~8kHz 35%)의 젖은 파열음이다. 어느 하나만 쓰면 각각
-    먹먹하거나 얇아서, 어택을 맞춰 겹쳐 '묵직하면서 축축한' 한 방으로 만든다.
-    길이는 0.55초짜리 원본을 0.22초로 자른다 — 초당 최대 18회 울리는 소리다.
+    없는 어택은 잘라내서 만들 수 없으므로 이렇게 나눈다.
+      · 몸통 = 소스에서 **가장 시끄러운 구간부터** 쓴다. 느린 빌드업은 버린다.
+        살점의 젖은 질감은 실제 생성음에서만 나오므로 이 부분이 정체성이다.
+      · 어택 = 짧은 광대역 버스트로 만들어 앞에 붙인다.
+
+    앞서 절차적 합성이 실패했던 것과는 다른 일이다. 그때는 소리의 **정체성**(무엇을 때렸나)을
+    합성으로 만들려다 악기음이 됐다. 여기서 합성이 맡는 건 '탁' 하는 가장자리뿐이고,
+    정체성은 실제 녹음이 그대로 쥐고 있다.
     """
     src_dir = Path(os.environ.get("SFX_SRC_DIR", "/root/.claude/uploads"))
     found = next(iter(src_dir.rglob("24eaf120-zombie_hit.mp4")), None)
@@ -69,25 +73,36 @@ def synth_zombie_hit(rng: np.random.Generator) -> np.ndarray:
         sys.exit("좀비 피격 원본(24eaf120-zombie_hit.mp4)을 찾을 수 없다")
     src = decode(found)
 
-    def take(t0: float, t1: float) -> np.ndarray:
-        """구간을 잘라 어택이 0초에 오도록 맞추고 진폭을 정규화한다."""
+    def loud_part(t0: float, t1: float) -> np.ndarray:
+        """구간에서 가장 시끄러운 지점의 20ms 앞부터 잘라 정규화한다."""
         seg = src[int(t0 * SR):int(t1 * SR)]
-        step = SR // 400
-        e = np.array([np.sqrt(np.mean(seg[i:i + step] ** 2)) for i in range(0, len(seg) - step, step)])
-        peak = float(e.max()) if len(e) else 0.0
-        hit = np.where(e > peak * 0.35)[0]      # 본 타격이 시작되는 지점
-        if len(hit):
-            seg = seg[max(0, (hit[0] - 1) * step):]
+        b = SR // 500
+        e = np.array([np.sqrt(np.mean(seg[i:i + b] ** 2)) for i in range(0, len(seg) - b, b)])
+        seg = seg[max(0, (int(np.argmax(e)) - 10) * b):]
         return seg / max(float(np.abs(seg).max()), 1e-9)
 
-    body = take(0.07, 0.65)     # 둔중한 몸통
-    wet = take(1.75, 2.29)      # 젖은 파열
+    wet = loud_part(0.07, 0.65)      # 둔중한 몸통(200Hz 이하가 두껍다)
+    gore = loud_part(1.75, 2.29)     # 젖은 파열(3~8kHz 가 두껍다)
 
-    n = int(0.22 * SR)
+    n = int(0.20 * SR)
     out = np.zeros(n)
-    for layer, gain in ((body, 1.0), (wet, 0.75)):
+    # 세기 비율은 대역 목표(저역 44 / 몸통 21 / 중역 17 / 고역 13%)에 맞춰 훑어 정했다.
+    for layer, gain in ((wet, 0.6), (gore, 1.0)):
         m = min(n, len(layer))
         out[:m] += layer[:m] * gain
+
+    # 살점의 몸통(200~800Hz)을 채운다. 소스에는 이 대역이 비어 있는데(테이크별 2.7% / 9.2%)
+    # 그대로 두면 저역 쿵과 고역 파열만 남아 속이 빈 소리가 된다. 없는 대역을 노이즈로
+    # 채우면 이물감이 생기므로, 소스의 저역에서 배음을 만들어 쓴다 — 원음에서 나온
+    # 성분이라 같은 타격의 일부로 붙는다(지진 궁극기에 쓴 것과 같은 방법).
+    body = band_filter(out, 40.0, 200.0)
+    body /= max(float(np.abs(body).max()), 1e-9)
+    out += band_filter(np.tanh(body * 6.0), 200.0, 800.0) * 2.0
+
+    # 어택 — 맞는 순간의 '탁'. 6kHz 로우패스로 눌러 유리처럼 밝아지지 않게 한다.
+    ta = np.arange(n) / SR
+    out += one_pole_lp(rng.standard_normal(n) * np.exp(-ta / 0.0016), 6000.0) * 5.0
+
     out[-int(0.05 * SR):] *= np.linspace(1.0, 0.0, int(0.05 * SR))
     return out
 
