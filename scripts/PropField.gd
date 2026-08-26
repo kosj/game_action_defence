@@ -140,6 +140,7 @@ var _sep_solid: Array = []
 func _ready() -> void:
 	z_index = -1   # 바닥(-2) 위, 유닛(0) 아래
 	_player = get_tree().get_first_node_in_group("player")
+	Cheats.changed.connect(queue_redraw)   # PROPS 토글이 즉시 화면에 반영되도록
 	var t: ThemeData = ThemeManager.selected()
 	if t == null:
 		return
@@ -312,8 +313,8 @@ func _make(meta: Dictionary, pos: Vector2, flip: bool, scale_mult: float) -> Dic
 
 
 func _draw() -> void:
-	if _props.is_empty():
-		return
+	if _props.is_empty() or not Cheats.props:
+		return   # CHEATS > PROPS 로 끈다(5-M Phase 0) — 프롭의 프레임 몫을 실기기에서 A/B
 	var vp := get_viewport().get_visible_rect().size
 	var cam := get_viewport().get_camera_2d()
 	if cam != null and cam.zoom.x > 0.0 and cam.zoom.y > 0.0:

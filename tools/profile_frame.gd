@@ -41,6 +41,10 @@ extends SceneTree
 ##     처음 보는 스크립트가 등장하면 `NEW` 로 표시한다 — 런타임 리소스 로드(텍스처/씬)는
 ##     그 순간 한 번 크게 튀므로 그게 범인일 때가 많다.
 ##
+## halfres=1 — 렌더 해상도를 절반으로 내리고 잰다(CHEATS > HALF RES 와 같은 경로).
+##     기준선과의 차가 곧 **fill-rate 의 몫**이다. 그리는 픽셀만 1/4 이 되고 스크립트·드로우 콜은
+##     그대로이므로, 프레임이 크게 줄면 GPU 병목·안 줄면 CPU 병목이라고 읽는다.
+##
 ## fill=0 — 좀비를 상한까지 채우지 않는다. 실기기 제보처럼 **좀비가 적은데도 느린** 상황을
 ##     재현할 때 쓴다(기본 1 = 2초마다 상한까지 채움).
 ##
@@ -122,6 +126,7 @@ var _rows: Array = []
 var _fill: bool = true
 var _cpuoff: String = ""
 var _spike_ms: float = 0.0
+var _half_res: bool = false
 var _prev_hist: Dictionary = {}
 var _prev_nodes: int = 0
 var _seen_scripts: Dictionary = {}
@@ -407,6 +412,8 @@ func _report() -> void:
 	var tag := _only if _only != "" else ("off=" + _off if _off != "" else "baseline")
 	if _cpuoff != "":
 		tag = "cpuoff=" + _cpuoff
+	if _half_res:
+		tag += " halfres"
 	print("\n#PROFILE %s" % tag)
 	print("%5s %8s %7s %7s %8s %9s %9s %9s %9s"
 		% ["t(s)", "zombies", "nodes", "draw", "items", "frame_ms", "worst_ms",
@@ -439,6 +446,7 @@ func _setup() -> void:
 	_cpuoff = String(_args.get("cpuoff", ""))
 	_fill = String(_args.get("fill", "1")) != "0"
 	_spike_ms = float(_args.get("spike", "0"))
+	_half_res = String(_args.get("halfres", "0")) == "1"
 	if _cpuoff != "" and not (_CPU_NODES.has(_cpuoff) or _CPU_SCRIPTS.has(_cpuoff)
 			or _cpuoff in ["zombies", "spawners", "weapons", "fxlayer"]):
 		print("[PROF] 알 수 없는 cpuoff 태그: ", _cpuoff)
@@ -479,6 +487,10 @@ func _setup() -> void:
 		"weather":  root.get_node("Cheats").weather = false; _hide("Weather")
 		"daynight": root.get_node("Cheats").daynight = false; _hide("DayNight")
 		"hud":      _hide("HUD")
+	# 해상도 절반은 HUD 가 Cheats.changed 를 받아 적용한다 — 실기기 토글과 같은 경로로 재야
+	# 측정과 제보가 같은 것을 가리킨다.
+	if _half_res:
+		root.get_node("Cheats").toggle_half_res()
 	Engine.max_fps = 0   # 상한을 풀어 실제로 낼 수 있는 프레임을 본다
 
 

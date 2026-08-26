@@ -109,6 +109,12 @@ var _cheat_auto_btn: Button = null        # 자동플레이 토글 버튼(라벨
 var _cheat_perf_btn: Button = null        # 성능 오버레이 토글 버튼(라벨 ON/OFF 갱신)
 var _cheat_day_btn: Button = null         # 낮/밤 시간 처리 토글 버튼(라벨 ON/OFF 갱신)
 var _cheat_weather_btn: Button = null     # 날씨 연출 토글 버튼(라벨 ON/OFF 갱신)
+var _cheat_halfres_btn: Button = null     # 렌더 해상도 절반 토글(GPU/CPU 병목 판정 — 5-M)
+var _cheat_vignette_btn: Button = null    # 전체화면 비네트 토글
+var _cheat_props_btn: Button = null       # 프롭 토글
+var _cheat_decals_btn: Button = null      # 바닥 데칼 토글
+## half_res 를 끌 때 되돌릴 원래 창 크기. 하드코딩하지 않고 실제 값을 받아 둔다.
+var _win_size_orig: Vector2i = Vector2i.ZERO
 var _perf_overlay: Control = null         # 성능 디버그 오버레이(좌상단)
 var _auto_tag: Label = null               # 자동플레이 중임을 알리는 화면 표시
 
@@ -1369,6 +1375,13 @@ func _build_pause_menu() -> void:
 		_cheat_day_btn = _make_cheat_button("DAY/NIGHT: ON", func(): Cheats.toggle_daynight())
 		# 비·눈·모래바람과 번개를 통째로 끈다(=상시 맑음). 스케줄은 계속 돌아 다시 켜면 이어진다.
 		_cheat_weather_btn = _make_cheat_button("WEATHER: ON", func(): Cheats.toggle_weather())
+		# ── 실기기 병목 판정 (5-M Phase 0) ─────────────────────────────────
+		# HALF RES 를 켜서 FPS 가 크게 오르면 fill-rate(GPU) 병목, 그대로면 CPU 병목이다.
+		# 나머지 셋은 어느 계통이 비싼지 그 자리에서 A/B 하기 위한 것이다.
+		_cheat_halfres_btn = _make_cheat_button("HALF RES: OFF", func(): Cheats.toggle_half_res())
+		_cheat_vignette_btn = _make_cheat_button("VIGNETTE: ON", func(): Cheats.toggle_vignette())
+		_cheat_props_btn = _make_cheat_button("PROPS: ON", func(): Cheats.toggle_props())
+		_cheat_decals_btn = _make_cheat_button("DECALS: ON", func(): Cheats.toggle_decals())
 		Cheats.changed.connect(_refresh_cheat_ui)
 		_refresh_cheat_ui()   # 씬 재진입 시 이미 켜져 있던 토글이 라벨에 반영되도록 초기 1회 갱신
 
@@ -1437,6 +1450,47 @@ func _refresh_cheat_ui() -> void:
 		_cheat_day_btn.text = "DAY/NIGHT: ON" if Cheats.daynight else "DAY/NIGHT: OFF"
 	if _cheat_weather_btn:
 		_cheat_weather_btn.text = "WEATHER: ON" if Cheats.weather else "WEATHER: OFF"
+	if _cheat_halfres_btn:
+		_cheat_halfres_btn.text = "HALF RES: ON" if Cheats.half_res else "HALF RES: OFF"
+	if _cheat_vignette_btn:
+		_cheat_vignette_btn.text = "VIGNETTE: ON" if Cheats.vignette else "VIGNETTE: OFF"
+	if _cheat_props_btn:
+		_cheat_props_btn.text = "PROPS: ON" if Cheats.props else "PROPS: OFF"
+	if _cheat_decals_btn:
+		_cheat_decals_btn.text = "DECALS: ON" if Cheats.decals else "DECALS: OFF"
+	var vg := get_node_or_null(^"Vignette")
+	if vg is CanvasItem:
+		(vg as CanvasItem).visible = Cheats.vignette
+	_apply_half_res()
+
+
+## 렌더 해상도 절반 토글 — **창 크기를 줄인다.**
+##
+## 왜 이 방법인가: 처음에는 `content_scale_mode` 를 VIEWPORT 로 바꾸고 `content_scale_size` 를
+## 360x640 으로 내렸는데, 그건 해상도만이 아니라 **설계 크기(보이는 월드 영역)까지** 반으로
+## 줄인다 — 화면이 확대되고 그릴 것 자체가 적어져서 "픽셀이 줄어 빨라진 것"과 구분이 안 된다.
+## 실측으로 확인한 조합은 이렇다(창 720x1280 기준):
+##
+##   content_scale VIEWPORT 360x640  -> 렌더 360x640 · 보이는영역 360x640   (설계까지 줄어듦 ✗)
+##   content_scale_factor 0.5        -> 렌더 720x1280 · 보이는영역 1440x2560 (반대 방향 ✗)
+##   **창 크기 360x640**             -> 렌더 360x640 · 보이는영역 720x1280   ✓
+##
+## `stretch/mode=canvas_items` + `aspect=keep` 라 창을 줄이면 캔버스 배율이 0.5 가 되면서
+## 설계 좌표계는 720x1280 그대로 남는다. 즉 **같은 월드·같은 오브젝트·같은 드로우 콜에
+## 픽셀 수만 1/4** 이 된다. 그래서 이 토글로 프레임이 크게 줄면 fill-rate(GPU) 병목이고,
+## 그대로면 CPU 병목이다.
+##
+## ⚠️ 전체화면·최대화 상태이거나 웹에서 페이지가 캔버스 크기를 강제하면 창 크기 변경이
+## 먹지 않을 수 있다. 그래서 PERF HUD 의 DRAW 줄에 **실제 렌더 크기**를 함께 찍는다 —
+## 토글을 켰는데 그 값이 안 변하면 적용되지 않은 것이다.
+func _apply_half_res() -> void:
+	var w := get_window()
+	if w == null:
+		return
+	if _win_size_orig == Vector2i.ZERO:
+		_win_size_orig = w.size
+	w.size = Vector2i(maxi(1, _win_size_orig.x / 2), maxi(1, _win_size_orig.y / 2)) \
+		if Cheats.half_res else _win_size_orig
 
 
 func _on_pause_pressed() -> void:
