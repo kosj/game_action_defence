@@ -12,6 +12,11 @@ extends SceneTree
 ##       --script res://tools/playtest.gd -- secs=60 skip=1500 shots=10,30,60
 ##
 ## ⚠️ `--headless` 로는 의미가 없다(더미 렌더러 = 드로우 콜 0, fill-rate 0).
+## ⚠️ **`phys` 는 "렌더 프레임 한 장에 들어간 물리 틱 시간의 합"이다.** 틱 1회 비용은 `tick`
+##    이다. 프레임이 느려지면 한 프레임에 틱이 여러 번 들어가 `phys` 만 부풀어 오른다 —
+##    실제로 llvmpipe(11fps)에서 phys 20ms 를 보고 "틱이 예산을 넘겼다"고 잘못 읽었다.
+##    같은 판의 tick 은 4ms 였다. **둘을 같이 봐야 한다.**
+##
 ## ⚠️ `frame_ms`·`fps` 는 소프트웨어 GL 값이라 **실기기 절대값이 아니다.** 같은 환경에서의
 ##    전후 비교와, GPU 와 무관한 값(draw/items/nodes/CPU ms)에만 쓴다.
 ##
@@ -160,9 +165,9 @@ func _sample(e: float) -> void:
 	var d: Dictionary = _overlay.debug_stats()
 	d["t"] = e
 	_rows.append(d)
-	print("[PLAY] t=%5.1f  fps %3d  frame %6.2f/%6.2f  proc %5.2f/%5.2f  phys %5.2f/%5.2f  draw %4d  items %5d  zomb %3d  nodes %4d"
+	print("[PLAY] t=%5.1f  fps %3d  frame %6.2f/%6.2f  proc %5.2f/%5.2f  phys %5.2f tick %5.2f  draw %4d  items %5d  zomb %3d  nodes %4d"
 		% [e, d["fps"], d["frame_avg"], d["frame_worst"], d["proc_avg"], d["proc_max"],
-		   d["phys_avg"], d["phys_max"], d["draw"], d["items"], d["zombies"], d["nodes"]])
+		   d["phys_avg"], d["tick_avg"], d["draw"], d["items"], d["zombies"], d["nodes"]])
 
 
 func _grab(tag: String) -> void:
@@ -191,8 +196,9 @@ func _report() -> void:
 	print("\n[PLAY] ── 요약 (표본 %d개 중앙값) ──────────────────────────" % _rows.size())
 	print("[PLAY] fps %.0f  frame %.2fms  worst %.2fms"
 		% [_median("fps"), _median("frame_avg"), _median("frame_worst")])
-	print("[PLAY] CPU  proc %.2f/%.2f  phys %.2f/%.2f ms (avg/max)"
-		% [_median("proc_avg"), _median("proc_max"), _median("phys_avg"), _median("phys_max")])
+	print("[PLAY] CPU  proc %.2f/%.2f  phys %.2f/%.2f ms (avg/max)  틱1회 %.2f ms"
+		% [_median("proc_avg"), _median("proc_max"), _median("phys_avg"), _median("phys_max"),
+		   _median("tick_avg")])
 	print("[PLAY] DRAW %.0f calls  %.0f items  @%dx%d"
 		% [_median("draw"), _median("items"), int(last["render"].x), int(last["render"].y)])
 	print("[PLAY] zombies %.0f  nodes %.0f  tex %.1fMB"

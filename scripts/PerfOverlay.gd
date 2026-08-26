@@ -46,6 +46,7 @@ var _acc: float = 0.0
 var _samples := PackedFloat32Array()
 var _proc_us := PackedFloat32Array()
 var _phys_us := PackedFloat32Array()
+var _phys_tick_us := PackedFloat32Array()
 var _idx: int = 0
 var _filled: int = 0
 var _probe_a: _Probe = null   # 가장 먼저 도는 탐침
@@ -61,6 +62,7 @@ func _ready() -> void:
 	_samples.resize(WINDOW)
 	_proc_us.resize(WINDOW)
 	_phys_us.resize(WINDOW)
+	_phys_tick_us.resize(WINDOW)
 	# 탐침은 이 노드보다 먼저/나중에 돌아야 하므로 우선순위를 양 끝으로 벌린다.
 	# 일시정지 중에도 함께 돌아야 "정지 중에는 스크립트 시간이 0" 이 제대로 보인다.
 	_probe_a = _Probe.new()
@@ -103,7 +105,13 @@ func _process(delta: float) -> void:
 	# 물리는 렌더 프레임 시작 전에 그 프레임 몫의 틱이 전부 끝나 있으므로 지금 값이 정확하다.
 	_proc_us[_idx] = float(_probe_b.proc_us)
 	_phys_us[_idx] = float(_probe_b.phys_us)
+	# 틱 1회 비용 = 프레임 합 / 그 프레임의 틱 수. **둘을 반드시 같이 봐야 한다** —
+	# 프레임이 느려지면 한 프레임에 물리 틱이 여러 번 들어가므로 합만 보면 "틱 하나가
+	# 예산을 넘겼다" 로 잘못 읽는다(실제로 그렇게 잘못 읽었다: llvmpipe 에서 프레임 66ms
+	# = 틱 5~6회라 합이 20ms 였는데, 틱 1회는 4ms 였다).
+	_phys_tick_us[_idx] = float(_probe_b.phys_us) / float(maxi(1, _probe_b.phys_ticks))
 	_probe_b.phys_us = 0            # 다음 프레임 몫을 다시 누적하도록 비운다
+	_probe_b.phys_ticks = 0
 	_idx = (_idx + 1) % WINDOW
 	_filled = mini(_filled + 1, WINDOW)
 	_acc += delta
@@ -149,13 +157,15 @@ func _refresh() -> void:
 	var fs := _frame_stats()
 	var pr := _avg_max(_proc_us)
 	var ph := _avg_max(_phys_us)
+	var pt := _avg_max(_phys_tick_us)
 	var rt: Vector2 = get_viewport().get_texture().get_size()
 	var lines := [
 		"FPS  %d   frame %.1f / worst %.1f ms" % [
 			int(Performance.get_monitor(Performance.TIME_FPS)), fs.x, fs.y],
 		# avg / max 를 함께 낸다. 한 값만 보이면 최댓값을 평상시 부하로 오해한다(실제로 그랬다).
-		"CPU  proc %.1f/%.1f  phys %.1f/%.1f ms (avg/max)" % [
-			pr.x, pr.y, ph.x, ph.y],
+		# phys 는 "프레임당 합", tick 은 "틱 1회". 프레임이 느리면 앞이 뒤의 몇 배가 된다.
+		"CPU  proc %.1f/%.1f  phys %.1f/%.1f  tick %.1f ms" % [
+			pr.x, pr.y, ph.x, ph.y, pt.x],
 		# 렌더 크기를 같이 찍는다 — HALF RES 토글이 실제로 먹었는지 이 값으로만 확인된다
 		# (전체화면이나 웹 페이지가 캔버스 크기를 강제하면 토글이 무시될 수 있다).
 		"DRAW calls %d  items %d  @%dx%d" % [
@@ -192,6 +202,7 @@ class _Probe extends Node:
 	var ph_t0: int = 0         # 앞쪽: 이번 물리 틱 시작 시각(us)
 	var proc_us: int = 0       # 뒤쪽: 직전 _process 한 바퀴에 걸린 시간
 	var phys_us: int = 0       # 뒤쪽: 이번 렌더 프레임의 물리 틱 시간 **합**
+	var phys_ticks: int = 0    # 그 합에 들어간 틱 수 — 나눠야 "틱 1회 비용"이 나온다
 
 	func _process(_d: float) -> void:
 		if first == null:
@@ -204,6 +215,7 @@ class _Probe extends Node:
 			ph_t0 = Time.get_ticks_usec()
 		else:
 			phys_us += Time.get_ticks_usec() - first.ph_t0
+			phys_ticks += 1
 
 
 ## 화면에 찍는 것과 **같은 수치**를 자동 플레이테스트(`tools/playtest.gd`)에 넘긴다.
@@ -220,6 +232,7 @@ func debug_stats() -> Dictionary:
 		"frame_avg": fs.x, "frame_worst": fs.y,
 		"proc_avg": pr.x, "proc_max": pr.y,
 		"phys_avg": ph.x, "phys_max": ph.y,
+		"tick_avg": _avg_max(_phys_tick_us).x, "tick_max": _avg_max(_phys_tick_us).y,
 		"draw": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
 		"items": int(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)),
 		"render": rt,
