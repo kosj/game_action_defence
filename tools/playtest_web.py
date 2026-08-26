@@ -11,6 +11,14 @@
 실기기 값이 아니다. 이 스크립트로 판단할 수 있는 것은 **동작하는가**이지 **얼마나 빠른가**가
 아니다. 속도는 실기기 PERF HUD 로 본다.
 
+⚠️ **한 판이 매우 느리다 — 메뉴 한 단계 넘어가는 데 10초 넘게 걸린다.** 그래서 인게임까지
+들어가는 긴 클릭 사슬(타이틀 → 메뉴 → 캐릭터 → 아레나 → 인트로 → 일시정지 → CHEATS → 토글)은
+한 번 돌리는 데 몇 분이 걸리고, 중간에 좌표가 하나만 어긋나도 그 시간을 통째로 버린다.
+**긴 사슬을 검증 수단으로 삼지 말 것.** 이 하네스가 값을 하는 지점은 앞쪽이다 —
+빌드가 브라우저에서 뜨는가 · 콘솔 오류가 있는가 · 캔버스 크기가 얼마인가.
+인게임 UI 토글의 실제 동작은 **실기기에서 사람이 한 번 눌러 보는 것이 훨씬 싸다**
+(HALF RES 웹 버그도 그렇게 잡혔다).
+
     python3 tools/playtest_web.py --build /tmp/webdiag --secs 175 --hold 1200 \
         --shots 90,120,150 --out /tmp/webshots
 
@@ -64,7 +72,12 @@ MENU_CHAIN = "10:0.5,0.5;18:0.5,0.356;30:0.5,0.21;45:0.5,0.23;58:0.87,0.05;72:0.
 ## 이게 없으면 아무도 조종하지 않아 플레이어가 20초 만에 죽고 **게임오버 화면을 측정하게 된다**
 ## (실제로 그랬다: 173초 실행의 끝 두 장이 GAME OVER 였다).
 ## 좌표는 일시정지 패널 기준이며, CHEATS 를 펼치면 그 아래로 버튼이 붙는다.
-AUTOPLAY_CHAIN = "86:0.958,0.037;98:0.5,0.316;110:0.5,0.365;122:0.5,0.208"
+## ⚠️ 일시정지 패널은 **CHEATS 를 펼치기 전과 후의 좌표가 다르다.** 접혔을 때는 버튼이 3개뿐이라
+## 패널이 짧고 세로 중앙에 오고, 펼치면 길어지면서 위로 올라간다. 접힌 기준으로 CHEATS 를 누른
+## 뒤부터 펼친 기준 좌표를 쓴다(이걸 섞어 써서 한 번 헛클릭했다).
+##   접힘: CHEATS 0.597
+##   펼침: Resume 0.208 · CHEATS 0.316 · AUTO-PLAY 0.365 · PERF HUD 0.624 · HALF RES 0.753
+AUTOPLAY_CHAIN = "86:0.958,0.037;98:0.5,0.597;110:0.5,0.365;122:0.5,0.208"
 
 
 def serve(directory: str) -> tuple[int, socketserver.TCPServer]:
@@ -175,10 +188,16 @@ def main() -> int:
             pump(s)
             path = out / f"web_t{int(s):03d}.png"
             page.screenshot(path=str(path))
+            # 백버퍼(c.width)와 **화면에 보이는 CSS 크기**를 따로 찍는다.
+            # HALF RES 의 정의가 곧 이 둘의 분리다 — 백버퍼만 절반이 되고 CSS 는 그대로여야
+            # 한다. 하나만 찍으면 "토글이 먹었는지" 와 "화면이 깨졌는지" 를 구분할 수 없다
+            # (실제로 웹에서 둘 다 줄어들어 화면이 구석으로 처박혔다).
             size = page.evaluate(
                 "() => { const c = document.querySelector('canvas');"
-                " return [c.width, c.height]; }")
-            print(f"[WEB] t={s:5.1f}s  캔버스={size[0]}x{size[1]}  -> {path}")
+                " const r = c.getBoundingClientRect();"
+                " return [c.width, c.height, Math.round(r.width), Math.round(r.height)]; }")
+            print(f"[WEB] t={s:5.1f}s  백버퍼={size[0]}x{size[1]}  화면={size[2]}x{size[3]}"
+                  f"  -> {path}")
 
         pump(args.secs)
         browser.close()
