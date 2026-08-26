@@ -117,6 +117,41 @@ jobs:
             exit 1
           fi
 
+      # ── 진단용 빌드 (배포하지 않는다) ──────────────────────────────────
+      # 왜 필요한가: 릴리스 웹 빌드는 치트 게이트가 잠겨 CHEATS 메뉴 자체가 만들어지지 않는다
+      # (Cheats.enabled = OS.is_debug_build() or OS.has_feature("cheats")). 그래서 실기기에서
+      # PERF HUD·HALF RES 같은 진단 토글을 쓸 수가 없어, 노트북 프레임 저하를 재현해 놓고도
+      # 원인을 그 기계에서 가릴 수단이 없었다(5-M).
+      #
+      # --export-debug 를 쓰지 않는 이유: 디버그 빌드는 GDScript 검사 때문에 CPU 가 더 든다.
+      # "GPU 병목인가 CPU 병목인가" 를 가리는 것이 목적인데 디버그 빌드로 재면 CPU 쪽으로
+      # 기운 값을 보게 된다. 그래서 **릴리스 빌드에 cheats 기능만 얹는다.**
+      #
+      # 커밋된 export_presets.cfg 는 그대로 두고 작업 복사본만 고친다 — 위 테스트 단계의
+      # verify_cheat_gate.gd 가 "어떤 프리셋도 custom_features 에 cheats 를 켜지 않는다" 를
+      # 이미 통과한 뒤이고, 커밋된 파일이 안 바뀌므로 그 검사는 계속 유효하다.
+      #
+      # 이 단계는 **라이브 배포를 막아서는 안 된다.** 진단용 부산물 하나 때문에 릴리스가
+      # 멈추면 안 되므로 continue-on-error 를 걸고, 프리셋 복원은 trap 으로 보장한다
+      # (export 가 실패하면 bash -e 때문에 그 뒤 줄이 실행되지 않는다).
+      - name: Export diagnostic web build (cheats enabled, never deployed)
+        continue-on-error: true
+        run: |
+          cp export_presets.cfg /tmp/export_presets.cfg.orig
+          trap 'cp /tmp/export_presets.cfg.orig export_presets.cfg' EXIT
+          sed -i 's/^custom_features=""/custom_features="cheats"/' export_presets.cfg
+          grep -n '^custom_features=' export_presets.cfg
+          mkdir -p build/webdiag
+          godot --headless --export-release "Web" build/webdiag/index.html
+
+      - name: Upload diagnostic build (CHEATS/PERF HUD 사용 가능 — 배포 금지)
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: webgl-build-diagnostic-cheats
+          path: build/webdiag
+          retention-days: 14
+
       - name: Upload WebGL build (artifact for deploy + manual download)
         uses: actions/upload-artifact@v4
         with:

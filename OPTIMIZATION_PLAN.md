@@ -1078,6 +1078,36 @@ GAME zombies 6  gems 28
 **PERF HUD 의 DRAW 줄에 실제 렌더 크기(`@720x1280`)를 함께 찍는다** — 토글을 켰는데 그 값이
 안 변하면 적용되지 않은 것이고, 그때의 FPS 비교는 의미가 없다.
 
+### 웹 빌드에는 CHEATS 메뉴가 아예 없다 — 세 가지가 겹쳐 있었다
+
+Phase 0 를 올린 뒤 "웹에서 실행하면 HALF RES 메뉴가 없다" 는 제보를 받았다. 원인이 셋이다.
+
+1. **배포는 `main` 푸시에서만 일어난다.** 워크플로의 deploy 잡이
+   `github.ref == 'refs/heads/main'` 으로 잠겨 있다. 작업 브랜치의 커밋은 라이브에 없다.
+2. **릴리스 웹 빌드는 치트 게이트가 잠긴다.** `Cheats.enabled` 가 거짓이면 `HUD` 가
+   CHEATS 블록의 노드를 **아예 만들지 않는다**(P0-1). 그래서 머지해도 웹에서는 안 보인다.
+   이건 버그가 아니라 설계다 — 치트는 랭킹·도전과제·메타 골드를 오염시킨다.
+3. **`html/canvas_resize_policy=2`(Adaptive)** — 웹에서는 캔버스 크기를 페이지가 잡는다.
+   HALF RES 는 창 크기를 바꾸는 방식이라 페이지가 되돌려 놓으면 안 먹을 수 있다.
+   PERF HUD 의 `@WxH` 가 그걸 그 자리에서 알려 준다(안 바뀌면 안 먹은 것).
+
+**해결 — 진단용 웹 빌드를 CI 가 만든다.** 커밋된 `export_presets.cfg` 는 그대로 두고
+CI 작업 복사본에만 `custom_features="cheats"` 를 넣어 **릴리스로** export 하고,
+`webgl-build-diagnostic-cheats` 아티팩트로 올린다. **배포하지 않는다.**
+
+- `--export-debug` 를 쓰지 않는 이유: 디버그 빌드는 GDScript 검사 때문에 CPU 가 더 든다.
+  가리려는 것이 "GPU 냐 CPU 냐" 인데 디버그로 재면 **CPU 쪽으로 기운 값**을 보게 된다.
+- 커밋된 파일이 안 바뀌므로 `verify_cheat_gate.gd` 의 "어떤 프리셋도 cheats 를 켜지 않는다"
+  검사는 계속 유효하다(테스트가 이 단계보다 먼저 돈다 — 실제로 켜 보고 FAIL 하는 것까지 확인).
+- 이 단계는 `continue-on-error` 다. 진단용 부산물 때문에 라이브 배포가 멈추면 안 된다.
+
+### 빌드 없이 지금 할 수 있는 판정
+
+`canvas_resize_policy=2` 라 **브라우저 창을 줄이면 캔버스도 같이 줄어든다.** 스트레치가
+`canvas_items` + `aspect=keep` 라 설계 좌표계는 720x1280 그대로 남는다 — 즉 **같은 월드에
+픽셀만 주는** HALF RES 와 정확히 같은 조건이다. 창을 작게 끌어 FPS 가 크게 오르면
+fill-rate 병목이다. (FPS 를 눈으로 보려면 PERF HUD 가 필요하므로 진단 빌드가 있어야 한다.)
+
 ### 노트북에서 확인할 것 (1분)
 
 CHEATS 를 열고 **HALF RES 를 켠다.** DRAW 줄의 `@` 뒤 숫자가 절반이 됐는지 먼저 보고,
