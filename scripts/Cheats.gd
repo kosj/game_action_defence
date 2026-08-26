@@ -51,6 +51,20 @@ var daynight: bool = true
 ## 스케줄 자체는 계속 돌아 결정론과 이어하기가 그대로 유지된다 — 켜면 그 시점의 날씨가 이어진다.
 var weather: bool = true
 
+## ── 실기기 병목 판정용 토글 (5-R Phase 0) ────────────────────────────────
+## 노트북 27fps 제보를 진단할 때, 프레임이 **fill-rate(GPU)** 때문인지 **스크립트(CPU)** 때문인지
+## 가릴 수단이 없어서 추측만 오갔다. 개발 컨테이너는 소프트웨어 GL(llvmpipe)이라 항상
+## fill-rate 로 기울어 대신 재 줄 수도 없다 — **판정은 그 기계에서만 난다.** 그래서 넣는다.
+##
+## half_res: 렌더 해상도를 절반(360x640)으로 내린다. 켰을 때 FPS 가 크게 오르면 fill-rate
+##   병목, 그대로면 CPU 병목이다. 그리는 픽셀 수만 1/4 이 되고 하는 일은 그대로이기 때문이다.
+##   화면이 흐려지는 것은 정상이다(그게 이 토글의 값이다). 설정의 "화질" 옵션 시제품이기도 하다.
+var half_res: bool = false
+## 아래 셋은 "어느 계통이 비싼가"를 그 자리에서 A/B 하기 위한 것이다(WEATHER 와 같은 결).
+var vignette: bool = true   # HUD 전체화면 비네트 오버레이
+var props: bool = true      # 미장센 프롭(PropField)
+var decals: bool = true     # 바닥 얼룩/자국(Ground._draw_decals)
+
 const _AVOID_R := 200.0    # 이 안의 좀비로부터 도망(너무 크면 겁쟁이가 되어 교전을 못 한다)
 const _BOSS_R := 360.0     # 보스는 더 멀리서부터 피한다
 const _ENGAGE_R := 300.0   # 최근접 적이 이보다 멀면 접근 — 무기 사거리 안에 적을 유지(카이팅)
@@ -139,6 +153,28 @@ func toggle_daynight() -> void:
 
 func toggle_weather() -> void:
 	weather = not weather
+	changed.emit()
+
+
+## 아래 넷은 표시만 바꾸고 점수·진행에 관여하지 않는다 — perf_overlay·daynight·weather 와
+## 같은 부류라 enabled 게이트를 걸지 않는다(게이트는 판을 오염시키는 치트에만 건다).
+func toggle_half_res() -> void:
+	half_res = not half_res
+	changed.emit()
+
+
+func toggle_vignette() -> void:
+	vignette = not vignette
+	changed.emit()
+
+
+func toggle_props() -> void:
+	props = not props
+	changed.emit()
+
+
+func toggle_decals() -> void:
+	decals = not decals
 	changed.emit()
 
 

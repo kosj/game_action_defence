@@ -26,6 +26,28 @@ extends SceneTree
 ##     ground / props / weather / daynight / hud / zombies / fxlayer
 ##     shadowmod — 좀비 그림자의 modulate 알파만 흰색으로(아래 참조)
 ##
+## cpuoff=<태그> — **스크립트 실행**을 끈다(`set_process`/`set_physics_process` = false).
+##     `off=` 는 `visible=false` 라 그리기만 멈추고 `_process` 는 계속 돈다 — 그리기 비용
+##     전용이다. CPU 를 재려면 이쪽을 쓴다. 태그: ground / props / weather / daynight /
+##     hud / zombies / gems / fxlayer / gimmicks / player / weapons / spawners
+##     CPU 어블레이션은 드로우 콜과 달리 **거의 가산적**이다 — 배칭처럼 서로의 비용을
+##     바꿔 놓는 상호작용이 없어서, 계통별 몫을 그대로 더하고 뺄 수 있다.
+##
+## spike=<ms> — 그 시간을 넘는 프레임이 나오면 **그 프레임에 무슨 일이 있었는지** 찍는다.
+##     proc/phys 수치는 Godot 이 초당 **최댓값**으로 갱신하는 값이라(평균이 아니다) 실기기
+##     제보의 "proc 21 / phys 20" 은 정상 부하가 아니라 스파이크를 가리킨다. 평균만 보면
+##     원인을 영영 못 찾는다. 스파이크 프레임의 노드 수 증감과 Main 자식의 스크립트별
+##     개수 변화를 함께 찍어, "그때 무엇이 새로 생겼는가"를 바로 읽게 한다.
+##     처음 보는 스크립트가 등장하면 `NEW` 로 표시한다 — 런타임 리소스 로드(텍스처/씬)는
+##     그 순간 한 번 크게 튀므로 그게 범인일 때가 많다.
+##
+## halfres=1 — 렌더 해상도를 절반으로 내리고 잰다(CHEATS > HALF RES 와 같은 경로).
+##     기준선과의 차가 곧 **fill-rate 의 몫**이다. 그리는 픽셀만 1/4 이 되고 스크립트·드로우 콜은
+##     그대로이므로, 프레임이 크게 줄면 GPU 병목·안 줄면 CPU 병목이라고 읽는다.
+##
+## fill=0 — 좀비를 상한까지 채우지 않는다. 실기기 제보처럼 **좀비가 적은데도 느린** 상황을
+##     재현할 때 쓴다(기본 1 = 2초마다 상한까지 채움).
+##
 ## only=<태그> — 그 계통만 남기고 전부 숨긴다. off= 는 다른 것의 배칭까지 바꿔 놓아 몫이
 ##     과대평가된다(실제로 바닥이 격리 53 vs ablation 166 으로 3배 차이가 났다). 격리가 더 깨끗하다.
 ##     nothing — 아무것도 안 보이게 한다(바닥값 측정). 다른 값은 이 바닥값을 빼야 순증분이다.
@@ -53,8 +75,11 @@ extends SceneTree
 ##   전체 게임 ablation(기준 138): HUD -61 · FX -38 · 프롭 -20 · 바닥 +5 · 좀비 +12.
 ##   **좀비·바닥은 꺼도 드로우 콜이 늘어난다** — 이미 3~4개라 뺄 게 없고 남은 것들의 배칭
 ##   순서만 흐트러진다. 더 줄이려면 HUD(아틀라스 밖 텍스처 + 나인패치 12장)를 봐야 한다.
-##   HUD 격리는 frame_ms 도 66.7 로 유독 높다 — vignette/fog_vision 전체화면 알파 오버레이의
-##   fill-rate 다(llvmpipe 라 증폭되지만 모바일 GPU 에서도 비싼 축이다).
+##   HUD 격리는 frame_ms 도 66.7 로 유독 높다 — 전체화면 알파 오버레이의 fill-rate 다
+##   (llvmpipe 라 증폭되지만 모바일 GPU 에서도 비싼 축이다).
+##   ⚠️ 정정: 여기 "vignette/fog_vision" 이라고 적었었는데 **fog_vision 은 그려지지 않는다.**
+##   `HUD._build_fog()` 는 정의만 있고 호출하는 곳이 없다(preload 만 남아 VRAM 3.52MB 를
+##   점유한다 — `tools/check_vram.gd` 로 확인). 전체화면 알파는 vignette 와 날씨 haze 둘이다.
 ##
 ## ── 이 도구로 찾은 것 (2026-08) ────────────────────────────────────────────────
 ## 좀비 320마리 격리 측정:
@@ -98,6 +123,14 @@ var _b_proc := 0.0
 var _b_phys := 0.0
 var _b_next := BUCKET
 var _rows: Array = []
+var _fill: bool = true
+var _cpuoff: String = ""
+var _spike_ms: float = 0.0
+var _half_res: bool = false
+var _prev_hist: Dictionary = {}
+var _prev_nodes: int = 0
+var _seen_scripts: Dictionary = {}
+var _spikes: int = 0
 
 
 func _process(delta: float) -> bool:
@@ -114,6 +147,10 @@ func _process(delta: float) -> bool:
 	else:
 		_keepalive(delta)
 		_ablate()
+	if _cpuoff != "":
+		_cpu_ablate()
+	if _spike_ms > 0.0:
+		_watch_spike(delta)
 	if _t < WARMUP:
 		return false
 
@@ -145,10 +182,110 @@ func _keepalive(delta: float) -> void:
 		p.health = p.max_health
 		if "_hurt_timer" in p:
 			p._hurt_timer = maxf(p._hurt_timer, 0.5)
+	if not _fill:
+		return
 	_fill_t += delta
 	if _fill_t >= FILL_INTERVAL:
 		_fill_t = 0.0
 		root.get_node("Cheats").spawn_fill.emit()
+
+
+## 스파이크 프레임의 정황을 찍는다. 평상시에는 히스토그램만 갱신하고 아무것도 출력하지 않는다.
+func _hist() -> Dictionary:
+	var h := {}
+	for c in _main.get_children():
+		var sc = c.get_script()
+		var k := "(no script)" if sc == null else String(sc.resource_path).get_file()
+		h[k] = int(h.get(k, 0)) + 1
+	return h
+
+
+func _watch_spike(delta: float) -> void:
+	var ms := delta * 1000.0
+	var nodes := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
+	var h := _hist()
+	if ms >= _spike_ms and _t > WARMUP:
+		_spikes += 1
+		if _spikes <= 40:      # 로그가 수천 줄이 되지 않게 상한을 둔다
+			var parts: Array = []
+			for k in h.keys():
+				var before := int(_prev_hist.get(k, 0))
+				var now := int(h[k])
+				if now != before:
+					var mark := " NEW" if not _seen_scripts.has(k) else ""
+					parts.append("%s %+d(=%d)%s" % [k, now - before, now, mark])
+			print("[SPIKE] t=%6.2f  %7.1fms  nodes %+d(=%d)  %s"
+				% [_t, ms, nodes - _prev_nodes, nodes,
+				   ", ".join(parts) if not parts.is_empty() else "(자식 변화 없음)"])
+	for k in h.keys():
+		_seen_scripts[k] = true
+	_prev_hist = h
+	_prev_nodes = nodes
+
+
+## cpuoff= — 스크립트 실행 자체를 끈다. 런타임에 계속 새 노드가 생기므로 매 프레임 돈다.
+## 대상 노드를 못 찾으면 조용히 지나가지 않고 셋업에서 한 번 경고를 찍는다(오타로 "효과 0" 이
+## 나오면 "그 계통은 안 비싸다" 로 잘못 읽게 된다).
+const _CPU_SCRIPTS := {
+	"gimmicks": ["SteamVent", "ToxicPool", "CryoVent", "FallingDebris", "BurningCar",
+		"TeslaCoil", "FlySwarm", "GroundHazard"],
+	"gems": ["Gold"],
+}
+const _CPU_NODES := {
+	"ground": "Ground", "props": "PropField", "weather": "Weather",
+	"daynight": "DayNight", "hud": "HUD", "player": "Player",
+}
+
+
+func _mute(n: Node) -> void:
+	if n.is_processing():
+		n.set_process(false)
+	if n.is_physics_processing():
+		n.set_physics_process(false)
+
+
+func _mute_tree(n: Node) -> void:
+	_mute(n)
+	for c in n.get_children():
+		_mute_tree(c)
+
+
+func _cpu_ablate() -> void:
+	if _CPU_NODES.has(_cpuoff):
+		var node := _main.get_node_or_null(NodePath(_CPU_NODES[_cpuoff]))
+		if node != null:
+			_mute_tree(node)
+		return
+	match _cpuoff:
+		"zombies":
+			for z in get_nodes_in_group("zombies"):
+				_mute_tree(z)
+		"spawners":
+			for nm in ["ZombieSpawner", "ItemPickupSpawner", "GimmickSpawner"]:
+				var sp := _main.get_node_or_null(NodePath(nm))
+				if sp != null:
+					_mute_tree(sp)
+		"weapons":
+			# 무기 모듈은 Player 의 자식이다. Player 본체(이동·입력)는 살려 둔다.
+			var p := _main.get_node_or_null(^"Player")
+			if p != null:
+				for c in p.get_children():
+					_mute_tree(c)
+		"fxlayer":
+			var fx := _main.get_node_or_null(^"FXLayer")
+			if fx != null:
+				_mute_tree(fx)
+		_:
+			var names: Array = _CPU_SCRIPTS.get(_cpuoff, [])
+			for c in _main.get_children():
+				var sc = c.get_script()
+				if sc == null:
+					continue
+				var sp2 := String(sc.resource_path)
+				for g in names:
+					if sp2.ends_with(g + ".gd"):
+						_mute_tree(c)
+						break
 
 
 ## off= 중 런타임에 계속 새로 생기는 것들 — 매 프레임 손봐야 한다.
@@ -273,6 +410,10 @@ func _flush() -> void:
 
 func _report() -> void:
 	var tag := _only if _only != "" else ("off=" + _off if _off != "" else "baseline")
+	if _cpuoff != "":
+		tag = "cpuoff=" + _cpuoff
+	if _half_res:
+		tag += " halfres"
 	print("\n#PROFILE %s" % tag)
 	print("%5s %8s %7s %7s %8s %9s %9s %9s %9s"
 		% ["t(s)", "zombies", "nodes", "draw", "items", "frame_ms", "worst_ms",
@@ -290,6 +431,8 @@ func _report() -> void:
 	var n := float(max(1, half.size()))
 	print("#STEADY %s frame_ms=%.2f draw=%.0f items=%.0f proc_ms=%.3f phys_ms=%.3f"
 		% [tag, f / n, d / n, it / n, pr / n, ph / n])
+	if _spike_ms > 0.0:
+		print("#SPIKES %d 회 (>= %.0fms)" % [_spikes, _spike_ms])
 
 
 func _setup() -> void:
@@ -300,6 +443,15 @@ func _setup() -> void:
 	_secs = float(_args.get("secs", "90"))
 	_off = String(_args.get("off", ""))
 	_only = String(_args.get("only", ""))
+	_cpuoff = String(_args.get("cpuoff", ""))
+	_fill = String(_args.get("fill", "1")) != "0"
+	_spike_ms = float(_args.get("spike", "0"))
+	_half_res = String(_args.get("halfres", "0")) == "1"
+	if _cpuoff != "" and not (_CPU_NODES.has(_cpuoff) or _CPU_SCRIPTS.has(_cpuoff)
+			or _cpuoff in ["zombies", "spawners", "weapons", "fxlayer"]):
+		print("[PROF] 알 수 없는 cpuoff 태그: ", _cpuoff)
+		quit(1)
+		return
 	seed(int(_args.get("seed", "12345")))
 
 	_events = root.get_node("Events")
@@ -335,6 +487,10 @@ func _setup() -> void:
 		"weather":  root.get_node("Cheats").weather = false; _hide("Weather")
 		"daynight": root.get_node("Cheats").daynight = false; _hide("DayNight")
 		"hud":      _hide("HUD")
+	# 해상도 절반은 HUD 가 Cheats.changed 를 받아 적용한다 — 실기기 토글과 같은 경로로 재야
+	# 측정과 제보가 같은 것을 가리킨다.
+	if _half_res:
+		root.get_node("Cheats").toggle_half_res()
 	Engine.max_fps = 0   # 상한을 풀어 실제로 낼 수 있는 프레임을 본다
 
 

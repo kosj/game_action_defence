@@ -157,7 +157,10 @@ func _draw() -> void:
 				draw_texture_rect(tex, Rect2(lx - 0.5, ly - 0.5, ts.x + 1.0, ts.y + 1.0), false, TILE_DARKEN)
 		# 반복감 완화 2겹: 큰 얼룩 → 작은 데칼 순으로 덮는다.
 		_draw_overlay(wx, wy, half_w, half_h)
-		_draw_decals(wx, wy, half_w, half_h, theme_name, mark)
+		# 얼룩·자국은 CHEATS > DECALS 로 끌 수 있다(5-R Phase 0) — 바닥 데칼이 프레임에서
+		# 차지하는 몫을 실기기에서 그 자리에서 A/B 하기 위한 것이다.
+		if Cheats.decals:
+			_draw_decals(wx, wy, half_w, half_h, theme_name, mark)
 		return
 
 	# 타일 텍스처가 없는 detail_style 용 폴백(절차적 체커보드). 지금 세 테마는 전부
@@ -188,6 +191,7 @@ func _build_overlay_noise() -> void:
 	t.seamless = true          # 이어 붙여도 경계가 보이지 않게
 	t.generate_mipmaps = false
 	t.changed.connect(queue_redraw)
+	Cheats.changed.connect(queue_redraw)   # DECALS 토글이 즉시 화면에 반영되도록
 	_noise_tex = t
 
 
