@@ -96,6 +96,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if not visible:
 		return   # 꺼져 있으면 오버레이가 스스로 부하가 되지 않도록 아무것도 하지 않는다
+	             # (= 표본도 안 쌓인다. debug_stats() 를 쓰려면 먼저 visible 을 켜야 한다)
 	# 프레임 시간은 매 프레임 기록해야 히칭(순간 스파이크)을 놓치지 않는다.
 	_samples[_idx] = delta
 	# _process 합은 뒤쪽 탐침이 이 노드보다 **나중에** 돌므로 한 프레임 늦은 값이다(무해).
@@ -203,6 +204,30 @@ class _Probe extends Node:
 			ph_t0 = Time.get_ticks_usec()
 		else:
 			phys_us += Time.get_ticks_usec() - first.ph_t0
+
+
+## 화면에 찍는 것과 **같은 수치**를 자동 플레이테스트(`tools/playtest.gd`)에 넘긴다.
+## 별도로 다시 재지 않는 이유가 곧 요점이다 — 테스트가 보는 값과 사람이 화면에서 보는 값이
+## 갈라지면, 재현이 안 되는 제보를 쫓게 된다(이번 5-R 진단이 정확히 그랬다).
+## 표시가 갱신 주기(REFRESH)에 묶여 있는 것과 달리 이 함수는 부르는 즉시 현재 창을 계산한다.
+func debug_stats() -> Dictionary:
+	var fs := _frame_stats()
+	var pr := _avg_max(_proc_us)
+	var ph := _avg_max(_phys_us)
+	var rt: Vector2 = get_viewport().get_texture().get_size()
+	return {
+		"fps": int(Performance.get_monitor(Performance.TIME_FPS)),
+		"frame_avg": fs.x, "frame_worst": fs.y,
+		"proc_avg": pr.x, "proc_max": pr.y,
+		"phys_avg": ph.x, "phys_max": ph.y,
+		"draw": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
+		"items": int(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)),
+		"render": rt,
+		"tex_mb": Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0,
+		"nodes": int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
+		"zombies": _zombie_count(),
+		"gems": _Gold.live_gems().size(),
+	}
 
 
 func _zombie_count() -> int:
