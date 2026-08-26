@@ -157,7 +157,7 @@ func _draw() -> void:
 				draw_texture_rect(tex, Rect2(lx - 0.5, ly - 0.5, ts.x + 1.0, ts.y + 1.0), false, TILE_DARKEN)
 		# 반복감 완화 2겹: 큰 얼룩 → 작은 데칼 순으로 덮는다.
 		_draw_overlay(wx, wy, half_w, half_h)
-		# 얼룩·자국은 CHEATS > DECALS 로 끌 수 있다(5-M Phase 0) — 바닥 데칼이 프레임에서
+		# 얼룩·자국은 CHEATS > DECALS 로 끌 수 있다(5-R Phase 0) — 바닥 데칼이 프레임에서
 		# 차지하는 몫을 실기기에서 그 자리에서 A/B 하기 위한 것이다.
 		if Cheats.decals:
 			_draw_decals(wx, wy, half_w, half_h, theme_name, mark)

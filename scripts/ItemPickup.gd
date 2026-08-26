@@ -1,6 +1,13 @@
-extends Area2D
+extends Node2D
 ## 필드 픽업: 보물상자(먹으면 랜덤 골드) 또는 폭탄(화면 내 잡몹 일소). 방치 시 사라진다.
 ## 풀링되며 "item_pickups" 그룹으로 동시 등장 수를 제한한다.
+##
+## 물리 노드가 아니다: 수집 판정은 아래 _process() 의 collect_radius 거리 계산뿐이다.
+## 예전에는 Area2D 였는데 **충돌 도형도 없이 monitoring/monitorable 을 둘 다 꺼 둔** 상태였다.
+## 즉 Area2D 의 기능은 하나도 안 쓰면서 타입만 물리 노드였다 — Gold 가 있던 상태와 같다.
+## (그 상태가 위험한 이유는 프레임이 아니라 오해다. "Area2D 니까 body_entered 를 쓰면 되겠다"고
+##  집었다가 신호가 영영 안 와서 디버깅하게 된다. 실측 프레임 차이는 0 이었다 — 정지 상태의
+##  Area2D 는 600개에서도 0.003ms 다. `tools/node_cost.gd` · OPTIMIZATION_PLAN.md §5-M)
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 const _ChestReward := preload("res://scripts/ChestRewardPanel.gd")
@@ -47,8 +54,6 @@ func _label() -> String:
 
 func _ready() -> void:
 	add_to_group("item_pickups")
-	monitoring = false
-	monitorable = false
 
 
 func on_spawn() -> void:
@@ -137,7 +142,7 @@ func _draw() -> void:
 	else:
 		_draw_chest(center, alpha)   # chest/evochest — 금속 밴드 색은 _icon_color()
 	var font := ThemeDB.fallback_font
-	draw_string(font, center + Vector2(-60.0, -34.0), _label(), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 14, Color(1.0, 1.0, 1.0, alpha))   # batching-exempt: 아이템 이름은 임의 로케일 문자열이라 비트맵으로 못 굽는다. 동시 표시 수가 한 자릿수라 배치 손실이 그만큼뿐이다
+	draw_string(font, center + Vector2(-60.0, -34.0), _label(), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 14, Color(1.0, 1.0, 1.0, alpha))   # batching-exempt: 임의 로케일 문자열이라 비트맵으로 못 굽는다. 동시 표시 수가 한 자릿수라 배치 손실이 그만큼뿐이다
 
 
 ## 종류에 맞는 상자 텍스처(없으면 null). 파일이 없으면 절차 드로잉으로 폴백하므로

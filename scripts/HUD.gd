@@ -63,7 +63,7 @@ var _magnet_tween: Tween = null
 var _revive_btn: Button = null
 var _revive_used: bool = false
 
-# 게임오버 패널 뒤 화면 블러(시인성). 패널이 뜰 때만 활성화한다.
+# 게임오버 패널 뒤 배경 블러 + 터치 차단막. 패널이 뜰 때만 활성화한다.
 var _blur_bbc: BackBufferCopy = null
 var _blur_rect: ColorRect = null
 
@@ -109,7 +109,7 @@ var _cheat_auto_btn: Button = null        # 자동플레이 토글 버튼(라벨
 var _cheat_perf_btn: Button = null        # 성능 오버레이 토글 버튼(라벨 ON/OFF 갱신)
 var _cheat_day_btn: Button = null         # 낮/밤 시간 처리 토글 버튼(라벨 ON/OFF 갱신)
 var _cheat_weather_btn: Button = null     # 날씨 연출 토글 버튼(라벨 ON/OFF 갱신)
-var _cheat_halfres_btn: Button = null     # 렌더 해상도 절반 토글(GPU/CPU 병목 판정 — 5-M)
+var _cheat_halfres_btn: Button = null     # 렌더 해상도 절반 토글(GPU/CPU 병목 판정 — 5-R)
 var _cheat_vignette_btn: Button = null    # 전체화면 비네트 토글
 var _cheat_props_btn: Button = null       # 프롭 토글
 var _cheat_decals_btn: Button = null      # 바닥 데칼 토글
@@ -185,6 +185,7 @@ func _ready() -> void:
 	Events.game_won.connect(_on_game_won)
 	Events.achievement_unlocked.connect(_on_achievement_unlocked)
 	Events.quest_completed.connect(_on_quest_completed)
+	Events.maxed_level_gold.connect(_on_maxed_level_gold)
 	restart_button.pressed.connect(_on_restart_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
 	AdManager.rewarded_granted.connect(_on_rewarded_granted)
@@ -395,6 +396,34 @@ func _on_achievement_unlocked(title: String) -> void:
 func _on_quest_completed(title: String, reward: int) -> void:
 	SoundManager.play_ui("gold", 0.0, 1.5)
 	_show_toast("[+]  Quest: %s   +%d gold waiting" % [title, reward], Color(0.6, 1.0, 0.6), 190.0)
+
+
+# 만렙 레벨업 골드 보상 알림 — 후반에는 레벨업이 초당 몇 번씩 들어와 토스트가 겹친다.
+# 짧은 창(_MAXED_MERGE_SEC) 동안 모아 한 줄로 합쳐 띄운다.
+const _MAXED_MERGE_SEC := 0.8
+var _maxed_gold_sum: int = 0
+var _maxed_gold_count: int = 0
+var _maxed_gold_pending: bool = false
+
+
+func _on_maxed_level_gold(_level: int, gold: int) -> void:
+	_maxed_gold_sum += gold
+	_maxed_gold_count += 1
+	if _maxed_gold_pending:
+		return
+	_maxed_gold_pending = true
+	# 정지 중에도 흐르는 실시간 타이머 — 레벨업 패널이 떠 있어도 알림이 멈추지 않는다.
+	await get_tree().create_timer(_MAXED_MERGE_SEC, true, false, true).timeout
+	if not is_inside_tree():
+		return
+	var total := _maxed_gold_sum
+	var count := _maxed_gold_count
+	_maxed_gold_sum = 0
+	_maxed_gold_count = 0
+	_maxed_gold_pending = false
+	SoundManager.play_ui("gold", 0.0, 1.35)
+	var head := "MAX BUILD" if count == 1 else "MAX BUILD x%d" % count
+	_show_toast("%s   +%d gold" % [head, total], Color(1.0, 0.85, 0.35), 190.0)
 
 
 ## 화면 상단 중앙에 잠깐 떠오르는 토스트 알림(달성/과제 공용).
@@ -827,6 +856,18 @@ func _on_xp_changed(xp: int, xp_to_next: int, level: int) -> void:
 ## 텍스트 리스트(후반 16줄+)가 화면 좌측을 덮던 것을 슬롯 두 줄로 압축한다.
 ## 레벨은 슬롯 우하단 뱃지 숫자로, 신규 획득/레벨업 슬롯은 잠깐 펄스로 알린다.
 const _LOADOUT_SLOT_PX := 44
+## 로드아웃 슬롯을 종류별로 묶어 그리기 위한 z 층(아래 _make_loadout_slot 주석 참고).
+## 프레임 → 아이콘 → 뱃지 순서는 슬롯 안에서와 똑같지만, z 로 올리면 그 순서가
+## **슬롯을 가로질러** 적용돼 같은 텍스처끼리 붙는다.
+const _Z_SLOT_FRAME := 0
+const _Z_SLOT_ICON := 1
+const _Z_SLOT_BADGE := 2
+## 로드아웃보다 뒤에 만들어져 그 위에 그려지던 것들 — z 를 명시해 그 관계를 유지한다.
+## (안 올리면 아이콘·뱃지가 일시정지 딤 위로 새어 나온다)
+const _Z_OVERLAY := 10
+## 게임오버 배경 블러 전용 — HUD 요소(전부 0 이상)보다 **아래**. 이 값이 양수면 블러가 UI 를 덮는다.
+const _Z_UNDER_UI := -1
+
 
 func _build_loadout() -> void:
 	# 밝은 필드 위에서도 잘 읽히도록 반투명 어두운 패널을 배경에 깔고(내용에 맞춰 자동 크기).
@@ -917,6 +958,11 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 		var tint: Color = meta.get("color", Color.WHITE)
 		sb.border_color = Color(tint.r, tint.g, tint.b, 0.55)   # 아이템 색은 테두리 힌트로만
 		frame.add_theme_stylebox_override("panel", sb)
+	# 슬롯 15칸이 프레임→아이콘→뱃지를 번갈아 쌓으면 텍스처가 매번 바뀌어 배치가 끊긴다
+	# (실측: 로드아웃 하나가 HUD 92콜 중 53콜). z 로 종류를 갈라 같은 텍스처끼리 붙인다 —
+	# 프레임은 전부 hud_slot_small.png, 아이콘은 전부 ui.png 아틀라스, 뱃지는 전부 폰트 아틀라스다.
+	# 슬롯끼리 겹치지 않으므로 보이는 결과는 같다(펄스 중에는 아래 _pulse_slot_now 가 z 를 올린다).
+	frame.z_index = _Z_SLOT_FRAME
 	slot.add_child(frame)
 
 	var icon = meta.get("icon")
@@ -933,6 +979,7 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tex.z_index = _Z_SLOT_ICON
 		slot.add_child(tex)
 
 	var badge := Label.new()
@@ -947,6 +994,7 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 	badge.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	badge.offset_right = -3.0
 	badge.offset_bottom = -1.0
+	badge.z_index = _Z_SLOT_BADGE
 	slot.add_child(badge)
 	return slot
 
@@ -962,8 +1010,15 @@ func _pulse_slot_now(slot: Control) -> void:
 		return
 	slot.pivot_offset = slot.size * 0.5
 	slot.scale = Vector2(1.35, 1.35)
+	# 확대된 슬롯은 이웃과 겹친다. 평소에는 z 로 종류를 갈라 두므로 그대로 두면 이웃 아이콘이
+	# 확대된 프레임 위에 얹힌다 — 펄스 동안만 슬롯째 올려 예전과 같은 겹침 순서를 만든다.
+	# (자식 z 는 상대값이라 슬롯을 올리면 프레임·아이콘·뱃지가 함께 올라간다)
+	slot.z_index = _Z_SLOT_BADGE + 1
 	var tw := create_tween()
 	tw.tween_property(slot, "scale", Vector2.ONE, 0.28).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_callback(func():
+		if is_instance_valid(slot):
+			slot.z_index = 0)
 
 
 ## 목표 힌트 — 게임 시작 직후 잠깐만 보여주고 페이드 아웃(카운트다운 타이머가 이후 목표를 전달).
@@ -979,6 +1034,7 @@ func _build_goal_hint() -> void:
 	_goal_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.7))
 	_goal_label.add_theme_constant_override("outline_size", 3)
 	_goal_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_goal_label.z_index = _Z_OVERLAY
 	add_child(_goal_label)
 	# 이어하기(경과 진행 중)로 들어온 판은 즉시, 새 판은 8초 후 사라진다.
 	var hold := 8.0 if Events.elapsed_time < 5.0 else 2.0
@@ -1029,12 +1085,23 @@ func _build_revive_button() -> void:
 	box.move_child(_revive_btn, restart_button.get_index())   # 다시하기 버튼 바로 위로
 
 
-## 게임오버 패널 뒤 화면을 흐리게 — BackBufferCopy 로 화면을 떠 두고 블러 셰이더 ColorRect 로 덮는다.
-## 그리기 순서를 패널 바로 앞(아래)으로 옮겨, 화면 전체를 블러한 위에 패널만 선명히 표시한다.
+## 게임오버 패널 뒤 **배경만** 흐리게 — BackBufferCopy 로 그 시점까지 그려진 화면을 떠 두고
+## 블러 셰이더 ColorRect 로 덮는다. HUD 는 CanvasLayer(레이어 1)라 월드(레이어 0)가 먼저 그려지므로,
+## 이 둘을 HUD 안에서 **가장 먼저** 그리면 떠 오는 내용이 월드뿐이다.
+##
+## ⚠️ 그 "가장 먼저"를 만드는 것은 트리 순서가 아니라 **z_index** 다. 예전에는 z 를 _Z_OVERLAY(10)
+## 로 주고 move_child 로 패널 앞에 끼워 넣었는데, z 는 트리 순서를 이기므로 블러가 게임오버 패널·
+## 상단 바·디버그 오버레이까지 전부 덮어 UI 가 통째로 뭉개졌다(사용자 스크린샷으로 확인).
+## HUD 의 다른 요소는 전부 z 0 이상이니 여기만 음수로 두면 배경만 흐려진다.
+##
+## 트리 순서는 여전히 의미가 있다 — 입력 픽킹은 z 가 아니라 트리 순서를 따른다. 패널 바로 앞에
+## 두어야 패널이 터치를 먼저 먹고, 패널 바깥 터치는 이 막이 삼킨다(HUD 는 PROCESS_MODE_ALWAYS 라
+## 정지 중에도 조이스틱이 입력을 받는다 — 막이 없으면 뒤 게임으로 샌다).
 func _build_blur_overlay() -> void:
 	_blur_bbc = BackBufferCopy.new()
 	_blur_bbc.copy_mode = BackBufferCopy.COPY_MODE_VIEWPORT
 	_blur_bbc.visible = false
+	_blur_bbc.z_index = _Z_UNDER_UI
 	add_child(_blur_bbc)
 
 	_blur_rect = ColorRect.new()
@@ -1045,6 +1112,7 @@ func _build_blur_overlay() -> void:
 	mat.shader = load("res://assets/shaders/gameover_blur.gdshader")
 	_blur_rect.material = mat
 	_blur_rect.visible = false
+	_blur_rect.z_index = _Z_UNDER_UI
 	add_child(_blur_rect)
 
 	var idx := game_over_panel.get_index()
@@ -1224,6 +1292,10 @@ func _show_end_panel(victory: bool) -> void:
 
 
 func _on_restart_pressed() -> void:
+	# 메인 메뉴와 같은 이유로 **Events.reset() 보다 먼저** 기록한다(P0-9).
+	# 이게 없으면 리셋된 값(경과 0·처치 1·레벨 2)이 진행 스냅샷을 덮어써, 그 판이
+	# "0점짜리 기록"으로 남는다 — 실제로 30분 클리어 판이 그렇게 저장됐다.
+	Telemetry.end_run("left")
 	Events.pause_release_all()   # 새 판 시작 전 정지 소유권 전부 해제
 	MetaManager.bank(Events.total_gold)   # 이번 판 골드를 영구 은행에 적립
 	Events.reset()
@@ -1243,6 +1315,7 @@ func _build_pause_menu() -> void:
 	_pause_btn.offset_bottom = 70.0
 	_UIStyle.apply_button_style(_pause_btn, Color(0.12, 0.13, 0.18, 0.9), Color(0.5, 0.55, 0.68))
 	_pause_btn.pressed.connect(_on_pause_pressed)
+	_pause_btn.z_index = _Z_OVERLAY
 	add_child(_pause_btn)
 	# VARCO 원형 버튼 텍스처(⏸ 아이콘 포함)가 있으면 플레이트 대신 사용 —
 	# 스타일박스는 비우고 텍스처를 얼굴로 깐다(눌림 팝은 UITheme 전역 스케일이 담당).
@@ -1279,6 +1352,7 @@ func _build_pause_menu() -> void:
 	_pause_dim.color = Color(0, 0, 0, 0.7)
 	_pause_dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	_pause_dim.visible = false
+	_pause_dim.z_index = _Z_OVERLAY
 	add_child(_pause_dim)
 
 	_pause_panel = PanelContainer.new()
@@ -1288,6 +1362,7 @@ func _build_pause_menu() -> void:
 	_pause_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_pause_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.09, 0.13, 0.97), Color(0.5, 0.6, 0.8), 22, 3))
 	_pause_panel.visible = false
+	_pause_panel.z_index = _Z_OVERLAY
 	add_child(_pause_panel)
 
 	var margin := MarginContainer.new()
@@ -1373,9 +1448,9 @@ func _build_pause_menu() -> void:
 		_cheat_perf_btn = _make_cheat_button("PERF HUD: OFF", func(): Cheats.toggle_perf_overlay())
 		# 낮/밤 시간 틴트를 통째로 끈다(날씨는 유지) — 밤 구간에서 화면이 어두워 확인이 어려울 때.
 		_cheat_day_btn = _make_cheat_button("DAY/NIGHT: ON", func(): Cheats.toggle_daynight())
-		# 비·눈·모래바람과 번개를 통째로 끈다(=상시 맑음). 스케줄은 계속 돌아 다시 켜면 이어진다.
+		# 비·눈과 번개를 통째로 끈다(=상시 맑음). 스케줄은 계속 돌아 다시 켜면 이어진다.
 		_cheat_weather_btn = _make_cheat_button("WEATHER: ON", func(): Cheats.toggle_weather())
-		# ── 실기기 병목 판정 (5-M Phase 0) ─────────────────────────────────
+		# ── 실기기 병목 판정 (5-R Phase 0) ─────────────────────────────────
 		# HALF RES 를 켜서 FPS 가 크게 오르면 fill-rate(GPU) 병목, 그대로면 CPU 병목이다.
 		# 나머지 셋은 어느 계통이 비싼지 그 자리에서 A/B 하기 위한 것이다.
 		_cheat_halfres_btn = _make_cheat_button("HALF RES: OFF", func(): Cheats.toggle_half_res())
@@ -1537,6 +1612,9 @@ func _apply_safe_area() -> void:
 
 
 func _on_main_menu_pressed() -> void:
+	# Events.reset() 보다 **먼저** 기록한다 — 리셋 뒤엔 경과·레벨·처치가 전부 0 이다.
+	# 씬 전환만으로는 텔레메트리에 아무 신호도 가지 않아, 이 한 줄이 없으면 그 판이 사라진다.
+	Telemetry.end_run("left")
 	Events.pause_release_all()   # 씬 전환 전 정지 소유권 전부 해제
 	MetaManager.bank(Events.total_gold)   # 이번 판 골드를 영구 은행에 적립
 	Events.reset()

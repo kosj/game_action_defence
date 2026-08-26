@@ -55,6 +55,9 @@ var _slam_cd: float = 0.0
 ## _aim_dir 은 원래 거너 조준용이었고, 지금은 버서커 대시 방향(고정 후 돌진)이 쓴다.
 var _aim_dir: Vector2 = Vector2.RIGHT
 var _facing: float = 1.0            # 사이드뷰 좌우 방향(회전 대신 수평 플립)
+## 격리 구역이 보스를 세울 때 쓰는 여유 — 스프라이트 반폭. 이만큼 안쪽에 서야 울타리를
+## 뚫고 나온 것처럼 보이지 않는다. 접촉 피해 판정과는 무관하다(보스 난이도 유지).
+var arena_margin: float = 60.0
 var _intro_scale_lock: bool = true # 등장 확대 트윈 중에는 스케일 플립을 보류(트윈 충돌 방지)
 var _walk_phase: float = 0.0        # 걷기 바운스 위상(이동 거리로 진행)
 
@@ -216,6 +219,7 @@ func _fit_shadow() -> void:
 		return
 	var tex: Vector2 = body.texture.get_size()
 	var sx: float = (tex.x * body.scale.x * 1.28) / 128.0
+	arena_margin = tex.x * absf(body.scale.x) * 0.5
 	shadow.scale = Vector2(sx, sx * 0.52)
 	shadow.position = Vector2(0.0, tex.y * body.scale.y * 0.46)
 

@@ -36,6 +36,7 @@ const HOT_SCENES := ["res://scenes/Zombie.tscn"]
 ## 매 프레임 그려지는 _draw() 를 가진 스크립트. 전부 QuadDraw(텍스처 쿼드)로 바꿨다 —
 ## 새로 _draw() 를 쓰는 곳을 만들면 여기 추가할 것.
 const HOT_DRAW := [
+	"res://scripts/DamageNumber.gd",
 	"res://scripts/Zombie.gd",
 	"res://scripts/Ground.gd",
 	"res://scripts/PropField.gd",
@@ -65,17 +66,17 @@ const HOT_DRAW := [
 	"res://scripts/Flamethrower.gd",
 	"res://scripts/Chainsaw.gd",
 	"res://scripts/BoomerangProj.gd",
-	"res://scripts/DamageNumber.gd",
 ]
 ## 쿼드와 배칭되지 않는 그리기 명령.
 const PRIMITIVES := ["draw_circle", "draw_line", "draw_arc", "draw_polygon",
 	"draw_colored_polygon", "draw_multiline", "draw_rect"]
+const EXEMPT := "batching-exempt:"
+
 ## 문자열 그리기. 폰트 글리프 아틀라스는 게임플레이 시트와 별개 텍스처라 여기서 배치가 끊긴다.
 ## 프리미티브와 달리 **루프 밖에 있어도** 잡는다 — HOT_DRAW 는 "인스턴스가 수십 개 뜨는
 ## 스크립트" 목록이므로 배수는 루프가 아니라 인스턴스 수다. 데미지 숫자가 정확히 그랬다
-## (노드 하나당 문자열 2회 × 동시 36개 = 실측 드로우 콜 49개).
+## (노드 하나당 문자열 2회 × 동시 36개 = 실측 드로우 콜 49개 — P1-27).
 const TEXT_CALLS := ["draw_string", "draw_string_outline", "draw_char", "draw_multiline_string"]
-const EXEMPT := "batching-exempt:"
 
 var _fails: Array = []
 
@@ -177,7 +178,7 @@ func _check_primitives(path: String) -> void:
 		if not (func_exempt or line_exempt):
 			for tc in TEXT_CALLS:
 				if s.contains(tc + "("):
-					_fails.append("%s:%d %s() — 핫 스크립트에서 문자열 드로우. 비트맵으로 굽거나(gen_damage_digits.gd) 예외 사유를 남길 것"
+					_fails.append("%s:%d %s() — 핫 스크립트에서 문자열 드로우. 비트맵으로 굽거나(tools/gen_damage_digits.gd) 예외 사유를 남길 것"
 						% [path, i + 1, tc])
 					break
 		if loop_indent < 0 or func_exempt or line_exempt:

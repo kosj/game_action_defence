@@ -43,7 +43,7 @@ func _process(_delta: float) -> bool:
 
 	print("── 날씨 ─────────────────────────────────────────")
 	_test_theme_data(game_data)
-	_test_fog_removed(weather_script, game_data)
+	_test_removed_weather(weather_script, game_data)
 	var weather = weather_script.new()
 	root.add_child(weather)
 	weather.set_process(false)
@@ -59,6 +59,7 @@ func _process(_delta: float) -> bool:
 
 	print("── 프롭 ─────────────────────────────────────────")
 	_test_prop_keys(game_data)
+	_test_removed_props(game_data)
 	_test_prop_field(game_data, root.get_node("ThemeManager"))
 
 	weather.queue_free()
@@ -188,7 +189,7 @@ func _test_cheat_toggle(day, cheats) -> void:
 ## ── 날씨 ─────────────────────────────────────────────────────────────────
 
 func _test_theme_data(game_data) -> void:
-	var known := ["rain", "snow", "dust"]
+	var known := ["rain", "snow"]
 	var all_ok := true
 	var detail := ""
 	for th in game_data.themes:
@@ -204,11 +205,14 @@ func _test_theme_data(game_data) -> void:
 	_ok("모든 테마에 유효한 weather_keys", all_ok, detail)
 
 
-## 삭제된 날씨(fog)가 정의·테마 어디에도 남아 있지 않은가 — 데이터와 코드가 따로 놀면
+## 삭제된 날씨가 정의·테마 어디에도 남아 있지 않은가 — 데이터와 코드가 따로 놀면
 ## 테마에만 남은 키가 조용히 "맑음"으로 떨어져 슬롯 하나가 통째로 비어 버린다.
-func _test_fog_removed(weather_script: GDScript, game_data) -> void:
+##   fog  — 삭제(#297)
+##   dust — 삭제. 남은 날씨는 rain / snow 2종이다.
+func _test_removed_weather(weather_script: GDScript, game_data) -> void:
 	var defs: Dictionary = weather_script._DEF
-	_ok("fog 정의 삭제됨", not defs.has("fog"))
+	for dead in ["fog", "dust"]:
+		_ok("삭제된 날씨 %s 정의 없음" % dead, not defs.has(dead))
 	var left := ""
 	for th in game_data.themes:
 		if th == null:
@@ -238,7 +242,7 @@ func _test_schedule_envelope(weather) -> void:
 
 ## 같은 시드 → 같은 시퀀스, 다른 시드 → 다른 시퀀스.
 func _test_determinism(weather, weather_script: GDScript, events) -> void:
-	weather._keys = PackedStringArray(["rain", "dust", "snow"])
+	weather._keys = PackedStringArray(["rain", "snow"])
 	events.env_seed = 123456789
 	var first: Array = []
 	for s in range(300):
@@ -252,7 +256,7 @@ func _test_determinism(weather, weather_script: GDScript, events) -> void:
 	var other = weather_script.new()
 	root.add_child(other)
 	other.set_process(false)
-	other._keys = PackedStringArray(["rain", "dust", "snow"])
+	other._keys = PackedStringArray(["rain", "snow"])
 	var fresh: Array = []
 	for s in range(300):
 		fresh.append(other.weather_for_slot(s))
@@ -302,9 +306,12 @@ func _test_distribution(weather, events, game_data) -> void:
 
 ## 실제로 시간을 흘려도 이미터가 예산을 넘지 않는가.
 ## 날씨 이미터 1개 + 비 전용 파문 1개 = 최대 2개, 그리고 파문은 비일 때만 방출해야 한다.
+## 주의: 모래바람 삭제로 **지금은 어느 테마도 날씨가 2종이 아니다**(전부 1종 + 맑음).
+## 실테마 키로 돌리면 "여러 종류로 전환" 경로가 한 번도 실행되지 않아, 이미터를 갈아 끼울 때의
+## 예산 누수(이전 날씨 이미터가 남는 등)를 못 잡는다. 그래서 합성 2종으로 돌린다 —
+## 테마에 날씨를 다시 늘렸을 때 이 경로가 이미 검증돼 있어야 한다.
 func _test_single_emitter(weather, events, game_data) -> void:
-	var th = game_data.themes[1] if game_data.themes.size() > 1 else game_data.themes[0]
-	weather._keys = th.weather_keys
+	weather._keys = PackedStringArray(["rain", "snow"])
 	events.env_seed = 7
 	var max_emitters := 0
 	var max_emitting := 0
@@ -331,7 +338,7 @@ func _test_single_emitter(weather, events, game_data) -> void:
 	_ok("이미터 최대 2개(날씨 + 비 파문)", max_emitters == 2, "실측 %d개" % max_emitters)
 	_ok("동시 방출 최대 2개", max_emitting <= 2, "실측 %d개" % max_emitting)
 	_ok("파문은 비일 때만 방출", splash_off_rain)
-	_ok("30분 동안 날씨가 여러 번 바뀜", seen.size() >= 3, "관측 %d종" % seen.size())
+	_ok("30분 동안 날씨가 여러 번 바뀜(맑음 + 2종)", seen.size() >= 3, "관측 %d종" % seen.size())
 	var amt: int = weather._emitter.amount
 	_ok("입자 수 예산(<= 90)", amt <= 90, "실측 %d" % amt)
 	_ok("파문 입자 예산(<= 24)", weather._splash.amount <= 24, "실측 %d" % weather._splash.amount)
@@ -417,7 +424,18 @@ func _test_weather_cheat(weather, day, events, game_data, cheats) -> void:
 	weather._process(1.0 / 60.0)
 	_ok("날씨 ON 복귀 → 같은 시점에 같은 날씨", weather._key == on_key,
 		"기대 '%s' 실측 '%s'" % [on_key, weather._key])
-	_ok("날씨 ON 복귀 → 배너 재개", toasts[0] > 0, "%d회" % toasts[0])
+
+	# 배너는 **키가 바뀔 때만** 뜬다(_switch 는 같은 키면 즉시 반환). 그래서 "같은 슬롯으로
+	# 되돌아왔다"만으로는 배너가 안 뜨는 것이 정상이다 — 위 OFF 구간과 같은 범위를 다시 훑어
+	# 전환이 실제로 일어날 때 배너가 살아나는지 본다. 그냥 복귀 직후를 재면, 날씨가 1종인
+	# 지금 테마들에서는 키가 그대로라 정상 동작인데도 실패로 잡힌다(실제로 그렇게 잡혔다).
+	toasts[0] = 0
+	tt = t
+	while tt < t + weather.SLOT * 4.0:
+		events.elapsed_time = tt
+		weather._process(1.0 / 60.0)
+		tt += 0.5
+	_ok("날씨 ON 복귀 → 전환 시 배너 재개", toasts[0] > 0, "%d회" % toasts[0])
 	events.weather_changed.disconnect(counter)
 
 
@@ -464,6 +482,49 @@ func _test_prop_keys(game_data) -> void:
 	_ok("카탈로그에 없는 prop 키 없음", bad == "", bad)
 	_ok("prop 키의 소속 테마가 일치", wrong_theme == "", wrong_theme)
 	_ok("prop 아틀라스 파일 전부 존재", missing == "", missing)
+
+
+## 삭제한 프롭이 카탈로그·테마 키·모티프·아틀라스 어디로도 돌아오지 않았는가.
+##
+## 삭제 기준(높이): 이 게임은 탑다운 필드 위에 사이드뷰 스프라이트를 세우는 투영이라, 키 큰
+## 원통·캡슐은 플레이어가 겹치는 순간 "허공에 떠 있는" 것으로 읽힌다. 배양 탱크(118px =
+## 플레이어 120px 의 98%)와 격리 포드(세로 캡슐)가 정확히 그랬다. 배양 탱크는 도심 테마와도
+## 맞지 않았다(연구소 기물이 무너진 도심 한복판에 서 있었다).
+##
+## 카탈로그에만 남아도 그 프롭은 다시 화면에 뜨고, 아틀라스에만 남으면 안 쓰는 시트가 VRAM 에
+## 상주한다(제거로 city 1024x512 -> 512x512, lab 512x512 -> 512x256 로 줄었다). 그래서 넷 다 본다.
+func _test_removed_props(game_data) -> void:
+	var pf_script: GDScript = load("res://scripts/PropField.gd")
+	var catalog: Dictionary = pf_script.get("_CATALOG")
+	var motifs: Dictionary = pf_script.get("_MOTIFS")
+	var prop_dir: String = pf_script.get("PROP_DIR")
+	for dead in [["tank", "city"], ["pod", "lab"], ["server", "lab"], ["fence", "suburb"]]:
+		var k: String = dead[0]
+		_ok("삭제된 프롭 %s 가 카탈로그에 없음" % k, not catalog.has(k))
+		var in_theme := ""
+		for th in game_data.themes:
+			if th != null and th.prop_keys.has(k):
+				in_theme += "%s " % th.id
+		_ok("삭제된 프롭 %s 를 쓰는 테마 없음" % k, in_theme == "", in_theme)
+		var in_motif := ""
+		for tid in motifs:
+			for mi in (motifs[tid] as Array).size():
+				for ch in (motifs[tid] as Array)[mi]:
+					if String(ch["k"]) == k:
+						in_motif += "%s:모티프%d " % [tid, mi]
+		_ok("삭제된 프롭 %s 를 쓰는 모티프 없음" % k, in_motif == "", in_motif)
+		_ok("삭제된 프롭 %s 의 아틀라스 항목 없음" % k,
+			not ResourceLoader.exists("%s%s/prop_%s.tres" % [prop_dir, dead[1], k]))
+
+	# 모티프가 카탈로그에 없는 키를 가리키면 그 모티프는 통째로 제외된다(PropField._ready) —
+	# 오타나 삭제 누락이 "군집이 조용히 사라지는" 증상으로만 나타나므로 여기서 직접 막는다.
+	var orphan := ""
+	for tid in motifs:
+		for mi in (motifs[tid] as Array).size():
+			for ch in (motifs[tid] as Array)[mi]:
+				if not catalog.has(String(ch["k"])):
+					orphan += "%s:모티프%d:%s " % [tid, mi, ch["k"]]
+	_ok("모티프가 카탈로그에 없는 키를 참조하지 않음", orphan == "", orphan)
 
 
 ## PropField 를 테마별로 실제로 띄워, ① 프롭이 필드에 놓이는가 ② 장애물 비율이 상한 안인가

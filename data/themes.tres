@@ -18,7 +18,7 @@ unlock_achievement = ""
 gimmick_key = ""
 boss_key = "mutant_dog"
 gimmick_keys = PackedStringArray()
-prop_keys = PackedStringArray("fence", "mailbox", "bush", "forsale", "hydrant")
+prop_keys = PackedStringArray("mailbox", "bush", "forsale", "hydrant")
 weather_keys = PackedStringArray("rain")
 
 [sub_resource type="Resource" id="Resource_11ex3"]
@@ -36,8 +36,8 @@ unlock_achievement = ""
 gimmick_key = "falling_debris"
 boss_key = "wrecker"
 gimmick_keys = PackedStringArray("falling_debris", "steam_vent", "burning_car", "fly_swarm")
-prop_keys = PackedStringArray("wreck_car", "barrier", "dumpster", "barrel", "rubble", "tank")
-weather_keys = PackedStringArray("rain", "dust")
+prop_keys = PackedStringArray("wreck_car", "barrier", "dumpster", "barrel", "rubble")
+weather_keys = PackedStringArray("rain")
 
 [sub_resource type="Resource" id="Resource_es8an"]
 script = ExtResource("2_mg65s")
@@ -54,7 +54,7 @@ unlock_achievement = "survive_15"
 gimmick_key = "toxic_pool"
 boss_key = "mutation"
 gimmick_keys = PackedStringArray("toxic_pool", "cryo_vent", "tesla_coil")
-prop_keys = PackedStringArray("console", "drum", "pod", "server")
+prop_keys = PackedStringArray("console", "drum")
 weather_keys = PackedStringArray("snow")
 
 [resource]

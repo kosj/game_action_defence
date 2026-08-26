@@ -59,9 +59,48 @@ var is_crit: bool = false          # 이 탄이 크리티컬인지(Player._shoot
 var pierce: int = 0                # 관통 가능 적 수(0=첫 명중에 소멸). 석궁 등 관통 무기가 주입.
 var knockback: float = 0.0         # 직격 넉백 세기(0=기본 _KNOCKBACK). 산탄총 등이 크게 준다.
 var _pierced: int = 0              # 지금까지 관통한 적 수
+var _did_hit: bool = false         # 이 탄이 한 번이라도 맞혔는가(명중률 계측용)
+## 쫓고 있는 표적. 유효한 동안은 반경 질의를 건너뛴다(_steer 주석 참고).
+## 풀 재사용 시 남으면 이전 판의 좀비를 쫓으므로 on_spawn 에서 반드시 비운다.
+var _target: Node2D = null
 var _hit_ids: Dictionary = {}      # 이미 명중한 적(중복 타격 방지) — 관통 시에만 의미
 var _age: float = 0.0
 var _alive: bool = false
+## 명중 판정용 탄 반경(= 5px × scale.x)을 스폰 직후 1회만 계산해 들고 있는다.
+## `Node2D.scale` 은 필드가 아니라 **변환 행렬을 분해해 만드는 값**이라(atan2/sqrt) 읽을
+## 때마다 비용이 든다 — 매 프레임 읽던 것을 없애면 탄 1발당 약 0.4µs 가 빠진다.
+## 크기는 발사 측이 on_spawn() **뒤에** 주입하므로, 첫 물리 틱에서 지연 계산한다.
+var _hit_r: float = -1.0
+## 유도 조준을 몇 물리 프레임마다 다시 할지. **선회 속도는 그대로 두고 갱신 빈도만 낮춘다** —
+## 건너뛴 프레임의 delta 를 모아서 한 번에 적용하므로 초당 최대 선회각은 동일하다.
+##
+## 왜 필요한가: 조준은 `Events.zombies_in_radius(pos, 420)` 이고, 이 비용은 **탄 × 좀비의 곱**에
+## 비례한다. 통제 실험(유도탄 200발, 표본 720틱)에서 좀비를 0 → 150 으로 세우자
+## 1.85ms → 12.19ms 로 **6.6배**가 됐다(탄 1발당 9.3 → 61.0µs). 자료구조 문제가 아니다 —
+## 좀비 300 에서 셀 경로(13.47ms)와 전수 스캔(12.19ms)이 거의 같았다. 줄일 수 있는 것은 **횟수**뿐이다.
+##
+## 값이 3 → 6 인 이유(P1-32). 최대 부하에서 교대 A/B 3쌍, 3/3 일관:
+##   3프레임(0.05초) 물리 틱 중앙 5.930ms  ·  6프레임(0.1초) 5.400ms  → **-0.53ms (8.9%)**
+##
+## 대가는 명중률인데, **전체 판에서는 판정할 수 없다** — 같은 코드로 3번 재도 86.8~92.3% 로
+## 5.5pp 흔들리고, 시드를 고정해도(`--fixed-fps` 까지 줘도) 재현되지 않았다. 그래서 조준만
+## 격리한 결정론 검사를 따로 만들었다(`tools/verify_homing_accuracy.gd`). 거기서는:
+##   3프레임 94.05%  ·  6프레임 93.25%  (-0.8pp)
+## 그리고 같은 검사에서 **8프레임이 3프레임보다 높게(94.50%)** 나온다 — 시나리오 자체의
+## 흔들림이 ±1pp 라는 뜻이므로 이 차이는 "같다"로 읽는다. 실제 무너짐은 30프레임쯤부터다(73%).
+##
+## ⚠️ 더 올리지 말 것. 12 까지는 평평해 보이지만 그 위는 급격히 나빠지고, 회수되는 프레임은
+## 이미 대부분 여기서 받았다(3→6 이 -0.53ms). 되돌리는 것은 `verify_hotpath.gd` 가 막는다.
+const STEER_EVERY := 6
+var _steer_phase: int = 0   # 개체마다 위상을 달리해 한 프레임에 몰리지 않게 한다
+var _steer_accum: float = 0.0
+
+## 유도탄 명중률 계측 — 조준 주기를 건드리면 "프레임은 좋아졌는데 안 맞는다"가 될 수 있는데,
+## `kills_per_s` 는 전체 무기가 섞여 있어 그걸 못 가른다(런간 산포 ±6, 유도탄 몫은 그 아래).
+## 그래서 **유도탄만** 센다: 소멸한 유도탄 수와 그중 한 번이라도 맞힌 수.
+## 카운터 2개와 소멸 시 분기 하나뿐이라 상시 켜 둬도 프레임에 영향이 없다.
+static var stat_homing_gone: int = 0
+static var stat_homing_hit: int = 0
 
 const _ZOMBIE_RADIUS := 14.0   # Zombie.tscn 충돌 반경
 const _BOSS_RADIUS := 38.0     # Boss.tscn 충돌 반경
@@ -83,6 +122,11 @@ func on_spawn() -> void:
 	pierce = 0
 	knockback = 0.0
 	_pierced = 0
+	_did_hit = false
+	_target = null
+	_hit_r = -1.0          # 발사 측이 scale 을 주입한 뒤 첫 틱에서 다시 잰다
+	_steer_phase = randi() % STEER_EVERY
+	_steer_accum = 0.0
 	_hit_ids.clear()
 
 
@@ -94,18 +138,27 @@ func on_despawn() -> void:
 func _physics_process(delta: float) -> void:
 	if not _alive:
 		return
+	if _hit_r < 0.0:
+		_hit_r = 5.0 * scale.x   # 스폰 직후 1회 — 이후로는 scale 을 읽지 않는다
 	var from := global_position
 	if homing > 0.0:
-		_steer(delta)
+		# 조준은 STEER_EVERY 프레임에 한 번. 그동안 쌓인 delta 를 넘겨 선회량을 보존한다.
+		_steer_accum += delta
+		if (Engine.get_physics_frames() + _steer_phase) % STEER_EVERY == 0:
+			_steer(_steer_accum)
+			_steer_accum = 0.0
 		if spin == 0.0:
 			# 휘었으면 그림도 같이 틀어야 한다 — 안 그러면 볼트가 옆으로 날아간다.
 			# (자전하는 톱날은 방향이 의미 없으므로 제외)
 			rotation = direction.angle() + PI / 2.0
 	if spin != 0.0:
 		rotation += spin * delta   # 톱날 자전 — 그림은 그대로 두고 노드만 돌린다
-	global_position += direction * speed * delta
+	# `global_position` 은 읽을 때마다 전역 변환을, 쓸 때마다 부모 변환의 역행렬을 만든다.
+	# 예전에는 한 틱에 3읽기+1쓰기였다 — 목적지를 지역 변수로 계산해 1읽기+1쓰기로 줄인다.
+	var to := from + direction * speed * delta
+	global_position = to
 	# 빠른 총알이 저프레임에서 좀비를 건너뛰는 터널링 방지: 이동 구간을 레이캐스트로 훑는다.
-	_check_swept_hit(from, global_position)
+	_check_swept_hit(from, to)
 	if not _alive:
 		return
 	_age += delta
@@ -122,7 +175,7 @@ func _physics_process(delta: float) -> void:
 func _check_swept_hit(from: Vector2, to: Vector2) -> void:
 	var seg := to - from
 	var seg_len_sq := seg.length_squared()
-	var bullet_r := 5.0 * scale.x
+	var bullet_r := _hit_r
 	var max_r := _BOSS_RADIUS + bullet_r
 	# 이동 구간 AABB(+최대 판정 반경) — 범위 밖 좀비를 값싼 비교만으로 조기 탈락.
 	var lo_x := minf(from.x, to.x) - max_r
@@ -151,6 +204,7 @@ func _check_swept_hit(from: Vector2, to: Vector2) -> void:
 
 
 func _resolve_hit(c: Node, pos: Vector2) -> void:
+	_did_hit = true
 	if splash_radius > 0.0:      # 폭발형: 지점 이동 후 범위 피해, 즉시 소멸(관통 없음)
 		global_position = pos
 		_splash_hit()
@@ -197,7 +251,39 @@ func _draw() -> void:
 ## 전방 호 안에서 가장 가까운(=각도가 가장 잘 맞는) 적 쪽으로 진행 방향을 조금씩 튼다.
 ## 이미 지나친 적을 쫓아 되돌아오면 관통 무기의 '한 줄로 베고 지나간다'는 느낌이 깨지므로
 ## 후보를 전방 호로 제한한다.
+##
+## **잡은 표적은 기억한다**(P1-32②). 조준 1회의 비용은 사실상 전부 `zombies_in_radius` 이고,
+## 그 질의는 탄 × 좀비의 곱이다. 그런데 유도탄은 대개 같은 적을 계속 쫓으므로, 매번 처음부터
+## 다시 고르는 것은 **같은 답을 비싸게 다시 구하는 것**이다. 그래서 쫓던 표적이 아직 유효하면
+## 질의를 통째로 건너뛰고, 놓쳤을 때만(죽음·사거리 이탈·호 이탈) 다시 찾는다.
+##
+## 부수 효과로 탄이 표적에 **고정**된다 — 더 가까운 적이 나타나도 갈아타지 않는다.
+## 이것은 손해가 아니다: 명중 판정(`_check_swept_hit`)은 조준과 무관하게 지나가는 모든 적을
+## 훑으므로, 눈앞의 적은 조준 대상이 아니어도 그대로 맞는다.
 func _steer(delta: float) -> void:
+	var best: Node2D = _target if _target_ok(_target) else _acquire_target()
+	if best == null:
+		return
+	var want: Vector2 = (best.global_position - global_position).normalized()
+	direction = direction.rotated(clampf(direction.angle_to(want), -homing * delta, homing * delta))
+
+
+## 쫓던 표적을 계속 쫓아도 되는가. 참이면 반경 질의를 건너뛴다 — 이 판정은 거리·각도 계산
+## 두 번이라 질의(후보 55마리 순회)보다 두 자릿수 싸다.
+## ⚠️ 아래 조건은 `_acquire_target()` 의 필터와 **정확히 같아야** 한다. 어긋나면 캐시가
+## 스캔이라면 고르지 않았을 표적을 계속 쫓게 된다.
+func _target_ok(t: Node2D) -> bool:
+	if t == null or not is_instance_valid(t) or not t.is_in_group("zombies"):
+		return false   # 풀 반납된 좀비는 인스턴스가 유효한 채 그룹만 빠진다
+	if _hit_ids.has(t.get_instance_id()):
+		return false   # 이미 벤 적은 다시 쫓지 않는다
+	var to: Vector2 = t.global_position - global_position
+	if to.length_squared() > HOMING_RANGE * HOMING_RANGE:
+		return false
+	return absf(direction.angle_to(to)) <= homing_arc
+
+
+func _acquire_target() -> Node2D:
 	var best: Node2D = null
 	var best_d := HOMING_RANGE * HOMING_RANGE
 	for z in Events.zombies_in_radius(global_position, HOMING_RANGE):
@@ -212,10 +298,8 @@ func _steer(delta: float) -> void:
 		if d < best_d:
 			best_d = d
 			best = z
-	if best == null:
-		return
-	var want: Vector2 = (best.global_position - global_position).normalized()
-	direction = direction.rotated(clampf(direction.angle_to(want), -homing * delta, homing * delta))
+	_target = best
+	return best
 
 
 ## 폭발형 무기: 명중 지점 주변의 모든 좀비에게 피해 + 확산 이펙트.
@@ -235,4 +319,8 @@ func _splash_hit() -> void:
 
 func _despawn() -> void:
 	_alive = false
+	if homing > 0.0:
+		stat_homing_gone += 1
+		if _did_hit:
+			stat_homing_hit += 1
 	Pool.release(self)

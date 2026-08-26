@@ -50,6 +50,24 @@ CI 대기 중인 것과 구분되지 않는다.
 전부 `tools/gen_*.gd` 생성기의 산출물이다. **생성기를 고치고 재생성한다.**
 `.tres` 를 직접 편집하면 다음 생성기 실행 때 말없이 덮어써진다.
 
+⚠️ **이미 어긋나 있을 수 있다.** `item_catalog.tres` 는 무기 4종(부메랑·궁극기 3종)과 마늘 표기가
+손으로 들어가 있었고, 규약대로 재생성하자 **그것들이 조용히 사라졌다**(P1-19 에서 발견·복구).
+그러니 재생성 전후로 **반드시 목록을 대조할 것**:
+```sh
+git show HEAD:data/item_catalog.tres | grep -o '^id = "[a-z_]*"' | sort > /tmp/before.txt
+godot --headless --path . --script res://tools/gen_item_catalog.gd
+grep -o '^id = "[a-z_]*"' data/item_catalog.tres | sort | diff /tmp/before.txt -
+```
+`verify_bullet_budget.gd` 가 궁극기 소실만은 CI 에서 잡지만, 나머지는 이 대조가 유일한 안전망이다.
+(이 게이트는 P1-25 에서 무기 30종 전부의 **동시 존재 개체 수 실측**으로 바뀌었다 — 씬을 띄우므로
+`--fixed-fps 60` 이 필요하다. 13초 걸린다.)
+
+⚠️ **`difficulty.tres` 도 같은 상태였다**(P1-20 에서 발견·수정). `gen_difficulty_data.gd` 는
+`DifficultyData.new()` 의 **스크립트 @export 기본값을 그대로 저장**할 뿐인데, 커밋된 `.tres` 는
+8개 필드가 달랐다(동시 상한 175 vs 320 등). 재생성하면 튜닝이 통째로 되돌아간다.
+지금은 기본값을 배포 값에 맞춰 놨다 — **이 생성기를 쓸 때는 스크립트 기본값을 고치는 것이 곧
+데이터를 고치는 것**이다. `.tres` 만 고치면 다음 재생성에 사라진다.
+
 | 데이터 | 생성기 |
 |---|---|
 | `data/item_catalog.tres` (무기 30 = 기본 16 + 진화 11 + 궁극기 3 · 패시브 10) | `tools/gen_item_catalog.gd` |
@@ -72,7 +90,9 @@ godot --headless --path . --script res://tools/gen_theme_data.gd
 지원 언어 **en/ko/ja 3종**(`Locale.SUPPORTED`). 폰트는 "실제로 쓰는 글자만" 남긴 서브셋이라,
 키 없이 하드코딩하면 **없는 글자가 두부(□)로 뜬다.** 특히 일본어 신규 한자를 조심한다.
 ⚠️ 서브셋 이전 원본은 git 히스토리에만 있고(`subset_fonts.py` 문서 참고), **이 저장소는 얕은
-클론으로 시작하므로 `git fetch --unshallow` 를 먼저 해야 그 커밋이 보인다.** 그 원본조차 1.2MB
+클론으로 시작하므로 `git fetch --unshallow` 를 먼저 해야 그 커밋이 보인다.**
+원본을 복구하지 않고 `subset_fonts.py` 를 돌리면 **스크립트가 거부한다**(P2-9) — 예전에는 그냥
+돌아가면서 멀쩡한 한글을 금지어 목록에 올렸다. 그 원본조차 1.2MB
 부분 서브셋이라 없는 글자가 있다(`김`·`化` 등) — 없으면 그 글자를 피해 문구를 바꾸는 편이 빠르다.
 
 ⚠️ **`tools/font_known_absent.txt` 에 있는 글자는 쓰면 안 된다.** 원본에도 없어 되살릴 방법이
@@ -115,6 +135,52 @@ python3 tools/make_icon.py -o assets/sprites/boss_x.png --height 120 --black-hal
 `--black-halo` 는 월드에 놓이는 유닛 공통(흰 프린지를 검정 외곽선으로). 세로가 아닌 `--max`
 (긴 변)를 쓰면 가로로 긴 네발 보스만 혼자 작아진다.
 
+### ⛔ `AudioStreamPlayer` 는 반드시 `PLAYBACK_TYPE_STREAM` 으로 만든다
+웹 기본 재생 방식(샘플)은 **`play()` 한 번마다 재생 객체를 통째로 흘린다.** 배포 빌드가
+이것 때문에 wasm 힙 2GB 상한을 쳐서 죽었다(P0-5). 실측: ogg 효과음만 24,962회 재생하니
+힙이 105MB → 2GB.
+
+열거형이 **두 개고 서로 한 칸 어긋난다** — 이게 함정의 핵심이다:
+```
+프로젝트 설정(audio/general/default_playback_type*): 0=Stream · 1=Sample
+AudioServer.PlaybackType:                            0=DEFAULT · 1=STREAM · 2=SAMPLE
+```
+웹 기본 설정값 `1` 은 STREAM 이 아니라 **SAMPLE** 이다. 그래서 아무것도 안 하면 새는 쪽이다.
+새 플레이어를 만들면 `SoundManager._force_stream_playback()` 을 거칠 것.
+
+⚠️ **이것은 필요조건이지 충분조건이 아니다.** AudioContext 가 잠겨 있으면(사용자 제스처 전)
+재생이 배수되지 않아 재생 방식과 무관하게 쌓인다. 실측:
+
+| AudioContext | STREAM 고정 | 결과 |
+|---|---|---|
+| 잠김 | 없음 | 2GB (150초) |
+| 활성 | 없음 | 2GB |
+| 잠김 | 있음 | **2GB** — 이 설정만으로는 못 막는다 |
+| 활성 | 있음 | **46.1MB 평탄** (게임 11분 실측도 평탄) |
+
+실제 플레이어는 화면을 탭하므로 웹 셸이 컨텍스트를 재개한다 — 그 조건에서는 완전히 듣는다.
+
+⚠️ **STREAM 으로 바꾸면 웹 버퍼도 같이 키워야 한다.** 소프트웨어 믹서를 타므로 엔진 기본
+50ms 로는 언더런이 나 **소리가 끊긴다**(실측 15초에 드롭아웃 31회). `project.godot` 의
+`audio/driver/output_latency.web = 160` 이 그 보정이고, 낮추면 다시 끊긴다:
+
+| 출력지연 | 드롭아웃 | 소리 나는 블록 | 클릭 |
+|---|---|---|---|
+| 50ms(엔진 기본) | 31 | 493/648 (76%) | 61 |
+| **160ms (채택)** | **0** | **648/648 (100%)** | 38 |
+| (대조) SAMPLE | 0 | 644/644 (100%) | 34 |
+
+음질은 **귀가 아니라 캡처로 잰다** — `tools/audio_web_capture.mjs` 가 WebAudio 그래프에
+탭을 걸어 PCM 을 받아 드롭아웃·클릭을 센다.
+
+⚠️ **데스크톱에서는 절대 재현되지 않는다.** 헤드리스는 Dummy 오디오 드라이버라 이 경로를
+타지 않는다 — 스로틀 없이 84,000회 재생해도 RSS 가 평탄해서 한 번 "오디오는 결백"으로
+오판했다. `verify_audio_playback.gd` 는 **설정이 그대로 있는지**만 본다. 실제 누수는
+`tools/heap_web.sh` 로 브라우저에서 재야 한다(wasm 힙 크기를 직접 읽는다).
+
+⚠️ **교란변수를 못 가른 채 결론 내지 말 것.** 이 표를 만들기 전에 `pt=1` 과 `AUDIO=1` 을
+동시에 켠 실험 하나만 보고 "STREAM 고정이 답"이라고 단정했다가, 변수를 분리하니 위와 같았다.
+
 ### 사운드는 `tools/import_sfx.py` 를 거친다
 라우드니스(RMS -16dBFS)·선행 무음 제거·페이드가 일괄 적용된다. 개별 세기는 파일이 아니라
 `SoundManager._VOLUMES` 에서 조정한다.
@@ -125,6 +191,7 @@ python3 tools/make_icon.py -o assets/sprites/boss_x.png --height 120 --black-hal
 
 ```sh
 python3 tools/check_gdscript.py                                            # 엔진 없이 문법 점검(빠름)
+python3 tools/verify_triage.py                                             # 프리즈 판정 회귀(고정 입력)
 godot --headless --path . --import                                         # 임포트/파싱
 godot --headless --path . --script res://tools/check_font_coverage.gd
 godot --headless --path . --script res://tools/check_atlas.gd
@@ -145,11 +212,71 @@ godot --headless --path . --script res://tools/verify_cheat_gate.gd
 godot --headless --path . --script res://tools/verify_quest_tracks.gd
 godot --headless --path . --script res://tools/verify_event_forecast.gd
 godot --headless --path . --script res://tools/verify_ui_icons.gd
+godot --headless --path . --script res://tools/verify_late_speed.gd
+godot --headless --path . --script res://tools/verify_hotpath.gd
+godot --headless --path . --fixed-fps 60 --script res://tools/verify_homing_accuracy.gd
+godot --headless --path . --fixed-fps 60 --script res://tools/verify_bullet_budget.gd
+godot --headless --path . --script res://tools/verify_late_hp.gd
+godot --headless --path . --script res://tools/verify_pickups.gd
+godot --headless --path . --script res://tools/verify_audio_playback.gd
+```
+
+⚠️ **`main` 을 새로 받은 직후에는 `--import` 를 먼저(가능하면 두 번) 돌린다.**
+다른 세션이 추가한 PNG·폰트가 로컬 `.godot` 캐시에 없으면 그 리소스를 preload 하는 스크립트가
+컴파일에 실패하고, **회귀 테스트가 코드와 무관하게 무더기로 거짓 실패한다.**
+실제로 이 함정에 두 번 걸려 멀쩡한 커밋을 범인으로 지목할 뻔했다 — 테스트가 갑자기 여러 개
+깨지면 코드보다 캐시를 먼저 의심할 것.
+```sh
+godot --headless --path . --import && godot --headless --path . --import
 ```
 
 UI 를 건드렸으면 추가로 `python3 tools/check_text_fit.py` (en/ko/ja 폭 초과 검사).
+⚠️ **이 검사와 `build_atlas.py` 는 Pillow 가 필요하다** — 없으면 그냥 죽는다.
+`pip install pillow` 를 먼저 하고, **없다고 건너뛰지 말 것.** 이 검사는 CI 에 없어서
+(워크플로의 Python 잡은 `verify_triage.py` 만 돈다) 여기서 안 돌리면 아무도 안 돌린다.
 
-**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 15종이 이 프로젝트의 안전망 전부다.
+프레임을 건드렸으면 **최대 부하로도** 재 본다 — 평상시 판은 오토플레이가 좀비를 계속 녹여서
+최악이 재현되지 않는다(후반 동시 좀비가 상한 320 의 1/10 이다). 프레임 드랍은 최악에서 난다.
+```sh
+godot --headless --path . --script res://tools/bench_lategame.gd -- min=26 stress=1   # CPU
+LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 720x1280x24" \
+  godot --path . --rendering-driver opengl3 \
+  --script res://tools/bench_lategame.gd -- min=26 stress=1                            # 드로우 콜·VRAM
+```
+⚠️ **`Label` 에 `outline_size` 를 켜면 그 라벨 하나가 드로우 콜 2개다**(외곽선 패스 + 본체
+패스가 라벨마다 번갈아 나와 배칭이 끊긴다). 실측으로 **이 게임 드로우 콜의 단일 최대 항목**이다 —
+HUD 66콜 중 30콜. 숫자만 나오는 라벨은 P1-27 이 데미지 숫자에 쓴 방식(외곽선을 글리프와 한 장에
+구워 틴트로 곱한다)으로 1콜이 된다. 상세는 `OPTIMIZATION_PLAN.md` §5-P.
+
+⚠️ **HUD 의 `z_index` 를 되돌리지 말 것.** 로드아웃 슬롯은 프레임·아이콘·뱃지에 z 0/1/2 를
+줘 종류별로 묶여 있다(`_Z_SLOT_*`). 되돌리면 **화면은 멀쩡한 채 드로우 콜만 11개 늘어난다**.
+로드아웃보다 뒤에 만들어지는 것들의 `_Z_OVERLAY` 도 짝이라 같이 유지해야 한다 — 지우면
+아이콘이 일시정지 딤 위로 새어 나온다(§5-O). z 를 건드렸으면
+`shot_hud_layers.gd` 로 겹침 순서를 픽셀로 확인한다.
+
+⚠️ **드로우 콜은 `only=` 로 못 가른다** — 그것은 로직을 끄는 장치고 드로우 콜은 캔버스
+아이템에서 나온다(로직을 꺼도 그려진다). 그리기만 끄는 `hide=Zombie,HUD` 를 쓴다.
+실측 결과 최대 부하 177콜 중 **HUD 가 49% · FX 가 28% 고, 좀비 317마리는 0콜**이다(§5-N).
+
+⚠️ **계통별 몫은 `only=` 격리값이 아니라 "통째로 들어낸 빌드와의 차이"다.** `only=` 는 상호작용이
+빠져 과소·과대 둘 다 난다 — 실제로 `only=` 로 "여기가 제일 크다"고 지목한 계통이 절제해 보니
+전체의 11% 였다(P1-22). 고치기 전에 절제부터 할 것. 자세한 것은 `OPTIMIZATION_PLAN.md` §5-M.
+
+⚠️ **`physics_ms` 를 프레임 비용으로 읽지 말 것** — 엔진 모니터는 최근 1초의 **최댓값**이다.
+평상시 비용은 하네스가 센티넬로 직접 재는 `물리 틱` 줄을 본다. 자세한 것은
+`OPTIMIZATION_PLAN.md` §5-L.
+
+**웹(WASM) 비용도 여기서 잰다** — 실기기로 넘기지 말 것. Chromium 이 깔려 있고 웹 빌드도
+여기서 만든다. `tools/bench_web.sh` 가 export → 로컬 서버 → Chromium → 콘솔 수집을 한 번에 한다.
+```sh
+GODOT=/path/to/godot tools/bench_web.sh "min=26 measure=12 fill=0 probe=bullet:400"
+```
+믿을 것은 **`물리 틱`·드로우 콜**뿐이다. `_process`·fps·VRAM 은 이 환경에 GPU 가 없어
+SwiftShader(소프트웨어 GL)로 도는 값이라 실기기와 무관하다.
+⚠️ **"웹은 데스크톱의 3~4배"는 틀린 상수다** — 실측하면 렌더 경합이 없을 때 **0.99배**다(§5-L).
+남은 미지수는 폰 CPU 의 절대 속도와 모바일 GPU fill-rate 뿐이고, 그것만 실기기가 필요하다.
+
+**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 22종이 이 프로젝트의 안전망 전부다.
 
 비주얼을 건드렸으면 **실렌더 스크린샷**으로 확인한다 — 헤드리스는 `_draw` 를 부르고 오류도 안 내지만,
 그려진 것이 다른 레이어에 덮였는지·좌표가 화면 밖인지는 알려주지 않는다.
@@ -202,10 +329,19 @@ Events.pause_pop(self)                # 닫을 때
 ## 5. 알려진 함정
 
 - **웹 pck 상한 15MB** (CI 게이트). 현재 약 12MB. 에셋을 늘릴 땐 압축 설정을 같이 본다.
+- **웹 wasm 힙 상한 2GB.** 넘으면 `Cannot enlarge memory` 뒤에 malloc 이 NULL 을 돌려주고,
+  그걸 검사 없이 쓰면 `corrupted its heap memory area (address zero)` 로 죽는다. 즉 그 두 문구는
+  **원인이 아니라 고갈의 증상**이다 — 힙을 무엇이 채웠는지부터 볼 것(`tools/heap_web.sh`).
 - **렌더러는 `gl_compatibility` 고정.** 다른 렌더러 전용 기능(2D 라이트/SDF 등)을 쓰면 웹에서 깨진다.
 - **export 제외 필터는 하위 폴더까지 삼킨다** — 실제로 바닥 타일이 웹 빌드에서 통째로 사라진 적이 있다(`1137951`).
+- ⛔ **지금 배포 빌드는 치트가 열려 있다 — 되돌리지 말 것**(P0-12, 2026-08-20 사용자 요청).
+  최적화 측정 기간 한정이며, **사용자의 명시적인 지시가 있을 때만 닫는다.** 상세와 되돌리는
+  방법은 `HANDOFF.md` P0-12. 스위치는 두 곳뿐이다 —
+  `export_presets.cfg` 의 `custom_features="cheats"` 와 `verify_cheat_gate.gd` 의
+  `CHEAT_ALLOWED_PRESETS`. 이 기간에는 **배포 빌드의 랭킹·도전과제·메타 골드가 오염된다**
+  (텔레메트리는 `cheated` 로 표시되니 분석에서는 걸러진다).
 - **치트는 `Cheats.enabled` 하나로 잠긴다**(P0-1 해결). 에디터·디버그 빌드는 열려 있고, 릴리스
-  export 는 프리셋 `custom_features` 에 `cheats` 가 있을 때만 열린다(현재 비어 있음 = 차단).
+  export 는 프리셋 `custom_features` 에 `cheats` 가 있을 때만 열린다.
   치트를 새로 추가하면 **UI(`HUD._build_pause_menu` 의 `if Cheats.enabled` 블록) 안에 넣고,
   상태는 `Cheats.autoplay_active()` 같은 게이트 포함 접근자로 읽는다.** 상태 변수를 직접 읽거나
   시그널을 직접 `emit` 하면 잠금을 우회하게 된다 — `verify_cheat_gate.gd` 가 이걸 검사한다.

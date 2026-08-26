@@ -106,6 +106,12 @@ func _build_ui() -> void:
 
 
 func _on_level_up(_level: int) -> void:
+	# 고를 카드가 하나도 없으면(보유 아이템 전부 만렙 + 슬롯 만석) 패널을 아예 띄우지 않는다.
+	# 띄워봐야 정지·징글·폭죽만 깜빡이고 아무 보상 없이 닫힌다 — 후반에는 이게 초당 몇 번씩
+	# 반복된다. 대신 골드로 보상한다.
+	if not _showing and _draw_choices(1).is_empty():
+		Events.grant_maxed_level_gold()
+		return
 	_pending += 1
 	if not _showing:
 		_present()
@@ -165,6 +171,7 @@ func _refresh() -> void:
 		choices = _draw_choices(3)
 		if not choices.is_empty():
 			break
+		Events.grant_maxed_level_gold()   # 고를 게 없는 레벨업은 골드로 보상하고 넘긴다
 		_pending -= 1
 	if choices.is_empty():
 		_advance_or_close()

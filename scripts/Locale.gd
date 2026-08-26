@@ -27,23 +27,25 @@ var current: String = DEFAULT_LANG
 
 ## 키 → { 언어코드: 문자열 }. 번역이 없는 언어는 영어(DEFAULT_LANG)로 폴백된다.
 const STRINGS: Dictionary = {
-	# ── 인트로: "The Last Beacon" (마지막 송신탑) ──────────────────────────
-	"intro_title":  {"en": "THE LAST BEACON",        "ko": "마지막 송신탑",        "ja": "最後のビーコン"},
+	# ── 인트로: "Hold the Ground" (이 구역을 사수하라) ─────────────────────
+	# 비컨(송신탑)은 구조 요청이 아니라 "한 구역을 30분 지켜내면 켜지는 표식"이다.
+	# 클리어 조건(30분 생존)·캐릭터 3종(부대 생존자)·테마 진행(교외→도심→연구소)과 맞춘다.
+	"intro_title":  {"en": "HOLD THE GROUND",        "ko": "이 구역을 사수하라",   "ja": "このエリアを守れ"},
 	"intro_l1":     {"en": "Day 47 since the outbreak.",
 					 "ko": "감염 발생 +47일.",
 					 "ja": "感染発生から47日。"},
 	"intro_l2":     {"en": "The cities fell silent.\nThe dead now hunt the living.",
 					 "ko": "도시는 침묵했고,\n죽은 자가 산 자를 사냥한다.",
 					 "ja": "都市は沈黙し、\n死者が生者を狩る。"},
-	"intro_l3":     {"en": "You are the last signal tech\nof a broken unit.",
-					 "ko": "당신은 무너진 부대의\n마지막 통신 기술병.",
-					 "ja": "あなたは壊滅した部隊の\n最後の通信兵。"},
-	"intro_l4":     {"en": "One automated beacon still calls for rescue.",
-					 "ko": "자동 송신탑 하나가\n아직 구조를 외치고 있다.",
-					 "ja": "自動ビーコンが今も\n救助を呼び続けている。"},
-	"intro_l5":     {"en": "Hold the line.\nKeep the signal alive.",
-					 "ko": "전선을 사수하라.\n신호를 살려두어라.",
-					 "ja": "戦線を守れ。\n信号を絶やすな。"},
+	"intro_l3":     {"en": "Your unit is gone.\nThree of you walked out.",
+					 "ko": "부대는 무너졌다.\n걸어 나온 것은 셋뿐.",
+					 "ja": "部隊は壊滅した。\nぬけだせたのは、ほんのわずか。"},
+	"intro_l4":     {"en": "Hold one zone for thirty minutes\nand its beacon comes alive.",
+					 "ko": "한 구역을 30분 버텨내면\n그곳의 송신탑이 살아난다.",
+					 "ja": "ひとつのエリアを30:00 守りぬけば\nその信号がよみがえる。"},
+	"intro_l5":     {"en": "Suburb. Downtown.\nThen the lab where it began.",
+					 "ko": "교외에서 도심으로,\n그리고 모든 것이 시작된 연구소까지.",
+					 "ja": "まちはずれから都市へ、\nそして全てが始まったラボへ。"},
 	"intro_skip":   {"en": "Skip",   "ko": "건너뛰기",   "ja": "スキップ"},
 	"intro_begin":  {"en": "BEGIN",  "ko": "시작",       "ja": "開始"},
 
@@ -190,7 +192,6 @@ const STRINGS: Dictionary = {
 	# (게임 HUD 에서 가타카나 외래어 표기는 일본어로도 자연스럽다)
 	"weather_rain":    {"en": "RAIN",       "ko": "비",         "ja": "レイン"},
 	"weather_snow":    {"en": "SNOW",       "ko": "눈",         "ja": "スノー"},
-	"weather_dust":    {"en": "DUST STORM", "ko": "모래바람",   "ja": "サンドストーム"},
 	"weather_clear":   {"en": "CLEARING",   "ko": "날이 갠다",  "ja": "はれてきた"},
 
 	"go_victory":      {"en": "VICTORY!", "ko": "승리!", "ja": "VICTORY!"},

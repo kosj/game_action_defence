@@ -56,6 +56,9 @@ var _resumed: bool = false
 var _samples: Array = []
 var _next_sample: float = SAMPLE_INTERVAL
 var _partial_accum: float = 0.0
+## 마지막으로 관측한 경과 시간. **경과가 뒤로 가면 그 사이에 Events.reset() 이 일어난 것**이고,
+## 그 시점의 Events 값은 이 판의 것이 아니다(P0-9). 자세한 이유는 `_run_was_reset()` 참고.
+var _last_elapsed: float = 0.0
 
 # ── 프리즈 진단 (P0-4) ───────────────────────────────────────────────
 ## 스냅샷 구간 안에서 관측된 최악의 프레임 시간(ms). 성능 붕괴(느려짐)와 로직 정지(멈춤)를
@@ -66,7 +69,7 @@ var _watchdog_log: Array = []
 
 
 func _ready() -> void:
-	Events.player_died.connect(_on_run_end.bind("died"))
+	Events.player_died.connect(end_run.bind("died"))
 	Events.pause_watchdog_fired.connect(func(reason: String, detail: String):
 		if _watchdog_log.size() < 20:      # 무한 증가 방지 — 앞쪽 20건이면 원인 파악에 충분하다
 			_watchdog_log.append("%s@%.0fs %s" % [reason, Events.elapsed_time, detail]))
@@ -79,6 +82,10 @@ func _ready() -> void:
 
 ## 판 시작 — `Main._ready()` 가 호출한다. 이어하기도 같은 진입점을 쓴다.
 func begin_run() -> void:
+	# 이전 판이 끝맺지 못한 채 남아 있으면 **먼저 기록한다.** 여기서 안 건지면 아래 초기화 뒤
+	# 진행 스냅샷이 그 파일을 덮어써 그 판이 영구히 사라진다 — 실제로 30분 클리어 판이 그렇게
+	# 소실됐다(클리어 후 메뉴로 나가고 새 게임을 시작한 경우).
+	_promote_abandoned()
 	_active = enabled
 	_resumed = float(Events.elapsed_time) > 1.0
 	_hits = 0
@@ -90,8 +97,14 @@ func begin_run() -> void:
 	_boss_kills = 0
 	_cleared = false
 	_samples = []
-	_next_sample = SAMPLE_INTERVAL
+	# ⚠️ 이어하기는 `Events.elapsed_time` 이 이미 1500초 같은 값에서 시작한다(P0-11).
+	# 여기서 60초로 고정하면 첫 프레임부터 `el >= _next_sample` 이 계속 참이 되어
+	# **한 프레임에 한 줄씩 수십 줄을 몰아 쓴다** — 그 줄들은 전부 재개 직전 상태(좀비 0 ·
+	# 처치·레벨 고정)라 곡선이 아니라 쓰레기다. 실제로 29줄 중 26줄이 그것이었고,
+	# 이어하기가 기본 플레이 패턴이라 **프레임 곡선이 대부분의 판에서 무용지물이었다.**
+	_next_sample = float(Events.elapsed_time) + SAMPLE_INTERVAL
 	_partial_accum = 0.0
+	_last_elapsed = float(Events.elapsed_time)   # 이어하기는 0 이 아닌 값에서 시작한다
 	_frame_ms_max = 0.0
 	_watchdog_log = []
 	Cheats.used_this_run = false   # 치트 사용 여부는 판 단위로 센다
@@ -100,11 +113,24 @@ func begin_run() -> void:
 func _process(delta: float) -> void:
 	if not _active:
 		return
+	if _stop_if_reset():
+		return
 	_frame_ms_max = maxf(_frame_ms_max, delta * 1000.0)
 	var el := float(Events.elapsed_time)
+	_last_elapsed = el
 	if el >= _next_sample:
-		_samples.append({"min": int(round(_next_sample / 60.0)), "kills": Events.total_kills,
-			"level": Events.level, "hp": Events.player_health})
+		# 메모리·노드 수를 분당으로 함께 남긴다 — 크래시가 누수 때문이라면 이 곡선이 곧 증거다.
+		# 진단(diag)은 마지막 시점만 알려주므로 "늘고 있었나"를 못 본다. 추이가 있어야 판별된다.
+		# fps·최악 프레임을 분당으로 남긴다(P1-18). 종료 시점 한 장(diag)만으로는
+		# "언제부터 무너졌는지"를 못 본다 — 실제로 그것 때문에 좀비 수를 원인으로 오해했다
+		# (좀비 34마리에서 18fps, 143마리에서 31fps 였다).
+		var sample := {"min": int(round(_next_sample / 60.0)), "kills": Events.total_kills,
+			"level": Events.level, "hp": Events.player_health,
+			"fps": int(Engine.get_frames_per_second()),
+			"frame_ms": snappedf(_frame_ms_max, 0.1),
+			"zombies": _group_count("zombies")}
+		sample.merge(_leak_counters())
+		_samples.append(sample)
 		_next_sample += SAMPLE_INTERVAL
 	# 진행 중 스냅샷 — 웹 탭을 닫거나 앱을 죽이면 완료 기록이 남지 않는다.
 	# 그 판이야말로 "어디서 그만뒀는지"라 오히려 더 중요하다.
@@ -141,8 +167,30 @@ func _on_boss_died() -> void:
 		_boss_spawn_t = -1.0
 
 
-func _on_run_end(outcome: String) -> void:
+## 경과 시간이 뒤로 갔나 = 판이 끝나기 전에 `Events.reset()` 이 먼저 일어났나.
+##
+## 그런 상태에서 스냅샷을 뜨면 **리셋된 값(경과 0 · 처치 1 · 레벨 2 · 시작 인벤토리)** 이
+## 이 판의 기록을 덮어쓴다. Telemetry 자체 변수(`_cleared`·`_hits`·`_samples`·보스 카운터)는
+## 리셋되지 않으므로, 두 시점이 섞인 — 30분치 샘플에 0점 요약이 붙은 — 레코드가 된다.
+## 실제로 이 게임의 유일한 목표선인 **30분 클리어 판이 그렇게 저장됐다**(P0-9).
+##
+## 호출부에서 `end_run()` 을 먼저 부르는 것이 정석이고(그래야 실제 값이 남는다), 이건
+## 그걸 빠뜨린 경로를 위한 안전망이다. **여기서는 아무것도 쓰지 않는다** —
+## 마지막 정상 진행 스냅샷을 그대로 두면 다음 판 시작 때 그것이 승격된다(최대 10초 과소보고).
+func _stop_if_reset() -> bool:
+	if float(Events.elapsed_time) >= _last_elapsed:
+		return false
+	_active = false
+	return true
+
+
+## 판 종료 기록. 사망은 시그널로 자동이지만, **메뉴 복귀는 아무 신호도 오지 않으므로**
+## HUD 가 직접 부른다(`_on_main_menu_pressed`). 이걸 안 부르면 그 판이 통째로 사라진다.
+## outcome: "died" 사망 · "left" 메뉴로 나감(정상 종료) · "abandoned" 탭 닫힘·크래시.
+func end_run(outcome: String) -> void:
 	if not _active:
+		return
+	if _stop_if_reset():
 		return
 	_active = false
 	_append(_snapshot(outcome))
@@ -179,19 +227,27 @@ func _snapshot(outcome: String) -> Dictionary:
 		"boss_fight_s": _boss_fights,
 		"weapons": Events.weapons.duplicate(),
 		"passives": Events.passives.duplicate(),
+		# 해석된 이속 합계(패시브 운동화 + 메타 신속 + 캐릭터 보정). 후반 이속 밸런스(P1-5)는
+		# "그 판이 얼마나 빨랐는가"로만 판정되는데, passives 만으로는 메타·캐릭터 몫이 안 보인다.
+		"speed_lv": Events.upgrade_speed,
 		"samples": _samples,
 		"diag": _diag(),
 	}
 
 
 ## 프리즈 직전 상태 (P0-4). 멈춘 뒤에는 기록할 수 없으니 매 스냅샷마다 현재 상태를 남긴다.
-## 이 값들이 프리즈 원인을 세 갈래로 가른다:
-##   · frame_ms_max 가 치솟음 → 성능 붕괴(개체·이펙트 폭증). 개체 수를 함께 본다.
+## 이 값들이 프리즈 원인을 가른다:
+##   · fps 가 낮거나 frame_ms_max 가 큼 → 성능 저하·붕괴(개체·이펙트 폭증). 개체 수를 함께 본다.
 ##   · paused=true + pause_owners 가 남아 있음 → 모달이 정지를 쥔 채 갇힘.
+##   · 고아 노드·리소스·VRAM 이 우상향 → 누수. 분당 샘플의 추이로만 보인다.
 ##   · 전부 정상인데 기록이 끊김 → 무한 루프/크래시. 워치독조차 못 돈 것이다.
+##
+## ⚠️ **이 갈래들은 배타적이지 않다**(P0-10). 성능이 무너진 상태에서 크래시가 날 수 있고,
+## 실제 사람 기록이 그랬다 — 30fps·80ms 로 눌러앉은 판을 도구가 "지표 정상"으로 분류했다.
+## 판정하는 쪽(`tools/analyze_telemetry.py`)은 해당하는 갈래를 **전부** 세워야 한다.
 func _diag() -> Dictionary:
 	var tree := get_tree()
-	return {
+	var d := {
 		"fps": int(Engine.get_frames_per_second()),
 		"frame_ms_max": snappedf(_frame_ms_max, 0.1),
 		"time_scale": snappedf(Engine.time_scale, 0.001),
@@ -202,6 +258,51 @@ func _diag() -> Dictionary:
 		"pickups": (tree.get_nodes_in_group("item_pickups").size() if tree != null else -1),
 		"gems": _Gem.live_gems().size(),
 	}
+	d.merge(_leak_counters())
+	return d
+
+
+## 누수 판정용 계수기 — **웹에서 실제로 값이 나오는 것만 남겼다**(P0-10).
+##
+## 왜 `MEMORY_STATIC` 이 아닌가
+## ---------------------------
+## P0-6 은 `Performance.MEMORY_STATIC` 으로 메모리 추이를 심었는데, **웹 export 에서만 항상 0**
+## 이다(네이티브 헤드리스에서는 30.0MB 를 정상 반환하므로 코드 결함이 아니다). 0 이 계속 찍히면
+## "메모리가 안 늘었다 = 누수 없음"으로 오독된다 — 실제로는 아무것도 재고 있지 않다.
+## 그 상태로 크래시 기록을 **3회** 흘려보냈다.
+##
+## wasm 힙은 잴 방법이 없다 (실측으로 확인)
+## ----------------------------------------
+## 실제 웹 빌드를 Chromium 에 띄워 후보를 전부 재 봤다.
+##   · `performance.memory.usedJSHeapSize` → 68.9MB 로 그럴듯한 값이 나오지만, **wasm 쪽에서
+##     200MB 를 실제로 붙잡아도 0.0MB 움직인다.** JS 힙만 보는 값이라 이 게임엔 무의미하다.
+##     (그럴듯한데 아무것도 안 재는 값 — `mem_mb: 0` 보다 더 위험하다.)
+##   · `performance.measureUserAgentSpecificMemory` → 이 빌드는 `crossOriginIsolated` 가
+##     false 라 아예 없다.
+##   · `wasmMemory` · `Module` · `HEAP8` → Godot 4.3 웹 셸이 전역에 노출하지 않는다.
+## 그래서 **wasm 힙은 포기하고, 웹에서 실제로 살아 있는 지표로 갈아탔다.**
+##
+## 무엇이 살아 있나 (실제 웹 빌드 실측)
+## ------------------------------------
+##   OBJECT_COUNT 1544 · OBJECT_RESOURCE_COUNT 266 · OBJECT_ORPHAN_NODE_COUNT 0
+##   RENDER_VIDEO_MEM_USED 35.9MB (텍스처 18.9 + 버퍼 17.1)
+## 누수는 대부분 여기서 먼저 보인다 — 고아 노드가 쌓이거나, 리소스가 안 풀리거나,
+## 텍스처가 계속 올라가거나. 힙 총량보다 오히려 **원인에 가까운 값**이다.
+func _leak_counters() -> Dictionary:
+	return {
+		"nodes": int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
+		"objects": int(Performance.get_monitor(Performance.OBJECT_COUNT)),
+		"res": int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT)),
+		"orphans": int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)),
+		"vram": snappedf(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0, 0.1),
+	}
+
+
+## 그룹 개체 수(분당 샘플용). 프레임과 함께 봐야 "무엇이 늘어서 느려졌나"를 가를 수 있다.
+func _group_count(g: String) -> int:
+	var tree := get_tree()
+	return tree.get_nodes_in_group(g).size() if tree != null else -1
+
 
 
 ## 지난 실행에서 끝맺지 못한 판(웹 탭 닫힘·앱 강제 종료)을 '이탈' 기록으로 올린다.

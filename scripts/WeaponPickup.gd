@@ -1,6 +1,9 @@
-extends Area2D
+extends Node2D
 ## 무기 픽업: 맵 랜덤 위치에 등장. 플레이어가 가까이 가면 즉시 장착되고,
 ## 방치되면 일정 시간 후 사라진다(자리 순환). 희귀도가 높을수록 더 크고 화려하게 표현.
+##
+## 물리 노드가 아니다: 수집 판정은 collect_radius 거리 계산뿐이다.
+## (예전에는 ItemPickup 과 함께 도형 없는 Area2D 였다 — 자세한 것은 ItemPickup.gd 머리말)
 
 const _FXBurst := preload("res://scripts/FXBurst.gd")
 
@@ -16,8 +19,6 @@ var _t: float = 0.0
 
 func _ready() -> void:
 	add_to_group("weapon_pickups")
-	monitoring = false
-	monitorable = false
 
 
 ## 스포너가 풀에서 꺼낸 직후 무기 데이터를 주입.
@@ -98,10 +99,10 @@ func _draw() -> void:
 	# 이름 / 희귀도 라벨
 	var font := ThemeDB.fallback_font
 	var label_pos := center + Vector2(-60.0, -glow_r - 14.0)
-	draw_string(font, label_pos, stats.get("name", ""), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 15, Color(1.0, 1.0, 1.0, alpha))   # batching-exempt: 무기/희귀도 이름은 임의 로케일 문자열이라 비트맵으로 못 굽는다. 동시 표시 수가 한 자릿수라 배치 손실이 그만큼뿐이다
+	draw_string(font, label_pos, stats.get("name", ""), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 15, Color(1.0, 1.0, 1.0, alpha))   # batching-exempt: 임의 로케일 문자열이라 비트맵으로 못 굽는다. 동시 표시 수가 한 자릿수라 배치 손실이 그만큼뿐이다
 	if stats.get("tier_id", "common") != "common":
 		var tier_pos := label_pos + Vector2(0.0, 16.0)
-		draw_string(font, tier_pos, stats.get("tier_name", ""), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 13, Color(tier_color.r, tier_color.g, tier_color.b, alpha))   # batching-exempt: 무기/희귀도 이름은 임의 로케일 문자열이라 비트맵으로 못 굽는다. 동시 표시 수가 한 자릿수라 배치 손실이 그만큼뿐이다
+		draw_string(font, tier_pos, stats.get("tier_name", ""), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 13, Color(tier_color.r, tier_color.g, tier_color.b, alpha))   # batching-exempt: 임의 로케일 문자열이라 비트맵으로 못 굽는다. 동시 표시 수가 한 자릿수라 배치 손실이 그만큼뿐이다
 
 
 func _draw_icon(shape: String, center: Vector2, r: float, rot: float, base_color: Color, tier_color: Color, alpha: float) -> void:

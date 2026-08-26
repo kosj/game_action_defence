@@ -16,7 +16,13 @@ custom_minimum_size 로 폭이 고정된 위젯만 본다.
 import re
 import sys
 
-from PIL import ImageFont
+try:
+    from PIL import ImageFont
+except ImportError:
+    # build_atlas.py 와 같은 안내. 이게 없으면 그냥 ModuleNotFoundError 로 죽어서,
+    # 이 검사를 "돌렸는데 통과"가 아니라 **조용히 건너뛰게** 된다(실제로 그렇게 됐다).
+    print("Pillow 가 필요합니다:  pip install pillow", file=sys.stderr)
+    raise
 
 REG = "assets/fonts/NotoSansCJK-Subset.otf"
 BOLD = "assets/fonts/NotoSansCJK-Subset-Bold.otf"

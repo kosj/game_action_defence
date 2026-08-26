@@ -51,7 +51,7 @@ var daynight: bool = true
 ## 스케줄 자체는 계속 돌아 결정론과 이어하기가 그대로 유지된다 — 켜면 그 시점의 날씨가 이어진다.
 var weather: bool = true
 
-## ── 실기기 병목 판정용 토글 (5-M Phase 0) ────────────────────────────────
+## ── 실기기 병목 판정용 토글 (5-R Phase 0) ────────────────────────────────
 ## 노트북 27fps 제보를 진단할 때, 프레임이 **fill-rate(GPU)** 때문인지 **스크립트(CPU)** 때문인지
 ## 가릴 수단이 없어서 추측만 오갔다. 개발 컨테이너는 소프트웨어 GL(llvmpipe)이라 항상
 ## fill-rate 로 기울어 대신 재 줄 수도 없다 — **판정은 그 기계에서만 난다.** 그래서 넣는다.
@@ -128,10 +128,16 @@ func request_spawn_boss() -> void:
 	spawn_boss.emit()
 
 
+## ⚠️ 켤 때만 used_this_run 을 세운다 — 끈다고 그 판이 사람 판이 되지는 않는다.
+## 예전에는 여기서 아무 표시도 하지 않아, **오토플레이로 돌린 판이 사람 데이터에 섞였다.**
+## 분석 도구는 `cheated` 로 거르는데 그 값이 false 였으니 걸러질 방법이 없었다
+## (BALANCE.md §3-6 — 오토플레이는 사람의 하한선이 아니라 다른 종이다).
 func toggle_autoplay() -> void:
 	if not enabled:
 		return
 	autoplay = not autoplay
+	if autoplay:
+		used_this_run = true
 	changed.emit()
 
 

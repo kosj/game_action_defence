@@ -176,7 +176,12 @@ func _tier() -> int:
 
 func _spawn_interval() -> float:
 	var t := clampf(_elapsed / _diff.spawn_interval_full_at, 0.0, 1.0)
-	return lerpf(_diff.spawn_interval_base, _diff.spawn_interval_min, t)
+	var iv := lerpf(_diff.spawn_interval_base, _diff.spawn_interval_min, t)
+	# 후반 전용 스폰 감속(P1-20) — 개체 유입이 곧 처치 수이자 프레임 비용이다.
+	# 체력 가속과 같은 시각에 시작해 "수를 줄이고 질을 올린다"가 한 쌍으로 움직인다.
+	if _elapsed > _diff.late_hp_start_s:
+		iv *= 1.0 + ((_elapsed - _diff.late_hp_start_s) / 60.0) * _diff.late_spawn_slow_per_min
+	return iv
 
 func _max_z() -> int:
 	var t := clampf(_elapsed / _diff.max_z_full_at, 0.0, 1.0)
@@ -186,6 +191,12 @@ func _hp_mult() -> float:
 	var mins := _elapsed / 60.0
 	# 선형 + 2차 가속 — 후반에 급격히 단단해져 플레이어의 곱연산 파워 성장을 따라잡는다.
 	var m := 1.0 + mins * _diff.hp_per_min + mins * mins * _diff.hp_accel_per_min2
+	# 후반 전용 가속(P1-20) — 사람 실측에서 분당 처치가 초반 110 → 35분대 760 으로 7배가 됐다.
+	# 빌드 파워가 이 곡선을 앞질러 좀비가 녹고, 녹이느라 쏟아내는 탄이 곧 프레임을 먹는다
+	# (BALANCE.md §3-10/§3-11). 2차항을 올리면 중반까지 같이 어려워지므로, 시작 시각이 있는
+	# 선형 항으로 20분 이후만 집는다.
+	if _elapsed > _diff.late_hp_start_s:
+		m += ((_elapsed - _diff.late_hp_start_s) / 60.0) * _diff.late_hp_per_min
 	if _elapsed > _diff.clear_seconds:   # 클리어 이후 무한 하드모드 — 분당 추가 체력
 		m += ((_elapsed - _diff.clear_seconds) / 60.0) * _diff.overtime_hp_per_min
 	return m * Events.diff_enemy_hp_mult()
@@ -383,9 +394,15 @@ func _spawn_boss() -> void:
 		_boss_alive = false
 		_boss_count -= 1
 		return
+	# 격리 구역 반경을 먼저 구한다 — 보스를 그 안쪽에 세워야 하기 때문이다.
+	# 예전에는 화면 밖(_random_spawn_pos)에 세워서, 보스가 울타리 밖에서 걸어 들어올 때까지
+	# 플레이어는 갇힌 채 기다려야 했다. 이제 구역 안 링 위에 등장해 바로 전투가 시작된다.
+	var arena_r: float = maxf(_bal.boss_arena_radius_min,
+			_bal.boss_arena_radius - _bal.boss_arena_shrink_per_count * float(_boss_count - 1))
 	var boss := BOSS.instantiate()
 	get_tree().current_scene.add_child(boss)
-	boss.global_position = _random_spawn_pos()
+	boss.global_position = player.global_position \
+			+ Vector2.from_angle(randf() * TAU) * (arena_r * BOSS_SPAWN_RING)
 	# 좀비 체력 곡선을 boss_curve_scale 만큼 반영해 보스도 후반까지 녹지 않게 한다.
 	# (예전의 분당 +3% 는 후반 보스를 순삭되게 만들었다.)
 	var time_scale := 1.0 + (_hp_mult() / Events.diff_enemy_hp_mult() - 1.0) * _diff.boss_curve_scale
@@ -405,12 +422,10 @@ func _spawn_boss() -> void:
 	}
 	boss.setup(stats)
 
-	# 격리 구역 — 플레이어를 중심으로 전개해 도주로를 막는다. 보스는 가두지 않는다(어차피
-	# 플레이어를 향해 오고, 대시로 잠깐 넘어가도 곧 돌아온다). 회차가 오를수록 좁아진다.
+	# 격리 구역 — 플레이어를 중심으로 전개해 도주로를 막는다. 보스도 같은 경계 안에 갇힌다
+	# (BossArena._confine_bosses). 회차가 오를수록 좁아진다.
 	if is_instance_valid(_arena):
 		_arena.queue_free()   # 이전 보스가 처치 없이 사라진 예외 상황 대비
-	var arena_r: float = maxf(_bal.boss_arena_radius_min,
-			_bal.boss_arena_radius - _bal.boss_arena_shrink_per_count * float(_boss_count - 1))
 	_arena = _BossArena.spawn(get_tree().current_scene, player.global_position, arena_r)
 
 	# 호위 정예 좀비 — 빠른(스프린터)/탱커(공사장) 혼합.
@@ -456,6 +471,11 @@ func _pick_type(weights: Array) -> Dictionary:
 		if roll < cum:
 			return ZOMBIE_TYPES[i]
 	return ZOMBIE_TYPES[0]
+
+
+## 보스 등장 위치 — 격리 구역 반경의 이 비율만큼 떨어진 링 위. 플레이어와 겹치지 않으면서
+## 화면 안(뷰포트 반대각 ≈ 734)에 들어와, 등장 순간이 눈에 보인다.
+const BOSS_SPAWN_RING := 0.72
 
 
 func _random_spawn_pos() -> Vector2:

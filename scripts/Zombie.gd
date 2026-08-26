@@ -153,11 +153,14 @@ func get_contact_damage() -> int:
 func _physics_process(delta: float) -> void:
 	if not _alive:
 		return
+	# 물리 프레임 번호는 이 함수에서 최대 3번 쓰인다(재탐색 주기·화면 밖 LOD·걷기 30Hz).
+	# 엔진 호출이라 한 번만 받아 두고 돌려 쓴다.
+	var pf := Engine.get_physics_frames() + _lod_phase
 	if not is_instance_valid(player):
 		# 게임 오버·부활 대기 중에는 플레이어가 없다. 좀비 수백 마리가 각자 매 프레임 그룹을
 		# 조회하면 낭비지만(광고 부활이 있어 아예 끊을 수는 없다) 즉시성이 필요하지도 않다 —
 		# 개체별 위상으로 분산해 30 프레임에 한 번만 재탐색한다.
-		if (Engine.get_physics_frames() + _lod_phase) % 30 == 0:
+		if pf % 30 == 0:
 			player = get_tree().get_first_node_in_group("player")
 		return
 	# 화면 밖 좀비는 보이지 않으므로 연출(잔광·걷기 애니메이션)을 건너뛴다 — 이동/추적은 그대로라
@@ -166,7 +169,7 @@ func _physics_process(delta: float) -> void:
 	# 화면 밖 LOD: 3 물리 프레임에 1번만 처리(델타 3배 보정) — 이동 거리는 동일하고 대량
 	# 좀비의 화면 밖 스크립트 비용이 1/3 로 줄어든다. 개체별 위상으로 부하가 프레임에 분산된다.
 	if not vis:
-		if (Engine.get_physics_frames() + _lod_phase) % 3 != 0:
+		if pf % 3 != 0:
 			return
 		delta *= 3.0
 	# 피격 잔광: Tween 대신 잔여 시간을 직접 감쇠(대량 동시 피격 시 Tween 폭증 방지)
@@ -185,7 +188,7 @@ func _physics_process(delta: float) -> void:
 	# 여기서는 그 방향(_facing)에 발딛기 스쿼시를 더한다).
 	# 걷기 연출은 30Hz(2프레임에 1번, 이동량 2배 보정)로 갱신 — 시각 차이는 없고 대량 좀비에서
 	# 프레임당 스프라이트 속성 쓰기(scale/position/rotation × 수백)가 절반으로 준다.
-	if vis and (Engine.get_physics_frames() + _lod_phase) % 2 == 0:
+	if vis and pf % 2 == 0:
 		_animate_walk(global_position.distance_to(prev_pos) * 2.0)
 	# 넉백은 걷기 애니메이션에 반영하지 않고 순수 위치 이동으로만 적용(빠르게 감쇠).
 	if _knockback != Vector2.ZERO:
@@ -199,8 +202,11 @@ func _physics_process(delta: float) -> void:
 ## 정확히 접촉 사거리에 서게 되므로, 닿은 좀비는 반드시 접촉 피해를 준다
 ## (Player._check_contact_damage 가 같은 반경을 쓴다).
 ##
-## 좀비끼리의 분리는 넣지 않는다 — 320마리 기준 물리 시간이 5.3ms → 10.8ms 로 2배가 됐고,
-## 플레이어 주변으로 한정해도 7.3ms 였다. 웹(WASM)에서는 그대로 프레임 붕괴로 이어진다.
+## ⚠️ 여기는 **플레이어와의** 겹침만 푼다. 좀비끼리의 분리는 `ZombieSpawner._physics_process()`
+## 가 따로 처리한다 — 예전에는 "비싸서 넣지 않는다"고 이 자리에 적혀 있었지만 지금은 들어가
+## 있다. 대신 비용을 세 가지로 눌렀다: 30Hz(2 물리 프레임에 1번) · 플레이어 반경 760px 밖
+## 생략 · 한 마리가 검사하는 이웃 6마리 상한. 최대 부하(좀비 320) 실측이 1.07ms 로,
+## 물리 틱의 11% 다(OPTIMIZATION_PLAN.md §5-M 의 절제 측정).
 func _resolve_overlap() -> void:
 	var to_p := global_position - player.global_position
 	var min_p: float = sep_radius + Events.player_body_radius
