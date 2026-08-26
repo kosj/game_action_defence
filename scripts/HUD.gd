@@ -1555,17 +1555,55 @@ func _refresh_cheat_ui() -> void:
 ## 픽셀 수만 1/4** 이 된다. 그래서 이 토글로 프레임이 크게 줄면 fill-rate(GPU) 병목이고,
 ## 그대로면 CPU 병목이다.
 ##
-## ⚠️ 전체화면·최대화 상태이거나 웹에서 페이지가 캔버스 크기를 강제하면 창 크기 변경이
-## 먹지 않을 수 있다. 그래서 PERF HUD 의 DRAW 줄에 **실제 렌더 크기**를 함께 찍는다 —
-## 토글을 켰는데 그 값이 안 변하면 적용되지 않은 것이다.
+## ⚠️ 전체화면·최대화 상태이면 창 크기 변경이 먹지 않을 수 있다. 그래서 PERF HUD 의 DRAW 줄에
+## **실제 렌더 크기**를 함께 찍는다 — 토글을 켰는데 그 값이 안 변하면 적용되지 않은 것이다.
+##
+## ⚠️ **웹에서는 창 크기를 줄이는 것만으로는 안 된다**(실기기에서 깨진 채로 잡혔다).
+## 웹의 "창" 은 캔버스 엘리먼트다. `Window.size` 를 줄이면 백버퍼와 **화면에 보이는 크기가
+## 같이** 줄어드는데, 페이지는 그걸 다시 늘려 주지 않는다 — 게임이 좌하단 구석에 작게 처박힌다.
+## 그래서 웹에서는 줄이기 **직전의 CSS 크기를 고정**해 둔다. 백버퍼만 절반이 되고 브라우저가
+## 그것을 원래 크기로 확대해 그리므로, 화면에 보이는 크기는 그대로고 픽셀만 1/4 이 된다 —
+## 이게 웹에서의 해상도 스케일링이다.
 func _apply_half_res() -> void:
 	var w := get_window()
 	if w == null:
 		return
 	if _win_size_orig == Vector2i.ZERO:
 		_win_size_orig = w.size
-	w.size = Vector2i(maxi(1, _win_size_orig.x / 2), maxi(1, _win_size_orig.y / 2)) \
-		if Cheats.half_res else _win_size_orig
+	if Cheats.half_res:
+		_pin_web_canvas_css()   # 줄이기 **전에** 지금 보이는 크기를 붙잡아 둔다
+		w.size = Vector2i(maxi(1, _win_size_orig.x / 2), maxi(1, _win_size_orig.y / 2))
+	else:
+		w.size = _win_size_orig
+		_unpin_web_canvas_css()
+
+
+## 웹 캔버스의 CSS 크기를 현재 보이는 크기로 고정한다(웹이 아니면 아무 일도 하지 않는다).
+func _pin_web_canvas_css() -> void:
+	if not OS.has_feature("web"):
+		return
+	JavaScriptBridge.eval("""
+		(function () {
+			var c = document.getElementById('canvas') || document.querySelector('canvas');
+			if (!c) return;
+			var r = c.getBoundingClientRect();
+			c.style.width = Math.round(r.width) + 'px';
+			c.style.height = Math.round(r.height) + 'px';
+		})();
+	""", true)
+
+
+func _unpin_web_canvas_css() -> void:
+	if not OS.has_feature("web"):
+		return
+	JavaScriptBridge.eval("""
+		(function () {
+			var c = document.getElementById('canvas') || document.querySelector('canvas');
+			if (!c) return;
+			c.style.width = '';
+			c.style.height = '';
+		})();
+	""", true)
 
 
 func _on_pause_pressed() -> void:
