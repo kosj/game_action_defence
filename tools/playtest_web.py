@@ -60,6 +60,12 @@ def _chromium() -> str:
 ##   58s 인트로 Skip(우상단) · 72s BEGIN
 MENU_CHAIN = "10:0.5,0.5;18:0.5,0.356;30:0.5,0.21;45:0.5,0.23;58:0.87,0.05;72:0.5,0.885"
 
+## 게임에 들어간 **뒤**의 순서 — 일시정지 > CHEATS > AUTO-PLAY > Resume.
+## 이게 없으면 아무도 조종하지 않아 플레이어가 20초 만에 죽고 **게임오버 화면을 측정하게 된다**
+## (실제로 그랬다: 173초 실행의 끝 두 장이 GAME OVER 였다).
+## 좌표는 일시정지 패널 기준이며, CHEATS 를 펼치면 그 아래로 버튼이 붙는다.
+AUTOPLAY_CHAIN = "86:0.958,0.037;98:0.5,0.316;110:0.5,0.365;122:0.5,0.208"
+
 
 def serve(directory: str) -> tuple[int, socketserver.TCPServer]:
     handler = functools.partial(http.server.SimpleHTTPRequestHandler, directory=directory)
@@ -78,6 +84,9 @@ def main() -> int:
     ap.add_argument("--clicks", default=MENU_CHAIN,
                     help="캔버스를 누를 시각과 위치: '초:x비율,y비율' 을 세미콜론으로 잇는다. "
                          "예: 8:0.5,0.5;12:0.5,0.8  (비율이라 캔버스 크기가 바뀌어도 그대로 쓴다)")
+    ap.add_argument("--autoplay", action="store_true",
+                    help="게임 진입 후 CHEATS > AUTO-PLAY 를 켜서 조종 AI 가 놀게 한다. "
+                         "없으면 플레이어가 가만히 있다가 20초 만에 죽는다.")
     ap.add_argument("--hold", type=int, default=180,
                     help="누르고 있는 시간(ms). 소프트웨어 WebGL 에서는 한 프레임이 길어 "
                          "짧게 누르면 버튼이 안 눌린다.")
@@ -107,6 +116,11 @@ def main() -> int:
         when, _, pos = part.partition(":")
         xf, _, yf = pos.partition(",")
         clicks.append((float(when), float(xf), float(yf)))
+    if args.autoplay:
+        for part in AUTOPLAY_CHAIN.split(";"):
+            when, _, pos = part.partition(":")
+            xf, _, yf = pos.partition(",")
+            clicks.append((float(when), float(xf), float(yf)))
     clicks.sort()
     errors: list[str] = []
 
