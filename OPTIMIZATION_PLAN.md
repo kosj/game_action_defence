@@ -1978,6 +1978,35 @@ Godot 웹은 press 와 release 사이에 프레임이 지나야 버튼이 눌리
 것이다). 이후 받은 두 번째 제보(Lv2 · 좀비 25)는 `phys 0.5/1.9` 로 정상이다.
 **문제는 후반 난전에서 좀비 수에 따라 온다.**
 
+### 웹 하네스가 잡은 것 — WebGL 프레임버퍼 경고 (미해결, 확인 필요)
+
+브라우저 자동 플레이테스트에서 **게임플레이 중에만** 콘솔 경고가 쏟아진다(약 70초에 125건):
+
+```
+GL_INVALID_FRAMEBUFFER_OPERATION: glDrawArrays:
+Framebuffer is incomplete: Attachment level is not in the [base level, max level] range.
+```
+
+타이틀·메뉴에서는 0건이고 판에 들어간 뒤부터 나온다. **네이티브 프로파일러로는 안 보이는
+종류**라 웹 하네스를 만든 값을 바로 했다.
+
+무슨 뜻인가: 프레임버퍼에 붙은 텍스처의 밉 레벨이 `base~max` 범위 밖이라 **그 드로우 콜이
+버려진다.** 원인 후보는 밉맵 없는 렌더 타깃을 밉 설정과 함께 붙이는 경로(`BackBufferCopy`
+계열이 가장 흔하다).
+
+⚠️ **다만 이 환경은 SwiftShader 다.** 실제 GPU 드라이버는 이걸 관대하게 넘길 수도 있어,
+"웹에서 항상 나는 문제" 라고 단정하면 안 된다. 확인 방법은 간단하다 —
+**실기기 브라우저에서 개발자 도구 콘솔을 열고 한 판 돌려 보면 된다.**
+
+프레임과의 관계도 아직 모른다. 경고 자체가 무거운 검증 경로를 태워 브라우저 CPU 를 먹을 수도
+있고, 그냥 시끄럽기만 할 수도 있다. **재현 조건이 확보됐으므로 별건으로 다룬다.**
+
+재현:
+```sh
+LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1024x1600x24" \
+python3 tools/playtest_web.py --build /tmp/webdiag --secs 150 --hold 1200 --shots 100,145
+```
+
 ### 노트북에서 확인할 것 (1분)
 
 CHEATS 를 열고 **HALF RES 를 켠다.** DRAW 줄의 `@` 뒤 숫자가 절반이 됐는지 먼저 보고,
