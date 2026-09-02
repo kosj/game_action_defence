@@ -103,11 +103,14 @@ changing weapon, inconsistent colors between frames, motion blur
 
 ### 캐릭터별 주제
 
+기존 그림을 실제로 열어 보고 적은 것이다. **참조 이미지(`assets/sprites/idle_<id>.png`)를 같이
+넣는 것이 이 표보다 훨씬 정확하다** — 표는 참조를 못 넣는 도구를 위한 폴백이다.
+
 | id | 주제(subject) |
 |---|---|
-| `veteran` | `a rugged bearded soldier in a red bandana, olive tank top and tactical vest, combat boots, holding an assault rifle` |
-| `hunter` | `a slim archer in a green hooded cloak with a ponytail, leather bracers and tall boots, holding a crossbow` |
-| `engineer` | `a practical engineer in work overalls and a tool harness, holding a compact nailgun` |
+| `veteran` | `a rugged bearded soldier wearing a red bandana headband, olive tank top with a tactical chest rig, brown cargo pants and heavy combat boots, holding an assault rifle` |
+| `hunter` | `a slim archer in a green hooded cloak over a dark green tunic, blonde ponytail, brown leather boots, holding a wooden crossbow` |
+| `engineer` | `a stocky worker in a yellow hard hat and tan work coveralls, brown work boots, holding a large industrial nailgun` |
 
 ### 걷기 시트 지시 (시트로 뽑을 때)
 
@@ -116,6 +119,20 @@ walk cycle sprite sheet, 6 frames in a single horizontal row, evenly spaced,
 identical character and equipment in every frame, only the legs and arms change,
 frame 1 is a neutral standing pose with feet together
 ```
+
+### 3D 생성 도구(VARCO 3D 등)를 쓸 때
+
+2D 로 뒷모습을 "다시 그리는" 것과 접근이 다르고, **이쪽이 뒷모습에는 훨씬 유리하다.**
+3D 모델을 한 번 만들면 뒷모습은 **카메라만 돌리면 나오므로 앞모습과 저절로 일치한다** —
+2D 재생성에서 제일 잘 깨지는 "같은 캐릭터로 안 보인다"가 구조적으로 생기지 않는다.
+
+- 정면 그림을 참조로 모델을 만들고, **카메라를 정확히 180° 돌려** 렌더한다.
+- 렌더 조건을 정면과 맞춘다: 같은 카메라 높이·같은 초점거리·같은 광원 방향(좌상단).
+  광원이 따라 돌면 뒷모습만 명암이 뒤집혀 다른 캐릭터처럼 보인다.
+- 배경 투명 · 그림자 없음으로 출력하고, `make_icon.py --height 150 --black-halo` 로 정리한다.
+- ⚠️ **걷기 애니메이션까지 3D 로 뽑으려 하지 말 것** — 2026-09-02 이전에 걷기 4프레임을
+  시도했다가 원하는 걷는 모습이 안 나와 접었다. 여기서 필요한 것은 **정지 포즈 한 장**이고,
+  걷기는 기존 절차 애니메이션이 그 위에 얹힌다.
 
 ⚠️ **이 부분이 가장 잘 실패한다.** 지난번에 시트를 뺀 이유가 그것이다 — *"생성 아트가 프레임마다
 팔레트·장비가 미묘하게 흔들려 시트를 돌리면 오히려 어색했다"*(`CharacterData.run_frames` 주석).
