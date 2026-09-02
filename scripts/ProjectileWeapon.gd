@@ -51,7 +51,7 @@ func _interval(lvl: int) -> float:
 
 
 func _fire(lvl: int) -> void:
-	var base_dir := Vector2(_facing(), 0.0)   # 캐릭터가 바라보는 좌/우로만 발사
+	var base_dir := _aim_vector()   # 캐릭터가 바라보는 방향으로만 발사(그림과 어긋나지 않게)
 	var origin := _origin()
 
 	var pellets: int = _data.pellets + int((lvl - 1) / 4)     # 레벨업 시 완만히 탄 수 증가
@@ -97,11 +97,12 @@ func _fire(lvl: int) -> void:
 	_FXBurst.spawn(get_tree().current_scene, origin, _data.color, 12.0, 0.08)
 
 
-## 캐릭터가 바라보는 좌/우. Player 가 없으면(테스트 등) 오른쪽으로 둔다.
-func _facing() -> float:
-	if _player != null and _player.has_method("aim_facing"):
-		return _player.aim_facing()
-	return 1.0
+## 캐릭터가 바라보는 단위 방향(좌/우/위/아래). Player 가 없으면(테스트 등) 오른쪽으로 둔다.
+## 상/하 그림이 없는 캐릭터는 Player 쪽에서 측면으로 되돌리므로 여기서는 구분하지 않는다.
+func _aim_vector() -> Vector2:
+	if _player != null and _player.has_method("aim_vector"):
+		return _player.aim_vector()
+	return Vector2.RIGHT
 
 
 ## 쏘는 캐릭터의 기본 탄 모양(예광탄/볼트/못).

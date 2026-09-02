@@ -218,6 +218,7 @@ godot --headless --path . --fixed-fps 60 --script res://tools/verify_homing_accu
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_bullet_budget.gd
 godot --headless --path . --script res://tools/verify_late_hp.gd
 godot --headless --path . --script res://tools/verify_pickups.gd
+godot --headless --path . --script res://tools/verify_player_facing.gd
 godot --headless --path . --script res://tools/verify_audio_playback.gd
 ```
 
@@ -276,7 +277,7 @@ SwiftShader(소프트웨어 GL)로 도는 값이라 실기기와 무관하다.
 ⚠️ **"웹은 데스크톱의 3~4배"는 틀린 상수다** — 실측하면 렌더 경합이 없을 때 **0.99배**다(§5-L).
 남은 미지수는 폰 CPU 의 절대 속도와 모바일 GPU fill-rate 뿐이고, 그것만 실기기가 필요하다.
 
-**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 22종이 이 프로젝트의 안전망 전부다.
+**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 23종이 이 프로젝트의 안전망 전부다.
 
 비주얼을 건드렸으면 **실렌더 스크린샷**으로 확인한다 — 헤드리스는 `_draw` 를 부르고 오류도 안 내지만,
 그려진 것이 다른 레이어에 덮였는지·좌표가 화면 밖인지는 알려주지 않는다.

@@ -125,62 +125,133 @@ func _ready() -> void:
 		_load_saved_state()
 
 
+## 그림의 방향 키. 좌우는 한 장을 수평 플립해 쓰고(뱀서식), 상/하는 전용 그림으로 바꿔 낀다.
+## 상/하 그림은 정면·후면이라 **플립하면 무기가 반대 손으로 가므로 절대 뒤집지 않는다.**
+const _DIR_SIDE := "side"
+const _DIR_UP   := "up"
+const _DIR_DOWN := "down"
+## 방향 → 파일명 접미사. 측면이 빈 문자열인 것은 기존 파일명(run_<id>.png)을 그대로
+## 측면 그림으로 쓰기 위한 것이다 — 아트를 하나도 안 넣어도 지금과 동일하게 돈다.
+const _DIR_SUFFIX := {_DIR_SIDE: "", _DIR_UP: "_up", _DIR_DOWN: "_down"}
+
 ## 선택 캐릭터 전용 스프라이트를 Body 에 적용. 데이터가 없거나 경로가 비면 씬 기본 player.png 유지.
 ## sprite_scale(>0)로 스프라이트별 크기 편차를 정규화한다. _body_base_scale 캡처 전에 호출한다.
 ## 어떤 그림을 쓸지는 캐릭터 데이터의 run_frames 가 정한다.
-##   run_frames >= 2 : 러닝 시트(run_<id>.png, 가로 균등 분할)로 프레임 애니메이션.
-##                     멈추면 idle_<id>.png 로 교체(없으면 시트 0번 칸).
-##   그 외(0/1)      : 그림 한 장(idle_<id>.png 우선, 없으면 sprite_path) + 절차 걷기.
+##   run_frames >= 2 : 러닝 시트(run_<id>[_dir].png, 가로 균등 분할)로 프레임 애니메이션.
+##                     멈추면 idle_<id>[_dir].png 로 교체(없으면 시트 0번 칸).
+##   그 외(0/1)      : 그림 한 장(idle_<id>[_dir].png 우선, 없으면 sprite_path) + 절차 걷기.
 ##                     생성 아트는 프레임마다 팔레트·장비가 미묘하게 흔들려 시트를 돌리면
 ##                     오히려 어색해서, 지금은 이쪽을 쓴다. 시트로 되돌리려면 데이터의
 ##                     run_frames 만 프레임 수로 바꾸면 된다(코드 수정 불필요).
 var _run_frames: int = 0         # 0 = 시트 안 씀(절차 걷기)
-var _sheet_tex: Texture2D = null
-var _idle_tex: Texture2D = null
-var _idle_shown: bool = false
+## 방향 → 텍스처. 키가 없으면 그 방향 그림이 없다는 뜻이고, 그때는 측면으로 되돌아간다.
+var _sheet_by_dir: Dictionary = {}
+var _idle_by_dir: Dictionary = {}
+var _dir: String = _DIR_SIDE     # 지금 그리고 있는 방향(아트가 있는 방향으로만 들어온다)
+## body.texture 가 지금 어느 방향/상태 그림인지 — 텍스처 대입은 매번 렌더 서버로 나가므로
+## 바뀔 때만 갈아 끼운다(무적 깜빡임의 modulate 와 같은 이유, ASSET_PIPELINE.md 1절).
+var _tex_dir: String = ""
+var _tex_sheet: bool = false
 var _proj_style: String = "bullet"   # 기본총 탄 모양 — 그림 속 무기와 맞춘다(캐릭터 데이터)
 
 func _apply_character_sprite() -> void:
 	var c: CharacterData = CharacterManager.selected()
 	if c == null or not (body is Sprite2D):
 		return
-	# 총구는 그림마다 무기를 뻗은 위치가 달라 캐릭터 데이터에서 가져온다(씬 기본값은 옛 아트 기준).
-	if muzzle != null and c.muzzle_offset != Vector2.ZERO:
-		muzzle.position = c.muzzle_offset
 	_proj_style = c.projectile_style
-	# 러닝 시트 경로. 지금은 세 캐릭터 모두 run_frames = 0 이라 이 분기에 들어오지 않고,
-	# 시트 PNG 도 저장소에서 빼 뒀다(안 쓰는 그림이 아틀라스 한 변을 두 배로 키우고 있었다).
-	# 되살리려면 run_<id>.png 를 assets/sprites/ 에 넣고 build_atlas.py 를 돌린 뒤
+	_run_frames = c.run_frames if c.run_frames >= 2 else 0
+	# 방향별 그림을 모아 둔다. 지금은 세 캐릭터 모두 run_frames = 0 이고 상/하 그림도 없어서
+	# 측면 대기 그림 한 장만 잡히고, 결과적으로 예전 경로와 완전히 같은 화면이 나온다.
+	# 시트 PNG 는 저장소에서 빼 뒀다(안 쓰는 그림이 아틀라스 한 변을 두 배로 키우고 있었다) —
+	# 되살리려면 run_<id>[_dir].png 를 assets/sprites/ 에 넣고 build_atlas.py 를 돌린 뒤
 	# 캐릭터 데이터의 run_frames 만 프레임 수로 바꾸면 된다(코드 수정 불필요).
-	var run_path := "res://assets/atlas/run_%s.tres" % c.id   # hframes 는 AtlasTexture region 을 분할한다
-	var idle_path := "res://assets/atlas/idle_%s.tres" % c.id   # 게임플레이 아틀라스
-	if c.run_frames >= 2 and ResourceLoader.exists(run_path):
-		var sheet = load(run_path)
-		if sheet is Texture2D:
-			body.texture = sheet
-			body.hframes = c.run_frames
-			body.frame = 0
-			_run_frames = c.run_frames
-			_sheet_tex = sheet
-			if ResourceLoader.exists(idle_path):
-				var itex = load(idle_path)
-				if itex is Texture2D:
-					_idle_tex = itex
-			if c.sprite_scale > 0.0:
-				body.scale = Vector2(c.sprite_scale, c.sprite_scale)
-			return
-	# 그림 한 장 — 대기 포즈가 있으면 그걸, 없으면 기존 단일 스프라이트.
-	var single_path := idle_path if ResourceLoader.exists(idle_path) else c.sprite_path
-	if single_path == "" or not ResourceLoader.exists(single_path):
+	_sheet_by_dir.clear()
+	_idle_by_dir.clear()
+	for d in [_DIR_SIDE, _DIR_UP, _DIR_DOWN]:
+		var suffix: String = _DIR_SUFFIX[d]
+		# hframes 는 AtlasTexture region 을 분할한다 — 게임플레이 아틀라스 경유가 맞다.
+		var run_path := "res://assets/atlas/run_%s%s.tres" % [c.id, suffix]
+		var idle_path := "res://assets/atlas/idle_%s%s.tres" % [c.id, suffix]
+		if _run_frames > 0 and ResourceLoader.exists(run_path):
+			var sheet = load(run_path)
+			if sheet is Texture2D:
+				_sheet_by_dir[d] = sheet
+		if ResourceLoader.exists(idle_path):
+			var itex = load(idle_path)
+			if itex is Texture2D:
+				_idle_by_dir[d] = itex
+	# 측면 대기 그림이 없으면 기존 단일 스프라이트(sprite_path)를 측면으로 삼는다.
+	if not _idle_by_dir.has(_DIR_SIDE) and c.sprite_path != "" and ResourceLoader.exists(c.sprite_path):
+		var tex = load(c.sprite_path)
+		if tex is Texture2D:
+			_idle_by_dir[_DIR_SIDE] = tex
+	if _sheet_by_dir.is_empty() and _idle_by_dir.is_empty():
+		return   # 쓸 그림이 하나도 없다 — 씬 기본 스프라이트를 그대로 둔다
+	_dir = _DIR_SIDE
+	_set_muzzle_for_dir(c)
+	_apply_body_texture(false)
+	if c.sprite_scale > 0.0:
+		body.scale = Vector2(c.sprite_scale, c.sprite_scale)
+
+
+## 그 방향 그림이 있는가 — 없으면 측면으로 낮춘다. 이것이 "아트를 한 장씩 넣어도 그때그때
+## 살아나고, 하나도 없으면 지금까지와 동일"을 만드는 지점이다.
+func _resolve_dir(d: String) -> String:
+	if d != _DIR_SIDE and not (_sheet_by_dir.has(d) or _idle_by_dir.has(d)):
+		return _DIR_SIDE
+	return d
+
+
+## 총구는 그림마다 무기를 뻗은 위치가 달라 캐릭터 데이터에서 가져온다(씬 기본값은 옛 아트 기준).
+## 상/하 값이 비어 있으면 측면값을 그대로 쓴다.
+func _set_muzzle_for_dir(c: CharacterData) -> void:
+	if muzzle == null or c == null:
 		return
-	var tex = load(single_path)
-	if tex is Texture2D:
-		body.texture = tex
-		body.hframes = 1
-		body.frame = 0
-		_run_frames = 0
-		if c.sprite_scale > 0.0:
-			body.scale = Vector2(c.sprite_scale, c.sprite_scale)
+	var off := c.muzzle_offset
+	if _dir == _DIR_UP and c.muzzle_offset_up != Vector2.ZERO:
+		off = c.muzzle_offset_up
+	elif _dir == _DIR_DOWN and c.muzzle_offset_down != Vector2.ZERO:
+		off = c.muzzle_offset_down
+	if off != Vector2.ZERO:
+		muzzle.position = off
+
+
+## 방향 전환. 걸음 위상(_walk_phase)은 **일부러 유지한다** — 세 방향이 프레임 수를 공유하므로
+## 위상을 이어 받으면 돌다가 방향을 바꿔도 보폭이 튀지 않는다(0 으로 리셋하면 발이 튄다).
+func _set_dir(d: String) -> void:
+	if d == _dir:
+		return
+	_dir = d
+	_set_muzzle_for_dir(CharacterManager.selected())
+
+
+## 지금 방향에서 쓸 시트 프레임 수(그 방향 시트가 없으면 0 = 절차 걷기).
+func _frames_for_dir() -> int:
+	return _run_frames if _sheet_by_dir.has(_dir) else 0
+
+
+## 방향·이동 상태에 맞는 그림을 Body 에 물린다. 같은 것을 다시 대입하지 않는다.
+func _apply_body_texture(want_sheet: bool) -> void:
+	if _tex_dir == _dir and _tex_sheet == want_sheet:
+		return
+	var tex: Texture2D = _sheet_by_dir.get(_dir) if want_sheet else _idle_by_dir.get(_dir)
+	var hf: int = _run_frames if want_sheet else 1
+	if tex == null:
+		# 원하는 쪽이 없으면 남은 쪽으로. 대기 그림이 없으면 시트 0번 칸이 중립 포즈다
+		# (다리를 모은 칸을 0번에 두는 것이 시트 조립 규약).
+		tex = _idle_by_dir.get(_dir)
+		hf = 1
+		if tex == null:
+			tex = _sheet_by_dir.get(_dir)
+			hf = _run_frames
+	if tex == null:
+		return
+	_tex_dir = _dir
+	_tex_sheet = want_sheet
+	body.texture = tex
+	body.hframes = maxi(1, hf)
+	body.frame = 0
+	_fit_shadow()   # 방향마다 그림 높이가 달라 발밑 그림자 위치가 달라진다
 
 
 ## 카메라 줌 펀치 — target 배율로 순간 전환 후 기본 줌으로 부드럽게 복귀(등장 연출용).
@@ -335,21 +406,49 @@ func _handle_attack(delta: float) -> void:
 	if _attack_accum < attack_cooldown:
 		return
 	_attack_accum = 0.0
-	_shoot_dir(Vector2(_facing, 0.0))   # 바라보는 좌/우 방향으로 직선 발사
+	_shoot_dir(aim_vector())   # 바라보는 방향으로 직선 발사
 
 
-## 사이드뷰: 이동(좌우)으로 조준한다 — 수평 이동 방향으로 캐릭터를 뒤집고 그 방향으로 발사한다.
-## 위/아래로만 움직이면(velocity.x≈0) 방향은 마지막 좌/우 값을 유지한다.
+## 이동 방향으로 조준한다 — 그림이 가리키는 쪽으로 쏜다는 규칙은 그대로고, 방향의 가짓수만
+## 좌/우 둘에서 상/하를 포함한 넷으로 늘었다(P1-33).
+## 대각선에서 방향이 매 프레임 뒤집히면 그림이 떨리므로, **지금 축에 관성을 준다** —
+## 들어올 때보다 나갈 때 더 큰 차이를 요구하는 히스테리시스다. 45° 근처에서 조이스틱이
+## 미세하게 흔들려도 방향이 붙어 있게 된다.
+## 멈춰 있을 때(둘 다 임계 미만) 방향을 그대로 두는 것은 예전과 같다 — 정지 중에 캐릭터가
+## 제자리에서 도는 것을 막는다.
+const _DIR_MIN_SPEED := 5.0   # 이보다 느린 축은 방향 판정에 쓰지 않는다(px/s)
+const _DIR_KEEP := 1.35       # 현재 축 가중치 — 클수록 방향이 잘 안 바뀐다
+
 func _update_facing() -> void:
-	if absf(velocity.x) > 5.0:
+	var ax := absf(velocity.x)
+	var ay := absf(velocity.y)
+	if maxf(ax, ay) < _DIR_MIN_SPEED:
+		return
+	if _dir == _DIR_SIDE:
+		ax *= _DIR_KEEP
+	else:
+		ay *= _DIR_KEEP
+	if ax >= ay:
 		_facing = -1.0 if velocity.x < 0.0 else 1.0
+		_set_dir(_DIR_SIDE)
+		return
+	# 상/하 그림이 없으면 _resolve_dir 가 측면으로 되돌린다. 그때 _facing 을 건드리지 않으므로
+	# 마지막 좌/우 값이 유지된다 — 아트가 없을 때 예전 동작과 정확히 같아진다.
+	_set_dir(_resolve_dir(_DIR_UP if velocity.y < 0.0 else _DIR_DOWN))
 
 
 ## 캐릭터가 들고 쏘는 무기 모듈이 쓰는 조준 기준.
-## 모듈이 제각각 360° 자동 조준하면 좌우 플립만 있는 그림과 어긋나(등 뒤로 발사) 어색하다.
+## 모듈이 제각각 360° 자동 조준하면 그림과 어긋나(등 뒤로 발사) 어색하다.
 ## 손에 든 무기는 이 둘을 써서 그림 속 총구에서 바라보는 쪽으로 나가게 한다.
-func aim_facing() -> float:
-	return _facing
+## 상/하 그림이 없어 측면으로 되돌아간 상태면 예전처럼 좌/우로만 나간다.
+func aim_vector() -> Vector2:
+	match _dir:
+		_DIR_UP:
+			return Vector2(0.0, -1.0)
+		_DIR_DOWN:
+			return Vector2(0.0, 1.0)
+		_:
+			return Vector2(_facing, 0.0)
 
 func muzzle_position() -> Vector2:
 	return muzzle.global_position if muzzle != null else global_position
@@ -389,33 +488,35 @@ const _RUN_BOB := 1.6             # 걸음당 수직 바운스(px) — 프레임
 const _RUN_LEAN := 0.05           # 달리는 동안 전방 기울임(rad)
 
 func _animate_walk(moved: float) -> void:
-	var fx := _body_base_scale.x * _facing
-	if _run_frames > 0:
-		if moved <= 0.01:
+	# 상/하 그림은 정면·후면이라 뒤집으면 무기가 반대 손으로 간다 — 플립은 측면에서만 건다.
+	var flip := _facing if _dir == _DIR_SIDE else 1.0
+	var fx := _body_base_scale.x * flip
+	var frames := _frames_for_dir()
+	var moving := moved > 0.01
+	# 이 방향에서 쓸 그림을 물린다(움직이면 시트, 멈추면 대기 포즈). 안 바뀌면 대입하지 않는다.
+	_apply_body_texture(moving and frames > 0)
+	if frames > 0:
+		if not moving:
 			_walk_phase = 0.0
-			if _idle_tex != null and not _idle_shown:
-				body.texture = _idle_tex   # 전용 대기 포즈로 교체
-				body.hframes = 1
-				_idle_shown = true
 			body.frame = 0   # 대기 그림 없으면 0번 칸 = 다리 모은 중립 포즈(시트 조립 시 보장)
 			body.scale = Vector2(fx, _body_base_scale.y)
 			body.position.y = move_toward(body.position.y, 0.0, 0.6)
 			body.rotation = move_toward(body.rotation, 0.0, 0.02)
 			return
-		if _idle_shown:
-			body.texture = _sheet_tex   # 대기 -> 이동: 러닝 시트 복귀
-			body.hframes = _run_frames
-			_idle_shown = false
-		_walk_phase += moved * float(_run_frames) / _RUN_CYCLE_PX
-		body.frame = int(_walk_phase) % _run_frames
+		_walk_phase += moved * float(frames) / _RUN_CYCLE_PX
+		body.frame = int(_walk_phase) % frames
 		# 걸음 주기(사이클의 절반 = 한 걸음)에 맞춘 바운스 + 착지 스쿼시 — 아트의 미묘한
 		# 다리 차이를 절차 연출로 보조해 작은 화면에서도 걷는 리듬이 읽히게 한다.
-		var bob := absf(sin(_walk_phase * TAU / float(_run_frames)))
+		var bob := absf(sin(_walk_phase * TAU / float(frames)))
 		body.position.y = -bob * _RUN_BOB
 		body.scale = Vector2(fx * (1.0 + 0.015 * (1.0 - bob)), _body_base_scale.y * (1.0 - 0.02 * (1.0 - bob)))
-		body.rotation = _RUN_LEAN * _facing
+		# 전방 기울임은 좌우로 달릴 때만 — 정면/후면 그림을 좌우로 기울이면 넘어지는 것처럼 보인다.
+		if _dir == _DIR_SIDE:
+			body.rotation = _RUN_LEAN * flip
+		else:
+			body.rotation = move_toward(body.rotation, 0.0, 0.02)
 		return
-	if moved <= 0.01:
+	if not moving:
 		_walk_phase = 0.0
 		body.scale = Vector2(fx, _body_base_scale.y)
 		body.position.y = move_toward(body.position.y, 0.0, 0.6)
