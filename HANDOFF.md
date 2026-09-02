@@ -95,6 +95,7 @@
 | P1-26 드로우 콜 귀속 — 계통별로 얼마씩 내는가 (`hide=`) | I | ✅ (93782d6) | claude/gpu-cpu-bottleneck-optimization-auaaun | 2026-08-21 |
 | P2-9 `subset_fonts.py` 가 서브셋 폰트를 원본으로 착각해 금지 목록을 오염시킨다 | D | ✅ (fd65477) | claude/d-lane-subset-guard | 2026-08-21 |
 | P3-4/5/6 문서 정합성 (1·2·3 은 해소됨) | — | ✅ (56974a7) | claude/docs-lane-p3 | 2026-08-20 |
+| P1-33 4방향 걷기 스프라이트 애니메이션(플레이어) | J | 🔵 진행중 | claude/spine-animation-4-direction-8uq5db | 2026-09-02 |
 
 **결정 대기 항목은 전부 해소됐다(2026-08-18).** 아래 §2 결정 로그 참고 — 이제 모든 항목이 바로 착수 가능하다.
 새로 🟡 가 필요한 판단이 생기면 임의로 고르지 말고 이 표에 🟡 로 올린 뒤 사용자 확인을 받는다.
@@ -2148,6 +2149,7 @@ CI 게이트(`check_font_coverage.gd`)도 원래 같은 범위(Locale + data/*.t
 | **F 밸런스·측정** | P1-6 ✅ → P2-8 ✅ → P1-8 ✅ → P1-7 ✅ → P1-9 ✅ → P1-11 ✅ → **P1-5** | `data/difficulty.tres`, `tools/sim_balance.*`, `Telemetry.gd` |
 | **G 진행 구조** | P1-12 → P1-14 | `ZombieSpawner.gd`, `data/difficulty.tres` — **B·F 와 파일이 겹친다**(아래 참고) |
 | **H 도감** | P1-13 ✅ | `MainMenu.gd` — **D 와 같은 파일이라 레인을 나눴다**(아래 참고) |
+| **J 캐릭터 연출** | P1-33 | `Player.gd`, `CharacterData.gd`, `tools/gen_character_data.gd` — 다른 레인과 겹치지 않는다. 다만 **아트를 넣는 단계에서 `tools/build_atlas.py` 산출물(`assets/atlas/*`)이 B 레인과 겹친다** |
 
 ### 신규 레인의 충돌 주의 (G·H)
 
