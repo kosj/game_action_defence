@@ -103,6 +103,9 @@ def main() -> int:
     ap.add_argument("--hold", type=int, default=180,
                     help="누르고 있는 시간(ms). 소프트웨어 WebGL 에서는 한 프레임이 길어 "
                          "짧게 누르면 버튼이 안 눌린다.")
+    ap.add_argument("--dpr", type=float, default=1.0,
+                    help="device pixel ratio. 폰을 흉내 내려면 2 (CSS 393x699 × 2 = 백버퍼 786x1398). "
+                         "HALF RES 웹 경로는 DPR 을 덮어쓰는 방식이라 1 로는 검증이 안 된다.")
     ap.add_argument("--width", type=int, default=786)     # 제보 스크린샷의 캔버스 크기
     ap.add_argument("--height", type=int, default=1398)
     args = ap.parse_args()
@@ -149,7 +152,8 @@ def main() -> int:
                 "--disable-dev-shm-usage",
             ],
         )
-        page = browser.new_page(viewport={"width": args.width, "height": args.height})
+        page = browser.new_page(viewport={"width": args.width, "height": args.height},
+                                device_scale_factor=args.dpr)
         page.on("console", lambda m: errors.append(f"console.{m.type}: {m.text}")
                 if m.type in ("error", "warning") else None)
         page.on("pageerror", lambda e: errors.append(f"pageerror: {e}"))
