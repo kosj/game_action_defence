@@ -1451,9 +1451,13 @@ func _build_pause_menu() -> void:
 		# 비·눈과 번개를 통째로 끈다(=상시 맑음). 스케줄은 계속 돌아 다시 켜면 이어진다.
 		_cheat_weather_btn = _make_cheat_button("WEATHER: ON", func(): Cheats.toggle_weather())
 		# ── 실기기 병목 판정 (5-R Phase 0) ─────────────────────────────────
-		# HALF RES 를 켜서 FPS 가 크게 오르면 fill-rate(GPU) 병목, 그대로면 CPU 병목이다.
+		# HALF RES 는 (DIAG) 다 — 진단 전용이고 화질 옵션으로 승격하지 않는다.
+		# 720p 픽셀아트를 2배로 늘리면 흐려지는 것이 구조적이라 실기기에서
+		# "프레임은 조금 오르고 화질은 못 봐줄 수준"으로 판명났다(5-R).
+		# 남은 쓸모는 판정 하나다 — 켜서 FPS 가 크게 오르면 fill-rate(GPU) 병목,
+		# 그대로면 CPU 병목. 실측이 "조금"이었으니 fill-rate 는 작은 몫이다.
 		# 나머지 셋은 어느 계통이 비싼지 그 자리에서 A/B 하기 위한 것이다.
-		_cheat_halfres_btn = _make_cheat_button("HALF RES: OFF", func(): Cheats.toggle_half_res())
+		_cheat_halfres_btn = _make_cheat_button("HALF RES (DIAG): OFF", func(): Cheats.toggle_half_res())
 		_cheat_vignette_btn = _make_cheat_button("VIGNETTE: ON", func(): Cheats.toggle_vignette())
 		_cheat_props_btn = _make_cheat_button("PROPS: ON", func(): Cheats.toggle_props())
 		_cheat_decals_btn = _make_cheat_button("DECALS: ON", func(): Cheats.toggle_decals())
@@ -1526,7 +1530,7 @@ func _refresh_cheat_ui() -> void:
 	if _cheat_weather_btn:
 		_cheat_weather_btn.text = "WEATHER: ON" if Cheats.weather else "WEATHER: OFF"
 	if _cheat_halfres_btn:
-		_cheat_halfres_btn.text = "HALF RES: ON" if Cheats.half_res else "HALF RES: OFF"
+		_cheat_halfres_btn.text = "HALF RES (DIAG): ON" if Cheats.half_res else "HALF RES (DIAG): OFF"
 	if _cheat_vignette_btn:
 		_cheat_vignette_btn.text = "VIGNETTE: ON" if Cheats.vignette else "VIGNETTE: OFF"
 	if _cheat_props_btn:
