@@ -1539,87 +1539,72 @@ func _refresh_cheat_ui() -> void:
 	_apply_half_res()
 
 
-## 렌더 해상도 절반 토글 — **창 크기를 줄인다.**
+## 렌더 해상도 절반 토글.
 ##
-## 왜 이 방법인가: 처음에는 `content_scale_mode` 를 VIEWPORT 로 바꾸고 `content_scale_size` 를
-## 360x640 으로 내렸는데, 그건 해상도만이 아니라 **설계 크기(보이는 월드 영역)까지** 반으로
-## 줄인다 — 화면이 확대되고 그릴 것 자체가 적어져서 "픽셀이 줄어 빨라진 것"과 구분이 안 된다.
-## 실측으로 확인한 조합은 이렇다(창 720x1280 기준):
+## 목적: 켰을 때 FPS 가 크게 오르면 fill-rate(GPU) 병목, 그대로면 CPU 병목이다. 그러려면
+## **같은 월드·같은 오브젝트·같은 드로우 콜에 픽셀 수만 1/4** 이어야 한다.
 ##
+## 데스크톱 — **창 크기를 줄인다.** `stretch/mode=canvas_items` + `aspect=keep` 라 창을 줄이면
+## 캔버스 배율이 0.5 가 되고 설계 좌표계(720x1280)는 그대로 남는다. 실측:
 ##   content_scale VIEWPORT 360x640  -> 렌더 360x640 · 보이는영역 360x640   (설계까지 줄어듦 ✗)
-##   content_scale_factor 0.5        -> 렌더 720x1280 · 보이는영역 1440x2560 (반대 방향 ✗)
+##   content_scale_factor 0.5 / 2.0  -> 렌더와 보이는영역이 같이 움직임        (분리 안 됨 ✗)
 ##   **창 크기 360x640**             -> 렌더 360x640 · 보이는영역 720x1280   ✓
+## content_scale_* 는 2D 에서 "렌더 픽셀"과 "설계 영역"을 갈라 주지 못한다 — 유일하게 가르는
+## 것이 창 크기다.
 ##
-## `stretch/mode=canvas_items` + `aspect=keep` 라 창을 줄이면 캔버스 배율이 0.5 가 되면서
-## 설계 좌표계는 720x1280 그대로 남는다. 즉 **같은 월드·같은 오브젝트·같은 드로우 콜에
-## 픽셀 수만 1/4** 이 된다. 그래서 이 토글로 프레임이 크게 줄면 fill-rate(GPU) 병목이고,
-## 그대로면 CPU 병목이다.
+## 웹 — **`Window.size` 를 쓰면 안 된다.** 실기기에서 두 번 깨진 채 잡혔다(게임이 좌하단 구석에
+## 작게 처박히고 나머지는 검은 화면). 원인을 엔진 JS 로 확인했다: adaptive 캔버스 정책에서
+## `Window.size` 는 **캔버스 백버퍼를 안 줄이고 GL 뷰포트만 절반으로** 만든다. 그래서 786x1398
+## 캔버스의 좌하단(GL 원점) 393x699 에만 그려진다 — 좌**상**단이 아니라 좌**하**단인 것이 그
+## 증거다(엘리먼트가 줄었다면 DOM 흐름상 좌상단에 놓인다). 앞선 두 수정(인라인 style ·
+## 스타일시트 !important)은 캔버스 CSS 를 겨눴는데 캔버스는 애초에 줄어든 적이 없었다.
 ##
-## ⚠️ 전체화면·최대화 상태이면 창 크기 변경이 먹지 않을 수 있다. 그래서 PERF HUD 의 DRAW 줄에
-## **실제 렌더 크기**를 함께 찍는다 — 토글을 켰는데 그 값이 안 변하면 적용되지 않은 것이다.
+## 그래서 웹에서는 **엔진이 백버퍼를 계산하는 입력을 바꾼다.** `GodotDisplayScreen.updateSize` 는
+## adaptive 모드에서 `백버퍼 = innerWidth × getPixelRatio()` 로 잡고, `getPixelRatio()` 는
+## `window.devicePixelRatio` 를 **호출 때마다** 읽는다(hidpi 일 때). 그 값을 절반으로 덮어쓰면
+## 엔진 스스로 백버퍼를 절반으로 잡고 CSS 크기는 브라우저가 그대로 둔다 — 싸울 것이 없다.
+## 입력도 안전하다: 엔진이 `x = (clientX - rect.x) × canvas.width / rect.width` 로 백버퍼/CSS
+## 비율을 곱해 보정한다. 끌 때는 덮어쓴 프로퍼티를 지워 원래 getter 로 돌린다.
 ##
-## ⚠️ **웹에서는 창 크기를 줄이는 것만으로는 안 된다**(실기기에서 깨진 채로 잡혔다).
-## 웹의 "창" 은 캔버스 엘리먼트다. `Window.size` 를 줄이면 백버퍼와 **화면에 보이는 크기가
-## 같이** 줄어드는데, 페이지는 그걸 다시 늘려 주지 않는다 — 게임이 좌하단 구석에 작게 처박힌다.
-## 그래서 웹에서는 줄이기 **직전의 CSS 크기를 고정**해 둔다. 백버퍼만 절반이 되고 브라우저가
-## 그것을 원래 크기로 확대해 그리므로, 화면에 보이는 크기는 그대로고 픽셀만 1/4 이 된다 —
-## 이게 웹에서의 해상도 스케일링이다.
+## ⚠️ 폰 캔버스 786x1398 은 정확히 CSS 393x699 × DPR 2 다 — 이 경로가 폰에서 성립하는 근거다.
+## `allow_hidpi` 가 꺼져 있으면 엔진이 DPR 을 1 로 고정하므로 이 토글이 무효가 된다. 그래서
+## PERF HUD 의 DRAW 줄 `@WxH`(실제 백버퍼)로 먹었는지 확인한다 — 안 바뀌면 적용되지 않은 것이다.
 func _apply_half_res() -> void:
+	if OS.has_feature("web"):
+		_web_set_half_res(Cheats.half_res)
+		return
 	var w := get_window()
 	if w == null:
 		return
 	if _win_size_orig == Vector2i.ZERO:
 		_win_size_orig = w.size
-	if Cheats.half_res:
-		_pin_web_canvas_css()   # 줄이기 **전에** 지금 보이는 크기를 붙잡아 둔다
-		w.size = Vector2i(maxi(1, _win_size_orig.x / 2), maxi(1, _win_size_orig.y / 2))
+	w.size = Vector2i(maxi(1, _win_size_orig.x / 2), maxi(1, _win_size_orig.y / 2)) \
+		if Cheats.half_res else _win_size_orig
+
+
+## 웹: `window.devicePixelRatio` 를 절반으로 덮어써 엔진이 백버퍼를 절반으로 잡게 한다.
+## `resize` 이벤트를 흘려 updateSize 가 즉시 다시 계산하게 한다(매 프레임 불리지 않는 경우 대비).
+func _web_set_half_res(on: bool) -> void:
+	if on:
+		JavaScriptBridge.eval("""
+			(function () {
+				if (window.__godotHalfResBase === undefined) {
+					window.__godotHalfResBase = window.devicePixelRatio || 1;
+				}
+				Object.defineProperty(window, 'devicePixelRatio', {
+					configurable: true,
+					get: function () { return window.__godotHalfResBase * 0.5; }
+				});
+				window.dispatchEvent(new Event('resize'));
+			})();
+		""", true)
 	else:
-		w.size = _win_size_orig
-		_unpin_web_canvas_css()
-
-
-## 웹 캔버스의 CSS 크기를 현재 보이는 크기로 고정한다(웹이 아니면 아무 일도 하지 않는다).
-##
-## ⚠️ **인라인 `style` 로는 안 된다** — 실기기에서 두 번째로 깨진 채 잡혔다. 엔진의 웹 JS
-## (`GodotDisplayScreen.updateSize`)가 캔버스 크기를 바꿀 때 `canvas.style.width/height` 를
-## **인라인으로 직접 쓰고**, 그 뒤로도 `style.width !== csw` 면 매번 다시 쓴다. 인라인으로
-## 먼저 박아 둔 값은 `Window.size` 변경 직후 덮어써진다. 그래서 **스타일시트에 `!important`**
-## 로 넣는다 — 스타일시트의 `!important` 는 인라인 일반 선언보다 우선하므로, 엔진이 인라인을
-## 아무리 다시 써도 계산된 크기는 고정값을 유지한다. 엔진은 인라인 값만 비교하므로 무한 루프도
-## 없다. 끌 때는 그 `<style>` 엘리먼트를 제거한다.
-##
-## 순서도 중요하다: 줄이기 **전에** `getBoundingClientRect()` 로 지금 보이는 크기를 읽어야
-## 한다 — 줄인 뒤 읽으면 이미 작아진 값이 잡힌다.
-const _HALF_RES_STYLE_ID := "godot-half-res-pin"
-
-
-func _pin_web_canvas_css() -> void:
-	if not OS.has_feature("web"):
-		return
-	JavaScriptBridge.eval("""
-		(function () {
-			var c = document.getElementById('canvas') || document.querySelector('canvas');
-			if (!c) return;
-			var r = c.getBoundingClientRect();
-			var w = Math.round(r.width), h = Math.round(r.height);
-			if (!(w > 0 && h > 0)) return;
-			var id = '%s';
-			var st = document.getElementById(id);
-			if (!st) { st = document.createElement('style'); st.id = id; document.head.appendChild(st); }
-			st.textContent = 'canvas{width:' + w + 'px !important;height:' + h + 'px !important;}';
-		})();
-	""" % _HALF_RES_STYLE_ID, true)
-
-
-func _unpin_web_canvas_css() -> void:
-	if not OS.has_feature("web"):
-		return
-	JavaScriptBridge.eval("""
-		(function () {
-			var st = document.getElementById('%s');
-			if (st && st.parentNode) st.parentNode.removeChild(st);
-		})();
-	""" % _HALF_RES_STYLE_ID, true)
+		JavaScriptBridge.eval("""
+			(function () {
+				try { delete window.devicePixelRatio; } catch (e) {}
+				window.dispatchEvent(new Event('resize'));
+			})();
+		""", true)
 
 
 func _on_pause_pressed() -> void:
