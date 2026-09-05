@@ -1579,6 +1579,20 @@ func _apply_half_res() -> void:
 
 
 ## 웹 캔버스의 CSS 크기를 현재 보이는 크기로 고정한다(웹이 아니면 아무 일도 하지 않는다).
+##
+## ⚠️ **인라인 `style` 로는 안 된다** — 실기기에서 두 번째로 깨진 채 잡혔다. 엔진의 웹 JS
+## (`GodotDisplayScreen.updateSize`)가 캔버스 크기를 바꿀 때 `canvas.style.width/height` 를
+## **인라인으로 직접 쓰고**, 그 뒤로도 `style.width !== csw` 면 매번 다시 쓴다. 인라인으로
+## 먼저 박아 둔 값은 `Window.size` 변경 직후 덮어써진다. 그래서 **스타일시트에 `!important`**
+## 로 넣는다 — 스타일시트의 `!important` 는 인라인 일반 선언보다 우선하므로, 엔진이 인라인을
+## 아무리 다시 써도 계산된 크기는 고정값을 유지한다. 엔진은 인라인 값만 비교하므로 무한 루프도
+## 없다. 끌 때는 그 `<style>` 엘리먼트를 제거한다.
+##
+## 순서도 중요하다: 줄이기 **전에** `getBoundingClientRect()` 로 지금 보이는 크기를 읽어야
+## 한다 — 줄인 뒤 읽으면 이미 작아진 값이 잡힌다.
+const _HALF_RES_STYLE_ID := "godot-half-res-pin"
+
+
 func _pin_web_canvas_css() -> void:
 	if not OS.has_feature("web"):
 		return
@@ -1587,10 +1601,14 @@ func _pin_web_canvas_css() -> void:
 			var c = document.getElementById('canvas') || document.querySelector('canvas');
 			if (!c) return;
 			var r = c.getBoundingClientRect();
-			c.style.width = Math.round(r.width) + 'px';
-			c.style.height = Math.round(r.height) + 'px';
+			var w = Math.round(r.width), h = Math.round(r.height);
+			if (!(w > 0 && h > 0)) return;
+			var id = '%s';
+			var st = document.getElementById(id);
+			if (!st) { st = document.createElement('style'); st.id = id; document.head.appendChild(st); }
+			st.textContent = 'canvas{width:' + w + 'px !important;height:' + h + 'px !important;}';
 		})();
-	""", true)
+	""" % _HALF_RES_STYLE_ID, true)
 
 
 func _unpin_web_canvas_css() -> void:
@@ -1598,12 +1616,10 @@ func _unpin_web_canvas_css() -> void:
 		return
 	JavaScriptBridge.eval("""
 		(function () {
-			var c = document.getElementById('canvas') || document.querySelector('canvas');
-			if (!c) return;
-			c.style.width = '';
-			c.style.height = '';
+			var st = document.getElementById('%s');
+			if (st && st.parentNode) st.parentNode.removeChild(st);
 		})();
-	""", true)
+	""" % _HALF_RES_STYLE_ID, true)
 
 
 func _on_pause_pressed() -> void:
