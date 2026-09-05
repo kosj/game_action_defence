@@ -1584,16 +1584,28 @@ func _apply_half_res() -> void:
 
 ## 웹: `window.devicePixelRatio` 를 절반으로 덮어써 엔진이 백버퍼를 절반으로 잡게 한다.
 ## `resize` 이벤트를 흘려 updateSize 가 즉시 다시 계산하게 한다(매 프레임 불리지 않는 경우 대비).
+##
+## ⚠️ **끌 때 `delete window.devicePixelRatio` 를 쓰면 안 된다** — 하네스에서 잡혔다. Chromium 에서
+## `devicePixelRatio` 는 프로토타입이 아니라 **`window` 자체의 own accessor** 라 delete 가 진짜로
+## 지워 버리고, 그 뒤 `getPixelRatio()` 의 `window.devicePixelRatio || 1` 이 **1** 을 돌려준다.
+## HUD 생성 시 OFF 경로가 한 번 돌기 때문에 토글을 켠 적도 없는데 게임 내내 절반 해상도였다
+## (폰 조건 하네스에서 Main 로드 직후 dpr 이 undefined 로, 백버퍼가 393x699 로 떨어진 원인).
+## 그래서 처음 건드릴 때 **원래 descriptor 를 저장해 두고 OFF 때 그대로 복원**한다. own 프로퍼티가
+## 아니었던 환경(프로토타입 getter)에서는 우리가 만든 own 프로퍼티만 지우면 원래 getter 가 보인다.
+## 켠 적이 없으면 OFF 는 아무것도 하지 않는다.
 func _web_set_half_res(on: bool) -> void:
 	if on:
 		JavaScriptBridge.eval("""
 			(function () {
-				if (window.__godotHalfResBase === undefined) {
-					window.__godotHalfResBase = window.devicePixelRatio || 1;
+				if (window.__godotHalfRes === undefined) {
+					window.__godotHalfRes = {
+						base: window.devicePixelRatio || 1,
+						desc: Object.getOwnPropertyDescriptor(window, 'devicePixelRatio') || null
+					};
 				}
 				Object.defineProperty(window, 'devicePixelRatio', {
 					configurable: true,
-					get: function () { return window.__godotHalfResBase * 0.5; }
+					get: function () { return window.__godotHalfRes.base * 0.5; }
 				});
 				window.dispatchEvent(new Event('resize'));
 			})();
@@ -1601,7 +1613,13 @@ func _web_set_half_res(on: bool) -> void:
 	else:
 		JavaScriptBridge.eval("""
 			(function () {
-				try { delete window.devicePixelRatio; } catch (e) {}
+				var st = window.__godotHalfRes;
+				if (st === undefined) return;
+				if (st.desc) {
+					Object.defineProperty(window, 'devicePixelRatio', st.desc);
+				} else {
+					try { delete window.devicePixelRatio; } catch (e) {}
+				}
 				window.dispatchEvent(new Event('resize'));
 			})();
 		""", true)
