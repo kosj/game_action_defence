@@ -77,6 +77,7 @@ var _prev_remain: int = -1
 # 게임오버 패널 뒤 배경 블러 + 터치 차단막. 패널이 뜰 때만 활성화한다.
 var _blur_bbc: BackBufferCopy = null
 var _blur_rect: ColorRect = null
+var _blur_mat: ShaderMaterial = null
 
 # 게임오버 통계 위젯(아이콘 그리드) — 코드로 생성해 텍스트 라벨을 대체.
 var _go_medal: UIIcon = null
@@ -1156,7 +1157,10 @@ func _build_blur_overlay() -> void:
 	_blur_rect.mouse_filter = Control.MOUSE_FILTER_STOP   # 패널 밖 영역의 터치가 뒤 게임으로 새지 않게 차단
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://assets/shaders/gameover_blur.gdshader")
+	mat.set_shader_parameter("tint_inner", _VIGNETTE_INNER)
+	mat.set_shader_parameter("tint_outer", _VIGNETTE_OUTER)
 	_blur_rect.material = mat
+	_blur_mat = mat
 	_blur_rect.visible = false
 	_blur_rect.z_index = _Z_UNDER_UI
 	add_child(_blur_rect)
@@ -1171,6 +1175,10 @@ func _set_blur(active: bool) -> void:
 		_blur_bbc.visible = active
 	if _blur_rect:
 		_blur_rect.visible = active
+	# 끌 때는 비네트도 0 으로 되돌린다. 재질은 한 번 만들어 계속 쓰므로(부활 → 재사망),
+	# 여기서 안 되돌리면 두 번째 게임오버가 이미 물든 화면에서 시작한다.
+	if not active and _blur_mat:
+		_blur_mat.set_shader_parameter("tint_amount", 0.0)
 
 
 func _on_revive_pressed() -> void:
@@ -1330,6 +1338,19 @@ func _on_game_won() -> void:
 ## 금빛으로 읽힌다(패널 자신에만 적용 — self_modulate).
 const _VICTORY_TINT := Color(1.20, 1.03, 0.70)
 const _END_COUNT_SEC := 0.6      # 통계 숫자가 0 에서 올라오는 시간
+
+## 게임오버 배경 비네트(UI_POLISH_PLAN 3-3). 패널만으로는 승패가 **제목 글자 색**으로만
+## 구분됐다 — 화면 전체가 결과를 말하도록 가장자리를 결과 색으로 물들인다.
+## 반경은 화면 중심에서 잰 정규화 거리(가장자리 중앙=1.0, 모서리=1.41)다. 안쪽 경계를
+## 패널 바깥(0.55)에 두어 패널 주변은 거의 물들지 않고 모서리에서 가장 짙다.
+const _VIGNETTE_INNER := 0.55
+const _VIGNETTE_OUTER := 1.25
+const _VIGNETTE_DEFEAT := Color(0.42, 0.03, 0.04)    # 핏빛
+const _VIGNETTE_VICTORY := Color(0.60, 0.40, 0.04)   # 금빛
+## 승리 쪽이 약한 것은 금색이 붉은색보다 밝아 같은 값에서 더 크게 읽히기 때문이다.
+const _VIGNETTE_AMOUNT_DEFEAT := 0.70
+const _VIGNETTE_AMOUNT_VICTORY := 0.55
+const _VIGNETTE_SEC := 0.5       # 패널이 떠오르는 동안 함께 차오른다
 const _END_BTN_STAGGER := 0.07   # 버튼이 차례로 나타나는 간격
 
 
@@ -1369,6 +1390,20 @@ func _stagger_end_buttons() -> void:
 		i += 1
 
 
+## 비네트를 0 에서 차오르게 한다. 처음부터 켜 두면 화면이 툭 물들어 "무슨 일이 났나"로
+## 읽히고, 차오르면 패널이 떠오르는 동작의 일부가 된다.
+## (HUD 는 PROCESS_MODE_ALWAYS 라 트리가 멈춘 뒤에도 이 트윈은 계속 흐른다.)
+func _play_vignette(victory: bool) -> void:
+	if _blur_mat == null:
+		return
+	_blur_mat.set_shader_parameter("tint", _VIGNETTE_VICTORY if victory else _VIGNETTE_DEFEAT)
+	_blur_mat.set_shader_parameter("tint_amount", 0.0)
+	var target := _VIGNETTE_AMOUNT_VICTORY if victory else _VIGNETTE_AMOUNT_DEFEAT
+	var tw := create_tween()
+	tw.tween_property(_blur_mat, "shader_parameter/tint_amount", target, _VIGNETTE_SEC)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
 func _show_end_panel(victory: bool) -> void:
 	boss_bar.visible = false
 
@@ -1396,6 +1431,7 @@ func _show_end_panel(victory: bool) -> void:
 	game_over_panel.self_modulate = _VICTORY_TINT if victory else Color.WHITE
 
 	_set_blur(true)
+	_play_vignette(victory)
 	game_over_panel.visible = true
 	game_over_panel.modulate.a = 0.0
 	game_over_panel.scale = Vector2(0.8, 0.8)
