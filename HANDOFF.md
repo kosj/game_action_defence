@@ -117,7 +117,7 @@
 | P2-26 상단 경고 배너에 위험 연출 — 스웜·엘리트·보스 예고가 글자뿐이다 | D | ✅ (7d481e0) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
 | P2-27 경고 띠 전용 효과음 — 위험도 3단계(무리/정예/보스) | D | ✅ (116f4a3) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
 | P2-28 키보드 이동 지원 — 데스크톱/웹에서 WASD·방향키로 조작 | K | ✅ (534383b) | claude/kenney-assets-sprites-782pbc | 2026-09-08 |
-| P2-29 클라이언트 변조 허들 — 런타임 값 금고(XOR+섀도) + 세이브 서명(HMAC) | C | 🔵 진행중 | claude/ecstatic-cori-4kad2f | 2026-09-08 |
+| P2-29 클라이언트 변조 허들 — 런타임 값 금고(XOR+섀도) + 세이브 서명(HMAC) | C | ✅ (f212dff) | claude/ecstatic-cori-4kad2f | 2026-09-08 |
 | P2-30 위협 뱃지가 타임라인 바에 가려진다 — 상단바 배치 충돌 | D | ✅ (aacc403) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
 | P2-31 게임오버 창 완성도 — 판 결과 요지(모은 골드·레벨)가 없다 | D | 🔵 진행중 | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
 
@@ -2417,7 +2417,7 @@ Lv1 → Lv8(7회 선택) → 평균 28 레벨업 → 캐릭터 레벨 40 근처
 
 ---
 
-## P2-29. 클라이언트 변조 허들 — 런타임 값 금고 + 세이브 서명 🔵
+## P2-29. 클라이언트 변조 허들 — 런타임 값 금고 + 세이브 서명 ✅
 
 **배경** — 보안·라이선스 점검(2026-09-08)에서 확인한 것. 골드·점수·체력이 평문 `int` 라
 메모리 스캐너(Cheat Engine · GameGuardian · 브라우저의 WASM 메모리 뷰어)로 "화면의 숫자 검색 →
