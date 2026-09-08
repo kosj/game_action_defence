@@ -1,0 +1,172 @@
+# UI 연출·완성도 전수 검사 및 개선 계획 (2026-09)
+
+> UI 를 만드는 코드를 **전부 읽고** 화면마다 "등장 · 퇴장 · 상태 변화 · 사운드" 네 축으로 연출이
+> 있는지 표로 대조했다. 기존 계획서(`POLISH_PLAN.md` §A-5, `MENU_UI_PLAN.md`, `POPUP_UI_PLAN.md`,
+> `HUD_IMPROVEMENT_PLAN.md`)에서 **이미 끝난 것은 다시 적지 않고**, 지금 코드에 남아 있는 것만 적는다.
+>
+> 검사 방법: 정적 읽기 + `create_tween` / `SoundManager.` / `set_trans` 호출 수 집계 + 하드코딩
+> 문자열 grep. ⚠️ 이 컨테이너에 Godot 바이너리가 없어 **실렌더 확인은 하지 못했다** — 아래는 전부
+> 코드가 하는 일을 근거로 한 판단이다. 착수 시 `tools/shot_menu_popups.gd` · `shot_levelup.gd` ·
+> `shot_hud_layers.gd` 로 실렌더를 먼저 찍을 것.
+
+검사한 파일 (UI 를 만드는 코드 전부):
+`HUD.gd`(1679) `MainMenu.gd`(1263) `ChestRewardPanel.gd`(710) `LevelUpPanel.gd`(390) `TitleScreen.gd`(280)
+`UITheme.gd` `UIStyle.gd` `UIPopup.gd` `UIListRow.gd` `UIIcon.gd` `CodexPanel.gd` `ThreatPanel.gd`
+`IntroStory.gd` `IntroBackdrop.gd` `SceneFade.gd` `DamageNumber.gd` `FireworksFX.gd` + `scenes/HUD.tscn`
+
+---
+
+## 1. 한눈에 보는 진단
+
+| 화면 / 요소 | 등장 | 퇴장 | 상태 변화 피드백 | 사운드 | 트윈 수 |
+|---|---|---|---|---|---|
+| 타이틀 | ✅ 슬램+섬광+부유+깜빡임 | ✅ 펄스→페이드 | — | ✅ | 5 |
+| 씬 전환(`SceneFade`) | ✅ 0.3s 검정 페이드 | ✅ | — | — | 1 |
+| 메인 메뉴 버튼 8개 | ❌ 즉시 표시 | ❌ | ✅ 눌림 스케일(전역) | ✅ ui_click | **0** |
+| 메뉴 팝업 9종 (옵션·랭킹·강화·캐릭터·도전과제·과제·보상함·아레나·도감·위협) | ❌ `visible=true` | ❌ `visible=false` | ⚠️ 스타일 재적용뿐 | ❌ 열림/닫힘음 없음 | **0** |
+| 새 게임 흐름 (캐릭터→아레나→위협→인트로) | ❌ 팝업 3개가 즉시 교체 | ❌ | ⚠️ `"> "` 접두사 | ⚠️ `gold` 피치 변주 | 0 |
+| 인트로(`IntroStory`) | ✅ 줄별 페이드 | ⚠️ 콜백 즉시(씬 페이드가 대신) | ✅ 탭 빨리읽기 | ❌ 무음 | 4 |
+| HUD 골드 | ✅ 롤링 카운터+펄스 | — | ✅ | — | 2 |
+| HUD 체력 | ✅ 트윈+잔상(ghost) | — | ✅ 색 보간·피격 섬광·저체력 숨쉬기 | ✅ | 4 |
+| HUD 경험치 바 | ❌ `anchor_right` 직대입(841) | — | ⚠️ 레벨업 뱃지 펄스만 | — | 1 |
+| HUD 처치 수 | ❌ 텍스트 대입(677) | — | ❌ | — | 0 |
+| HUD 타이머 | ❌ | — | ⚠️ 막판 1분 색만(694) | — | 0 |
+| HUD 로드아웃 슬롯 | ✅ 신규/레벨업 펄스 | — | ✅ | — | 1 |
+| HUD 보스 등장 | ✅ 바 페이드+배너 팝+줌펀치 | ✅ 페이드 | ✅ 체력 트윈 | ✅ boss_alarm | 4 |
+| HUD 배너/토스트 (스웜·예고·도전과제·과제·날씨·MAX BUILD) | ✅ 팝/슬라이드 | ✅ | ⚠️ **겹침 방지 없음** | ⚠️ 전부 `gold` 피치 변주 | 3 |
+| HUD 마일스톤/클리어 배너 | ✅ 팝+흔들림 | ✅ | — | ✅ | 2 |
+| 레벨업 패널 | ✅ 패널 팝+폭죽, 카드 알파 stagger | ❌ 즉시 닫힘 | ❌ **선택 확정 연출 없음** | ✅ level_up | 2 |
+| 진화 선택 | ⚠️ 레벨업과 동일(색만 금) | ❌ | ❌ | ✅ evolve | (공유) |
+| 보물상자 리빌 | ✅ 기대→섬광→플립→폭죽 | ⚠️ 즉시 `queue_free` | ✅ | ✅ 4종 | 10 |
+| 일시정지 | ❌ `visible=true`(1637) | ❌ | — | ⚠️ ui_click 만 | 0 |
+| 게임오버 | ✅ 패널 팝+배경 블러 | — | ❌ 통계 카운트업 없음 | ✅ defeat | 1 |
+| 승리 | ⚠️ 게임오버 패널 재사용(제목 색만) | — | ❌ | ⚠️ victory 는 30분 클리어에만 | (공유) |
+| 부활(광고) | ❌ 패널이 툭 사라짐(1148) | — | — | ⚠️ Player 쪽 revive 음만 | 0 |
+| 보상함 CLAIM | ❌ 행 즉시 재구성(786) | — | ❌ 골드 라벨 즉시 대입 | ✅ gold ×2 | 0 |
+| 도감 | ❌ | — | ⚠️ 실루엣↔원색 토글만, 새 발견 표시 없음 | — | 0 |
+| 데미지 숫자 | ✅ 팝+페이드+흔들림(비트맵) | ✅ | ✅ 크리 강조 | — | — |
+
+**결론**: 인게임 전투 피드백(체력·골드·보스·상자·데미지)은 잘 되어 있고, **메뉴 계열과 "결정의
+순간"(팝업 열고 닫기 · 카드 고르기 · 게임 끝)** 이 비어 있다. 트윈 21개인 HUD 옆에 트윈 0개인
+MainMenu 가 붙어 있는 구조다.
+
+---
+
+## 2. 발견 사항
+
+### A. 연출 공백 — 동작은 하지만 아무 연출이 없는 곳
+
+| # | 증상 | 근거(파일:줄) |
+|---|---|---|
+| A-1 | **메뉴 팝업 9종이 전부 `visible` 토글**로 열리고 닫힌다. dim 페이드도, 패널 팝도, 열림/닫힘 사운드도 없다. 바깥 탭 닫기(`UIPopup` dim)도 무음. | `MainMenu.gd:331,347,420,427,454,461,467,472,629,635,683,688,843,848,881,886,1035,1041,1151,1156` · `UIPopup.gd` 에 open/close 가 없음 |
+| A-2 | **새 게임 흐름** — 캐릭터를 고르면 그 팝업이 사라지고 아레나 팝업이 같은 프레임에 나타난다(3단계 연속). "다음 단계로 넘어간다"는 감각이 없다. 선택 확정 피드백은 `_refresh_*` 의 스타일 재적용뿐. | `MainMenu.gd:619-625, 1067-1076` |
+| A-3 | **일시정지** 열림/닫힘이 즉시. dim 0.7 이 한 프레임에 덮인다. | `HUD.gd:1637-1650` |
+| A-4 | **경험치 바가 툭툭 뛴다** — 젬을 먹을 때마다 `anchor_right` 를 직접 대입. 골드는 롤링, 체력은 트윈인데 XP 만 즉시. 레벨업 순간 바가 100→0 으로 끊기는 것도 연출 없음. | `HUD.gd:841-842` |
+| A-5 | **처치 수·타이머는 텍스트만 바뀐다.** 처치는 펄스 없음, 타이머는 막판 1분에 색만 붉어지고 맥동 없음. 골드 라벨만 유일하게 살아 있다. | `HUD.gd:677-678, 692-695` |
+| A-6 | **레벨업 카드 선택 확정 연출이 없다.** 카드를 누르면 `_refresh()` 가 즉시 카드를 지우고 다음 세트를 깔거나 패널을 닫는다. 등장은 알파 stagger 만(세로 슬라이드 없음). 카메라 줌펀치·슬로모 없음(`POLISH_PLAN` A-4 미완). 진화 카드는 일반 카드와 같은 모양에 색만 금색. | `LevelUpPanel.gd:191-198, 298-311, 335-360` |
+| A-7 | **게임오버 = 패널 팝 하나.** 통계(처치·시간) 카운트업 없음, 메달 등장 없음, 버튼 stagger 없음. `defeat` 스팅어와 함께 화면이 멈추는 순간(슬로모·디세추레이션)이 없다. **승리도 같은 붉은 프레임 패널**에 제목 색만 금색. | `HUD.gd:1238-1291` · `HUD.tscn:221` 프레임색 고정 |
+| A-8 | **부활**: 광고 시청 후 게임오버 패널이 `visible=false` 로 툭 사라진다. 복귀 연출(패널 페이드·플레이어 플래시)이 없다. `revive` SFX 는 Player 쪽에서 나지만 HUD 는 무음. | `HUD.gd:1146-1155` |
+| A-9 | **보상함 CLAIM**: 행 목록을 통째로 지우고 다시 만든다. 카드가 "수령되어 사라지는" 순간이 없고 골드 라벨도 즉시 대입. | `MainMenu.gd:786-833, 835-840` |
+| A-10 | **토스트 겹침**: 도전과제(y150)·과제(y190)·날씨(y215)·MAX BUILD(y190) 가 큐 없이 각자 뜬다. 후반에 도전과제와 과제가 같은 처치 수에서 동시에 달성되면 40px 간격으로 두 줄이 겹친다. | `HUD.gd:390-449` |
+| A-11 | **메인 메뉴 진입**: 씬 페이드 뒤 로고·버튼 8개가 동시에 그냥 있다. 타이틀은 슬램 연출이 있는데 바로 다음 화면이 정적이라 낙차가 크다. | `MainMenu.gd:139-244` |
+| A-12 | **도감**: 새로 발견한 항목 표시(NEW 마커·처음 열 때 강조)가 없어 "지난 판에 뭘 새로 봤는지"를 알 수 없다. 발견/미발견은 색만. | `CodexPanel.gd:68-88` |
+
+### B. 완성도 결함 — 로케일 위반 · ASCII 장식 · 죽은 노드
+
+| # | 증상 | 근거 |
+|---|---|---|
+| B-1 | **하드코딩 영어 문자열이 화면에 나온다** (`CLAUDE.md` §2 위반 — ko/ja 사용자에게 영어 노출). `">> EVOLUTION <<  CHOOSE ONE"`, `">> EVOLVE <<"`, `"NEW!"`, `"- TREASURE -"`, `"[*]  %s  - reward waiting"`, `"[+]  Quest: %s   +%d gold waiting"`, `"MAX BUILD"`, `"(MAX)"`, `"-%d G"`, `"HP+%d"`/`"ULT: %s"`, 보물상자 추첨 텍스트(`"+1 REVIVE"` 등). | `LevelUpPanel.gd:158,257,270` · `ChestRewardPanel.gd:69-167,393` · `HUD.gd:392,398,425` · `MainMenu.gd:581-590,1087,1091` |
+| B-2 | **ASCII 장식이 남아 있다** — `>>  <<`, `[*]`, `[+]`, `"> "`(선택 표시). P2-4 에서 `[-]`/`v` 를 아이콘으로 바꾼 방침과 어긋난다. 서브셋 폰트 때문에 생긴 관행이지만 `UIIcon` 이 있으니 이제 이유가 없다. | `HUD.gd:274,392,398` · `MainMenu.gd:556,999` · `LevelUpPanel.gd:158,270` |
+| B-3 | **랭킹 팝업 행이 Label 2개**(모드명·점수)로, `UIListRow` 카드 문법과 다르다. **강화(파워업) 행은 텍스트 3줄 버튼** — 레벨 `(2/5)` 와 가격을 게이지/핍 없이 글자로만. 팝업 10개 중 이 둘만 "구식"으로 보인다. | `MainMenu.gd:1116-1135, 1078-1092` |
+| B-4 | `HUD.tscn` 에 **죽은 노드** 3개 — `ScoreLabel`·`HighScoreLabel`(코드로 숨김) · `StatsLabel`(숨김). 씬을 여는 사람이 매번 헷갈린다. | `HUD.tscn:71,105,250` · `HUD.gd:1159-1160,1192` |
+| B-5 | **제목용 디스플레이 폰트가 없다** — 로고만 아트고, 모든 제목(`GAME OVER`, `PAUSED`, `LEVEL 12`, 팝업 제목)이 본문 폰트의 Bold. `POLISH_PLAN` A-5 미완. | `UITheme.heading()` |
+| B-6 | 게임오버 패널이 씬에서 **고정 크기**(`offset_top=-250`)라 부활 버튼 유무·언어별 줄 수에 따라 내부 간격이 달라진다. | `HUD.tscn:221-230` |
+
+### C. 일관성 — 문법이 있는데 상수가 없다
+
+| # | 관찰 | 근거 |
+|---|---|---|
+| C-1 | 등장 easing 은 `TRANS_BACK + EASE_OUT` 22곳으로 잘 통일돼 있다 ✅. 그러나 **지속 시간이 0.16 / 0.18 / 0.2 / 0.22 / 0.24 / 0.25 / 0.28 / 0.3 / 0.35 로 아홉 가지** — 상수가 없어 새로 넣는 사람마다 값이 또 달라진다. | `HUD.gd` `LevelUpPanel.gd` `ChestRewardPanel.gd` `TitleScreen.gd` |
+| C-2 | hold(머무는 시간)도 0.7 / 1.3 / 1.4 / 2.0 / 2.2 — "경고 · 알림 · 축하" 같은 의미별 규칙이 없다. | `HUD.gd:378,433-447,1064,713` |
+| C-3 | **UI 전용 사운드가 `ui_click` 하나뿐.** 선택/구매 성공은 `gold` 를 피치 1.0~1.5 로 일곱 가지 변주, 실패는 `player_hurt`(피격음) 재사용. 팝업 열림/닫힘·잠금 거부·카드 확정·일시정지 전용음이 없다. | `MainMenu.gd:611-618,1058-1065,820-829` · `HUD.gd:391,397,424` |
+| C-4 | 팝업 dim 알파가 0.6(`UIPopup`) / 0.62(레벨업) / 0.7(일시정지) / 0.72(보물상자) — 넷이 미묘하게 다르다. | `UIPopup.gd:34` `LevelUpPanel.gd:69` `HUD.gd:1355` `ChestRewardPanel.gd:233` |
+
+### D. 구조 부채 — 연출을 넣기 어렵게 만드는 것
+
+| # | 내용 |
+|---|---|
+| D-1 | `UIPopup` 셸이 **open/close 를 소유하지 않는다**(호출부가 `visible` 을 켜고 끄는 설계). 연출·사운드를 넣으려면 셸에 `open(p)` / `close(p)` 를 추가하고 호출부 9곳(20줄)을 바꿔야 한다 — `POPUP_UI_PLAN` Phase 4 에 예고돼 있던 항목. |
+| D-2 | 트윈 파라미터가 파일마다 리터럴. 공용 `UIMotion.gd`(static `pop_in(node)` · `fade_out(node)` · `slide_in(node, from)` + `DUR_*` 상수)가 없어 C-1/C-2 가 생겼다. |
+| D-3 | `HUD.gd` 1679줄에 배너·토스트·게이지·일시정지·게임오버·치트가 다 있다. 토스트 큐(A-10)를 넣으면 더 커진다 → `HUDToast.gd` 로 분리할 시점. |
+
+---
+
+## 3. 개선 계획 (우선순위순)
+
+### Phase 1 — 코드만으로 되는 것, 체감 큰 순 🔴
+
+| # | 작업 | 해결 | 손대는 파일 |
+|---|---|---|---|
+| 1-1 | **팝업 열림/닫힘 연출** — `UIPopup.open(p)` / `close(p)`: dim 0→0.6 (0.15s), 패널 scale 0.96→1 + alpha (0.18s, BACK/OUT); 닫힘은 역재생 0.12s. 열림/닫힘음. 새 게임 흐름은 "다음 팝업이 오른쪽에서 슬라이드 인"으로 단계감을 준다. | A-1 A-2 D-1 C-4 | `UIPopup.gd` `MainMenu.gd`(호출부 9곳) `CodexPanel.gd` `ThreatPanel.gd` |
+| 1-2 | **하드코딩 문자열 → Locale 키**, ASCII 장식 → `UIIcon`(별=도전과제, 깃발=과제, 번개=진화, 체크=선택). ⚠️ ja 키는 `font_known_absent.txt` 를 먼저 보고 한자 대신 가나로. | B-1 B-2 | `Locale.gd` `HUD.gd` `LevelUpPanel.gd` `ChestRewardPanel.gd` `MainMenu.gd` |
+| 1-3 | **HUD 숫자 살리기** — XP 바 `anchor_right` 트윈(0.2s) + 레벨업 순간 바 플래시 후 0 으로; 처치 수 10 단위 펄스; 타이머 막판 1분 초당 1회 맥동 + 마지막 10초 붉은 점멸. | A-4 A-5 | `HUD.gd` |
+| 1-4 | **게임오버/승리 분리** — 승리: 금색 프레임 + `victory` 징글 + 메달 팝(BACK) + 숫자 카운트업(0.6s) + 버튼 stagger. 패배: `defeat` 와 함께 `Engine.time_scale` 0.3 → 0.4s 뒤 패널(워치독 안전: `hit_stop` 과 같은 `ignore_time_scale` 타이머). 부활은 패널 페이드아웃 + 플레이어 흰색 플래시. | A-7 A-8 B-6 | `HUD.gd` `HUD.tscn` |
+| 1-5 | **레벨업 카드 확정** — 누른 카드 1.06 배 확대 + 금빛 플래시 0.22s, 나머지 페이드; 그 뒤 `_refresh`/닫기. 등장 stagger 에 세로 24px 슬라이드 추가. 진화 카드는 금색 테두리 맥동 + 뒤 광휘. 줌펀치(`Player._camera_zoom_punch(0.94, 0.3)`)를 `level_up` 에 연결. | A-6 | `LevelUpPanel.gd` `Player.gd` |
+| 1-6 | **일시정지 페이드** — dim 0.15s, 패널 팝 0.18s, 닫힘 0.12s(1-1 과 같은 `UIMotion`). | A-3 | `HUD.gd` |
+| 1-7 | **토스트 큐** — `HUDToast.gd` 분리: 동시에 최대 2줄, 세 번째부터는 대기열; 같은 종류는 병합(MAX BUILD 는 이미 병합함). | A-10 D-3 | `HUDToast.gd`(신규) `HUD.gd` |
+| 1-8 | **`UIMotion.gd`** — 1-1/1-4/1-5/1-6 이 같은 상수를 쓰게 한다: `DUR_POP=0.18` `DUR_FADE=0.15` `DUR_CLOSE=0.12` `HOLD_WARN=0.8` `HOLD_INFO=2.0` `HOLD_CELEBRATE=1.4`. 기존 9가지 지속 시간을 이 셋으로 수렴. | C-1 C-2 D-2 | `UIMotion.gd`(신규) |
+
+### Phase 2 — 문법 통일 🟡
+
+| # | 작업 | 해결 |
+|---|---|---|
+| 2-1 | 랭킹 행 → `UIListRow`(아이콘=별, 제목=모드, 우측=점수). 강화 행 → `UIListRow` + 레벨 핍(●●○○○) + 가격 태그. | B-3 |
+| 2-2 | 캐릭터/아레나 선택 표시: `"> "` 대신 카드 테두리 2px 강조색 + 우상단 체크 아이콘(`UIListRow.STATE_READY` 문법 재사용). | B-2 |
+| 2-3 | 메인 메뉴 진입: 로고 페이드(0.3s) 뒤 버튼 8개 위→아래 stagger(0.04s 간격, 12px 슬라이드). 이어하기 가능하면 그 버튼만 1회 펄스. | A-11 |
+| 2-4 | 보상함 CLAIM: 행을 즉시 지우지 않고 오른쪽으로 슬라이드 아웃(0.2s) 후 제거; 총합/메타 골드 라벨은 HUD 골드와 같은 롤링. | A-9 |
+| 2-5 | `HUD.tscn` 죽은 노드 3개 삭제 + `_build_gameover_stats` 의 `stats_label` 참조 정리. | B-4 |
+| 2-6 | 도감 NEW 마커: `CodexManager` 에 "마지막으로 본 시각" 저장 → 그 뒤 발견분에 작은 붉은 점, 열면 해제. | A-12 |
+
+### Phase 3 — 에셋이 필요한 것 ⚪ (선택)
+
+| # | 작업 | 비고 |
+|---|---|---|
+| 3-1 | UI 전용 SFX 4종: `ui_open` `ui_close` `ui_select` `ui_deny`. `tools/gen_sfx.py` 로 절차 생성 가능(기존 ui_click 과 같은 경로). `import_sfx.py` 필수. | C-3 |
+| 3-2 | 제목용 디스플레이 폰트 1종(굵은 컨덴스드, 라틴+숫자만) — 제목은 `Locale` 문자열이라 ko/ja 는 계속 Noto 를 써야 하므로 **영문 제목에만** 폴백 체인으로 적용. 서브셋 규약(§2) 그대로. | B-5 |
+| 3-3 | 게임오버 배경: 블러 위에 등급별 색 비네트(패배=핏빛, 승리=금빛). | A-7 |
+
+---
+
+## 4. 검증
+
+```sh
+python3 tools/check_gdscript.py                                          # 문법
+python3 tools/check_text_fit.py                                          # 1-2 로 문자열이 바뀌면 필수(Pillow)
+godot --headless --path . --script res://tools/check_font_coverage.gd    # ko/ja 키 추가 시 — 두부(□) 게이트
+godot --headless --path . --script res://tools/verify_ui_icons.gd
+godot --headless --path . res://scenes/PauseWatchdogTest.tscn            # 1-4 가 time_scale 을 만지므로
+xvfb-run -a godot --path . --script res://tools/shot_menu_popups.gd      # 1-1 실렌더
+xvfb-run -a godot --path . --script res://tools/shot_levelup.gd          # 1-5 실렌더
+xvfb-run -a godot --path . --fixed-fps 60 --script res://tools/shot_hud_layers.gd   # 1-3/1-6 z 겹침
+```
+
+⚠️ 1-4 의 슬로모는 `Events.hit_stop()` 과 같은 방식(`ignore_time_scale=true` 타이머로 반드시 복구)으로만
+넣는다 — `CLAUDE.md` §4 워치독 규칙. 1-1/1-6 의 dim 은 알파 0 일 때 `visible=false` 로 렌더에서
+빼야 한다(`HUD._flash_hurt` 주석의 풀스크린 블렌딩 비용).
+
+---
+
+## 5. 작업 분할 (HANDOFF 규약: 1 항목 = 1 브랜치 = 1 PR)
+
+`MainMenu.gd` 와 `HUD.gd` 는 충돌 1순위라 **직렬로** 간다.
+
+| 순서 | PR | 파일 | 규모 |
+|---|---|---|---|
+| ① | 1-8 `UIMotion.gd` + 1-1 팝업 open/close | `UIMotion` `UIPopup` `MainMenu` `CodexPanel` `ThreatPanel` | 중 |
+| ② | 1-2 문자열/아이콘 정리 | `Locale` `HUD` `LevelUpPanel` `ChestRewardPanel` `MainMenu` | 중 (텍스트만) |
+| ③ | 1-3 + 1-6 + 1-7 HUD 숫자·일시정지·토스트 큐 | `HUD` `HUDToast` | 중 |
+| ④ | 1-4 게임오버/승리/부활 | `HUD` `HUD.tscn` | 중 |
+| ⑤ | 1-5 레벨업 확정 연출 | `LevelUpPanel` `Player` | 소 |
+| ⑥ | Phase 2 (2-1 … 2-6) 항목별 | — | 소×6 |
+
+권고 순서는 위 그대로다 — ①이 나머지 전부가 쓰는 상수와 셸을 만든다.
