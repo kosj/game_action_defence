@@ -62,6 +62,21 @@ def res_strings(path: str, prop: str) -> list:
     return [("data", v) for v in vals]
 
 
+def boss_names() -> list:
+    """보스 이름은 .tres 가 아니라 `ZombieSpawner.gd` 의 `_BOSSES` 딕셔너리에 있다.
+
+    예전에는 이 케이스가 `res_strings("data/zombies.tres", "display")` 를 읽었는데 그 파일에는
+    `display` 속성이 없어 **후보가 0개**였다 — 케이스 이름만 있고 아무것도 재지 않는 상태로
+    커버리지 게이트를 통과하고 있었다(영구 강화 케이스에서 겪은 것과 같은 함정).
+    """
+    try:
+        raw = open("scripts/ZombieSpawner.gd", encoding="utf-8", errors="replace").read()
+    except OSError:
+        return []
+    # 보스 표 안의 `"name": "..."` 만. 419줄의 `"name": bt["name"]` 같은 참조는 잡히지 않는다.
+    return [("data", v) for v in sorted(set(re.findall(r'"name":\s*"([^"]+)"', raw)))]
+
+
 def meta_strings(prop: str) -> list:
     """영구 강화 문구는 data/meta/<id>.tres 에 하나씩 흩어져 있다."""
     out = []
@@ -125,8 +140,15 @@ def main() -> None:
         ("HUD · 버프 라벨", 290, 18, False, loc("hud_magnet_fmt", 99)),
         ("HUD · 레벨 뱃지", 64, 20, False, lit("999")),
         ("HUD · AUTO 태그", 48, 15, False, lit("AUTO")),
-        ("HUD · 스웜 배너", 720, 30, False, loc("hud_swarm") + loc("hud_elite")),
-        ("HUD · 보스 이름", 400, 18, False, res_strings("data/zombies.tres", "display")),
+        # 경고 띠(HUDAlert)는 양끝 130px 을 경고 삼각형·사선에 내준다 — 720 이 아니라 460 이다.
+        ("HUD · 경고 띠", 720 - 2 * 130, 30, False,
+         loc("hud_swarm") + loc("hud_elite")
+         + loc("hud_boss_in_fmt", 99) + loc("hud_elite_in_fmt", 99)),
+        ("HUD · 보스 등장 띠", 720 - 2 * 130, 34, True,
+         [(lang, fmt % name)
+          for lang, fmt in L.get("hud_boss_banner_fmt", {}).items()
+          for _, name in boss_names()]),
+        ("HUD · 보스 이름", 400, 18, False, boss_names()),
         ("HUD · 배너", 580, 48, True, loc("run_cleared") + loc("boss_cleared", 9)),
         ("HUD · 일시정지 제목", 300, 34, True, loc("pause_title")),
         ("HUD · 생존 시간", 300, 18, False, loc("pause_time_fmt", "99:59")),
@@ -166,7 +188,7 @@ def main() -> None:
          res_strings("data/item_catalog.tres", "display")
          + res_strings("data/character_db.tres", "display")
          + res_strings("data/themes.tres", "display")
-         + lit("PRIME MUTATION") + lit("MUTANT HOUND") + lit("THE WRECKER")
+         + boss_names()
          + lit("Longneck") + lit("Screamer")),
 
         # ── 위협 등급 (행 폭 616 - 좌우 여백 28 = 588. 규칙 줄이 가장 길다) ──
@@ -349,6 +371,7 @@ COVERED_BY = {
     "MainMenu.gd": ("메뉴", "팝업 행", "아레나", "캐릭터", "영구 강화"),
     "HUD.gd": ("HUD", "게임오버"),
     "HUDToast.gd": ("HUD 토스트",),
+    "HUDAlert.gd": ("HUD · 경고 띠", "HUD · 보스 등장 띠"),
     "IntroStory.gd": ("인트로",),
     "ChestRewardPanel.gd": ("보상 카드",),
     "LevelUpPanel.gd": ("레벨업",),

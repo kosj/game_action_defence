@@ -114,7 +114,8 @@
 | P2-21 UI 연출 Phase 2-B 메뉴 진입 stagger + 보상 수령 연출 | D | ✅ (77962bd) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
 | P2-22 UI 연출 Phase 2-C HUD 죽은 노드 정리 + 도감 NEW 마커 (Phase 2 완료) | D | ✅ (3efe526) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
 | P1-35 밸런스 기준 재정립 + 실측 조정 — 판정 기준이 오토플레이 전용이라 판정 불가 | F | ✅ (9dfe6ba) | claude/pensive-cray-na1k4q | 2026-09-08 |
-| P2-26 상단 경고 배너에 위험 연출 — 스웜·엘리트·보스 예고가 글자뿐이다 | D | 🔵 진행중 | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
+| P2-26 상단 경고 배너에 위험 연출 — 스웜·엘리트·보스 예고가 글자뿐이다 | D | ✅ (머지 후 sha 기입) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
+| P2-27 경고 띠 전용 효과음 — 무리/정예 경고가 무음이다(보스만 boss_alarm) | J | ⚪ 대기 | — | P2-26 이후 |
 
 **결정 대기 항목은 전부 해소됐다(2026-08-18).** 아래 §2 결정 로그 참고 — 이제 모든 항목이 바로 착수 가능하다.
 새로 🟡 가 필요한 판단이 생기면 임의로 고르지 말고 이 표에 🟡 로 올린 뒤 사용자 확인을 받는다.
