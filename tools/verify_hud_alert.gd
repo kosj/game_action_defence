@@ -52,8 +52,8 @@ func _process(_delta: float) -> bool:
 	if c.has("ACCENT"):
 		var acc: Array = c["ACCENT"]
 		_ok("세 색이 서로 다르다",
-			not (acc[0] as Color).is_equal_approx(acc[1])
-			and not (acc[1] as Color).is_equal_approx(acc[2]), str(acc))
+			not (acc[0] as Color).is_equal_approx(acc[1] as Color)
+			and not (acc[1] as Color).is_equal_approx(acc[2] as Color), str(acc))
 
 	print("── 더 큰 위험이 이긴다 · 쉴 때는 숨는다 ─────────")
 	# 트윈을 만들려면 트리 안에 있어야 한다. 임시 부모를 붙였다 지운다.

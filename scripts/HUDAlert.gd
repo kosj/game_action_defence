@@ -62,6 +62,11 @@ var _tween: Tween = null
 var _level: int = -1   # 지금 떠 있는 위험도(-1 = 없음)
 
 
+## `_process` 를 정의하면 엔진이 기본으로 켠다 — 뜨기 전부터 매 프레임 돌 이유가 없다.
+func _ready() -> void:
+	set_process(false)
+
+
 static func make(parent: Node, y: float, height: float) -> HUDAlert:
 	var a := HUDAlert.new()
 	a.set_anchors_preset(Control.PRESET_TOP_WIDE)
@@ -115,8 +120,11 @@ func flash(text: String, level: int, font_size: int) -> bool:
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	# 띠만 맥동한다. `self_modulate` 는 이 노드 자신의 그리기에만 곱해지고 자식(글자)에는
 	# 번지지 않아, 글자는 밝기가 흔들리지 않고 그대로 읽힌다.
-	var half := PULSE[lv]
-	var beats := int(ceil(HOLD[lv] / (half * 2.0)))
+	# 상수 배열의 원소는 Variant 라 `:=` 로는 타입을 못 정한다 — 엔진 파서가 거부한다
+	# (`check_gdscript.py` 는 문법만 보므로 여기서는 안 걸린다. CLAUDE.md §3).
+	var half: float = PULSE[lv]
+	var hold: float = HOLD[lv]
+	var beats := int(ceil(hold / (half * 2.0)))
 	for i in maxi(beats, 1):
 		_tween.tween_property(self, "self_modulate", Color(1.5, 1.5, 1.5), half)\
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
@@ -163,7 +171,9 @@ func _draw() -> void:
 	# 2) 위아래 강조선 — 가운데가 가장 진하다(글자가 있는 곳으로 눈을 모은다).
 	var r0 := Color(_accent.r, _accent.g, _accent.b, 0.0)
 	var r1 := Color(_accent.r, _accent.g, _accent.b, 0.92)
-	for band in [Vector2(0.0, RULE_H), Vector2(h - RULE_H, h)]:
+	# 배열 리터럴을 그대로 돌면 원소가 Variant 다. Packed 배열은 원소 타입이 서 있어
+	# 아래 `_grad_quad(float, ...)` 호출이 런타임 변환을 거치지 않는다.
+	for band in PackedVector2Array([Vector2(0.0, RULE_H), Vector2(h - RULE_H, h)]):
 		_grad_quad(0.0, w * 0.5, band.x, band.y, r0, r1)
 		_grad_quad(w * 0.5, w, band.x, band.y, r1, r0)
 
@@ -183,7 +193,7 @@ func _draw() -> void:
 		draw_colored_polygon(mir, col)
 
 	# 4) 경고 삼각형 — 글자를 못 읽어도 이것 하나는 읽힌다.
-	for cx in [TRI_X, w - TRI_X]:
+	for cx in PackedFloat32Array([TRI_X, w - TRI_X]):
 		var cy := h * 0.5
 		draw_colored_polygon(PackedVector2Array([
 			Vector2(cx, cy - TRI * 0.62),
