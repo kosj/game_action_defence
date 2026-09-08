@@ -248,6 +248,9 @@ const STRINGS: Dictionary = {
 	"weather_snow":    {"en": "SNOW",       "ko": "눈",         "ja": "スノー"},
 	"weather_clear":   {"en": "CLEARING",   "ko": "날이 갠다",  "ja": "はれてきた"},
 
+	# 패배 제목도 키로 옮긴다(P2-31). 승리는 "승리!"로 번역되는데 패배만 씬에 박힌 영어라
+	# 한 화면 안에서 두 결말의 말투가 달랐다.
+	"go_defeat":       {"en": "GAME OVER", "ko": "게임 오버", "ja": "ゲームオーバー"},
 	"go_victory":      {"en": "VICTORY!", "ko": "승리!", "ja": "VICTORY!"},
 	"pause_title":     {"en": "PAUSED", "ko": "일시정지", "ja": "ポーズ"},
 	"pause_time_fmt":  {"en": "Time  %s", "ko": "생존 시간  %s", "ja": "タイム  %s"},
@@ -256,6 +259,14 @@ const STRINGS: Dictionary = {
 	"go_score_fmt":      {"en": "Score  %d", "ko": "점수  %d", "ja": "スコア  %d"},
 	"go_new_best_fmt":   {"en": "NEW BEST!  %d", "ko": "신기록!  %d", "ja": "新記録！  %d"},
 	"go_best_fmt":       {"en": "Best  %d", "ko": "최고  %d", "ja": "ベスト  %d"},
+	# 게임오버 결과 요지(P2-31). 예전에는 아이콘 옆에 숫자만 있어 23:03 이 생존 시간인지
+	# 남은 시간인지 알 수 없었다 — 이름을 붙인다. 한국어 "획득"은 서브셋에 없어 "모은"을 쓴다.
+	"go_stat_kills":     {"en": "Kills", "ko": "처치",      "ja": "キル"},
+	"go_stat_time":      {"en": "Time",  "ko": "생존",      "ja": "タイム"},
+	"go_stat_level":     {"en": "Level", "ko": "레벨",      "ja": "レベル"},
+	"go_stat_gold":      {"en": "Gold",  "ko": "모은 골드", "ja": "ゴールド"},
+	# 값을 넣지 않는다 — 바로 아래 "생존" 줄에 같은 숫자가 있어 두 번 말하게 된다.
+	"go_new_best":       {"en": "NEW BEST!", "ko": "신기록!", "ja": "新記録！"},
 	"go_retry":          {"en": "Retry",     "ko": "다시하기",   "ja": "リトライ"},
 	"go_menu":           {"en": "Main Menu", "ko": "메인 메뉴",  "ja": "メインメニュー"},
 	"pause_resume":      {"en": "Resume", "ko": "계속하기", "ja": "再開"},
