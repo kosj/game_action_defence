@@ -142,7 +142,10 @@ func _init() -> void:
 		sm.play_ui(probe, 0.0, 1.0)
 		sm.stop_sfx(0.20)
 		sm.play_ui(probe, 0.0, 1.0)          # 페이드를 취소하고 다시 울린 소리
-		await get_tree().create_timer(0.35, true, false, true).timeout
+		# ⚠️ 이 스크립트는 `extends SceneTree` 다 — **self 가 곧 트리라 get_tree() 가 없다.**
+		# 노드에서 쓰던 `get_tree().create_timer(...)` 를 그대로 옮기면 파싱 자체가 실패하고,
+		# `check_gdscript.py` 는 문법만 보므로 로컬에서는 통과한다(CI 에서 잡혔다).
+		await create_timer(0.35, true, false, true).timeout
 		if not pp.playing:
 			_fail += 1
 			print("  FAIL 취소했어야 할 정지 페이드가 새로 재생한 %s 를 끊었다" % probe)
