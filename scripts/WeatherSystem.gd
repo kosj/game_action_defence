@@ -2,7 +2,7 @@ extends Node2D
 ## 날씨 연출 — 일정 주기(슬롯)마다 선택 테마의 날씨를 하나 뽑아 페이드 인/아웃 한다.
 ##
 ## **연출 전용이다.** 이동속도·명중률·피해량 등 어떤 전투 수치도 건드리지 않는다.
-## **배경 색도 건드리지 않는다** — 떨어지는 입자(+ 눈의 옅은 흰 판, 비의 번개 섬광)가 전부다.
+## **화면 전체를 덮는 처리도 하지 않는다** — 떨어지는 입자와 비의 번개 섬광이 전부다.
 ##
 ## 스케줄은 결정론적이다: Events.env_seed(런마다 발급·세이브됨) + 슬롯 인덱스로만 결정되는
 ## 순수 함수라, 이어하기가 같은 날씨 타임라인을 그대로 복원하고 헤드리스 검증이 가능하다.
@@ -15,7 +15,7 @@ extends Node2D
 const SLOT := 75.0        # 날씨 슬롯 길이(초) — 이 경계에서만 날씨가 바뀐다
 const FADE := 5.0         # 슬롯 경계 페이드 인/아웃(갑자기 비가 켜지지 않게)
 const CLEAR_WEIGHT := 34  # '맑음' 가중치(%). 나머지 66% 를 테마 날씨가 균등 분배한다
-const HAZE_MARGIN := 240.0   # 뿌연 판/섬광이 화면 밖까지 덮는 여유(카메라 흔들림 대비)
+const HAZE_MARGIN := 240.0   # 번개 섬광 판이 화면 밖까지 덮는 여유(카메라 흔들림 대비)
 
 ## 번개(비 전용) — 간헐적 섬광 + 천둥.
 const BOLT_MIN := 7.0
@@ -23,21 +23,18 @@ const BOLT_MAX := 16.0
 const BOLT_FLASH := 0.5   # 섬광 알파 피크
 const BOLT_DECAY := 3.0   # 초당 감쇠
 
-## 날씨 정의.
-##   haze     = 화면 전체를 덮는 옅은 **흰** 판의 알파 — 공기 중 눈발의 밀도로 읽힌다
-##   haze_col = 그 판의 색조. 지금은 전부 흰색이지만, 색이 있는 날씨(황사·화산재)가 들어올 때를
-##              위해 필드는 남긴다(흰 판이면 가짜로 읽힌다)
+## 날씨 정의. `bolt` = 간헐적 번개(비 전용).
 ##
-## ⚠️ **날씨는 배경 색을 바꾸지 않는다.** 예전에는 여기 `tint` 가 있어 비/눈이 월드 전체를
-## 곱연산으로 어둡게 물들였다(비 0.84배). "비가 오면 뒷배경이 어두워져 답답하다"는 실플레이
-## 피드백으로 걷어냈다 — 날씨는 **떨어지는 입자**로만 보여 준다.
-## 세 종류의 화면 처리 중 이것만 뺀 이유:
-##   · 배경 틴트  = 월드 전체를 어둡게 → **삭제**
-##   · 뿌연 판    = 눈일 때만, 흰색 0.06 → 밝히는 쪽이라 유지(눈발 밀도 표현)
-##   · 번개 섬광  = 순간적으로 밝힘 → 유지(비의 드라마)
+## ⚠️ **날씨는 화면 전체를 덮는 처리를 하지 않는다.** 두 번에 걸쳐 걷어냈다:
+##   · 배경 틴트(`tint`) — 비/눈이 월드를 곱연산으로 어둡게 물들였다(비 0.84배).
+##     "비가 오면 뒷배경이 어두워진다"는 피드백으로 삭제.
+##   · 뿌연 판(`haze`) — 눈일 때 흰 판 0.06 을 덮어 배경 휘도를 0.281 → 0.321 로 밀어 올렸다.
+##     밝히는 쪽이라 남겨 뒀었는데, "눈도 판 없이 입자만"이라는 후속 요청으로 삭제.
+## 남은 것은 **떨어지는 입자**와 비의 번개 섬광뿐이다. 전체 화면 판은 이제 섬광 전용이라,
+## 번개가 치지 않는 동안에는 알파가 0 이라 아무것도 덮지 않는다.
 const _DEF: Dictionary = {
-	"rain": {"haze": 0.00, "haze_col": Color(1.00, 1.00, 1.00), "bolt": true},
-	"snow": {"haze": 0.06, "haze_col": Color(1.00, 1.00, 1.00), "bolt": false},
+	"rain": {"bolt": true},
+	"snow": {"bolt": false},
 }
 
 var _keys: PackedStringArray = PackedStringArray()   # 이 테마에서 나올 수 있는 날씨
@@ -55,8 +52,6 @@ var _key: String = ""
 ## 시퀀스는 둘 다에 의존하므로 시드만 보고 재사용하면 다른 테마의 날씨가 새어 나온다.
 var _seq: Array = []
 var _seq_sig: String = ""
-var _haze_base: float = 0.0
-var _haze_col: Color = Color.WHITE
 var _flash: float = 0.0
 var _bolt_cd: float = 0.0
 var _haze_vp := Vector2.ZERO
@@ -160,7 +155,7 @@ func _process(delta: float) -> void:
 	if s != _slot:
 		_slot = s
 		_switch(weather_for_slot(s))
-	# 치트(CHEATS > WEATHER)로 날씨를 끄면 세기를 0 으로 눌러 입자·뿌연 판·번개가 한꺼번에
+	# 치트(CHEATS > WEATHER)로 날씨를 끄면 세기를 0 으로 눌러 입자·번개가 한꺼번에
 	# 사라진다(=상시 맑음). 슬롯 스케줄과 _key 는 그대로 굴러가므로 결정론·이어하기가 유지되고,
 	# 다시 켜면 그 시점에 원래 와야 할 날씨가 이어진다.
 	var strength := strength_at(elapsed) if (_key != "" and Cheats.weather) else 0.0
@@ -171,9 +166,8 @@ func _process(delta: float) -> void:
 		_splash.emitting = _key == "rain" and strength > 0.01
 		_splash.modulate.a = strength
 	_tick_bolt(delta, strength)
-	# 번개 섬광은 날씨 색조와 무관하게 흰빛이어야 하므로, 섬광 세기만큼 흰색으로 당긴다.
-	var hc := _haze_col.lerp(Color.WHITE, clampf(_flash / BOLT_FLASH, 0.0, 1.0)) if _flash > 0.0 else _haze_col
-	self_modulate = Color(hc.r, hc.g, hc.b, clampf(_haze_base * strength + _flash, 0.0, 1.0))
+	# 전체 화면 판은 번개 섬광 전용이다 — 섬광이 없으면 알파 0 이라 아무것도 덮지 않는다.
+	self_modulate = Color(1.0, 1.0, 1.0, clampf(_flash, 0.0, 1.0))
 	_sync_haze_size()
 
 
@@ -196,8 +190,6 @@ func _switch(key: String) -> void:
 	if key == _key:
 		return
 	_key = key
-	_haze_base = float(_DEF.get(key, {}).get("haze", 0.0))
-	_haze_col = _DEF.get(key, {}).get("haze_col", Color.WHITE)
 	_bolt_cd = randf_range(BOLT_MIN * 0.4, BOLT_MAX * 0.6)
 	if _emitter != null:
 		_configure(key)
@@ -210,7 +202,7 @@ func _switch(key: String) -> void:
 
 func _build_emitter() -> void:
 	var p := CPUParticles2D.new()
-	p.z_index = 1               # 부모(54) 기준 상대 → 실효 55. 뿌연 판(54)보다 앞
+	p.z_index = 1               # 부모(54) 기준 상대 → 실효 55. 섬광 판(54)보다 앞
 	p.local_coords = false      # 방출된 입자는 월드에 남는다(이동해도 끌려다니지 않음)
 	p.emitting = false
 	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
@@ -362,7 +354,7 @@ func _make_soft() -> Texture2D:
 	return t
 
 
-## ── 뿌연 판 / 번개 섬광 ──────────────────────────────────────────────────
+## ── 번개 섬광 판 ─────────────────────────────────────────────────────────
 ## 판 자체는 고정 색으로 한 번만 그리고, 세기는 self_modulate.a 로 조절한다 —
 ## 매 프레임 재발행(queue_redraw)하지 않기 위해서다. self_modulate 는 자식(파티클)에 번지지 않는다.
 
