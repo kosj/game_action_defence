@@ -42,10 +42,6 @@ const CLOSE_H := 52.0
 const CLOSE_BG := Color(0.18, 0.20, 0.26)
 const CLOSE_ACCENT := Color(0.5, 0.55, 0.65)
 
-## 딤(바깥 영역) 탭으로 닫을 때의 탭음 피치. 닫기 **버튼**은 apply_button_style 이 같은
-## 소리를 이미 내주므로 딤도 같은 피치를 쓴다 — 같은 동작이면 같은 소리여야 한다.
-const _PITCH_TAP := 1.0
-
 
 ## opts:
 ##   scroll        bool   — body 를 ScrollContainer 로 감싼다(항목이 늘어나는 목록형). 기본 false
@@ -61,11 +57,9 @@ static func make(parent: Node, title_key: String, accent: Color, accent_txt: Col
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	dim.visible = false
 	# 바깥 영역 탭 시 닫기. 터치와 마우스를 함께 본다(웹은 둘 다 들어온다).
-	# 닫기 버튼은 apply_button_style 이 탭음을 붙여 주지만 딤에는 붙는 것이 없다 — 여기서 낸다.
-	# (양쪽에서 내면 닫기 버튼을 누를 때 소리가 두 번 난다)
+	# 소리는 여기서 내지 않는다 — close() 가 닫힘음을 내므로 여기서도 내면 두 번 난다.
 	dim.gui_input.connect(func(e: InputEvent) -> void:
 		if (e is InputEventScreenTouch and e.pressed) or (e is InputEventMouseButton and e.pressed):
-			SoundManager.play_ui("ui_click", 0.06, _PITCH_TAP)
 			on_close.call())
 	parent.add_child(dim)
 
@@ -152,25 +146,35 @@ static func make(parent: Node, title_key: String, accent: Color, accent_txt: Col
 ## 크게 시작해 제자리를 찾으므로 "다음 화면이 앞에서 다가온다"로 읽히고, 평소의 열기(작게
 ## 시작해 튀어나옴)와 구분된다. 앞 팝업의 닫힘(0.12s)과 겹쳐 재생돼 크로스페이드가 된다.
 ##
-## ⚠️ 여는 소리는 **일부러 내지 않는다.** 팝업은 전부 버튼으로 열리고 그 버튼이 이미 탭음을
-## 낸다 — 여기서 같은 샘플을 피치만 바꿔 한 번 더 내면 두 소리가 한두 프레임 차로 겹쳐
-## 플램(딸-깍)으로 들린다. 전용 열림음이 생기면(UI_POLISH_PLAN Phase 3-1) 그때 넣는다.
-static func open(dim: Control, panel: Control, forward: bool = false) -> void:
+## 소리도 셸이 소유한다(Phase 3-1). 버튼 탭음(`ui_click`)은 **누른 손가락**의 소리고,
+## 여기서 내는 `ui_open`/`ui_close` 는 **화면이 열리고 닫히는** 소리다 — 성격이 달라
+## (넓은 대역의 딱 소리 vs 활공하는 음) 겹쳐도 플램으로 뭉치지 않는다.
+##
+## silent=true 는 **다른 소리가 이미 그 전환을 말하고 있을 때** 쓴다. 새 게임 흐름에서
+## 카드를 고르면 `ui_select` 가 울리는데, 그 순간 앞 팝업이 닫히고 뒷 팝업이 열리므로
+## 그냥 두면 한 번의 탭에 네 소리(탭·선택·닫힘·열림)가 겹친다. 확정음 하나만 남긴다.
+static func open(dim: Control, panel: Control, forward: bool = false,
+		silent: bool = false) -> void:
 	if not is_instance_valid(panel):
 		return
 	if is_instance_valid(dim):
 		UIMotion.fade_in(dim)
 	UIMotion.pop_in(panel, UIMotion.SCALE_FORWARD if forward else UIMotion.SCALE_IN)
+	if not silent:
+		SoundManager.play_ui("ui_open", 0.04)
 
 
 ## 닫기 — 딤과 패널을 함께 페이드아웃하고 visible 까지 끈다.
 ## 이미 닫혀 있으면 아무것도 하지 않는다(딤 탭은 터치·마우스가 둘 다 들어와 두 번 불릴 수 있다).
-static func close(dim: Control, panel: Control) -> void:
+## silent 는 open() 과 같은 뜻이다.
+static func close(dim: Control, panel: Control, silent: bool = false) -> void:
 	if not is_instance_valid(panel) or not panel.visible:
 		return
 	if is_instance_valid(dim):
 		UIMotion.fade_out_hide(dim)
 	UIMotion.fade_out_hide(panel)
+	if not silent:
+		SoundManager.play_ui("ui_close", 0.04)
 
 
 ## 닫기 버튼 **위**에 요소를 덧붙인다(합계 라벨·일괄 수령 버튼 등).

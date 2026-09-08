@@ -133,9 +133,9 @@ func _make_row(body: VBoxContainer, rank: int) -> Dictionary:
 
 func _on_pressed(rank: int) -> void:
 	if not ThreatManager.select(rank):
-		SoundManager.play_ui("player_hurt", 0.2, 1.0)   # 잠긴 등급
+		SoundManager.play_ui("ui_deny", 0.04)   # 잠긴 등급 — 예전에는 피격음을 냈다
 		return
-	SoundManager.play_ui("gold", 0.03, 1.2)
+	SoundManager.play_ui("ui_select", 0.03)   # 캐릭터·아레나 선택과 같은 확정음
 	refresh()
 	if _on_pick.is_valid():
 		_on_pick.call()

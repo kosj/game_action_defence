@@ -315,6 +315,96 @@ def synth_ui_click(_rng: np.random.Generator) -> np.ndarray:
     return _quiet_norm(np.fft.irfft(np.fft.rfft(x) * 10.0 ** (-10.0 * ramp / 20.0), n))
 
 
+# ─────────────────────── P2-24: UI 전용 소리 네 개 ───────────────────────
+#
+# 지금까지 UI 사운드는 `ui_click` 하나였다. 선택 성공은 `gold`(동전)를 피치로 일곱 가지
+# 변주했고, **거부는 `player_hurt`(피격음)를 돌려썼다** — 살 돈이 없을 때 맞는 소리가 났다.
+#
+# UI 음은 전투음과 다른 규칙을 따른다(SOUND_GUIDE §5). 런 하나에서 가장 자주 울리는 축이라
+#   · 짧고 건조하게 — 꼬리가 길면 연달아 누를 때 뭉갠다
+#   · 2~5kHz 를 피한다 — 귀가 가장 예민해 반복되면 금세 피로하다
+#   · 개성을 죽인다 — 인상적인 소리일수록 몇 분 만에 거슬린다
+# 그래서 넷 다 0.10~0.16초, 중심을 600~1400Hz 에 두고 3kHz 위를 깎는다.
+#
+# 넷은 **한 가족**이어야 한다. 같은 음색에서 방향만 다르게 한다:
+#   ui_open   올라감  — 무언가 열렸다
+#   ui_close  내려감  — 닫혔다 (열기보다 짧고 조용하게: 닫기는 결과가 아니라 정리다)
+#   ui_select 두 번 올라감 — 정했다
+#   ui_deny   낮게 떨림 — 안 된다 (음정이 아니라 거친 맥놀이로, 다른 셋과 확실히 갈린다)
+#
+# 순수 합성으로 만드는 이유: 이 소리들에는 물리적 대상이 없다(SOUND_GUIDE §9 의 경계선 —
+# 기계·전기·추상은 합성이 통하고, 생물의 목소리는 안 된다).
+
+
+def _ui_env(n: int, attack: float = 0.004, release: float = 0.6) -> np.ndarray:
+    """UI 음 공통 포락선 — 온셋 0ms(§7), 짧은 어택 뒤 지수 감쇠."""
+    t = np.arange(n) / SR
+    a = int(attack * SR)
+    env = np.exp(-t / (release * t[-1] if t[-1] > 0 else 1.0))
+    if a > 0:
+        env[:a] *= np.linspace(0.0, 1.0, a)
+    return env
+
+
+def _ui_shelf(x: np.ndarray, hz: float = 3000.0, db: float = -12.0) -> np.ndarray:
+    """3kHz 위를 깎는다 — 반복 재생되는 소리에서 찌르는 성분만 덜어내는 처방(§5)."""
+    n = len(x)
+    f = np.fft.rfftfreq(n, 1.0 / SR)
+    ramp = np.clip((f - hz) / (hz * 1.5), 0.0, 1.0)
+    return np.fft.irfft(np.fft.rfft(x) * 10.0 ** (db * ramp / 20.0), n)
+
+
+def _ui_tone(f0: float, f1: float, dur: float, harm: float = 0.35) -> np.ndarray:
+    """f0 에서 f1 로 미끄러지는 짧은 음. 2배음을 조금 섞어 삐 소리가 아니라 '딩'이 되게 한다."""
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    # 지수 글라이드 — 선형보다 음정 변화가 자연스럽게 들린다.
+    freq = f0 * (f1 / f0) ** (t / max(t[-1], 1e-9))
+    phase = 2 * np.pi * np.cumsum(freq) / SR
+    return (np.sin(phase) + harm * np.sin(2 * phase)) * _ui_env(n)
+
+
+def synth_ui_open(_rng: np.random.Generator) -> np.ndarray:
+    """팝업이 열린다 — 700 → 1080Hz 로 올라가는 짧은 딩."""
+    return _ui_shelf(_ui_tone(700.0, 1080.0, 0.11))
+
+
+def synth_ui_close(_rng: np.random.Generator) -> np.ndarray:
+    """팝업이 닫힌다 — 열기의 역방향. 더 짧고 배음도 적게(정리하는 소리라 존재감을 낮춘다)."""
+    return _ui_shelf(_ui_tone(1000.0, 660.0, 0.085, harm=0.22))
+
+
+def synth_ui_select(_rng: np.random.Generator) -> np.ndarray:
+    """선택 확정 — 두 음이 연달아 올라간다(880 → 1320Hz). '정했다'는 두 박자로 읽힌다."""
+    # 두 음 다 0.8~3kHz 한가운데 두면 반복 시 피로한 대역만 쓰게 된다(§5). 배음을 키워
+    # 200~800Hz 몸통을 함께 만들고, 첫 음을 조금 크게 해 피크가 앞에 오게 한다
+    # (뒤에 오면 "때리는 순간이 없다"로 잡힌다 — 확정음은 누른 순간과 붙어야 한다).
+    a = _ui_tone(720.0, 760.0, 0.055, harm=0.55)
+    b = _ui_tone(1080.0, 1120.0, 0.105, harm=0.55)
+    gap = int(0.045 * SR)
+    out = np.zeros(gap + len(b))
+    out[:len(a)] += a
+    out[gap:] += b * 0.92
+    return _ui_shelf(out)
+
+
+def synth_ui_deny(_rng: np.random.Generator) -> np.ndarray:
+    """거부 — 낮고 거친 맥놀이. 음정이 아니라 '떨림'이라 다른 셋과 확실히 갈린다.
+
+    가까운 두 주파수를 겹치면 그 차이만큼 진폭이 뛴다(여기선 14Hz). 이것이 부저의 정체다.
+
+    ⚠️ 처음엔 196/208Hz 로 만들었다가 측정에서 걸렀다 — 200Hz 이하가 50.4%, 폰 스피커
+    체감이 나머지 셋보다 **8dB 낮았다.** 기기가 그 대역을 못 낸다(§2). 기음을 264Hz 로
+    올리고 홀수 배음이 강한 파형(tanh 하드 드라이브)을 써서 792·1320·1848Hz 를 만든다 —
+    거친 성격은 맥놀이가 유지하고, 들리는 몫은 배음이 낸다.
+    """
+    n = int(0.17 * SR)
+    t = np.arange(n) / SR
+    base = np.sin(2 * np.pi * 264.0 * t) + np.sin(2 * np.pi * 278.0 * t)
+    body = np.tanh(base * 4.5)          # 세게 몰아 홀수 배음을 만든다(§2 익사이터)
+    return _ui_shelf(body * _ui_env(n, attack=0.006, release=0.75), db=-14.0)
+
+
 # ─────────────────────── P2-12: 비어 있던 자리를 메우는 소리들 ───────────────────────
 #
 # 검수에서 나온 공백은 두 종류였다. 하나는 **무기 모듈 10개 중 3개가 완전히 무음**인 것,
@@ -508,6 +598,11 @@ FORMATS = {
     "shoot": ("sfx_shoot.ogg", 44100),
     "boom": ("sfx_boom.wav", 22050),
     "ui_click": ("sfx_ui_click.ogg", 44100),
+    # UI 음은 대역이 좁아 44.1kHz 로 충분하다(48k 로 두면 용량만 는다).
+    "ui_open": ("sfx_ui_open.ogg", 44100),
+    "ui_close": ("sfx_ui_close.ogg", 44100),
+    "ui_select": ("sfx_ui_select.ogg", 44100),
+    "ui_deny": ("sfx_ui_deny.ogg", 44100),
 }
 
 GENERATORS = {
@@ -515,6 +610,10 @@ GENERATORS = {
     "shoot": synth_shoot,
     "boom": synth_boom,
     "ui_click": synth_ui_click,
+    "ui_open": synth_ui_open,
+    "ui_close": synth_ui_close,
+    "ui_select": synth_ui_select,
+    "ui_deny": synth_ui_deny,
     "tesla_arc": synth_tesla_arc,
     "ult_quake": synth_ult_quake,
     "chainsaw": synth_chainsaw,

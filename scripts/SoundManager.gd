@@ -20,6 +20,12 @@ const _SOUNDS: Dictionary = {
 	"defeat":      "res://assets/audio/sfx_defeat.ogg",      # 사망(게임오버) 스팅어
 	"victory":     "res://assets/audio/sfx_victory.ogg",     # 30분 클리어 징글
 	"ui_click":    "res://assets/audio/sfx_ui_click.ogg",    # 메뉴/버튼 탭
+	# UI 전용 4종(P2-24). 예전에는 선택 성공에 gold(동전)를, 거부에 player_hurt(피격음)를
+	# 돌려썼다 — 살 돈이 없을 때 맞는 소리가 났다. tools/gen_sfx.py 로 절차 생성한다.
+	"ui_open":     "res://assets/audio/sfx_ui_open.ogg",     # 팝업 열림
+	"ui_close":    "res://assets/audio/sfx_ui_close.ogg",    # 팝업 닫힘
+	"ui_select":   "res://assets/audio/sfx_ui_select.ogg",   # 선택 확정
+	"ui_deny":     "res://assets/audio/sfx_ui_deny.ogg",     # 잠김·잔액 부족
 	"ult_quake":   "res://assets/audio/sfx_ult_quake.ogg",  # 궁극기: 지진(베테랑)
 	"ult_arrow":   "res://assets/audio/sfx_ult_arrow.ogg",  # 궁극기: 화살비(헌터)
 	"ult_orbital": "res://assets/audio/sfx_ult_orbital.ogg",# 궁극기: 궤도 폭격(엔지니어)
@@ -68,6 +74,14 @@ const _VOLUMES: Dictionary = {
 	"defeat":       0.8,
 	"victory":     -7.0,
 	"ui_click":     -3.0,   # 버튼 피드백 — 들리되 전투음을 덮지 않는 선
+	# 아래 넷은 **A-가중이 아니라 폰 스피커 체감으로 맞춘 값**이다(SOUND_GUIDE §8).
+	# 파일 RMS 는 넷 다 -16dB 로 같지만 대역이 달라 체감이 다르다 — open/close/select 는
+	# 0.8~3kHz 중심이라 체감 -17dB, deny 는 200~800Hz 중심이라 -21.6dB 다. 여기서 그 차이를
+	# 되돌려 넷이 ui_click 과 같은 크기로 들리게 한다(체감 -29~-31dB 대에 모인다).
+	"ui_open":     -13.0,
+	"ui_close":    -14.0,   # 닫힘은 열림보다 조용하게 — 결과가 아니라 정리하는 동작이다
+	"ui_select":   -12.0,   # 넷 중 가장 중요한 신호(확정)라 살짝 앞에 둔다
+	"ui_deny":      -8.0,   # 저역 중심이라 크게 줘야 같은 크기로 들린다
 	"ult_quake":   -3.0,
 	"ult_arrow":   -3.0,
 	"ult_orbital": -3.0,

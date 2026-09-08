@@ -1762,6 +1762,7 @@ func _on_pause_pressed() -> void:
 	# 않는 코드로 만든 패널이라 UIMotion 을 직접 부른다).
 	UIMotion.fade_in(_pause_dim)
 	UIMotion.pop_in(_pause_panel)
+	SoundManager.play_ui("ui_open", 0.04)   # 팝업 셸과 같은 문법
 	Events.pause_push(_pause_panel, "pausemenu")
 	call_deferred("_fit_pause_scroll")   # 열 때마다 현재 화면 크기에 맞춰 재계산
 	if _pause_btn:
@@ -1771,6 +1772,7 @@ func _on_pause_pressed() -> void:
 func _on_resume_pressed() -> void:
 	UIMotion.fade_out_hide(_pause_dim)
 	UIMotion.fade_out_hide(_pause_panel)
+	SoundManager.play_ui("ui_close", 0.04)
 	if _pause_btn:
 		_pause_btn.visible = true
 	Events.pause_pop(_pause_panel)
