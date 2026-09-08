@@ -317,6 +317,10 @@ func _check_contact_damage() -> void:
 			break
 
 
+## 이동 입력 우선순위: 자동플레이 > 키보드 > 화면 조이스틱.
+## 키보드를 조이스틱보다 앞에 두는 이유 — 데스크톱/웹에서는 `emulate_touch_from_mouse` 때문에
+## 마우스로 화면을 한 번 누르면 조이스틱에 값이 남을 수 있다. 키를 누르고 있는 동안에는
+## 그쪽이 확실한 의사표시이므로 우선한다. 키를 떼면(=0) 즉시 조이스틱으로 돌아간다.
 func _handle_move() -> void:
 	# 조이스틱은 HUD 가 준비된 뒤에 그룹에 등록되므로 지연 조회
 	if joystick == null:
@@ -325,8 +329,11 @@ func _handle_move() -> void:
 	var input := Vector2.ZERO
 	if Cheats.autoplay_active():
 		input = Cheats.auto_move_dir(self)   # 자동플레이 치트 — 조종 AI 가 이동을 대신한다
-	elif joystick:
-		input = joystick.get_value()
+	else:
+		# 키보드(WASD·방향키). get_vector 가 대각선을 정규화하므로 대각 이동이 빨라지지 않는다.
+		input = Input.get_vector("move_left", "move_right", "move_up", "move_down")
+		if input == Vector2.ZERO and joystick:
+			input = joystick.get_value()
 
 	velocity = input * move_speed * _ext_slow
 	move_and_slide()
