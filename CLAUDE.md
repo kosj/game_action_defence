@@ -195,6 +195,9 @@ AudioServer.PlaybackType:                            0=DEFAULT · 1=STREAM · 2=
 
 ```sh
 python3 tools/check_gdscript.py                                            # 엔진 없이 문법 점검(빠름)
+# ⚠️ 이건 **문법만** 본다 — 없는 함수를 불러도 통과한다. 그건 엔진 파서(--import)가 잡는다.
+#    특히 `extends SceneTree` 인 tools/*.gd 는 self 가 곧 트리라 **get_tree() 가 없다**;
+#    노드용 코드를 그대로 옮기면 여기서는 멀쩡하고 CI 에서 파싱이 깨진다(실제로 겪었다).
 python3 tools/verify_triage.py                                             # 프리즈 판정 회귀(고정 입력)
 godot --headless --path . --import                                         # 임포트/파싱
 godot --headless --path . --script res://tools/check_font_coverage.gd

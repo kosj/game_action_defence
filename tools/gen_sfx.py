@@ -476,6 +476,29 @@ def synth_boss_die(rng: np.random.Generator) -> np.ndarray:
     return out
 
 
+def synth_defeat(_rng: np.random.Generator) -> np.ndarray:
+    """게임오버 스팅어 — 지속부를 잘라 스팅어답게 만든다.
+
+    **감쇠하는 스팅어가 아니라 2.2초까지 최대 음량을 유지하는 지속음이었다.**
+    포락선을 재면 0.5초부터 2.2초까지 피크 대비 3dB 안에 머문다. 그래서 사망 후
+    0.35초 만에 뜨는 패널에서 플레이어가 곧바로 메뉴로 나가면, 소리가 최대 음량인
+    채로 메인 메뉴까지 따라 들어왔다(P2-23).
+
+    음악적 진행은 그보다 훨씬 먼저 끝난다. 0.2초 간격으로 스펙트럼을 보면
+      0.0s 111Hz 충격 → 0.2s 469Hz 화음 → 0.6~1.2s 310→293Hz 하강 → 1.3s 착지
+    이고, **1.4초 이후는 293Hz 를 무한정 붙들고 있는 드론**이다. 진행이 끝난 자리에서
+    끊고 페이드를 앞당긴다 — 잘리는 느낌이 없는 이유가 그것이다.
+
+    길이 2.60 → 1.60초. 같은 층의 `wave_clear`(1.59초)와 나란해진다.
+    """
+    src = decode_pristine("assets/audio/sfx_defeat.ogg")
+    body = int(1.35 * SR)          # 착지(1.3초)까지는 그대로 둔다
+    fade = int(0.25 * SR)          # 드론 구간을 페이드로 소모해 끝을 닫는다
+    x = src[:body + fade].copy()
+    x[-fade:] *= np.linspace(1.0, 0.0, fade) ** 1.4   # 살짝 볼록 — 뚝 끊기지 않게
+    return x
+
+
 # 출력 포맷 — 기존 파일의 컨테이너·샘플레이트를 그대로 지킨다.
 # 규격은 48kHz OGG 지만, 이 셋은 내용이 전부 저역이라 상향 리샘플이 용량만 늘린다.
 # boom 은 heap_hunt.gd 가 WAV 대조군(_SOUND_WAV)으로 쓰고 있어 컨테이너를 바꾸면 안 된다.
@@ -499,6 +522,7 @@ GENERATORS = {
     "magnet": synth_magnet,
     "weather": synth_weather,
     "boss_die": synth_boss_die,
+    "defeat": synth_defeat,
 }
 
 

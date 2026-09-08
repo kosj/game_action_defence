@@ -24,6 +24,11 @@ func transition_to(path: String, dur: float = 0.3) -> void:
 	if _busy:
 		return
 	_busy = true
+	# 그림이 검게 빠지는 동안 소리도 같이 뺀다 — 같은 시간을 준다.
+	# 효과음 플레이어는 오토로드 자식이라 씬이 바뀌어도 계속 울린다. 여기서 끄지 않으면
+	# 게임오버 스팅어가 메인 메뉴까지 따라 들어온다(P2-23). 배경음악은 대상이 아니다 —
+	# 다음 씬의 play_music() 이 크로스페이드로 알아서 넘긴다.
+	SoundManager.stop_sfx(dur)
 	if _tw != null and _tw.is_valid():
 		_tw.kill()
 	_tw = create_tween()
