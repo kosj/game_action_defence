@@ -202,7 +202,8 @@ def main() -> None:
                                      "threat_rule_start_hp") for l, t in loc(k)]
          + loc("threat_base")),
         ("위협 · 기록", 200, 14, False, [(l, t % "99:59") for l, t in loc("threat_best_fmt")]),
-        ("HUD · 위협 뱃지", 240, 13, False, loc("threat_badge_fmt", 20)),
+        # 골드와 레벨 뱃지 사이의 빈 칸 112px(HUD._THREAT_RECT). 예전 240 은 전 너비 기준이었다.
+        ("HUD · 위협 뱃지", 112, 16, False, loc("threat_badge_fmt", 20)),
 
         # ── 팝업 리스트 행 (전체화면 팝업: 720-24-36-48=612, 슬롯 44 + 간격 11 + 여백 22) ──
         ("팝업 행 · 제목", 612 - 22 - 44 - 11 - 90, 18, False,

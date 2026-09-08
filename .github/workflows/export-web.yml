@@ -162,6 +162,9 @@ jobs:
           # 상단 경고 띠는 하나를 넷이 나눠 쓴다 — 낮은 위험이 덮어쓸 수 있게 되면
           # "가끔 보스 이름이 안 보인다"로만 나타나 재현이 어렵다(P2-26).
           godot --headless --path . --script res://tools/verify_hud_alert.gd
+          # 상단바 위젯이 서로 겹치면 "글자가 반쯤 지워진" 화면으로만 보인다 — 헤드리스도
+          # check_text_fit 도 못 잡는다(글자는 제 상자 안에 있고, 상자끼리 겹친 것이다).
+          godot --headless --path . --script res://tools/verify_hud_layout.gd
 
       - name: Export to Web
         run: |
