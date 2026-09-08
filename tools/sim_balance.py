@@ -44,15 +44,28 @@ USERDATA = os.path.expanduser("~/.local/share/godot/app_userdata/Zombie Buster")
 KILLS_PER_MIN_FLOOR = 40.0
 ENGAGE_MIN_MINUTES = 4.0
 
-# 판정 기준 — BALANCE.md §판정 기준과 같은 값이어야 한다. 바꿀 땐 둘 다 바꾼다.
+# 판정 기준 — BALANCE.md §2 "층 2 — 오토플레이 게이트" 와 같은 값이어야 한다.
+# 바꿀 땐 둘 다 바꾼다.
+#
+# ⛔ **생존 시간은 게이트가 아니다.** 손잡이 넷(체력 곡선·밀도·유입·이속)을 하나씩 바꿔 재 보니
+#    생존 중앙값이 전부 하네스 자체의 흔들림(같은 조건 재측정에서 8.6분 vs 9.9분) 안에서만
+#    움직였다(BALANCE.md §3-14). 조율할 수 없는 값을 목표로 걸면 무엇을 해도 "미달"만 나온다 —
+#    실제로 이전 판이 그렇게 죽어 있었다. 생존 시간은 **참고로만 출력**한다.
 TARGETS = {
-    "median_survive_min": (12.0, 18.0),   # 랜덤 빌드 생존 시간 중앙값(분)
-    "boss_fight_s":       (20.0, 40.0),   # 보스전 소요(초)
-    "first_hit_s":        (90.0, None),   # 첫 피격 시점(초) — 하한만
+    "first_hit_s":  (90.0, None),    # 첫 피격 중앙(초) — 하한만. 초반은 AI/사람 차이가 가장 작다
+    "kills_at_6min": (660, 820),     # 6분 누적 처치 — 손잡이를 바꿔도 732~750 이던 값
+    "maxed_rate":   (40.0, None),    # 무기 만렙(Lv8) 도달률 **%** (greedy 전용) — 진화의 전제 조건
 }
+## 무기 만렙 = 진화 조건. 카탈로그의 베이스 무기 max_level 과 같아야 한다.
+WEAPON_MAX_LEVEL = 8
+## 이 지표를 재는 시각(분) — 분당 스냅샷에서 뽑는다.
+KILLS_SAMPLE_MIN = 6
+## 페르소나 화력 비교에 필요한 최소 보스 조우 판수. 보스(10분)에 닿는 판이 적어 표본이
+## 쉽게 1~2개가 되는데, 그 수로 부등호를 말하면 노이즈를 회귀로 읽는다.
+BOSS_SAMPLE_MIN = 3
 
 
-def run_one(godot, seed, character, theme, maxmin, persona="random", threat=1):
+def run_one(godot, seed, character, theme, maxmin, persona="random", threat=1, diff="", bal=""):
     """한 판 실행 → 결과 dict. 판마다 user:// 를 격리해 진행 상태가 새지 않게 한다."""
     env = dict(os.environ)
     tmp_home = tempfile.mkdtemp(prefix="simbal_")
@@ -61,6 +74,10 @@ def run_one(godot, seed, character, theme, maxmin, persona="random", threat=1):
            "--script", "res://tools/sim_balance.gd", "--",
            "seed=%d" % seed, "character=%s" % character, "persona=%s" % persona,
            "theme=%s" % theme, "maxmin=%g" % maxmin, "threat=%d" % threat]
+    if diff:
+        cmd.append("diff=%s" % diff)
+    if bal:
+        cmd.append("bal=%s" % bal)
     try:
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=1800, env=env)
         m = re.search(r"SIMRESULT (\{.*\})", p.stdout)
@@ -95,6 +112,14 @@ def summarize(rows, label):
     fights = [f for r in ok for f in r["boss_fight_s"]]
     hits = [r["first_hit_s"] for r in ok if r["first_hit_s"] > 0]
     cleared = sum(1 for r in ok if r["cleared"])
+    # 6분 시점 누적 처치 — 죽은 시각과 무관한 **같은 시각 비교**라 손잡이 변화가 여기 나타난다.
+    k6 = [sm["kills"] for r in ok for sm in r.get("samples", [])
+          if sm["min"] == KILLS_SAMPLE_MIN]
+    # 무기 만렙 도달률 — 진화 조건(베이스 만렙 + 짝꿍 패시브 1)의 앞쪽 절반.
+    maxed = sum(1 for r in ok
+                if max(list(r["weapons"].values()) + [0]) >= WEAPON_MAX_LEVEL)
+    # 보스 조우 시점의 화력 — 보스 잔여 체력. 같은 시각(10:00)에 재므로 페르소나 비교에 쓴다.
+    bhp = [r["boss_hp_left_pct"] for r in ok if r.get("boss_hp_left_pct", -1) >= 0]
     s = {
         "label": label, "n": len(ok), "fail": len(bad),
         "median_min": st.median(surv), "min_min": surv[0], "max_min": surv[-1],
@@ -107,11 +132,20 @@ def summarize(rows, label):
         "cleared": cleared,
         "peak_z": max(r["peak_zombies"] for r in ok),
         "fled": len(fled),
+        "kills_at_6min": st.median(k6) if k6 else None,
+        "maxed": maxed,
+        "maxed_rate": maxed / float(len(ok)),
+        "boss_hp_left": st.median(bhp) if bhp else None,
+        "boss_n": len(bhp),
     }
     print("  %-10s n=%-3d 생존 중앙값 %5.1f분 (범위 %.1f~%.1f) · 레벨 %.0f · 처치 %.0f · "
           "보스처치 %.0f · 클리어 %d/%d"
           % (label, s["n"], s["median_min"], s["min_min"], s["max_min"],
              s["level"], s["kills"], s["boss_kills"], cleared, len(ok)))
+    print("             6분 처치 %s · 무기 만렙 %d/%d · 보스 잔여 체력 %s"
+          % ("%.0f" % s["kills_at_6min"] if s["kills_at_6min"] is not None else "—",
+             s["maxed"], len(ok),
+             "%.0f%%" % s["boss_hp_left"] if s["boss_hp_left"] is not None else "—"))
     if fled:
         print("             교전 이탈 %d판 제외 (오토플레이가 도망만 친 판 — 사람 플레이가 아니다)"
               % len(fled))
@@ -120,27 +154,76 @@ def summarize(rows, label):
     return s
 
 
-def verdict(s):
-    """판정 — 목표 구간과 대조해 사람이 읽을 결론을 낸다."""
+def _band(label, v, key, fmt="%.0f", unit=""):
+    """게이트 한 줄 — 목표 구간과 대조한다. 상한이 None 이면 하한만 본다."""
+    if v is None:
+        print("  [--  ] %s — 표본 없음" % label)
+        return
+    lo, hi = TARGETS[key]
+    ok = (v >= lo) and (hi is None or v <= hi)
+    mark = "OK  " if ok else ("낮음" if v < lo else "높음")
+    tgt = ("%s%s 이상" % (fmt % lo, unit)) if hi is None \
+        else ("%s~%s%s" % (fmt % lo, fmt % hi, unit))
+    print("  [%s] %s %s%s  (목표 %s)" % (mark, label, fmt % v, unit, tgt))
+
+
+def verdict(s, personas=None):
+    """판정 — BALANCE.md §2 층 2 게이트와 대조해 사람이 읽을 결론을 낸다.
+
+    ⛔ 생존 시간은 판정하지 않는다(§3-14). 손잡이를 바꿔도 하네스의 흔들림 안에서만
+       움직이는 값이라, 목표로 걸면 무엇을 해도 "미달"만 출력된다."""
     if s is None:
         return
-    print("\n판정 (목표 대비)")
-    lo, hi = TARGETS["median_survive_min"]
-    v = s["median_min"]
-    mark = "OK  " if lo <= v <= hi else ("낮음" if v < lo else "높음")
-    print("  [%s] 생존 중앙값 %.1f분  (목표 %.0f~%.0f분)" % (mark, v, lo, hi))
-    if s["boss_fight_s"] is not None:
-        lo, hi = TARGETS["boss_fight_s"]
-        v = s["boss_fight_s"]
-        mark = "OK  " if lo <= v <= hi else ("짧음" if v < lo else "김  ")
-        print("  [%s] 보스전 %.1f초       (목표 %.0f~%.0f초)" % (mark, v, lo, hi))
+    print("\n판정 — BALANCE.md §2 층 2 게이트")
+    _band("첫 피격 중앙", s["first_hit_s"], "first_hit_s", unit="초")
+    _band("6분 누적 처치", s["kills_at_6min"], "kills_at_6min")
+    # 만렙 도달률은 **greedy 전용**이다 — random 은 애초에 집중하지 않으므로
+    # 이 게이트를 적용하면 설계대로 동작하는 상태를 회귀로 오분류한다.
+    # personas 를 안 받았을 때는 라벨("veteran/greedy")로 판별한다.
+    pn = personas if personas else ("greedy" if "greedy" in s["label"] else "random")
+    if pn == "greedy":
+        _band("무기 만렙 도달률", 100.0 * s["maxed_rate"], "maxed_rate", unit="%")
     else:
-        print("  [--  ] 보스전 데이터 없음 — 보스(10분)에 도달한 판이 없다")
-    if s["first_hit_s"] is not None:
-        lo, _ = TARGETS["first_hit_s"]
-        v = s["first_hit_s"]
-        print("  [%s] 첫 피격 %.0f초      (목표 %.0f초 이후)"
-              % ("OK  " if v >= lo else "이름", v, lo))
+        print("  [--  ] 무기 만렙 도달률 %.0f%% — random 은 판정 대상이 아니다(greedy 전용 게이트)"
+              % (100.0 * s["maxed_rate"]))
+    print("  (참고 · 판정 안 함) 생존 중앙값 %.1f분 · 보스전 %s · 클리어 %d판"
+          % (s["median_min"],
+             "%.1f초" % s["boss_fight_s"] if s["boss_fight_s"] is not None else "도달 없음",
+             s["cleared"]))
+    print("  ↳ 생존 시간을 게이트로 쓰지 않는 이유는 BALANCE.md §3-14 를 볼 것.")
+
+
+def cross_persona_verdict(summaries):
+    """층 2 의 마지막 게이트 — **greedy 화력 ≥ random**.
+
+    값이 아니라 부등호다. 상한 근사(greedy)가 하한선(random)보다 약해지면
+    "빌드를 짜면 강해진다"는 이 게임의 전제가 깨진 것이므로 절대값과 무관하게 회귀다
+    (2026-09-08 에 실제로 뒤집혀 있었다 — BALANCE.md §3-14 ③)."""
+    by = {}
+    for s in summaries:
+        if s is None:
+            continue
+        for pn in ("greedy", "random"):
+            if s["label"].endswith(pn) or s["label"] == pn:
+                by[pn] = s
+    if len(by) < 2:
+        return
+    g, r = by["greedy"], by["random"]
+    print("\n판정 — 집중이 보상받는가 (greedy vs random)")
+    # **판정은 무기 만렙 도달률로 한다.** 이 게이트가 묻는 것은 "집중이 보상받는가"이고,
+    # 만렙 도달은 그것을 직접 재는 값이다(진화 조건의 앞쪽 절반이기도 하다).
+    ok = g["maxed_rate"] >= r["maxed_rate"]
+    print("  [%s] 무기 만렙 도달률 greedy %.0f%% vs random %.0f%%"
+          % ("OK  " if ok else "역전", 100 * g["maxed_rate"], 100 * r["maxed_rate"]))
+    # 보스 잔여 체력은 **참고**다. 사망 시점에 재는 값이라 "보스전 몇 초째에 죽었나"가 섞여
+    # 들어가고, 보스에 닿는 판 자체가 적어 표본이 쉽게 한 자리다 — 몇 pp 차이는 노이즈다.
+    if g["boss_n"] >= BOSS_SAMPLE_MIN and r["boss_n"] >= BOSS_SAMPLE_MIN:
+        print("  (참고) 보스 잔여 체력 greedy %.0f%%(n=%d) vs random %.0f%%(n=%d) — "
+              "낮을수록 화력이 높지만 표본이 작아 몇 pp 는 읽지 않는다"
+              % (g["boss_hp_left"], g["boss_n"], r["boss_hp_left"], r["boss_n"]))
+    else:
+        print("  (참고) 보스 조우 표본 부족 (greedy %d · random %d · 최소 %d)"
+              % (g["boss_n"], r["boss_n"], BOSS_SAMPLE_MIN))
 
 
 def main():
@@ -160,6 +243,13 @@ def main():
     ap.add_argument("--csv", help="판별 원자료를 CSV 로 저장")
     ap.add_argument("--threat", type=int, default=1,
                     help="위협 등급(P1-12). 1=기존 밸런스와 동일한 기준선")
+    ap.add_argument("--diff", default="",
+                    help="난이도 손잡이 임시 덮어쓰기 — 'hp_accel_per_min2:0.028,max_z_cap:260'. "
+                         "data/difficulty.tres 를 고치지 않고 실험을 병렬로 돌리기 위한 것이다. "
+                         "채택하면 tools/gen_difficulty_data.gd 쪽 기본값에 반영할 것(CLAUDE.md §2)")
+    ap.add_argument("--bal", default="",
+                    help="밸런스 표 임시 덮어쓰기 — 'levelup_focus_weight:0'. --diff 와 같은 목적이다")
+    ap.add_argument("--jsonl", help="판별 SIMRESULT 원본(JSON 한 줄씩)을 저장 — 분당 샘플이 여기 있다")
     a = ap.parse_args()
 
     godot = os.environ.get("GODOT", "godot")
@@ -171,12 +261,16 @@ def main():
     seeds = [a.seed_start + i for i in range(a.runs)]
     print("밸런스 측정 — %d판 × %s × %s · 테마 %s · 위협 등급 %d · 최대 %g분 · 병렬 %d"
           % (a.runs, "/".join(chars), "/".join(personas), a.theme, a.threat, a.maxmin, a.jobs))
+    if a.diff:
+        print("난이도 덮어쓰기: %s" % a.diff)
+    if a.bal:
+        print("밸런스 덮어쓰기: %s" % a.bal)
     print("(random=하한선 · greedy=상한 근사. 자세한 해석은 BALANCE.md)\n")
 
     all_rows, summaries = [], []
     keys = [(c, pn) for c in chars for pn in personas]
     with cf.ThreadPoolExecutor(max_workers=a.jobs) as ex:
-        futs = {ex.submit(run_one, godot, s, c, a.theme, a.maxmin, pn, a.threat): (c, pn)
+        futs = {ex.submit(run_one, godot, s, c, a.theme, a.maxmin, pn, a.threat, a.diff, a.bal): (c, pn)
                 for (c, pn) in keys for s in seeds}
         rows_by_key = {k: [] for k in keys}
         for f in cf.as_completed(futs):
@@ -190,7 +284,18 @@ def main():
         summaries.append(summarize(rows_by_key[k], label))
 
     if len(keys) == 1:
-        verdict(summaries[0])
+        verdict(summaries[0], personas[0])
+    elif len(chars) == 1 and len(personas) == 2:
+        for sm in summaries:
+            verdict(sm)
+        cross_persona_verdict(summaries)
+
+    if a.jsonl:
+        with open(a.jsonl, "w") as fh:
+            for r in all_rows:
+                if "error" not in r:
+                    fh.write(json.dumps(r) + "\n")
+        print("\nJSONL 저장: %s" % a.jsonl)
 
     if a.csv:
         import csv

@@ -57,3 +57,4 @@ gem_live_cap = 140
 maxed_level_gold_base = 20
 maxed_level_gold_per_level = 2.0
 maxed_level_gold_max = 80
+levelup_focus_weight = 1.0

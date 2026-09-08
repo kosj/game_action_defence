@@ -3,7 +3,8 @@ extends SceneTree
 ##
 ## 실행(한 판):
 ##   godot --headless --path . --fixed-fps 60 --script res://tools/sim_balance.gd -- \
-##       character=veteran theme=suburb maxmin=30 seed=1 persona=greedy threat=1
+##       character=veteran theme=suburb maxmin=30 seed=1 persona=greedy threat=1 \
+##       diff=hp_accel_per_min2:0.028 bal=levelup_focus_weight:0
 ##
 ## 여러 판 반복·집계·판정은 `tools/sim_balance.py` 가 한다 — 이 스크립트는 한 판만 본다.
 ## 판을 프로세스마다 새로 띄우는 이유: 오토로드(메타 골드·과제·퀘스트)와 오브젝트 풀이
@@ -99,12 +100,51 @@ func _setup() -> void:
 	root.get_node("SaveManager").delete_save()
 	_events.reset()
 
+	_apply_diff_overrides()
+
 	_main = load(MAIN_SCENE).instantiate()
 	root.add_child(_main)
 	current_scene = _main   # SceneTree 의 속성이다(root 는 Window). Events.fx_layer() 가 이걸 본다
 	var cheats := root.get_node("Cheats")
 	cheats.autoplay_persona = String(_args.get("persona", "random"))
 	cheats.autoplay = true
+
+
+## 손잡이 임시 덮어쓰기 — `diff=필드:값,...`(DifficultyData) · `bal=필드:값,...`(BalanceData).
+## 측정 전용이다.
+##
+## 왜 필요한가 — 손잡이 실험은 "한 번에 하나만 바꿔 같은 조건으로 재측정"이 규칙인데
+## (BALANCE.md §4), `data/difficulty.tres` 를 고쳐 가며 재는 방식은 실험을 **직렬로** 만든다.
+## 판당 프로세스가 이미 분리돼 있으므로, 이 프로세스의 메모리 위에서만 값을 바꾸면
+## 여러 조건을 동시에 잴 수 있다. 디스크의 .tres 는 건드리지 않는다.
+##
+## ⚠️ 이것은 측정용 실험 장치다. **채택한 값은 반드시 생성기 쪽 기본값에 반영한다** —
+## `gen_difficulty_data.gd` 는 스크립트 @export 기본값을 저장할 뿐이라, .tres 만 고치면
+## 다음 재생성에 사라진다(CLAUDE.md §2).
+func _apply_diff_overrides() -> void:
+	var gd = root.get_node("GameData")
+	_override(gd.difficulty, String(_args.get("diff", "")), "DifficultyData")
+	_override(gd.balance, String(_args.get("bal", "")), "BalanceData")
+
+
+func _override(res: Resource, spec: String, what: String) -> void:
+	if spec == "" or res == null:
+		return
+	var d := res
+	for pair in spec.split(",", false):
+		var kv := String(pair).split(":", true, 1)
+		if kv.size() != 2:
+			push_warning("sim_balance: diff 항목 '%s' 를 읽을 수 없다 — 건너뛴다" % pair)
+			continue
+		var key := kv[0].strip_edges()
+		if not key in d:
+			push_warning("sim_balance: %s 에 '%s' 필드가 없다 — 건너뛴다" % [what, key])
+			continue
+		# 원래 필드의 타입을 유지한다 — int 필드에 float 를 넣으면 조용히 내림된다.
+		var cur = d.get(key)
+		var val = float(kv[1])
+		d.set(key, int(round(val)) if typeof(cur) == TYPE_INT else val)
+		print("SIMDIFF %s = %s" % [key, d.get(key)])
 
 
 ## 위협 등급 선택(P1-12). 해금 게이트를 우회하는 것은 캐릭터/테마와 같은 이유다 —
