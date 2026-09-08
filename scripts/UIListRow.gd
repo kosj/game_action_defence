@@ -31,7 +31,8 @@ const GAUGE_H := 22
 
 ## cfg 키(전부 선택):
 ##   icon:String, icon_color:Color, title:String, title_color:Color,
-##   reward:int(0이면 숨김), desc:String, cur:int, goal:int(0이면 게이지 없음),
+##   reward:int(0이면 숨김), value:String(제목 줄 오른쪽 — 보상이 아닌 수치. 점수·기록 등),
+##   desc:String, cur:int, goal:int(0이면 게이지 없음),
 ##   state:int, action:Dictionary{text, on_pressed:Callable, accent:Color}
 static func make(cfg: Dictionary) -> Control:
 	var state: int = int(cfg.get("state", STATE_ACTIVE))
@@ -78,6 +79,19 @@ static func make(cfg: Dictionary) -> Control:
 	var reward := int(cfg.get("reward", 0))
 	if reward > 0:
 		head.add_child(_reward_tag(reward, state))
+
+	# 보상이 아닌 수치(점수·기록)는 코인 아이콘 없이 숫자만 오른쪽에 붙인다 — 코인을 달면
+	# "골드를 준다"로 읽힌다.
+	var value := String(cfg.get("value", ""))
+	if value != "":
+		var val := Label.new()
+		val.text = value
+		val.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		val.add_theme_font_size_override("font_size", 18)
+		val.add_theme_color_override("font_color", cfg.get("value_color", Color(0.95, 0.96, 0.99)))
+		val.clip_text = true
+		val.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		head.add_child(val)
 
 	# ── 설명 줄 (진행 수치 포함) ──
 	var desc_txt := String(cfg.get("desc", ""))
