@@ -18,12 +18,17 @@ var _auto_t: float = 0.0        # 자동플레이 치트 — 카드가 뜬 뒤 �
 var _stuck_t: float = 0.0       # 카드 없는 패널이 떠 있는 시간(안전망 — 강제 진행/닫기)
 var _fw_holder: Control = null  # 축하 폭죽 홀더(패널 뒤)
 var _fw_tw: Tween = null        # 폭죽 발사 예약 트윈 — 패널을 닫을 때 끊는다
+## 카드를 고른 뒤 확정 연출이 도는 동안 참. 이 사이에는 다른 카드를 누를 수도,
+## 자동플레이가 또 고를 수도, "선택지 없는 패널" 안전망이 끼어들 수도 없어야 한다.
+var _confirming: bool = false
 
 
 ## 자동플레이 치트: 패널이 떠 있으면 잠시 보여준 뒤 카드를 무작위로 골라준다(진화 선택 포함).
 func _process(delta: float) -> void:
 	# 안전망 — 카드가 하나도 없는 패널이 떠 있으면 아무도 진행시킬 수 없어 게임이 영구히 멈춘다.
 	# (정지 소유권은 Events 워치독이 별도로 지키지만, 여기서 먼저 정상 경로로 빠져나간다.)
+	if _confirming:
+		return   # 확정 연출 중 — 안전망도 자동플레이도 기다린다
 	if _showing and _card_box != null and _card_box.get_child_count() == 0:
 		_stuck_t += delta
 		if _stuck_t >= 1.5:
@@ -181,15 +186,53 @@ func _refresh() -> void:
 	_stagger_cards()
 
 
-## 카드 등장 연출 — 위에서부터 순차적으로(stagger) 페이드 인 해 선택지가 착착 깔리는 느낌을 준다.
+## 카드 등장 연출 — 위에서부터 순차적으로(stagger) 깔린다. 알파만 올리면 "그 자리에 있던 것이
+## 밝아지는" 느낌이라, 세로로 살짝 눌린 상태에서 아래를 축으로 펴지게 해 솟아오르는 인상을 준다.
+##
+## **위치를 옮기지 않는 이유**: 카드는 VBoxContainer 의 자식이라 컨테이너가 배치할 때마다
+## position 을 다시 써 버린다. 컨테이너가 건드리지 않는 것은 modulate 와 scale 뿐이다.
+const _CARD_STAGGER := 0.05
+const _CARD_IN_SEC := 0.22
+
 func _stagger_cards() -> void:
 	var i := 0
 	for c in _card_box.get_children():
 		c.modulate.a = 0.0
-		var tw := create_tween()
-		tw.tween_interval(0.05 * float(i))
-		tw.tween_property(c, "modulate:a", 1.0, 0.22)
+		var ctrl := c as Control
+		if ctrl != null:
+			# 방금 추가된 카드는 아직 배치 전이라 size 가 0 일 수 있다 — 그때는 최소 크기로
+			# 아래 모서리를 잡는다(세로로만 늘이므로 x 피벗은 결과에 영향이 없다).
+			var sz := ctrl.size if ctrl.size.y > 0.0 else ctrl.custom_minimum_size
+			ctrl.pivot_offset = Vector2(sz.x * 0.5, sz.y)
+			ctrl.scale = Vector2(1.0, 0.88)
+		# 트윈은 **카드 자신**에 묶는다. 패널에 묶으면 카드가 먼저 해제됐을 때(다음 레벨업으로
+		# 넘어가며 _refresh 가 목록을 비운다) 트윈만 남아 해제된 노드를 계속 건드린다.
+		var tw := (ctrl if ctrl != null else self).create_tween()
+		tw.tween_interval(_CARD_STAGGER * float(i))
+		tw.tween_property(c, "modulate:a", 1.0, _CARD_IN_SEC)
+		if ctrl != null:
+			tw.parallel().tween_property(ctrl, "scale", Vector2.ONE, _CARD_IN_SEC)\
+				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		# 진화 카드의 맥동은 **등장이 끝난 뒤** 시작한다. 등장 트윈이 modulate:a 를 쓰는데
+		# 맥동은 modulate 전체를 쓰므로, 동시에 돌면 둘이 알파를 놓고 다툰다.
+		if ctrl != null and ctrl.has_meta("is_evo"):
+			tw.tween_callback(_pulse_evolve_card.bind(ctrl))
 		i += 1
+
+
+## 진화 카드는 일반 카드와 같은 판을 쓴다 — 특별하다는 것을 색이 아니라 움직임으로 말한다.
+## 반복 트윈이라 확정 연출이 시작될 때 반드시 죽인다(_confirm_card 참고).
+const _EVO_PULSE_SEC := 0.7
+const _EVO_PULSE_TINT := Color(1.16, 1.07, 0.86, 1.0)
+
+func _pulse_evolve_card(card: Control) -> void:
+	if not is_instance_valid(card):
+		return
+	var tw := card.create_tween()   # 카드와 함께 사라지도록 카드에 묶는다(반복 트윈이라 더 중요하다)
+	tw.set_loops()
+	tw.tween_property(card, "modulate", _EVO_PULSE_TINT, _EVO_PULSE_SEC).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(card, "modulate", Color.WHITE, _EVO_PULSE_SEC).set_trans(Tween.TRANS_SINE)
+	card.set_meta("_evo_pulse", tw)
 
 
 ## 뽑기 후보: 보유 아이템(만렙 미만)은 "레벨업", 미보유 아이템은 슬롯 여유가 있으면 "새 아이템".
@@ -275,6 +318,7 @@ func _make_evolve_card(rule: Dictionary) -> Button:
 	_set_card_icon(btn, into.get("icon"))
 	btn.pressed.connect(_on_evolve.bind(String(rule["base"]), String(rule["into"])))
 	btn.set_meta("pick_id", "evolve:" + String(rule["into"]))
+	btn.set_meta("is_evo", true)   # 등장이 끝나면 _stagger_cards 가 맥동을 건다
 	return btn
 
 
@@ -306,12 +350,65 @@ func _new_card_button() -> Button:
 	return btn
 
 
+## 고른 카드가 확정되는 순간 — 그 카드만 잠깐 커지며 밝아지고 나머지는 물러난다.
+## 예전에는 누르는 즉시 _refresh() 가 카드를 전부 지워, 무엇을 골랐는지 확인할 틈이 없었다.
+##
+## 정지 중에도 흐르는 타이머를 쓴다(레벨업 패널이 트리를 멈춰 둔 상태다).
+const _CONFIRM_SEC := 0.26
+const _CONFIRM_TINT := Color(1.55, 1.45, 1.05, 1.0)
+
+func _confirm_card(picked: Control) -> void:
+	_confirming = true
+	for c in _card_box.get_children():
+		var ctrl := c as Control
+		if ctrl == null:
+			continue
+		# 진화 카드의 반복 맥동을 먼저 끈다 — 그대로 두면 확정 트윈과 modulate 를 놓고 다툰다.
+		if ctrl.has_meta("_evo_pulse"):
+			var pulse = ctrl.get_meta("_evo_pulse")
+			if pulse is Tween and pulse.is_valid():
+				pulse.kill()
+			ctrl.remove_meta("_evo_pulse")
+		if ctrl == picked:
+			ctrl.pivot_offset = ctrl.size * 0.5
+			var tw := ctrl.create_tween()
+			tw.set_parallel(true)
+			tw.tween_property(ctrl, "scale", Vector2(1.06, 1.06), _CONFIRM_SEC * 0.55)\
+				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tw.tween_property(ctrl, "modulate", _CONFIRM_TINT, _CONFIRM_SEC * 0.4)
+		else:
+			# 고르지 않은 카드는 물러난다 — 선택이 하나였음을 화면이 말해 준다.
+			var otw := ctrl.create_tween()
+			otw.tween_property(ctrl, "modulate:a", 0.0, _CONFIRM_SEC * 0.7)
+	await get_tree().create_timer(_CONFIRM_SEC, true, false, true).timeout
+	_confirming = false
+
+
 func _on_pick(id: String) -> void:
+	if _confirming:
+		return
+	await _confirm_card(_card_with_pick_id(id))
+	if not is_inside_tree():
+		return
 	Events.grant_item(id)   # 인벤토리 레벨 +1 후 upgrade_* 재계산
 	_apply_and_advance()
 
 
+## pick_id 메타로 카드를 되찾는다. 시그널이 id 만 넘겨주기 때문인데, 버튼 자체를 바인딩하면
+## 카드가 지워진 뒤에도 참조가 남아 해제된 인스턴스를 만질 위험이 있다.
+func _card_with_pick_id(id: String) -> Control:
+	for c in _card_box.get_children():
+		if c.has_meta("pick_id") and String(c.get_meta("pick_id")) == id:
+			return c as Control
+	return null
+
+
 func _on_evolve(base_id: String, into_id: String) -> void:
+	if _confirming:
+		return
+	await _confirm_card(_card_with_pick_id("evolve:" + into_id))
+	if not is_inside_tree():
+		return
 	# 런 최대 파워업 — 레벨업 징글보다 한 단계 웅장한 전용 팡파르(없으면 팡파르/레벨업으로 폴백).
 	if SoundManager.has_stream("evolve"):
 		SoundManager.play_ui("evolve", 0.02, 1.0)
@@ -370,6 +467,11 @@ func _advance_or_close() -> void:
 	visible = false
 	_stop_fireworks()   # 숨겨진 파티클은 스스로 끝나지 못한다 — 닫을 때 확실히 비운다
 	Events.pause_pop(self)
+	# 전장으로 돌아가는 순간의 줌 펀치. **정지를 푼 뒤에** 부른다 — Player 는
+	# PROCESS_MODE_ALWAYS 가 아니라, 정지 중에 걸면 줌이 당겨진 채 굳는다.
+	var player := get_tree().get_first_node_in_group("player")
+	if is_instance_valid(player) and player.has_method("camera_zoom_punch"):
+		player.camera_zoom_punch(0.94, 0.28)
 
 
 ## 폭죽 정리 — 남은 발사 예약을 끊고 살아있는 파티클을 즉시 제거한다.

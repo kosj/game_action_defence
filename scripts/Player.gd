@@ -183,6 +183,15 @@ func _apply_character_sprite() -> void:
 			body.scale = Vector2(c.sprite_scale, c.sprite_scale)
 
 
+## 바깥에서 부르는 줌 펀치(레벨업 패널이 닫힐 때 등). 내부용과 같은 동작이며, 밑줄
+## 이름을 밖에서 부르지 않게 공개 이름을 따로 둔다.
+##
+## ⚠️ 정지가 풀린 뒤에 부를 것. Player 는 PROCESS_MODE_ALWAYS 가 아니라, 정지 중에 부르면
+## 줌은 즉시 당겨지지만 되돌리는 트윈이 멈춰 그 상태로 굳는다.
+func camera_zoom_punch(target_factor: float, dur: float) -> void:
+	_camera_zoom_punch(target_factor, dur)
+
+
 ## 카메라 줌 펀치 — target 배율로 순간 전환 후 기본 줌으로 부드럽게 복귀(등장 연출용).
 func _camera_zoom_punch(target_factor: float, dur: float) -> void:
 	if not is_instance_valid(camera):
