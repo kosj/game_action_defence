@@ -328,8 +328,7 @@ func _build_options_panel() -> void:
 
 func _on_options_pressed() -> void:
 	_refresh_log_button()   # 판 수가 늘었을 수 있으니 열 때마다 갱신
-	_options_dim.visible = true
-	_options_panel.visible = true
+	_UIPopup.open(_options_dim, _options_panel)
 
 
 func _refresh_log_button() -> void:
@@ -344,8 +343,7 @@ func _on_copy_log_pressed() -> void:
 
 
 func _on_close_options() -> void:
-	_options_dim.visible = false
-	_options_panel.visible = false
+	_UIPopup.close(_options_dim, _options_panel)
 
 
 ## 메타 성장(PowerUp) 오버레이 — 은행 골드로 영구 강화를 구매한다.
@@ -412,28 +410,26 @@ func _build_power_panel() -> void:
 
 
 ## 위협 등급 선택 열기. 첫 호출에서만 패널을 만든다.
-func _open_threat() -> void:
+## forward — 새 게임 흐름의 3단계로 들어올 때(아레나 다음). UIPopup.open 주석 참고.
+func _open_threat(forward: bool = false) -> void:
 	if _threat == null:
 		_threat = _ThreatPanel.new()
 		_threat.build(self, _on_threat_close, _on_threat_picked)
 	_threat.refresh()
-	_threat.dim.visible = true
-	_threat.panel.visible = true
+	_UIPopup.open(_threat.dim, _threat.panel, forward)
 
 
 func _on_threat_close() -> void:
 	if _threat == null:
 		return
-	_threat.dim.visible = false
-	_threat.panel.visible = false
+	_UIPopup.close(_threat.dim, _threat.panel)
 	# 새 게임 흐름 중이었다면 닫기도 "고른 등급으로 진행"이다(현재 선택은 항상 유효하다).
 	if _newgame_flow:
 		_finish_newgame_flow()
 
 
 func _on_threat_picked() -> void:
-	_threat.dim.visible = false
-	_threat.panel.visible = false
+	_UIPopup.close(_threat.dim, _threat.panel)
 	_finish_newgame_flow()
 
 
@@ -451,26 +447,22 @@ func _on_codex_pressed() -> void:
 		_codex = _CodexPanel.new()
 		_codex.build(self, _on_codex_close)
 	_codex.refresh()
-	_codex.dim.visible = true
-	_codex.panel.visible = true
+	_UIPopup.open(_codex.dim, _codex.panel)
 
 
 func _on_codex_close() -> void:
 	if _codex == null:
 		return
-	_codex.dim.visible = false
-	_codex.panel.visible = false
+	_UIPopup.close(_codex.dim, _codex.panel)
 
 
 func _on_power_pressed() -> void:
 	_refresh_power()
-	_power_dim.visible = true
-	_power_panel.visible = true
+	_UIPopup.open(_power_dim, _power_panel)
 
 
 func _on_power_close() -> void:
-	_power_dim.visible = false
-	_power_panel.visible = false
+	_UIPopup.close(_power_dim, _power_panel)
 
 
 
@@ -619,21 +611,19 @@ func _on_char_pick(id: String) -> void:
 	_refresh_character()
 	if picked and _newgame_flow:
 		# 다음 단계: 아레나(테마) 선택
-		_char_dim.visible = false
-		_char_panel.visible = false
-		_on_theme_pressed()
+		_UIPopup.close(_char_dim, _char_panel)
+		_on_theme_pressed(true)
 
 
-func _on_character_pressed() -> void:
+## forward — 새 게임 흐름의 1단계로 열릴 때. 버튼 시그널은 인자 없이 호출한다(기본값 false).
+func _on_character_pressed(forward: bool = false) -> void:
 	_refresh_character()
-	_char_dim.visible = true
-	_char_panel.visible = true
+	_UIPopup.open(_char_dim, _char_panel, forward)
 
 
 func _on_character_close() -> void:
 	_newgame_flow = false   # 선택 중 닫으면 새 게임 흐름 취소
-	_char_dim.visible = false
-	_char_panel.visible = false
+	_UIPopup.close(_char_dim, _char_panel)
 
 
 
@@ -680,13 +670,11 @@ func _ach_icon(metric: String) -> String:
 
 func _on_achievements_pressed() -> void:
 	_refresh_achievements()
-	_ach_dim.visible = true
-	_ach_panel.visible = true
+	_UIPopup.open(_ach_dim, _ach_panel)
 
 
 func _on_achievements_close() -> void:
-	_ach_dim.visible = false
-	_ach_panel.visible = false
+	_UIPopup.close(_ach_dim, _ach_panel)
 
 
 # ── 끝없는 과제(Quests) 패널 — 현재 활성 과제 + 진행 + 다음 보상 표시 ──────────
@@ -840,13 +828,11 @@ func _refresh_meta_gold_labels() -> void:
 
 func _on_rewards_pressed() -> void:
 	_refresh_rewards()
-	_rewards_dim.visible = true
-	_rewards_panel.visible = true
+	_UIPopup.open(_rewards_dim, _rewards_panel)
 
 
 func _on_rewards_close() -> void:
-	_rewards_dim.visible = false
-	_rewards_panel.visible = false
+	_UIPopup.close(_rewards_dim, _rewards_panel)
 
 
 ## 활성 과제를 매번 새로 그린다(티어가 바뀌므로 재생성이 간단·정확).
@@ -878,13 +864,11 @@ func _quest_icon(id: String) -> String:
 
 func _on_quests_pressed() -> void:
 	_refresh_quests()
-	_quest_dim.visible = true
-	_quest_panel.visible = true
+	_UIPopup.open(_quest_dim, _quest_panel)
 
 
 func _on_quests_close() -> void:
-	_quest_dim.visible = false
-	_quest_panel.visible = false
+	_UIPopup.close(_quest_dim, _quest_panel)
 
 
 
@@ -1030,16 +1014,15 @@ func _theme_unlock_hint(t: ThemeData) -> String:
 	return Locale.t("locked")
 
 
-func _on_theme_pressed() -> void:
+## forward — 새 게임 흐름의 2단계(생존자 다음)로 열릴 때.
+func _on_theme_pressed(forward: bool = false) -> void:
 	_refresh_theme()
-	_theme_dim.visible = true
-	_theme_panel.visible = true
+	_UIPopup.open(_theme_dim, _theme_panel, forward)
 
 
 func _on_theme_close() -> void:
 	_newgame_flow = false   # 선택 중 닫으면 새 게임 흐름 취소
-	_theme_dim.visible = false
-	_theme_panel.visible = false
+	_UIPopup.close(_theme_dim, _theme_panel)
 
 
 
@@ -1065,12 +1048,11 @@ func _on_theme_pick(id: String) -> void:
 		SoundManager.play_ui("player_hurt", 0.2, 1.0)
 	_refresh_theme()
 	if picked and _newgame_flow:
-		_theme_dim.visible = false
-		_theme_panel.visible = false
+		_UIPopup.close(_theme_dim, _theme_panel)
 		# 다음 단계: 위협 등급. 해금된 등급이 하나뿐이면 고를 것이 없으므로 건너뛴다 —
 		# 새 플레이어에게 선택지 없는 화면을 세우지 않는다(P1-12).
 		if ThreatManager.max_rank() > 1:
-			_open_threat()
+			_open_threat(true)
 		else:
 			_finish_newgame_flow()
 
@@ -1148,13 +1130,11 @@ func _build_ranking_panel() -> void:
 
 func _on_ranking_pressed() -> void:
 	_refresh_ranking_rows()
-	_rank_dim.visible = true
-	_rank_panel.visible = true
+	_UIPopup.open(_rank_dim, _rank_panel)
 
 
 func _on_close_ranking() -> void:
-	_rank_dim.visible = false
-	_rank_panel.visible = false
+	_UIPopup.close(_rank_dim, _rank_panel)
 
 
 
@@ -1243,7 +1223,7 @@ var _newgame_flow := false
 
 func _on_new_game_pressed() -> void:
 	_newgame_flow = true
-	_on_character_pressed()   # 1단계: 생존자 선택
+	_on_character_pressed(true)   # 1단계: 생존자 선택
 
 
 func _start_new_game() -> void:

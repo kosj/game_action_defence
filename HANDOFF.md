@@ -100,7 +100,7 @@
 | P2-12 누락 효과음 — 재생 훅 + 생성 프롬프트 | J | ⚪ 대기 | — | P1-34 이후 |
 | P2-10 사운드 전체 검수 — 고아 정리(`swing`) + 연출 대비 누락 보완 | J | 🔵 진행중 | claude/ultimate-ability-sound-improvement-gx2j1x | 2026-09-07 |
 | 5-R 실기기 병목 판정 도구(HALF RES·PERF HUD avg/max·자동 플레이테스트) — `OPTIMIZATION_PLAN.md` §5-R | I | ✅ (ecf7af7 · a3f5c08) | claude/project-optimization-review-bgoocs | 2026-09-05 |
-| P2-10 UI 연출 Phase 1-① 공용 모션 상수 + 팝업 열기/닫기 연출 — `UI_POLISH_PLAN.md` §3 | D | 🔵 진행중 | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
+| P2-13 UI 연출 Phase 1-① 공용 모션 상수 + 팝업 열기/닫기 연출 — `UI_POLISH_PLAN.md` §3 | D | ✅ (머지 후 sha 기입) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
 
 **결정 대기 항목은 전부 해소됐다(2026-08-18).** 아래 §2 결정 로그 참고 — 이제 모든 항목이 바로 착수 가능하다.
 새로 🟡 가 필요한 판단이 생기면 임의로 고르지 말고 이 표에 🟡 로 올린 뒤 사용자 확인을 받는다.
