@@ -144,6 +144,21 @@ def synth_tesla_arc(rng: np.random.Generator) -> np.ndarray:
     return arc
 
 
+# 이 셋은 대응 원본(업로드)이 없어 **커밋된 에셋 자체가 재료**다. 그런데 결과를 같은
+# 경로에 덮어쓰므로, 그냥 읽으면 두 번째 실행이 이미 가공된 것을 다시 가공한다(배음 위에
+# 배음). 그래서 가공 전 상태가 담긴 커밋에서 읽는다 — 몇 번을 돌려도 같은 결과가 나온다.
+PRISTINE_REV = "8b473ee6b019320c7e816177e352045195ff1e4c"
+
+
+def decode_pristine(rel: str) -> np.ndarray:
+    """가공 전 에셋을 커밋에서 꺼내 디코드한다."""
+    blob = subprocess.run(["git", "-C", str(ROOT), "show", f"{PRISTINE_REV}:{rel}"],
+                          capture_output=True, check=True).stdout
+    out = subprocess.run([FFMPEG, "-v", "error", "-i", "-", "-f", "f32le", "-ac", "1",
+                          "-ar", str(SR), "-"], input=blob, capture_output=True, check=True).stdout
+    return np.frombuffer(out, dtype=np.float32).astype(np.float64)
+
+
 def decode(path: Path) -> np.ndarray:
     out = subprocess.run(
         [FFMPEG, "-v", "error", "-i", str(path), "-f", "f32le", "-ac", "1", "-ar", str(SR), "-"],
@@ -214,8 +229,91 @@ def synth_ult_quake(rng: np.random.Generator) -> np.ndarray:
     return out
 
 
+
+def _quiet_norm(x: np.ndarray) -> np.ndarray:
+    """RMS 를 기준에 맞추되 피크가 캡을 넘으면 **RMS 를 포기하고** 피크에 맞춘다.
+
+    공용 normalize() 는 tanh 로 피크를 눌러 RMS 를 채우는데, 총성처럼 파고율이 20dB 넘는
+    소리에 그걸 걸면 포화가 곧 왜곡으로 들린다. 여기서는 기준 미달을 감수하고, 모자란
+    만큼은 SoundManager 볼륨에서 채운다(SOUND_GUIDE §8).
+    """
+    rms = float(np.sqrt(np.mean(x ** 2)))
+    if rms <= 0:
+        return x
+    x = x * (10.0 ** (TARGET_RMS_DB / 20.0) / rms)
+    peak = float(np.abs(x).max())
+    cap = 10.0 ** (PEAK_CAP_DB / 20.0)
+    return x * (cap / peak) if peak > cap else x
+
+
+def _exciter(x: np.ndarray, drive: float, gain: float) -> np.ndarray:
+    """저역에서 배음을 만들어 들리는 대역(150~900Hz)에 넣는다 — SOUND_GUIDE §2.
+
+    저역을 키우는 것과는 다르다. 폰 스피커는 200Hz 이하를 못 내므로, 그 대역을 아무리
+    올려도 안 들린다. 배음은 원음에서 파생돼 이질감 없이 같은 소리로 붙는다.
+    """
+    low = band_filter(x, 25.0, 220.0)
+    low /= max(float(np.abs(low).max()), 1e-9)
+    return band_filter(np.tanh(low * drive), 150.0, 900.0) * gain
+
+
+def synth_shoot(_rng: np.random.Generator) -> np.ndarray:
+    """기본 총 발사음 — 폰에서 들리게 만든다.
+
+    게임에서 가장 자주 나는 소리인데 폰 체감이 -37dB 로 세트 중 가장 작았다(중앙값 -26.5).
+    에너지의 85.7% 가 200Hz 이하라 기기가 그 대역을 못 낸다. 저역 무게를 조금만 덜고
+    (0.85) 배음을 얹어, 권총다운 저역 펀치는 남기면서 들리게 한다.
+    """
+    src = decode_pristine("assets/audio/sfx_shoot.ogg")
+    return _quiet_norm(src * 0.85 + _exciter(src, 6.0, 0.5))
+
+
+def synth_boom(_rng: np.random.Generator) -> np.ndarray:
+    """범용 폭발음 — 16개 호출부가 공유한다.
+
+    에너지의 99.8% 가 200Hz 이하로, §2 에서 '소리가 안 난다'고 판정했던 지진 궁극기
+    (99.4%)보다 심했다. 보스 페이즈 전환은 피치 0.55 로 재생해 완전히 폰 대역 밖이다.
+    저역 비중을 72% 로 남겨 '쿵' 은 지키고 배음으로 들리게 한다.
+    """
+    src = decode_pristine("assets/audio/sfx_boom.wav")
+    return _quiet_norm(src * 0.8 + _exciter(src, 6.0, 0.7))
+
+
+def synth_ui_click(_rng: np.random.Generator) -> np.ndarray:
+    """버튼 탭음 — '탭' 이 아니라 스웰이었다.
+
+    피크가 107ms 뒤에 와서(§11 기준 0~5ms) 누른 순간과 소리가 어긋났고, 8kHz 이상이
+    41% 라 들릴 때는 쨍했다. 진짜 트랜지언트 앞에서 잘라 0.09초로 줄이고, 3kHz 위를
+    10dB 깎는다(§5 처방).
+    """
+    src = decode_pristine("assets/audio/sfx_ui_click.ogg")
+    step = SR // 1000
+    e = np.array([np.sqrt(np.mean(src[i:i + step] ** 2)) for i in range(0, len(src) - step, step)])
+    x = src[max(0, int(np.argmax(e)) - 4) * step:][:int(0.09 * SR)].copy()
+    tail = int(0.02 * SR)
+    x[-tail:] *= np.linspace(1.0, 0.0, tail)
+    n = len(x)
+    f = np.fft.rfftfreq(n, 1.0 / SR)
+    ramp = np.clip((f - 3000.0) / (3000.0 * 1.5), 0.0, 1.0)
+    return _quiet_norm(np.fft.irfft(np.fft.rfft(x) * 10.0 ** (-10.0 * ramp / 20.0), n))
+
+
+# 출력 포맷 — 기존 파일의 컨테이너·샘플레이트를 그대로 지킨다.
+# 규격은 48kHz OGG 지만, 이 셋은 내용이 전부 저역이라 상향 리샘플이 용량만 늘린다.
+# boom 은 heap_hunt.gd 가 WAV 대조군(_SOUND_WAV)으로 쓰고 있어 컨테이너를 바꾸면 안 된다.
+SELF_NORMALIZED = {"shoot", "boom", "ui_click"}
+
+FORMATS = {
+    "shoot": ("sfx_shoot.ogg", 44100),
+    "boom": ("sfx_boom.wav", 22050),
+    "ui_click": ("sfx_ui_click.ogg", 44100),
+}
+
 GENERATORS = {
     "zombie_hit": synth_zombie_hit,
+    "shoot": synth_shoot,
+    "boom": synth_boom,
+    "ui_click": synth_ui_click,
     "tesla_arc": synth_tesla_arc,
     "ult_quake": synth_ult_quake,
 }
@@ -236,11 +334,12 @@ def normalize(x: np.ndarray) -> np.ndarray:
     return x
 
 
-def encode(x: np.ndarray, path: Path) -> None:
+def encode(x: np.ndarray, path: Path, out_sr: int = SR) -> None:
     pcm = (np.clip(x, -1.0, 1.0) * 32767.0).astype("<i2").tobytes()
+    codec = ["-c:a", "pcm_s16le"] if path.suffix == ".wav" else ["-c:a", "libvorbis", "-q:a", "6"]
     subprocess.run(
         [FFMPEG, "-v", "error", "-y", "-f", "s16le", "-ar", str(SR), "-ac", "1", "-i", "-",
-         "-c:a", "libvorbis", "-q:a", "6", str(path)],
+         "-ar", str(out_sr), "-ac", "1", *codec, str(path)],
         input=pcm, check=True)
 
 
@@ -251,9 +350,12 @@ def main() -> None:
         gen = GENERATORS.get(name)
         if gen is None:
             sys.exit(f"알 수 없는 사운드: {name} (가능: {', '.join(GENERATORS)})")
-        x = normalize(gen(rng))
-        out = OUT_DIR / f"sfx_{name}.ogg"
-        encode(x, out)
+        # 파고율이 높은 소리는 생성기가 _quiet_norm 으로 스스로 맞춘다 — 여기서 공용
+        # normalize 를 한 번 더 걸면 tanh 포화가 들어가 그 의도가 무효가 된다.
+        x = gen(rng) if name in SELF_NORMALIZED else normalize(gen(rng))
+        fname, out_sr = FORMATS.get(name, (f"sfx_{name}.ogg", SR))
+        out = OUT_DIR / fname
+        encode(x, out, out_sr)
         rms = 20 * np.log10(float(np.sqrt(np.mean(x ** 2))))
         peak = 20 * np.log10(float(np.abs(x).max()))
         print(f"{out.name:22s} {len(x)/SR:5.3f}s  RMS={rms:6.1f}dB  peak={peak:5.1f}dB")
