@@ -171,6 +171,10 @@ def main() -> None:
                       "menu_ranking", "menu_powerup", "menu_options",
                       "menu_codex") for t in loc(k)]),
         ("메뉴 · 버전 라벨", 320, 14, False, lit("v1.0.0 · 8f52771 · 2026-08-13 09:45 UTC")),
+        # 계정 상태 줄(MainMenu._build_status_strip). 칩 셋이 가로 한 줄에 서므로 칩 하나는
+        # (720 - 간격 26x2 - 아이콘 28x3) / 3 ≈ 190 을 넘지 않아야 셋이 한 줄에 든다.
+        ("메뉴 · 상태 줄", 190, 18, False,
+         lit("999999") + loc("threat_badge_fmt", 20) + loc("threat_best_fmt", "99:59")),
 
         # ── 공통 팝업 셸 UIPopup (전체화면 720 - 화면여백 24 - 프레임 36 - 안쪽여백 44 = 616) ──
         # 셸이 8개 팝업의 제목/힌트/닫기를 한곳에서 만든다 — 여기가 넘치면 여덟 개가 같이 넘친다.

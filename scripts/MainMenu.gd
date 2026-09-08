@@ -14,6 +14,13 @@ const _DIFF_KEYS: Array = ["diff_easy", "diff_normal", "diff_hard"]
 var _diff_title: Label
 var _new_game_btn: Button
 var _continue_btn: Button
+## 계정 상태 줄(P2-32) — 로고 아래 한 줄: 메타 골드 · 위협 등급 · 최고 생존 시간.
+var _status_gold: Label = null
+var _status_threat: Label = null
+var _status_best: Label = null
+var _status_best_chip: Control = null
+var _status_threat_chip: Control = null
+var _status_row: Control = null
 var _lang_title: Label
 var _sound_title: Label
 var _sound_btn: Button
@@ -163,8 +170,14 @@ func _build_ui() -> void:
 	# 최고점(스코어) 표시 제거 — 요청.
 	# 난이도 모드 제거 — 단일 통합 모드(선택 UI 없음).
 
+	# ── 계정 상태 줄 ──
+	# 로고와 1차 버튼 사이. 예전에는 메뉴에 계정의 상태가 하나도 없었다 — 메타 골드 2480 을
+	# 들고 있어도 강화 팝업을 열기 전에는 알 수 없었고, 지금 고른 위협 등급도 새 게임을
+	# 눌러야 보였다. 한 줄로 "지금 내 계정이 어디까지 왔는가"를 먼저 보여 준다.
+	_build_status_strip(box)
+
 	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 18)
+	spacer.custom_minimum_size = Vector2(0, 6)
 	box.add_child(spacer)
 
 	# ── 1차 CTA — 로고의 핏빛을 그대로 받아 "여기를 눌러라"를 색으로도 말한다 ──
@@ -184,14 +197,26 @@ func _build_ui() -> void:
 	_continue_btn.custom_minimum_size = Vector2(320, 66)
 	_continue_btn.add_theme_font_size_override("font_size", 24)
 	_UIStyle.apply_button_style(_continue_btn, UITheme.BTN_BG, UITheme.MENU_SECONDARY)
-	_continue_btn.disabled = not SaveManager.has_save()
+	# 세이브가 없으면 **숨긴다**. 예전에는 disabled 로 뒀는데 이 플레이트는 비활성 표시가
+	# 따로 없어, 눌러도 아무 일도 없는 버튼이 멀쩡한 버튼과 똑같이 보였다.
+	_continue_btn.visible = SaveManager.has_save()
 	_continue_btn.pressed.connect(_on_continue_pressed)
 	box.add_child(_continue_btn)
 
-	# ── 3차 — 플레이트는 6개 모두 동일한 어두운 금속. 구분은 좌측 아이콘이 담당한다 ──
+	# ── 3차 — 플레이트는 전부 같은 어두운 금속. 구분은 좌측 아이콘과 **묶음**이 한다 ──
+	# 예전에는 일곱 개가 위계 없이 한 줄이었다. 셋으로 나눈다:
+	#   강화(골드를 쓰는 곳 — 판을 거듭할수록 가장 자주 여는 버튼)
+	#   기록 다섯(도전과제·과제·보상함·랭킹·도감)
+	#   설정
 	var opt_spacer := Control.new()
 	opt_spacer.custom_minimum_size = Vector2(0, 10)
 	box.add_child(opt_spacer)
+
+	_power_btn = _make_menu_btn("bolt", UITheme.MENU_ICON_POWER)
+	_power_btn.pressed.connect(_on_power_pressed)
+	box.add_child(_power_btn)
+
+	box.add_child(_group_gap())
 
 	_ach_btn = _make_menu_btn("trophy", UITheme.MENU_ICON_REWARD)
 	_ach_btn.pressed.connect(_on_achievements_pressed)
@@ -216,9 +241,7 @@ func _build_ui() -> void:
 	_codex_btn.pressed.connect(_on_codex_pressed)
 	box.add_child(_codex_btn)
 
-	_power_btn = _make_menu_btn("bolt", UITheme.MENU_ICON_POWER)
-	_power_btn.pressed.connect(_on_power_pressed)
-	box.add_child(_power_btn)
+	box.add_child(_group_gap())
 
 	_options_btn = _make_menu_btn("gear", UITheme.MENU_ICON_PLAIN)
 	_options_btn.pressed.connect(_on_options_pressed)
@@ -242,6 +265,74 @@ func _build_ui() -> void:
 	_build_theme_panel()
 	call_deferred("_prewarm_panels")
 	_stagger_menu_entrance(title, box)
+
+
+## 3차 버튼 묶음 사이의 간격. VBox 의 기본 간격(18)에 이만큼을 더해 "여기서 묶음이
+## 바뀐다"가 읽히게 한다 — 선을 긋는 것보다 조용하고, 진입 stagger 에도 영향이 없다.
+const _GROUP_GAP := 8.0
+
+func _group_gap() -> Control:
+	var g := Control.new()
+	g.custom_minimum_size = Vector2(0, _GROUP_GAP)
+	g.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return g
+
+
+## 계정 상태 줄 — [코인 골드] · [검 위협 N] · [시계 최고 mm:ss].
+## 값은 전부 이미 있던 것이다(MetaManager·ThreatManager). 보여 주지 않았을 뿐이다.
+const _STATUS_FONT := 18
+const _STATUS_ICON := 22
+
+func _build_status_strip(box: VBoxContainer) -> void:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 26)
+	box.add_child(row)
+
+	_status_gold = _status_chip(row, "coin", UITheme.MENU_ICON_REWARD, Color(0.95, 0.87, 0.60))
+	_status_threat = _status_chip(row, "sword", UITheme.SEC_THREAT, UITheme.SEC_THREAT_TXT)
+	_status_best = _status_chip(row, "clock", UITheme.MENU_ICON_PLAIN, UITheme.TEXT_DIM)
+	_status_threat_chip = _status_threat.get_parent()
+	_status_best_chip = _status_best.get_parent()
+	_status_row = row
+
+	_refresh_status_strip()
+	ThreatManager.changed.connect(_refresh_status_strip)
+
+
+func _status_chip(row: HBoxContainer, icon: String, icon_col: Color, txt_col: Color) -> Label:
+	var chip := HBoxContainer.new()
+	chip.add_theme_constant_override("separation", 6)
+	row.add_child(chip)
+	chip.add_child(UIIcon.make(icon, _STATUS_ICON, icon_col))
+	var lbl := Label.new()
+	lbl.add_theme_font_size_override("font_size", _STATUS_FONT)
+	lbl.add_theme_color_override("font_color", txt_col)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	chip.add_child(lbl)
+	return lbl
+
+
+## 강화 구매·보상 수령·등급 변경 뒤에 다시 부른다 — 이 줄은 시그널이 아니라 팝업이 닫힐 때
+## 갱신된다(MetaManager 에는 변경 시그널이 없고, 골드가 바뀌는 곳은 그 두 팝업뿐이다).
+func _refresh_status_strip() -> void:
+	if _status_gold == null:
+		return
+	var gold := MetaManager.meta_gold
+	var rank := ThreatManager.selected_rank()
+	var best := ThreatManager.best_seconds(rank)
+	_status_gold.text = "%d" % gold
+	_status_threat.text = Locale.t("threat_badge_fmt") % rank
+	# 등급 1 은 보이지 않는다 — HUD 의 위협 뱃지와 같은 규칙이다(아직 사다리를 오르지 않은
+	# 사람에게 "위협 1" 은 아무 정보가 아니다). 기록이 없으면 "최고 00:00" 도 빈칸일 뿐이다.
+	_status_threat_chip.visible = rank > 1
+	_status_best_chip.visible = best > 0.0
+	if best > 0.0:
+		var t := int(round(best))
+		_status_best.text = Locale.t("threat_best_fmt") % ("%02d:%02d" % [t / 60, t % 60])
+	# 새 계정(골드 0 · 등급 1 · 기록 없음)에는 말할 것이 없다 — 줄을 통째로 숨겨 첫 화면을
+	# 깨끗하게 둔다. 한 판이라도 끝내면 골드가 생겨 줄이 나타난다.
+	_status_row.visible = gold > 0 or rank > 1 or best > 0.0
 
 
 ## 메뉴 진입 연출 — 로고가 먼저 뜨고 버튼이 위에서부터 차례로 내려앉는다.
@@ -508,6 +599,7 @@ func _on_power_pressed() -> void:
 
 func _on_power_close() -> void:
 	_UIPopup.close(_power_dim, _power_panel)
+	_refresh_status_strip()   # 구매로 골드가 줄었을 수 있다
 
 
 
@@ -954,6 +1046,7 @@ func _on_rewards_pressed() -> void:
 
 func _on_rewards_close() -> void:
 	_UIPopup.close(_rewards_dim, _rewards_panel)
+	_refresh_status_strip()   # 수령으로 골드가 늘었을 수 있다
 
 
 ## 활성 과제를 매번 새로 그린다(티어가 바뀌므로 재생성이 간단·정확).
@@ -1374,6 +1467,7 @@ func _refresh_ranking_rows() -> void:
 func _apply_language() -> void:
 	_new_game_btn.text = Locale.t("menu_new_game")
 	_continue_btn.text = Locale.t("menu_continue")
+	_refresh_status_strip()
 	_ach_btn.text = Locale.t("menu_achievements")
 	_quest_btn.text = Locale.t("menu_quests")
 	_power_btn.text = Locale.t("menu_powerup")
