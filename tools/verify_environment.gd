@@ -39,6 +39,7 @@ func _process(_delta: float) -> bool:
 	_test_tint_continuity(day)
 	_test_cycle_wrap(day, game_data)
 	_test_luma_floor(day, weather_script)
+	_test_ground_darken()
 	_test_cheat_toggle(day, root.get_node("Cheats"))
 
 	print("── 날씨 ─────────────────────────────────────────")
@@ -154,6 +155,24 @@ func _test_luma_floor(day, weather_script: GDScript) -> void:
 	_ok("한밤 기준 틴트 휘도 >= 0.70(캐릭터 가독성)", mid_l >= 0.70, "실측 %.3f" % mid_l)
 	_ok("하한 보정이 실제로 발동함", clamped_any, "한 번도 안 걸리면 테스트가 무의미")
 	_ok("최종 틴트 채널 <= 1.0", not over_one, "CanvasModulate 로 하이라이트가 날아감")
+
+
+## 바닥 감광이 다시 세지지 않았는가.
+##
+## `Ground.TILE_DARKEN` 은 "바닥을 어둡게 깔아 이펙트가 잘 보이게" 하려는 값인데, 0.55 에서는
+## **정반대로 작동했다** — 잔디 원본 휘도 0.478 × 0.55 = 0.263 이 플레이어 스프라이트의 화면
+## 휘도(0.2604)와 사실상 같아, 유닛이 바닥에 묻혔다(마이컬슨 대비 0.0006, "바닥이 선명하지
+## 않다" 제보). 실측으로 0.80 을 골랐다(대비 0.0366).
+##
+## 이 값은 눈으로만 판단할 수 있어 되돌아가기 쉽다 — 하한을 코드로 못박는다.
+func _test_ground_darken() -> void:
+	var ground: GDScript = load("res://scripts/Ground.gd")
+	var d: Color = ground.get("TILE_DARKEN")
+	var day_script: GDScript = load("res://scripts/DayNightCycle.gd")
+	var l: float = day_script.luma(d)
+	_ok("바닥 감광이 과하지 않음(휘도 >= 0.75)", l >= 0.75, "실측 %.3f — %s" % [l, str(d)])
+	# 감광을 아예 없애면(1.0) 밝은 이펙트가 묻힌다. 목적 자체는 남아 있어야 한다.
+	_ok("바닥 감광이 남아 있음(휘도 <= 0.95)", l <= 0.95, "실측 %.3f" % l)
 
 
 ## 치트(CHEATS > DAY/NIGHT)로 시간 처리를 끄면 한밤이어도 시간 틴트가 사라져야 한다.
