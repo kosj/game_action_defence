@@ -189,20 +189,19 @@ compatible, clean, no music, no voice, no silence at the beginning
 | `sfx_evolve.ogg` | 1.5~2.5s | `triumphant weapon evolution fanfare, a rising magical power surge that transforms into a bright metallic bloom, heroic and rewarding, short orchestral hit with shimmer` |
 | `sfx_wave_clear.ogg` | 0.8~1.2s | `short positive achievement stinger, two or three bright ascending notes with a satisfying finish, clean and crisp, not a long fanfare` |
 | `sfx_revive.ogg` | 1.5~2s | `heroic revival sound, a soft holy choir-like chime swelling up with a warm energy surge and a heartbeat resuming, uplifting and dramatic` |
-| `sfx_swing.ogg` | 0.25s | `a quick heavy bat swing whoosh cutting through air, short and dry, no impact, no hit` |
 | `sfx_spit.ogg` | 0.4s | `a wet guttural acid spit projectile launch from a monster, short slimy hawking burst, disgusting and organic` |
 
 ## 볼륨 기준 (SoundManager 에 이미 설정됨)
-`evolve`/`revive`/`bomber_blast` 는 -4~-5dB로 크게, `swing`(-13) / `spit`(-14) 는
+`evolve`/`revive`/`bomber_blast` 는 -4~-5dB로 크게, `spit`(-14) 는
 초당 여러 번 울리므로 아주 작게 잡혀 있다. **생성 파일은 전부 같은 라우드니스로
 노멀라이즈**하고 세기 조절은 SoundManager 값으로 한다(파일마다 제각각이면 관리 불가).
 
 ```bash
-ffmpeg -i in.wav -af loudnorm=I=-16:TP=-1 -c:a libvorbis -q:a 6 assets/audio/sfx_swing.ogg
+ffmpeg -i in.wav -af loudnorm=I=-16:TP=-1 -c:a libvorbis -q:a 6 assets/audio/sfx_spit.ogg
 ```
 
 ## 주의
-- `swing`/`spit`/`bomber_fuse` 는 **반복 재생**되는 소리다.
+- `spit`/`bomber_fuse` 는 **반복 재생**되는 소리다.
   꼬리가 길거나 개성이 강하면 몇 분 만에 귀에 거슬린다 — 짧고 건조하게(`dry`, `short`).
 - `bomber_blast` 는 기존 `boom`(샷건/폭발물)과 구분되어야 한다. 파편·살점 느낌을 넣고
   잔향을 줄여 "가까이서 터진 좀비"로 들리게 한다.

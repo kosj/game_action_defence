@@ -139,16 +139,6 @@ energy surge and a heartbeat resuming underneath, uplifting and dramatic.
 Clean professional game audio, no voice, no silence at the beginning.
 ```
 
-### `sfx_swing.ogg` — melee weapon swing (0.25s)
-
-```
-A quick heavy baseball bat swing whoosh cutting through air, short and dry, no
-impact and no hit at the end. Punchy transient, clean 2D game sound effect, mono
-compatible, no music, no voice, no silence at the beginning.
-```
-
-Fires roughly once per second all run long — keep it minimal and free of character.
-
 ### `sfx_spit.ogg` — spitter zombie fires (0.4s)
 
 ```
@@ -171,7 +161,7 @@ encodes straight into `assets/audio/`:
 
 ```bash
 python3 tools/import_sfx.py                 # everything in PLAN
-python3 tools/import_sfx.py swing spit      # just these two
+python3 tools/import_sfx.py spit revive     # just these two
 SFX_SRC_DIR=~/Downloads python3 tools/import_sfx.py   # different source folder
 ```
 
@@ -186,7 +176,7 @@ mix becomes impossible to manage.
 ffmpeg -i in.wav -af loudnorm=I=-14:TP=-1 -c:a libvorbis -q:a 6 assets/audio/sfx_ult_quake.ogg
 
 # Gameplay one-shots
-ffmpeg -i in.wav -af loudnorm=I=-16:TP=-1 -c:a libvorbis -q:a 6 assets/audio/sfx_swing.ogg
+ffmpeg -i in.wav -af loudnorm=I=-16:TP=-1 -c:a libvorbis -q:a 6 assets/audio/sfx_spit.ogg
 ```
 
 Checklist before committing a file:
@@ -196,7 +186,7 @@ Checklist before committing a file:
 2. **Same loudness across the set** — normalize as above.
 3. **No hard cut at the end** — let the tail decay, adding a 60-100ms fade-out if needed.
 4. **In-game check** — audible over the BGM, not confusable with `boom` or `laser`, and
-   the repeating sounds (`swing`, `spit`, `bomber_fuse`) still
+   the repeating sounds (`spit`, `bomber_fuse`) still
    feel fine after several minutes of play.
 
 ## Plan B — build the arrow storm from single arrows
