@@ -165,6 +165,9 @@ func _bite() -> void:
 		return
 	var lvl := _level()
 	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1)
+	# 무기 모듈 10개 중 이것과 화염방사기·드론만 소리가 없었다(P2-12). 체인소는 지속형이
+	# 아니라 표적을 찾아가 한 번 무는 펫이라, 루프가 아니라 물기마다 한 번이 맞다.
+	SoundManager.play("chainsaw", 0.12, 1.0)
 	_target.take_damage(dmg)
 	if _data.knockback > 0.0 and _target.has_method("apply_knockback"):
 		var dir: Vector2 = (_target.global_position - _saw.global_position)

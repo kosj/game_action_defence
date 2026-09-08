@@ -170,6 +170,57 @@ a discharging electrical fizzle
 
 ---
 
+# 합성으로 만들면 안 되는 것 — 생성이 필요한 두 개 (P2-12)
+
+검수에서 나온 공백 중 **기계·전기·구조물**은 `tools/gen_sfx.py` 로 직접 합성했다
+(전기톱·드론 사격·자석·날씨·보스 처치 — 다섯 개 모두 게임에 들어가 있다).
+아래 둘만 남겼다. 둘 다 합성이 원리적으로 지는 종류다.
+
+| 파일명 | 길이 | 왜 합성이 아닌가 |
+|---|---|---|
+| `sfx_boss_roar.ogg` | 1.2~1.8s | **생물의 목소리**다. 노이즈와 정현파로는 성대·공명강이 만들어지지 않아 언제나 '악기'가 된다(SOUND_GUIDE §9). |
+| `sfx_flame_loop.ogg` | 2~3s (심리스 루프) | 합성은 되지만 **루프 지점이 티 없이 이어져야** 한다. 이건 생성 후 편집의 문제이고, 재생 쪽에 루프 API 도 없다(P2-16). |
+
+## 1) `sfx_boss_roar.ogg` — 보스 페이즈 전환 포효
+
+**지금 나는 소리** — 폭발음(`boom`)을 피치 0.55 까지 내린 것이다. 주석에는 계속
+"저음 포효"라고 적혀 있었지만 실제로는 포효가 아니고, 그 피치면 에너지가 통째로
+폰 스피커 재생 대역 밖으로 내려가 **사실상 들리지도 않는다**.
+
+**언제 나는가** — 보스 체력이 임계에 닿아 1단계(격노)·2단계(광란)로 넘어가는 순간.
+동시에 주황/붉은 섬광이 터지고 화면이 흔들리며, 2단계에서는 호위 좀비가 소환된다.
+코드가 1단계는 피치 1.0, 2단계는 0.88 로 재생하므로 **한 파일이면 된다.**
+
+```
+a massive undead boss monster roaring in rage, deep guttural chest growl rising
+into a furious open-throated bellow, wet and organic with torn vocal texture,
+layered with a low sub-rumble, aggressive and threatening, dry close-mic, mono
+```
+
+⚠️ **주의** — 피치를 내려 쓰므로 원본에 **중역(500Hz~2kHz)이 충분히 남아 있어야** 한다.
+저역만 두꺼운 포효는 0.88 배로 내리는 순간 폰에서 지금과 똑같이 안 들린다.
+
+## 2) `sfx_flame_loop.ogg` — 화염방사기 (P2-16 이후에 붙는다)
+
+무기 모듈 10개 중 유일하게 아직 무음이다. 다른 둘(전기톱·드론)은 원샷이라 이번에
+채웠지만, 화염방사기는 **분사 버튼을 누르고 있는 동안 계속 나는 소리**라 원샷으로
+때우면 초당 몇 번씩 같은 소리가 겹쳐 기관총처럼 들린다.
+
+`SoundManager` 에 루프 API 가 없어서 재생 훅부터 만들어야 한다 — 그건 P2-16 이다.
+파일은 미리 만들어 둬도 된다.
+
+```
+a continuous flamethrower jet burning, steady roaring gas flame with crackling
+fire texture and a low pressurized hiss underneath, seamless loop with no
+discernible start or end, no explosion, no impact, dry and even
+```
+
+⚠️ **루프 이음매** — 생성기는 대개 앞뒤에 페이드를 넣는다. 그대로 루프시키면 이음매에서
+음량이 꺼졌다 켜진다. 중간의 가장 균일한 2초를 잘라내고 **크로스페이드로 양끝을 맞춘 뒤**
+파형이 0 을 지나는 지점에서 끊어야 한다.
+
+---
+
 # 신규 효과음 프롬프트 (연출 대비 사운드 공백 보완)
 
 > 코드에는 재생 호출이 이미 들어가 있고, 아래 파일명으로 `assets/audio/` 에 넣는 순간

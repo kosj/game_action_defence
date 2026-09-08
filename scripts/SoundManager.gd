@@ -34,6 +34,16 @@ const _SOUNDS: Dictionary = {
 	"wave_clear":  "res://assets/audio/sfx_wave_clear.ogg",
 	"revive":      "res://assets/audio/sfx_revive.ogg",      # 무료 부활(재기) 차임
 	"spit":        "res://assets/audio/sfx_spit.ogg",        # 스피터 좀비 산성 발사
+	# ── P2-12: 비어 있던 자리 ──
+	"chainsaw":    "res://assets/audio/sfx_chainsaw.ogg",   # 전기톱이 무는 순간
+	"drone_shot":  "res://assets/audio/sfx_drone_shot.ogg", # 드론 사격(총성과 대역을 갈라 둠)
+	"magnet":      "res://assets/audio/sfx_magnet.ogg",     # 골드 자석 버프 발동
+	"weather":     "res://assets/audio/sfx_weather.ogg",    # 날씨 전환 훅
+	"boss_die":    "res://assets/audio/sfx_boss_die.ogg",   # 보스 처치(잡몹 사망음과 분리)
+	# 아직 파일이 없다 — 생물의 포효는 합성으로 만들면 악기가 된다(SOUND_GUIDE §9).
+	# 프롬프트는 SOUND_PROMPTS.md 에 있고, 파일이 들어오면 자동으로 붙는다(그때까지는
+	# Boss.gd 가 기존 boom 피치다운으로 폴백한다).
+	"boss_roar":   "res://assets/audio/sfx_boss_roar.ogg",  # 보스 페이즈 전환 포효
 }
 
 const _VOLUMES: Dictionary = {
@@ -67,6 +77,14 @@ const _VOLUMES: Dictionary = {
 	"wave_clear":   -8.0,
 	"revive":       -5.0,
 	"spit":        -14.0,   # 다수 스피터가 동시 발사 — 아주 작게
+	# 아래 값은 "파일의 폰 체감 + 이 값" 이 세트 중앙값(-26.3dB) 부근에 오도록 잡았다.
+	# 자주 나는 것은 아래로, 큰 사건은 위로 둔다(SOUND_GUIDE §8·§12).
+	"chainsaw":    -8.0,    # 물기 틱마다 — 실효 -27.9
+	"drone_shot": -16.0,    # 드론 여러 기가 동시 사격 — 실효 -32.1, 얇게 깔린다
+	"magnet":      -5.0,    # 버프 발동은 놓치면 안 된다 — 실효 -24.7
+	"weather":    -11.0,    # 환경 알림 — 전투음을 덮지 않게 실효 -27.7
+	"boss_die":    -1.5,    # 런 최대 사건 — 실효 -21.0(defeat -20.2 와 같은 층)
+	"boss_roar":   -2.0,
 }
 
 ## 배경음악 트랙 — 트랙 이름 → 파일 목록. 게임 BGM 은 선택 테마로 곡이 결정되어(테마 인덱스
@@ -98,6 +116,8 @@ const _MIN_INTERVAL := {
 	"spit": 130,           # 스피터 다수가 동시 발사해도 산발적으로만
 	"bomber_fuse": 200,    # 여러 마리가 동시 점화해도 경고음은 하나로
 	"bomber_blast": 70,
+	"chainsaw": 90,        # 체인소 여러 자루가 동시에 물어도 톱소리는 하나로
+	"drone_shot": 55,      # 드론 다수가 같은 프레임에 쏜다
 }
 const _COMBO_WINDOW := 380   # ms — 이 안에 연속되면 콤보로 보고 음을 살짝 올린다(마리오 동전 느낌)
 
