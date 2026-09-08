@@ -153,7 +153,13 @@ def main() -> None:
         ("HUD · 일시정지 제목", 300, 34, True, loc("pause_title")),
         ("HUD · 생존 시간", 300, 18, False, loc("pause_time_fmt", "99:59")),
         ("HUD · 부활 버튼", 400 - BTN_PAD, 22, True, loc("hud_revive")),
-        ("게임오버 · 제목", 400, 44, True, lit("GAME OVER") + loc("go_victory")),
+        ("게임오버 · 제목", 400, 44, True, loc("go_defeat") + loc("go_victory")),
+        # 결과 요지 표(HUD._STAT_GRID_W 320). 아이콘 22 + 간격 12x2 를 빼고 값 칸에 90 을
+        # 남기면 이름 칸은 174px 이다.
+        ("게임오버 · 요지 이름", 174, 20, False,
+         [t for k in ("go_stat_kills", "go_stat_time", "go_stat_level", "go_stat_gold")
+          for t in loc(k)]),
+        ("게임오버 · 신기록", 380, 20, True, loc("go_new_best")),
         ("게임오버 · 다시하기", 400 - BTN_PAD, 28, True, loc("go_retry")),
         ("게임오버 · 메인메뉴", 400 - BTN_PAD, 22, True, loc("go_menu")),
 
