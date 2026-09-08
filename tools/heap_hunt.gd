@@ -41,9 +41,9 @@ var _run_limit := 0.0
 var _probe := ""
 var _sm: Node = null
 var _probe_n := 0
-const _SOUND_KEYS := ["shoot", "zombie_hit", "zombie_die", "gold", "laser", "boom", "swing"]
+const _SOUND_KEYS := ["shoot", "zombie_hit", "zombie_die", "gold", "laser", "boom", "card_flip"]
 ## 포맷을 가르는 대조군 — 크래시가 `_alloc_vorbis` 에서 났으니 ogg 만의 문제인지 본다.
-const _SOUND_OGG := ["shoot", "zombie_hit", "zombie_die", "swing", "player_hurt", "ui_click", "spit"]
+const _SOUND_OGG := ["shoot", "zombie_hit", "zombie_die", "card_flip", "player_hurt", "ui_click", "spit"]
 const _SOUND_WAV := ["gold", "laser", "boom"]
 
 func _arg(k: String, d: String) -> String:

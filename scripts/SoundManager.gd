@@ -33,7 +33,6 @@ const _SOUNDS: Dictionary = {
 	# import_sfx.py 매핑과 임포트 산출물까지 함께 갈아야 해서 이름만 남겨 둔다(P2-6).
 	"wave_clear":  "res://assets/audio/sfx_wave_clear.ogg",
 	"revive":      "res://assets/audio/sfx_revive.ogg",      # 무료 부활(재기) 차임
-	"swing":       "res://assets/audio/sfx_swing.ogg",       # 근접 무기 휘두르기 휙
 	"spit":        "res://assets/audio/sfx_spit.ogg",        # 스피터 좀비 산성 발사
 }
 
@@ -65,9 +64,6 @@ const _VOLUMES: Dictionary = {
 	"evolve":       -5.0,   # 런 최대 파워업 — level_up(-8)보다 확실히 크게
 	"wave_clear":   -8.0,
 	"revive":       -5.0,
-	"swing":       -13.0,   # 초당 여러 번 — 배경으로 깔리는 정도
-	# 유리 깨짐은 트랜지언트가 강해 파일이 세트 기준(RMS -16dB)보다 3.3dB 낮게 인코딩됐다
-	# (피크 상한에 먼저 걸림). 그만큼 올리되, 트랜지언트는 RMS보다 크게 들리므로 절반만 보정.
 	"spit":        -14.0,   # 다수 스피터가 동시 발사 — 아주 작게
 }
 
@@ -97,7 +93,6 @@ const _MIN_INTERVAL := {
 	"player_hurt": 90,
 	"lightning": 120,
 	"tesla_arc": 90,
-	"swing": 100,          # 근접 스윙 — 무기 여러 개가 겹쳐도 한 번만
 	"spit": 130,           # 스피터 다수가 동시 발사해도 산발적으로만
 	"bomber_fuse": 200,    # 여러 마리가 동시 점화해도 경고음은 하나로
 	"bomber_blast": 70,

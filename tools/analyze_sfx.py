@@ -7,10 +7,11 @@
 사용:
   python3 tools/analyze_sfx.py sfx_ult_arrow.ogg            # 파일명만 줘도 assets/audio 에서 찾는다
   python3 tools/analyze_sfx.py ult_arrow zombie_hit         # sfx_ 접두사도 생략 가능
-  python3 tools/analyze_sfx.py --compare horde level_up     # 두 소리가 헷갈리는지 진단
+  python3 tools/analyze_sfx.py --compare evolve fanfare      # 두 소리가 헷갈리는지 진단
   python3 tools/analyze_sfx.py --all                        # assets/audio 전체
 """
 import argparse
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -27,10 +28,24 @@ SR = 48000
 AUDIO_DIR = Path(__file__).resolve().parent.parent / "assets" / "audio"
 
 
+def sound_manager_keys() -> dict:
+    """SoundManager._SOUNDS 의 키 → 파일 경로. 키와 파일명이 항상 같지는 않다
+    (`gold` 은 sfx_coin.wav). 코드에서 쓰는 이름 그대로 진단할 수 있어야 한다."""
+    sm = Path(__file__).resolve().parent.parent / "scripts" / "SoundManager.gd"
+    if not sm.is_file():
+        return {}
+    return {k: v for k, v in re.findall(r'"([a-z_]+)":\s*"res://([^"]+)"', sm.read_text())}
+
+
 def resolve(name: str) -> Path:
-    """이름을 관대하게 받는다 — 경로 / 파일명 / sfx_ 없는 짧은 이름 모두."""
+    """이름을 관대하게 받는다 — 경로 / 파일명 / sfx_ 없는 짧은 이름 / SoundManager 키."""
     for cand in (Path(name), AUDIO_DIR / name, AUDIO_DIR / f"{name}.ogg",
                  AUDIO_DIR / f"sfx_{name}.ogg", AUDIO_DIR / f"sfx_{name}.wav"):
+        if cand.is_file():
+            return cand
+    mapped = sound_manager_keys().get(name)
+    if mapped:
+        cand = Path(__file__).resolve().parent.parent / mapped
         if cand.is_file():
             return cand
     sys.exit(f"찾을 수 없다: {name}")
@@ -100,7 +115,8 @@ def envelope_stats(x: np.ndarray) -> tuple:
     """10ms 해상도 포락선 — 개별 타격이 살아있는지, 뭉개진 소리인지 가른다.
 
     피크-중앙이 크면 타격 사이가 조용해 하나하나 들리고, 작으면 끊김 없는 덩어리다
-    (파리떼 17dB 수준이면 '웅웅거림', 유리 깨짐 29dB 수준이면 '또렷한 타격').
+    현존 기준(피크-중앙): 파리떼 7.3dB 가 '웅웅거림', 화살비 17.0dB 가 '또렷한 타격'.
+    ⚠ 예전 문서가 인용하던 17/29dB 은 이 지표가 아니라 피크-바닥 값이었다(지표 혼동).
     """
     b = int(0.010 * SR)
     if len(x) < b * 4:
@@ -116,7 +132,7 @@ def attack_stats(x: np.ndarray) -> tuple:
 
     타격음인데 피크가 수십 ms 뒤에 오면 '때리는 순간'이 없는 것이다. 생성음은 겉보기에
     멀쩡해도 서서히 부풀어 오르는 텍스처인 경우가 있어서, 이 두 값이 아니면 못 잡는다.
-    참고: 좀비 사망음 19.5dB / 1ms, 유리 깨짐 18.9dB / 103ms.
+    참고(현존): 좀비 사망음 19.5dB / 1ms, 플레이어 피격 24.3dB / 1ms.
     """
     rms = float(np.sqrt(np.mean(x ** 2)))
     crest = db(np.abs(x).max()) - db(rms)
