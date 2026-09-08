@@ -37,6 +37,23 @@ TARGET_RMS_DB = -16.0    # 사운드셋 공통 라우드니스 기준
 PEAK_CAP_DB = -1.5
 SEED = 11
 
+
+def _rng_for(name: str) -> "np.random.Generator":
+    """사운드 이름마다 독립된 난수열을 준다 — **재현성의 전제다.**
+
+    처음엔 `main()` 에서 `default_rng(SEED)` 하나를 만들어 생성기들이 차례로 썼다.
+    그러면 각 생성기가 몇 개를 뽑느냐에 따라 뒤에 오는 생성기의 난수열이 밀린다 —
+    즉 결과가 **"무엇을 함께 생성했는가"와 "그 순서"** 에 달라진다.
+    `gen_sfx.py tesla_arc` 와 `gen_sfx.py` 가 서로 다른 파일을 내놓았다.
+
+    이름에서 씨앗을 뽑으면 그 의존이 사라진다. 하나만 다시 뽑든 전부 뽑든 결과가 같다.
+    (`hash()` 는 실행마다 달라지므로 쓰면 안 된다 — 고정 해시를 직접 계산한다.)
+    """
+    h = 0
+    for ch in name:
+        h = (h * 131 + ord(ch)) & 0xFFFFFFFF
+    return np.random.default_rng(SEED * 1000003 + h)
+
 ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = ROOT / "assets" / "audio"
 
@@ -298,6 +315,167 @@ def synth_ui_click(_rng: np.random.Generator) -> np.ndarray:
     return _quiet_norm(np.fft.irfft(np.fft.rfft(x) * 10.0 ** (-10.0 * ramp / 20.0), n))
 
 
+# ─────────────────────── P2-12: 비어 있던 자리를 메우는 소리들 ───────────────────────
+#
+# 검수에서 나온 공백은 두 종류였다. 하나는 **무기 모듈 10개 중 3개가 완전히 무음**인 것,
+# 다른 하나는 **연출은 요란한데 소리는 잡몹과 같은 것**이다. 아래는 그중 절차적 합성이
+# 정직하게 통하는 것만 만든다 — 기계·전기·구조물은 합성이 잘 되고, 생물의 목소리는 안 된다
+# (SOUND_GUIDE §9). 보스 포효를 여기서 만들지 않은 이유가 그것이다.
+
+
+def synth_chainsaw(rng: np.random.Generator) -> np.ndarray:
+    """전기톱이 무는 순간 — 톱니가 살을 긁는 짧은 '브르릅'.
+
+    체인소는 지속형이 아니라 **표적에 날아가 한 번 무는 펫**이다(Chainsaw.gd `_bite`).
+    그래서 루프가 아니라 원샷이 맞고, 물기 간격(fire_interval)마다 한 번씩 난다.
+
+    정체성은 **톱니가 훑는 주기성**에 있다. 그냥 노이즈를 깎으면 '치익' 하는 바람이 되고,
+    톱니 주기를 정확히 일정하게 두면 기계음이 아니라 부저가 된다. 그래서 임펄스 열의
+    간격을 매번 조금씩 흔들어(±12%) 날붙이가 살에 걸려 튀는 불규칙을 만든다.
+    """
+    n = int(0.20 * SR)
+    t = np.arange(n) / SR
+    env = np.minimum(1.0, t / 0.001) * np.exp(-t / 0.075)
+
+    # 톱니 임펄스 열 — 초당 약 115회. 간격을 흔들어 '걸리는' 느낌을 만든다.
+    teeth = np.zeros(n)
+    pos = 0.0
+    while pos < n:
+        i = int(pos)
+        if i < n:
+            teeth[i] = rng.uniform(0.55, 1.0)
+        pos += (SR / 115.0) * rng.uniform(0.88, 1.12)
+    teeth = svf_bandpass(teeth * rng.standard_normal(n), np.full(n, 1700.0), q=0.8)
+    saw = one_pole_lp(teeth, 4200.0) * env * 9.0
+
+    # 모터 몸통 — 장비가 돌아간다는 무게. 다만 **아주 얇게만** 깐다.
+    #
+    # 처음엔 57.5Hz 톱니파를 0.55 로 깔았다가 실측에서 걸렸다: 200Hz 이하가 에너지의
+    # 91% 를 먹어 폰 체감이 -23dB 로 주저앉고, 정작 정체성인 톱니는 3.1% 였다(§2).
+    # 기음을 115Hz(톱니 주기와 같은)로 올리고 게인을 1/4 로 줄여, 무게는 배음으로 낸다.
+    motor = np.zeros(n)
+    for k, g in ((1, 0.45), (2, 0.34), (3, 0.22), (4, 0.12), (6, 0.06)):
+        motor += g * np.sin(2 * np.pi * 115.0 * k * t + rng.uniform(0, 2 * np.pi))
+    saw += motor * env * 0.65
+
+    # 젖은 살점 — 이게 없으면 나무를 써는 소리가 된다. 대역은 중역으로 올려 둔다.
+    saw += band_filter(rng.standard_normal(n), 300.0, 1500.0) * np.exp(-t / 0.03) * 1.3
+
+    saw[-int(0.03 * SR):] *= np.linspace(1.0, 0.0, int(0.03 * SR))
+    return saw
+
+
+def synth_drone_shot(rng: np.random.Generator) -> np.ndarray:
+    """드론의 작은 사격음 — 플레이어 총성과 **겹쳐도 서로 지우지 않게** 만든다.
+
+    드론은 최대 여러 기가 동시에 쏘므로 `shoot` 을 돌려쓸 수 없다. 같은 키를 쓰면
+    스로틀(45ms)을 공유해 플레이어 총성이 드론에 먹히거나 그 반대가 된다.
+
+    그래서 대역을 아예 갈라 둔다 — 플레이어 총성은 저역 펀치(200Hz 이하 69%)이고,
+    이쪽은 1.8→0.7kHz 하강 스윕의 얇은 '핑'이다. 동시에 나도 각각 들린다.
+    """
+    n = int(0.09 * SR)
+    t = np.arange(n) / SR
+    env = np.minimum(1.0, t / 0.0008) * np.exp(-t / 0.022)
+    sweep = 1800.0 * np.exp(-t / 0.030) + 700.0
+    ping = np.sin(2 * np.pi * np.cumsum(sweep) / SR) * env
+    ping += 0.35 * np.sin(4 * np.pi * np.cumsum(sweep) / SR) * env    # 2배음 — 얇게 반짝
+    ping += one_pole_lp(rng.standard_normal(n), 5000.0) * np.exp(-t / 0.003) * 0.5   # 발사 클릭
+    ping[-int(0.015 * SR):] *= np.linspace(1.0, 0.0, int(0.015 * SR))
+    return ping
+
+
+def synth_magnet(rng: np.random.Generator) -> np.ndarray:
+    """골드 자석 버프 발동 — 무음이던 자리에 '빨아들이기 시작했다'를 알린다.
+
+    같은 골드 계열인 `gold`(코인 띠링)와 헷갈리면 안 된다. §3 의 세 축으로 갈라 둔다 —
+    `gold` 는 1.06초·고역·맑은 단음이고, 이쪽은 0.55초·중역·**상승 스윕**이다.
+    올라가는 음형 자체가 '흡입이 시작됐다'는 뜻으로 읽힌다(내려가면 종료로 읽힌다).
+    """
+    n = int(0.55 * SR)
+    t = np.arange(n) / SR
+    env = np.minimum(1.0, t / 0.004) * np.exp(-t / 0.20)
+    rise = 300.0 + 620.0 * np.clip(t / 0.30, 0.0, 1.0) ** 1.6      # 300 → 920Hz
+    out = np.sin(2 * np.pi * np.cumsum(rise) / SR) * env
+    out += 0.30 * np.sin(2 * np.pi * np.cumsum(rise * 1.5) / SR) * env      # 완전5도 — 밝게
+    out += 0.14 * np.sin(2 * np.pi * np.cumsum(rise * 2.0) / SR) * env * 0.6
+    # 자기장 떨림 — 스윕에 얹는 아주 옅은 진폭 변조. 순음이면 알림음처럼 밋밋하다.
+    out *= 1.0 + 0.16 * np.sin(2 * np.pi * 23.0 * t)
+    out += one_pole_lp(rng.standard_normal(n), 3000.0) * np.exp(-t / 0.006) * 0.30   # 흡착 클릭
+    out[-int(0.06 * SR):] *= np.linspace(1.0, 0.0, int(0.06 * SR))
+    return out
+
+
+def synth_weather(rng: np.random.Generator) -> np.ndarray:
+    """날씨 전환 — 배너만 뜨고 소리가 없던 자리.
+
+    전환은 '사건'이 아니라 '상태가 바뀐다'는 신호다. 그래서 타격음이 아니라 바람 한 줄기로
+    만든다. 여기서는 어택이 없는 것이 정상이다(§11) — 훅 소리는 부풀었다 빠져야 한다.
+
+    노이즈를 그대로 두면 백색소음이라 아무 의미가 없다. 밴드패스 중심을 400→2200→500Hz
+    로 훑어 '지나간다'는 방향감을 만든다. 어느 날씨로 바뀌는지는 호출부가 피치로 가른다.
+    """
+    n = int(0.90 * SR)
+    t = np.arange(n) / SR
+    u = t / t[-1]
+    env = np.sin(np.pi * u) ** 1.4                        # 부풀었다 빠지는 대칭 포락선
+    fc = 400.0 + 1400.0 * np.sin(np.pi * u) ** 2          # 400 → 1800 → 500Hz
+    # ⚠ 밴드패스만으로는 고역이 새어 나온다. q=0.7 로 통과시켰더니 8kHz 이상이 22.9%,
+    # 중심 5757Hz 로 '바람' 이 아니라 '치익' 이 됐다 — 뚜껑을 씌워 눌러야 바람이 된다(§5).
+    air = one_pole_lp(svf_bandpass(rng.standard_normal(n), fc, q=0.7), 2400.0) * env * 9.0
+    air += one_pole_lp(rng.standard_normal(n), 450.0) * env * 1.2       # 낮게 깔리는 두께
+    air[-int(0.12 * SR):] *= np.linspace(1.0, 0.0, int(0.12 * SR))
+    return air
+
+
+def synth_boss_die(rng: np.random.Generator) -> np.ndarray:
+    """보스 처치 — 런에서 가장 큰 순간인데 잡몹과 같은 소리가 나던 자리.
+
+    연출은 이미 크다(4중 충격파 · 히트스톱 · 흔들림 11 · 코인 분수). 거기에 0.16초짜리
+    `zombie_die` 가 붙어 있었다. 크기가 맞지 않는다.
+
+    포효로 만들지 않은 이유 — 그건 생물의 목소리라 합성으로는 악기가 된다(§9).
+    대신 **구조물이 무너지는 소리**로 간다. 화면에서 실제로 벌어지는 일이기도 하다.
+      · 서브 드롭 — 110→32Hz. 폰에서 안 들리므로 배음을 만들어 얹는다(§2).
+      · 폭발 버스트 — 0초의 '쾅'.
+      · 파편 — 1.2초에 걸쳐 흩어지는 암석 파열. 여운이 길어야 '컸다'고 읽힌다.
+      · 링아웃 — 낮은 금속 잔향. 잡몹 사망과 갈리는 결정적인 층이다.
+    """
+    n = int(1.70 * SR)
+    t = np.arange(n) / SR
+
+    drop_f = 32.0 + 78.0 * np.exp(-t / 0.16)                       # 110 → 32Hz
+    sub = np.sin(2 * np.pi * np.cumsum(drop_f) / SR) * np.exp(-t / 0.30)
+    # 저역은 **몸으로 느끼는 층**이지 들리는 층이 아니다. 처음에 sub 0.9 · 링아웃 0.55 로
+    # 두었더니 200Hz 이하가 98.4% 를 먹어 폰 체감 -27.4dB — 세트에서 가장 조용한 축이
+    # 됐다. 저역은 존재감만 남기고, 들리는 몫은 배음과 파편이 진다(§2).
+    out = sub * 0.35 + _exciter(sub, 6.0, 1.10)
+
+    blast = rng.standard_normal(n) * np.exp(-t / 0.055)
+    out += band_filter(blast, 250.0, 2600.0) * 4.5
+
+    # 파편 — 산발적인 암석 파열. 시간이 갈수록 뜸해지고 작아진다.
+    debris = np.zeros(n)
+    pos = 0.05 * SR
+    while pos < 1.30 * SR:
+        i = int(pos)
+        ln = int(rng.uniform(0.010, 0.035) * SR)
+        seg = rng.standard_normal(min(ln, n - i))
+        seg *= np.exp(-np.arange(len(seg)) / (0.006 * SR)) * rng.uniform(0.3, 1.0)
+        debris[i:i + len(seg)] += seg
+        # 간격을 넓게 잡는다. 촘촘하면 개별 파열이 서로를 메워 '뭉개진 덩어리'가 된다
+        # (§4 — 처음 0.020~0.075초로 뒀다가 초당 10회로 붙어 그렇게 됐다).
+        pos += rng.uniform(0.045, 0.150) * SR * (1.0 + 2.2 * pos / (1.30 * SR))
+    out += svf_bandpass(debris, np.full(n, 1400.0), q=0.9) * np.exp(-t / 0.55) * 5.0
+
+    # 링아웃 — 낮은 금속 공명 셋. 이 층이 '큰 것이 쓰러졌다'를 만든다.
+    for f0, g, dec in ((78.0, 0.16, 0.85), (131.0, 0.20, 0.62), (196.0, 0.22, 0.45)):
+        out += g * np.sin(2 * np.pi * f0 * t + rng.uniform(0, 2 * np.pi)) * np.exp(-t / dec)
+
+    out[-int(0.25 * SR):] *= np.linspace(1.0, 0.0, int(0.25 * SR))
+    return out
+
+
 # 출력 포맷 — 기존 파일의 컨테이너·샘플레이트를 그대로 지킨다.
 # 규격은 48kHz OGG 지만, 이 셋은 내용이 전부 저역이라 상향 리샘플이 용량만 늘린다.
 # boom 은 heap_hunt.gd 가 WAV 대조군(_SOUND_WAV)으로 쓰고 있어 컨테이너를 바꾸면 안 된다.
@@ -316,6 +494,11 @@ GENERATORS = {
     "ui_click": synth_ui_click,
     "tesla_arc": synth_tesla_arc,
     "ult_quake": synth_ult_quake,
+    "chainsaw": synth_chainsaw,
+    "drone_shot": synth_drone_shot,
+    "magnet": synth_magnet,
+    "weather": synth_weather,
+    "boss_die": synth_boss_die,
 }
 
 
@@ -345,11 +528,11 @@ def encode(x: np.ndarray, path: Path, out_sr: int = SR) -> None:
 
 def main() -> None:
     names = sys.argv[1:] or list(GENERATORS)
-    rng = np.random.default_rng(SEED)
     for name in names:
         gen = GENERATORS.get(name)
         if gen is None:
             sys.exit(f"알 수 없는 사운드: {name} (가능: {', '.join(GENERATORS)})")
+        rng = _rng_for(name)
         # 파고율이 높은 소리는 생성기가 _quiet_norm 으로 스스로 맞춘다 — 여기서 공용
         # normalize 를 한 번 더 걸면 tanh 포화가 들어가 그 의도가 무효가 된다.
         x = gen(rng) if name in SELF_NORMALIZED else normalize(gen(rng))

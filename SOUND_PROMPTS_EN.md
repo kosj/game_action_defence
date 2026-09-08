@@ -152,6 +152,47 @@ than the texture.
 
 ---
 
+# 3. Sounds that must be generated, not synthesised
+
+Most of the gaps found in the audio review were mechanical, electrical or structural,
+so they were synthesised directly in `tools/gen_sfx.py` and are already in the game
+(chainsaw bite, drone shot, gold magnet, weather change, boss death).
+
+These two are not. Both are cases where procedural synthesis loses on principle.
+
+### `sfx_boss_roar.ogg` — boss phase transition (1.2-1.8s)
+
+```
+A massive undead boss monster roaring in rage: a deep guttural chest growl rising
+into a furious open-throated bellow, wet and organic with torn vocal texture,
+layered with a low sub-rumble. Aggressive and threatening, dry close-mic recording,
+mono compatible, no music, no silence at the beginning.
+```
+
+Plays when the boss enters phase 1 (enraged) and phase 2 (frenzied). The game pitches
+the same file down to 0.88 for phase 2, so **one file covers both.**
+
+Keep real energy in the 500Hz-2kHz range. A roar that is all sub-bass disappears on a
+phone speaker the moment it is pitched down, which is exactly the problem this replaces.
+
+### `sfx_flame_loop.ogg` — flamethrower (2-3s, seamless loop)
+
+```
+A continuous flamethrower jet burning: a steady roaring gas flame with crackling fire
+texture and a low pressurised hiss underneath. Seamless loop with no discernible start
+or end, even and sustained, no explosion, no impact, dry, mono compatible, no music.
+```
+
+The flamethrower is the last weapon module with no sound at all. It is held down rather
+than triggered, so a per-tick one-shot would stutter like a machine gun. It needs loop
+playback support in `SoundManager`, which does not exist yet.
+
+**Trim the loop by hand.** Generators fade both ends; looping that produces an audible
+dip at the seam. Cut the most uniform 2 seconds out of the middle, crossfade the two
+ends into each other, and split on a zero crossing.
+
+---
+
 # Post-processing
 
 **The bundled importer does all of this for you.** Add an entry to `PLAN` in

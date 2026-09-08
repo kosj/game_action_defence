@@ -382,6 +382,9 @@ func _show_banner(text: String, col: Color) -> void:
 ## 날씨 전환 알림 — 상시 위젯을 두지 않고(시간 표시 과밀 방지) 바뀌는 순간만 짧게 띄운다.
 ## key == "" 는 '맑아짐'.
 func _on_weather_changed(key: String) -> void:
+	# 배너만 뜨고 소리가 없던 자리(P2-12). 맑아질 때는 반음 올려 '걷힌다'로 읽히게 한다 —
+	# 같은 파일이지만 방향이 반대인 사건이라 피치로만 갈라도 충분히 구분된다.
+	SoundManager.play("weather", 0.05, 1.12 if key == "" else 0.94)
 	var col := Color(0.72, 0.86, 1.0) if key != "" else Color(0.85, 0.88, 0.92)
 	_show_toast(Locale.t("weather_clear" if key == "" else "weather_" + key), col, 215.0)
 
@@ -659,15 +662,25 @@ func _on_weapon_timer_changed(time_left: float, _total: float) -> void:
 		weapon_label.modulate.a = 1.0
 
 
+var _magnet_on: bool = false   # 자석 버프가 켜져 있는가(발동음을 한 번만 내기 위한 상태)
+
+
 ## 골드 자석 버프 표시 — 활성 중 남은 시간 표시, 종료 시 페이드 아웃.
 func _on_gold_magnet_changed(active: bool, time_left: float) -> void:
 	if _magnet_tween and _magnet_tween.is_valid():
 		_magnet_tween.kill()
 	if active:
+		# 발동 순간에만 울린다 — 이 핸들러는 남은 시간 갱신으로도 매초 불린다(P2-12).
+		# `buff_label.visible` 로는 못 가른다: 종료 페이드(0.4초)가 끝나기 전에 다시 주우면
+		# 아직 보이는 상태라 새 발동을 놓친다. 상태를 따로 들고 판정한다.
+		if not _magnet_on:
+			SoundManager.play("magnet", 0.04, 1.0)
+		_magnet_on = true
 		buff_label.text = Locale.t("hud_magnet_fmt") % int(ceil(time_left))
 		buff_label.modulate.a = 1.0
 		buff_label.visible = true
 	else:
+		_magnet_on = false
 		_magnet_tween = create_tween()
 		_magnet_tween.tween_property(buff_label, "modulate:a", 0.0, 0.4)
 		_magnet_tween.tween_callback(func(): buff_label.visible = false)

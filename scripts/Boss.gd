@@ -586,7 +586,13 @@ func _enter_phase(n: int) -> void:
 	var col := Color(1.0, 0.5, 0.15) if n == 1 else Color(1.0, 0.2, 0.25)
 	_FXBurst.spawn(get_tree().current_scene, global_position, col, 80.0 + 40.0 * n, 0.4)
 	Events.shake(6.0 + 4.0 * n)
-	SoundManager.play("boom", 0.0, 0.7 if n == 1 else 0.55)   # 페이즈 전환 저음 포효(2단계 더 낮게)
+	# 주석은 예전부터 '포효'라고 적혀 있었지만 실제로 나던 건 폭발음(boom)을 피치 0.55 까지
+	# 내린 것이었다. 그 피치면 에너지가 통째로 폰 대역 밖으로 내려가 사실상 들리지도 않는다.
+	# 포효 파일이 들어오면 그쪽을 쓰고, 없는 동안은 종전 동작을 그대로 유지한다(P2-12).
+	if SoundManager.has_stream("boss_roar"):
+		SoundManager.play("boss_roar", 0.02, 1.0 if n == 1 else 0.88)
+	else:
+		SoundManager.play("boom", 0.0, 0.7 if n == 1 else 0.55)
 	if n >= 2:
 		# 2단계 광란: 아키타입과 무관하게 호위 파동을 한 번 소환해 압박을 준다.
 		Events.boss_summon.emit(4)
@@ -631,7 +637,12 @@ func _die() -> void:
 	body.modulate = _base_color
 	remove_from_group("zombies")
 	remove_from_group("boss")
-	SoundManager.play("zombie_die")
+	# 런에서 가장 큰 순간인데 잡몹과 같은 0.16초짜리 사망음이 나고 있었다 — 화면에서는
+	# 4중 충격파 · 히트스톱 · 흔들림 11 · 코인 분수가 동시에 터지는 자리다(P2-12).
+	if SoundManager.has_stream("boss_die"):
+		SoundManager.play("boss_die", 0.03, 1.0)
+	else:
+		SoundManager.play("zombie_die")
 	# 도감: 어떤 보스를 잡았는지는 boss_died 시그널이 실어 나르지 않는다 — 여기서 직접 알린다.
 	CodexManager.discover("boss", _codex_key)
 	Events.add_score(score_value)

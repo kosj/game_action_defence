@@ -54,6 +54,7 @@ func _positions() -> Array:
 func _fire_all() -> void:
 	var lvl := _level()
 	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1) + Events.upgrade_bullet_damage
+	var fired := false
 	for local_pos in _positions():
 		var world: Vector2 = global_position + local_pos
 		var target := _nearest_to(world, FIRE_RANGE)
@@ -73,6 +74,14 @@ func _fire_all() -> void:
 		b.knockback = 0.0
 		b.splash_radius = 0.0
 		b.queue_redraw()
+		fired = true
+	# 사거리 안에 표적이 없으면 드론은 쏘지 않는다 — 그때 소리가 나면 허공에 쏜 것처럼
+	# 들리므로, 실제로 탄이 나간 프레임에만 울린다(P2-12).
+	#
+	# 드론은 여러 기가 같은 프레임에 쏜다. 플레이어 총성(shoot)을 돌려쓰면 45ms 스로틀을
+	# 공유해 서로를 지우게 되므로, 대역이 갈린 전용 키를 쓴다.
+	if fired:
+		SoundManager.play("drone_shot", 0.14, 1.0)
 
 
 ## 특정 지점(드론 위치) 기준 최근접 좀비.
