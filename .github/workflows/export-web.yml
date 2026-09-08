@@ -41,6 +41,15 @@ jobs:
       - name: Text fit (en/ko/ja)
         run: python3 tools/check_text_fit.py
 
+      # 서브셋 폰트에 없는 글자를 쓰면 웹 빌드에서 두부(□)가 된다. Godot 쪽 게이트
+      # (check_font_coverage.gd)와 같은 것을 보지만, 이쪽은 폰트 cmap 을 직접 읽어
+      # 엔진 없이 돈다 — 문자열 작업은 대개 에디터 없이 하고, 개발 컨테이너에는 시스템
+      # CJK 폰트가 있어 실렌더로도 두부가 안 보인다(CLAUDE.md §2).
+      - name: Locale glyph coverage
+        run: |
+          pip install --quiet fonttools
+          python3 tools/check_locale_glyphs.py
+
   build:
     name: Build WebGL
     runs-on: ubuntu-latest

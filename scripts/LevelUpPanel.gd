@@ -155,7 +155,7 @@ func _refresh() -> void:
 		_card_box.remove_child(c)
 		c.queue_free()
 	if _evo_mode:
-		_title.text = ">> EVOLUTION <<  CHOOSE ONE"
+		_title.text = Locale.t("evo_title")
 		if _evo_rules.is_empty():
 			_close_evo()
 			return
@@ -254,7 +254,8 @@ func _make_card(ch: Dictionary) -> Button:
 func _make_item_card(a: Dictionary) -> Button:
 	var item: Dictionary = a["item"]
 	var btn := _new_card_button()
-	var tag: String = "NEW!" if a["is_new"] else "Lv.%d → %d" % [a["lv"], int(a["lv"]) + 1]
+	# 레벨 표기(Lv.3 → 4)는 숫자와 화살표뿐이라 번역하지 않는다 — "NEW!" 만 로케일화한다.
+	var tag: String = Locale.t("item_tag_new") if a["is_new"] else "Lv.%d → %d" % [a["lv"], int(a["lv"]) + 1]
 	btn.text = "%s  (%s)\n%s" % [item["name"], tag, item["desc"]]
 	var col: Color = item["color"]
 	_UIStyle.apply_button_style(btn, Color(col.r * 0.28, col.g * 0.28, col.b * 0.28, 1.0), col)
@@ -267,7 +268,7 @@ func _make_item_card(a: Dictionary) -> Button:
 func _make_evolve_card(rule: Dictionary) -> Button:
 	var into := ItemDB.meta(rule["into"])
 	var btn := _new_card_button()
-	btn.text = ">> EVOLVE <<  %s\n%s" % [into["name"], into["desc"]]
+	btn.text = "%s\n%s" % [Locale.t("evo_card_fmt") % into["name"], into["desc"]]
 	var gold := Color(1.0, 0.82, 0.28)
 	_UIStyle.apply_button_style(btn, Color(0.34, 0.26, 0.06, 1.0), gold)
 	btn.add_theme_color_override("font_color", gold)

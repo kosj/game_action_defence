@@ -106,9 +106,13 @@ Godot 이 `allow_system_fallback` 으로 대신 그려 준다 — 스크린샷�
 
 문자열 추가 후 반드시:
 ```sh
+python3 tools/check_locale_glyphs.py                                    # 엔진 없이 — 폰트 cmap 직접 확인
 godot --headless --path . --script res://tools/check_font_coverage.gd   # CI 게이트와 동일
 python3 tools/subset_fonts.py                                           # 글자가 늘었으면 재서브셋
 ```
+`check_locale_glyphs.py` 는 Godot 없이 도는 같은 검사다(둘 다 CI 에 있다). **문구를 쓰기 전에**
+`--list ko` / `--list ja` 로 쓸 수 있는 글자를 먼저 보는 편이 빠르다 — 한글은 376음절뿐이라
+"희귀"·"영웅"·"레벨업"의 '업' 같은 흔한 글자도 없다.
 
 ### `assets/ui/frames`·`assets/ui/hud` 에 텍스처를 추가하면 `.import` 압축을 확인한다
 이 둘은 **나인패치로 늘려 쓰는 텍스처**라 무손실(`compress/mode=0`)이 규약이다 — 늘어나는
