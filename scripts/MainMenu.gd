@@ -241,6 +241,47 @@ func _build_ui() -> void:
 	_build_rewards_panel()
 	_build_theme_panel()
 	call_deferred("_prewarm_panels")
+	_stagger_menu_entrance(title, box)
+
+
+## 메뉴 진입 연출 — 로고가 먼저 뜨고 버튼이 위에서부터 차례로 내려앉는다.
+##
+## 왜 필요한가: 바로 앞 화면(타이틀)에는 슬램·섬광·부유가 있는데 메뉴는 씬 페이드가 걷히면
+## 로고와 버튼 여덟 개가 통째로 그냥 있었다. 낙차가 커서 메뉴가 정지 화면처럼 보였다.
+##
+## 위치가 아니라 scale 로 움직인다 — 버튼은 VBoxContainer 의 자식이라 컨테이너가 배치할 때마다
+## position 을 다시 쓴다(레벨업 카드와 같은 제약).
+const _MENU_STAGGER := 0.04
+const _MENU_IN_SEC := 0.20
+
+func _stagger_menu_entrance(logo: Control, box: VBoxContainer) -> void:
+	logo.modulate.a = 0.0
+	var ltw := logo.create_tween()
+	ltw.tween_property(logo, "modulate:a", 1.0, 0.30)
+
+	var i := 0
+	for c in box.get_children():
+		var ctrl := c as Control
+		if ctrl == null or ctrl == logo:
+			continue
+		ctrl.modulate.a = 0.0
+		var sz := ctrl.size if ctrl.size.y > 0.0 else ctrl.custom_minimum_size
+		ctrl.pivot_offset = Vector2(sz.x * 0.5, sz.y)
+		ctrl.scale = Vector2(1.0, 0.9)
+		var tw := ctrl.create_tween()
+		tw.tween_interval(0.12 + _MENU_STAGGER * float(i))
+		tw.tween_property(ctrl, "modulate:a", 1.0, _MENU_IN_SEC)
+		tw.parallel().tween_property(ctrl, "scale", Vector2.ONE, _MENU_IN_SEC)\
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		i += 1
+	# 이어하기가 가능하면 그 버튼만 한 번 더 튄다 — "지난 판이 남아 있다"를 알린다.
+	if _continue_btn != null and not _continue_btn.disabled:
+		var ptw := _continue_btn.create_tween()
+		ptw.tween_interval(0.12 + _MENU_STAGGER * float(i) + _MENU_IN_SEC)
+		ptw.tween_property(_continue_btn, "scale", Vector2(1.04, 1.04), 0.16)\
+			.set_trans(Tween.TRANS_SINE)
+		ptw.tween_property(_continue_btn, "scale", Vector2.ONE, 0.22)\
+			.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 ## 첫 오픈 렌더 스톨 방지 — 무거운 패널(초상화·아이콘 텍스처)을 시작 직후 투명하게 1회
@@ -550,8 +591,7 @@ func _build_character_panel() -> void:
 
 ## 오버레이 카드 갱신 — 선택/잠금/구매 상태를 반영.
 func _refresh_character() -> void:
-	if _char_gold_label:
-		_char_gold_label.text = Locale.t("gold_fmt") % MetaManager.meta_gold
+	_roll_meta_gold(MetaManager.meta_gold)
 	var sel := CharacterManager.selected_id()
 	for row in _char_rows:
 		var c: CharacterData = row["c"]
@@ -816,15 +856,50 @@ func _refresh_rewards() -> void:
 	_rewards_total.text = Locale.t("rewards_total_fmt") % total
 
 
+## 수령 — 그 행이 물러나는 것을 보여준 뒤 목록을 다시 만든다. 예전에는 누르는 즉시
+## _refresh_rewards() 가 목록을 통째로 새로 그려, 무엇이 없어졌는지 알 수 없었다.
+##
+## 가로로 밀어내지 않고 스케일로 접는 이유는 카드가 VBoxContainer 의 자식이기 때문이다
+## (컨테이너가 배치할 때마다 position 을 다시 쓴다 — 레벨업 카드와 같은 제약).
+## 접히는 0.18초 동안은 다른 수령을 막는다. 그 사이 RewardInbox 는 이미 한 칸 줄었는데
+## 화면의 행은 아직 그대로라, 다음 탭이 **다른 보상을 수령**하게 된다.
+const _CLAIM_OUT_SEC := 0.18
+var _claiming: bool = false
+
 func _on_claim_pressed(index: int) -> void:
+	if _claiming:
+		return
+	_claiming = true
 	var got: int = RewardInbox.claim(index)
 	if got > 0:
 		SoundManager.play_ui("gold", 0.03, 1.25)
+	await _fold_reward_row(index)
+	_claiming = false
+	if not is_inside_tree():
+		return
 	_refresh_rewards()
 	_refresh_meta_gold_labels()
 
 
+## 수령한 행을 오른쪽 끝을 축으로 접으며 사라지게 한다.
+func _fold_reward_row(index: int) -> void:
+	var row: Control = null
+	if _rewards_list != null and index >= 0 and index < _rewards_list.get_child_count():
+		row = _rewards_list.get_child(index) as Control
+	if row == null:
+		return
+	var sz := row.size if row.size.x > 0.0 else row.custom_minimum_size
+	row.pivot_offset = Vector2(sz.x, sz.y * 0.5)
+	var tw := row.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(row, "modulate:a", 0.0, _CLAIM_OUT_SEC)
+	tw.tween_property(row, "scale", Vector2(0.88, 0.88), _CLAIM_OUT_SEC).set_trans(Tween.TRANS_SINE)
+	await get_tree().create_timer(_CLAIM_OUT_SEC, true, false, true).timeout
+
+
 func _on_claim_all_pressed() -> void:
+	if _claiming:
+		return
 	var got: int = RewardInbox.claim_all()
 	if got > 0:
 		SoundManager.play_ui("gold", 0.03, 1.1)
@@ -833,11 +908,34 @@ func _on_claim_all_pressed() -> void:
 	_refresh_meta_gold_labels()
 
 
+## 메타 골드 라벨은 세 패널(강화·캐릭터·아레나)이 같은 값을 보여준다. 수령 직후에는 그 값이
+## 뛰므로 HUD 골드와 같은 롤링 카운터로 굴려 올린다 — 숫자가 바뀐 것을 눈이 따라가게 한다.
+var _meta_gold_shown: float = -1.0
+var _meta_gold_tween: Tween = null
+
+func _roll_meta_gold(to: int) -> void:
+	if _meta_gold_shown < 0.0:
+		_meta_gold_shown = float(to)   # 첫 표시는 연출 없이
+		_set_meta_gold_text(_meta_gold_shown)
+		return
+	if _meta_gold_tween != null and _meta_gold_tween.is_valid():
+		_meta_gold_tween.kill()
+	_meta_gold_tween = create_tween()
+	_meta_gold_tween.tween_method(_set_meta_gold_text, _meta_gold_shown, float(to), 0.35)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+func _set_meta_gold_text(v: float) -> void:
+	_meta_gold_shown = v
+	var txt := Locale.t("gold_fmt") % int(round(v))
+	for lbl in [_power_gold_label, _char_gold_label, _theme_gold_label]:
+		if lbl != null:
+			lbl.text = txt
+
+
 ## 파워업/캐릭터/테마 패널의 메타 골드 라벨을 갱신(열려 있지 않아도 안전).
 func _refresh_meta_gold_labels() -> void:
-	for lbl in [_power_gold_label, _char_gold_label, _theme_gold_label]:
-		if lbl != null and lbl.text != "":
-			lbl.text = Locale.t("gold_fmt") % MetaManager.meta_gold
+	_roll_meta_gold(MetaManager.meta_gold)
 
 
 func _on_rewards_pressed() -> void:
@@ -989,8 +1087,7 @@ func _build_theme_panel() -> void:
 
 
 func _refresh_theme() -> void:
-	if _theme_gold_label:
-		_theme_gold_label.text = Locale.t("gold_fmt") % MetaManager.meta_gold
+	_roll_meta_gold(MetaManager.meta_gold)
 	var sel := ThemeManager.selected_id()
 	for row in _theme_rows:
 		var t: ThemeData = row["t"]
@@ -1079,7 +1176,7 @@ func _on_theme_pick(id: String) -> void:
 
 
 func _refresh_power() -> void:
-	_power_gold_label.text = Locale.t("gold_fmt") % MetaManager.meta_gold
+	_roll_meta_gold(MetaManager.meta_gold)
 	for row in _power_rows:
 		var u: Dictionary = row["u"]
 		var id: String = String(u["id"])
