@@ -37,9 +37,11 @@ const _SOUNDS: Dictionary = {
 }
 
 const _VOLUMES: Dictionary = {
-	"shoot":       -10.0,
+	# 게임에서 가장 자주 나는 소리인데 파일 자체가 조용해(파고율 20dB 라 기준 RMS 에 못 닿는다)
+	# 볼륨까지 -10 이면 폰 실효 -40dB — 세트 중앙값보다 14dB 아래였다. 파일 보강과 함께 올린다.
+	"shoot":        -2.0,
 	"laser":       -9.0,
-	"boom":        -4.0,
+	"boom":         -2.0,   # 16개 호출부 공용 임팩트 — 중앙값 부근에 둔다
 	# 새 피격음은 중역 위주라 A-가중 체감이 4.8dB 커졌다(초당 최대 18회 울리는 소리).
 	# 4dB 만 되돌려 기존과 비슷한 크기로 두되, 존재감은 약간 남긴다.
 	"zombie_hit": -10.0,
@@ -52,7 +54,7 @@ const _VOLUMES: Dictionary = {
 	"boss_alarm":   0.0,
 	"defeat":      -5.0,
 	"victory":     -7.0,
-	"ui_click":    -6.0,
+	"ui_click":     -3.0,   # 버튼 피드백 — 들리되 전투음을 덮지 않는 선
 	"ult_quake":   -3.0,
 	"ult_arrow":   -3.0,
 	"ult_orbital": -3.0,
