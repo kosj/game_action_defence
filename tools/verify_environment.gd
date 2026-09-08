@@ -118,13 +118,17 @@ func _test_cycle_wrap(day, game_data) -> void:
 
 ## 시간 × 날씨를 곱한 "최종" 색이 가독성 하한 아래로 내려가지 않는가.
 ## 하한이 실제로 작동하는지도 함께 본다(하한이 한 번도 안 걸리면 테스트가 무의미하다).
+##
+## ⚠️ 날씨가 더 이상 배경을 물들이지 않으므로(_DEF 에 tint 없음) **실플레이 값은 흰색뿐**이고,
+## 그것만 넣으면 하한이 한 번도 안 걸려 이 검사가 통째로 공회전한다. 그래서 색을 입히는 날씨가
+## 다시 들어올 때를 상정한 합성 색으로 가드를 확인한다 — 예전 비(0.80,0.84,0.92)와, 하한을
+## 확실히 건드리는 어두운 값이다. 가드 자체는 살아 있어야 그때 바로 쓸 수 있다.
 func _test_luma_floor(day, weather_script: GDScript) -> void:
 	var day_script: GDScript = load("res://scripts/DayNightCycle.gd")
 	var floor_v: float = day_script.LUMA_FLOOR
-	var defs: Dictionary = weather_script._DEF
-	var tints: Array = [Color.WHITE]
-	for k in defs:
-		tints.append(defs[k]["tint"])
+	_ok("날씨 정의에 배경 틴트가 없다(입자만)",
+		not (weather_script._DEF as Dictionary).values().any(func(d): return d.has("tint")))
+	var tints: Array = [Color.WHITE, Color(0.80, 0.84, 0.92), Color(0.70, 0.72, 0.80)]
 	var worst := 999.0
 	var worst_desc := ""
 	var over_one := false
@@ -399,8 +403,16 @@ func _test_weather_cheat(weather, day, events, game_data, cheats) -> void:
 		not weather._emitter.emitting and weather._emitter.modulate.a < EPS)
 	_ok("날씨 OFF → 파문 정지", not weather._splash.emitting)
 	_ok("날씨 OFF → 뿌연 판 투명", weather.self_modulate.a < EPS)
-	_ok("날씨 OFF → 날씨 틴트 없음(무보정)", day._weather_tint.is_equal_approx(Color.WHITE),
-		"실측 %s" % str(day._weather_tint))
+	# 예전에는 "치트로 끄면 틴트가 사라지는가"를 봤지만, 이제 날씨는 애초에 배경을 물들이지
+	# 않으므로 그 명제는 공회전한다. 더 강한 명제로 바꾼다 — **켜져 있고 세기가 최대여도**
+	# 배경은 무보정이어야 한다. 이게 "비가 와도 뒷배경이 어두워지지 않는다"의 회귀 검사다.
+	cheats.weather = true
+	events.elapsed_time = t
+	weather._process(1.0 / 60.0)
+	_ok("날씨 ON·최대 세기여도 배경 무보정", day._weather_tint.is_equal_approx(Color.WHITE),
+		"실측 %s (세기 %.2f)" % [str(day._weather_tint), weather.strength_at(t)])
+	cheats.weather = false
+	weather._process(1.0 / 60.0)
 
 	# 꺼 둔 동안에도 슬롯은 굴러야 한다(= 스케줄 결정론 유지). 전환 배너만 안 뜬다.
 	# GDScript 람다는 지역 변수를 **값으로** 캡처한다 — 배열에 담아야 바깥에서 증가가 보인다.
