@@ -108,7 +108,7 @@
 | P2-18 UI 연출 Phase 1-④ 게임오버/승리 분리 + 통계 카운트업 + 부활 복귀 | D | ✅ (57b98be) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
 | P2-19 UI 연출 Phase 1-⑤ 레벨업 카드 확정 연출 + 진화 강조 (Phase 1 완료) | D | ✅ (7294d96) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
 | P2-20 UI 연출 Phase 2-A 랭킹·강화 행 문법 통일 + 선택 표시 아이콘화 | D | ✅ (b04174e) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
-| P2-21 UI 연출 Phase 2-B 메뉴 진입 stagger + 보상 수령 연출 | D | 🔵 진행중 | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
+| P2-21 UI 연출 Phase 2-B 메뉴 진입 stagger + 보상 수령 연출 | D | ✅ (머지 후 sha 기입) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
 | P2-22 UI 연출 Phase 2-C HUD 죽은 노드 정리 + 도감 NEW 마커 | D | ⚪ 대기 | — | P2-21 이후 |
 
 **결정 대기 항목은 전부 해소됐다(2026-08-18).** 아래 §2 결정 로그 참고 — 이제 모든 항목이 바로 착수 가능하다.
