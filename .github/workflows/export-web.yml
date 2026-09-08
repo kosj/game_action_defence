@@ -121,6 +121,7 @@ jobs:
           godot --headless --path . res://scenes/TelemetryTest.tscn
           godot --headless --path . res://scenes/CodexTest.tscn
           godot --headless --path . res://scenes/ThreatTest.tscn
+          godot --headless --path . res://scenes/TamperGuardTest.tscn
           godot --headless --path . res://scenes/KeyboardMoveTest.tscn
 
       # 시뮬레이션형 검증은 프레임 수에 의존하므로 --fixed-fps 60 을 반드시 준다

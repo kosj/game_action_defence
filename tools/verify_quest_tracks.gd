@@ -126,11 +126,11 @@ func _process(_delta: float) -> bool:
 
 	print("── 구 세이브 호환 ───────────────────────────────")
 	# 트랙 id 가 바뀌었으므로 구 waves 키가 남은 세이브를 읽어도 조용히 무시되어야 한다.
-	var f := FileAccess.open(path, FileAccess.WRITE)
-	f.store_string(JSON.stringify({
+	# 서명본으로 쓴다(P2-29) — 검사 대상은 "구 키가 남은 내용"이지 "서명 없는 파일"이 아니고,
+	# 평문은 스탬프가 생긴 뒤(두 번째 실행부터) 변조로 취급돼 통째로 무시된다.
+	SaveGuard.write_json(path, {
 		"tier": {"kills": 2, "waves": 7}, "count": {"kills": 33, "waves": 5}, "frac": 0.25,
-	}))
-	f.close()
+	})
 	qm._load()
 	_ok("구 waves 키가 남아 있어도 로드가 깨지지 않는다", not qm._tier.has("waves"),
 		str(qm._tier.keys()))

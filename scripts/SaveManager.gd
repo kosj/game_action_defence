@@ -20,6 +20,7 @@ func _ready() -> void:
 	# 되살려 다시 적립할 수 있고(메타 골드 중복), 이어하기가 "죽은 판 되감기"가 된다.
 	# 부활하면 Player 의 자동저장이 곧바로 새 체크포인트를 다시 만든다.
 	Events.player_died.connect(delete_save)
+	_migrate_unsigned()
 
 
 func save_difficulty() -> void:
@@ -103,24 +104,23 @@ func save_game(player: Node) -> void:
 		"weapon_id": player.current_weapon.get("id", "pistol"),
 		"weapon_tier_id": player.current_weapon.get("tier_id", "common"),
 	}
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify(data))
-		f.close()
+	SaveGuard.write_json(SAVE_PATH, data)   # 서명본(P2-29) — 편집한 체크포인트로 골드를 세탁하지 못하게
 
 
 func load_save() -> Dictionary:
-	if not has_save():
-		return {}
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if not f:
-		return {}
-	var text := f.get_as_text()
-	f.close()
-	var parsed = JSON.parse_string(text)
+	var parsed = SaveGuard.read_json(SAVE_PATH)["data"]   # 서명 불일치·평문 강등은 {} — 이어하기 없음
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return {}
 	return parsed
+
+
+## 체크포인트는 시작 시 읽히지 않으므로(메뉴에서 이어하기를 눌러야 읽는다) 다른 세이브처럼
+## "_load 에서 이관"이 안 된다. 첫 실행에 평문 체크포인트가 남아 있으면 여기서 서명본으로 다시 쓴다 —
+## 안 그러면 다음 실행부터 스탬프 이후의 평문 파일로 취급되어 이어하기가 사라진다.
+func _migrate_unsigned() -> void:
+	var r := SaveGuard.read_json(SAVE_PATH)
+	if r["status"] == SaveGuard.Status.UNSIGNED and typeof(r["data"]) == TYPE_DICTIONARY:
+		SaveGuard.write_json(SAVE_PATH, r["data"])
 
 
 ## 씬 전환 전(MainMenu) 호출 — Events 전역 상태를 복원하고, Main 씬이 로드되면
@@ -130,9 +130,9 @@ func apply_to_events(data: Dictionary) -> void:
 	# ItemDB.recompute() 가 캐릭터 보너스 스탯을 "현재 선택" 기준으로 채우기 때문이다.
 	_restore_selection(data)
 	Events.reset()
-	Events.total_gold = data.get("total_gold", 0)
+	Events.total_gold = int(data.get("total_gold", 0))
 	Events.total_kills = data.get("total_kills", 0)
-	Events.score = data.get("score", 0)
+	Events.score = int(data.get("score", 0))
 	Events.elapsed_time = data.get("elapsed_time", 0.0)
 	# 구 세이브에는 없다 — 그 경우 reset() 이 방금 발급한 새 시드를 그대로 쓴다.
 	Events.env_seed = int(data.get("env_seed", Events.env_seed))

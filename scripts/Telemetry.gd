@@ -206,7 +206,10 @@ func _snapshot(outcome: String) -> Dictionary:
 		"persona": "human",
 		"outcome": outcome,                 # "died" | "abandoned"
 		# 치트가 발동한 판은 사람 데이터가 아니다 — analyze_telemetry.py 가 기본 제외한다.
-		"cheated": Cheats.used_this_run,
+		# 메모리 변조가 감지된 판(P2-29)도 같은 이유로 cheated 에 합산한다.
+		"cheated": Cheats.used_this_run or Events.tamper_detected(),
+		"tampered": Events.tamper_detected(),          # 런타임 값 금고 불일치(메모리 변조)
+		"save_tampered": SaveGuard.tamper_seen,         # 이번 세션에 서명 불일치 세이브를 만났는가
 		# 이어하기 판은 피격·보스 수치가 재개 이후만 세어져 사람 데이터로 쓸 수 없다.
 		"resumed": _resumed,
 		"version": Events.VERSION,

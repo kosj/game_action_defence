@@ -51,20 +51,12 @@ func claim_all() -> int:
 
 
 func _save() -> void:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify({"entries": entries}))
-		f.close()
+	SaveGuard.write_json(SAVE_PATH, {"entries": entries})   # 서명본(P2-29)
 
 
 func _load() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
-		return
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if f == null:
-		return
-	var parsed = JSON.parse_string(f.get_as_text())
-	f.close()
+	var r := SaveGuard.read_json(SAVE_PATH)   # 서명 검증(P2-29) — 불일치 파일은 없는 것으로 본다
+	var parsed = r["data"]
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return
 	var arr = parsed.get("entries", [])
@@ -74,3 +66,5 @@ func _load() -> void:
 	for e in arr:
 		if typeof(e) == TYPE_DICTIONARY:
 			entries.append({"title": str(e.get("title", "")), "gold": int(e.get("gold", 0)), "src": str(e.get("src", ""))})
+	if r["status"] == SaveGuard.Status.UNSIGNED:
+		_save()   # 구버전 평문 파일 → 첫 실행에 서명본으로 이관

@@ -96,23 +96,17 @@ func install_boost() -> float:
 
 
 func _load() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
-		return
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if f == null:
-		return
-	var parsed = JSON.parse_string(f.get_as_text())
-	f.close()
+	var r := SaveGuard.read_json(SAVE_PATH)   # 서명 검증(P2-29) — 불일치 파일은 없는 것으로 본다
+	var parsed = r["data"]
 	if typeof(parsed) == TYPE_DICTIONARY:
 		_selected_id = str(parsed.get("id", ""))
 		var b = parsed.get("bought", [])
 		if typeof(b) == TYPE_ARRAY:
 			for id in b:
 				_bought[str(id)] = true
+		if r["status"] == SaveGuard.Status.UNSIGNED:
+			_save()   # 구버전 평문 파일 → 첫 실행에 서명본으로 이관
 
 
 func _save() -> void:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify({"id": _selected_id, "bought": _bought.keys()}))
-		f.close()
+	SaveGuard.write_json(SAVE_PATH, {"id": _selected_id, "bought": _bought.keys()})   # 서명본(P2-29)
