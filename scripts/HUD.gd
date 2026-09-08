@@ -222,9 +222,12 @@ func _init_pivots() -> void:
 	gold_label.pivot_offset = gold_label.size * 0.5
 	score_label.pivot_offset = score_label.size * 0.5
 	weapon_label.pivot_offset = weapon_label.size * 0.5
-	# 새로 펄스하는 라벨들 — 피벗이 0 이면 좌상단 기준으로 커져 자리가 밀린다.
-	kills_label.pivot_offset = kills_label.size * 0.5
-	time_label.pivot_offset = time_label.size * 0.5
+	# 새로 펄스하는 라벨 둘은 **오른쪽 끝**을 피벗으로 잡는다. 둘 다 우측 정렬이고
+	# 바로 오른쪽에 아이콘(해골·시계)이 붙어 있는데, 그 아이콘은 라벨의 자식이 아니라
+	# 형제다(_right_stat_icon 이 HUD 에 직접 붙인다). 중앙 피벗으로 키우면 숫자만
+	# 오른쪽으로 자라 아이콘을 파고든다 — 사이 간격이 6px 뿐이다.
+	kills_label.pivot_offset = Vector2(kills_label.size.x, kills_label.size.y * 0.5)
+	time_label.pivot_offset = Vector2(time_label.size.x, time_label.size.y * 0.5)
 	banner_bg.pivot_offset = banner_bg.size * 0.5
 	banner_label.pivot_offset = banner_label.size * 0.5
 	game_over_panel.pivot_offset = game_over_panel.size * 0.5
