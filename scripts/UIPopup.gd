@@ -24,7 +24,7 @@ extends RefCounted
 ## (예전에는 팝업 9종이 전부 그렇게 열리고 닫혀서 화면이 툭툭 바뀌었다 — UI_POLISH_PLAN §A-1).
 ##
 ## 반환: { dim, panel, body, close, vbox, title, hint }
-##  - dim/panel 은 호출부가 visible 을 켜고 끈다(열고 닫는 정책은 화면마다 다르다).
+##  - dim/panel 은 호출부가 UIPopup.open()/close() 에 그대로 넘긴다(연출은 셸이 소유한다).
 ##  - body 는 내용을 담을 컨테이너. scroll=true 면 ScrollContainer 안의 VBox 다.
 ##  - vbox 는 제목~닫기 사이의 세로 줄기. 닫기 버튼 위에 무언가를 더 붙여야 할 때 쓴다.
 ##  - title/hint 는 라벨. 언어 전환처럼 나중에 문구를 다시 넣는 화면이 쓴다(hint 는 없으면 null).
