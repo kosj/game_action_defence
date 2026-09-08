@@ -27,6 +27,9 @@ extends SceneTree
 ## 코드가 아니라 데이터에서 키를 고르는 곳 — 여기 값도 `_SOUNDS` 에 있어야 한다.
 ## (`Player._shoot_dir` 이 `current_weapon["sfx"]` 를 그대로 재생한다)
 const WEAPON_DB := preload("res://scripts/WeaponDB.gd")
+## 같은 이유로 하나 더 — `HUDAlert.flash` 가 위험도로 골라 재생한다(`SOUND[lv]`).
+## 아래 `_scan_call_sites()` 는 리터럴만 훑으므로, 이런 표는 여기에 적어 둬야 고아로 잡히지 않는다.
+const HUD_ALERT := preload("res://scripts/HUDAlert.gd")
 
 var _fail := 0
 
@@ -40,6 +43,8 @@ func _init() -> void:
 	var used := _scan_call_sites()
 	for w in WEAPON_DB.WEAPONS:
 		used[String(w.get("sfx", ""))] = "scripts/WeaponDB.gd"
+	for key in HUD_ALERT.SOUND:
+		used[String(key)] = "scripts/HUDAlert.gd"
 
 	# 1) 호출부 → 키
 	var unknown: Array = []

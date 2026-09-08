@@ -36,6 +36,8 @@ const ACCENT := [
 const HOLD := [0.7, 0.9, 1.3]
 ## 맥동 반주기(초). 짧을수록 급하게 읽힌다.
 const PULSE := [0.50, 0.38, 0.26]
+## 경고음(P2-27). 한 악기의 세 구절 — 펄스 2·3·4 개로 위험도가 들린다(tools/gen_sfx.py).
+const SOUND := ["warn_swarm", "warn_elite", "warn_boss"]
 
 const BAND_COLOR := Color(0.04, 0.024, 0.03)   # 띠 바탕 — 무채색 검정보다 살짝 붉다
 const BAND_ALPHA := 0.80
@@ -94,10 +96,16 @@ static func make(parent: Node, y: float, height: float) -> HUDAlert:
 ## 경고 한 번. 이미 떠 있으면 **더 큰(또는 같은) 위험만** 덮어쓴다 — 이 자리에 두 줄이
 ## 겹치면 무엇을 피해야 할지 읽히지 않고, 낮은 쪽이 이기면 보스 이름이 무리 경고에
 ## 지워진다. 무시된 경우 false 를 돌려준다(호출부가 상태를 되돌릴 수 있게).
-func flash(text: String, level: int, font_size: int) -> bool:
+##
+## 소리는 **띠가 실제로 뜰 때만** 난다 — 위의 조기 반환이 소리까지 함께 막으므로, 화면에
+## 안 보이는 경고가 소리만 내는 일이 없다. `with_sound=false` 는 호출부에 이미 다른 소리가
+## 있을 때 쓴다(보스 **등장**에는 `boss_alarm` 이 있다 — 예고와 등장은 다른 사건이다).
+func flash(text: String, level: int, font_size: int, with_sound: bool = true) -> bool:
 	var lv := clampi(level, 0, ACCENT.size() - 1)
 	if visible and lv < _level:
 		return false
+	if with_sound:
+		SoundManager.play(SOUND[lv], 0.02)
 	_level = lv
 	_accent = ACCENT[lv]
 	label.add_theme_font_size_override("font_size", font_size)

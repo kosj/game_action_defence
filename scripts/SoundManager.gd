@@ -26,6 +26,11 @@ const _SOUNDS: Dictionary = {
 	"ui_close":    "res://assets/audio/sfx_ui_close.ogg",    # 팝업 닫힘
 	"ui_select":   "res://assets/audio/sfx_ui_select.ogg",   # 선택 확정
 	"ui_deny":     "res://assets/audio/sfx_ui_deny.ogg",     # 잠김·잔액 부족
+	# 상단 경고 띠의 위험도 3단계(P2-27). 한 경보 악기를 세 구절로 나눈 것이라
+	# 음색은 같고 펄스 수(2·3·4)와 빠르기·음정이 다르다 — gen_sfx.py 참고.
+	"warn_swarm":  "res://assets/audio/sfx_warn_swarm.ogg",  # 좀비 무리 예고
+	"warn_elite":  "res://assets/audio/sfx_warn_elite.ogg",  # 정예 무리 예고
+	"warn_boss":   "res://assets/audio/sfx_warn_boss.ogg",   # 보스 예고(등장은 boss_alarm)
 	"ult_quake":   "res://assets/audio/sfx_ult_quake.ogg",  # 궁극기: 지진(베테랑)
 	"ult_arrow":   "res://assets/audio/sfx_ult_arrow.ogg",  # 궁극기: 화살비(헌터)
 	"ult_orbital": "res://assets/audio/sfx_ult_orbital.ogg",# 궁극기: 궤도 폭격(엔지니어)
@@ -82,6 +87,12 @@ const _VOLUMES: Dictionary = {
 	"ui_close":    -14.0,   # 닫힘은 열림보다 조용하게 — 결과가 아니라 정리하는 동작이다
 	"ui_select":   -12.0,   # 넷 중 가장 중요한 신호(확정)라 살짝 앞에 둔다
 	"ui_deny":      -8.0,   # 저역 중심이라 크게 줘야 같은 크기로 들린다
+	# 경고음 셋도 폰 체감으로 맞춘다(파일 RMS 는 -16dB 로 같지만 체감은 -21.4/-19.0/-17.5).
+	# 실효(체감+볼륨)를 -27.9 / -25.0 / -22.0 으로 계단지게 둔다 — 무리 경고는 15~24초마다
+	# 울리는 상시 신호라 세트 중앙값(-26.3) 근처에, 보스 예고는 600초에 한 번이라 위쪽에.
+	"warn_swarm":   -6.5,
+	"warn_elite":   -6.0,
+	"warn_boss":    -4.5,
 	"ult_quake":   -3.0,
 	"ult_arrow":   -3.0,
 	"ult_orbital": -3.0,

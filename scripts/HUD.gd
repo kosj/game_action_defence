@@ -280,8 +280,10 @@ func _on_boss_spawned(max_health: int) -> void:
 func _announce_boss(boss_name: String) -> void:
 	if _alert == null:
 		return
+	# 소리를 끄고 부른다 — 바로 위 `_on_boss_spawned` 이 이미 `boss_alarm` 을 울렸다.
+	# 예고(warn_boss)와 등장(boss_alarm)은 다른 사건이라 소리도 갈라 두었다.
 	_alert.flash(Locale.t("hud_boss_banner_fmt") % boss_name,
-		_HUDAlert.LV_BOSS, _ALERT_FONT_BOSS)
+		_HUDAlert.LV_BOSS, _ALERT_FONT_BOSS, false)
 
 
 func _on_boss_health_changed(health: int, max_health: int) -> void:

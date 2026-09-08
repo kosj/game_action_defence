@@ -405,6 +405,83 @@ def synth_ui_deny(_rng: np.random.Generator) -> np.ndarray:
     return _ui_shelf(body * _ui_env(n, attack=0.006, release=0.75), db=-14.0)
 
 
+# ─────────────────────── P2-27: 위험도 3단계 경고음 ───────────────────────
+#
+# 상단 경고 띠(P2-26)가 무리·정예·보스 예고를 세 단계로 나눠 보여 주는데 **소리가 없었다.**
+# 보스 등장에만 `boss_alarm` 이 있고 나머지는 무음이라, 화면을 안 보고 있으면 무리가 몰려오는
+# 것을 알 수 없었다.
+#
+# **소리를 셋 만드는 것이 아니라 한 악기를 세 구절로 나눈다.** 같은 사건의 세 단계이므로
+# 음색이 갈리면 서로 다른 사건으로 읽힌다. 구분은 **구절**이 한다 — 펄스 수(2·3·4)와
+# 빨라지는 간격, 그리고 한 계단씩 올라가는 기음. 재생 피치만 바꿔 쓰는 것(이 레포가 걷어낸
+# 방식, §8)과는 다르다. 파형 자체가 다르게 생성된다.
+#
+# ⚠️ 첫 시제품은 **피크가 뒤에 있었다**(77·229·456ms). 뒤로 갈수록 크게 만들었더니 경보가
+# 첫 순간에 귀를 붙잡지 못했다(§11 — 때리는 순간이 없다). 음정은 계속 올라가게 두고 진폭만
+# 앞으로 몰아 16~39ms 로 당겼다.
+
+
+# 펄스는 첫 것이 가장 크다. 경보는 시작에서 붙잡고, 나머지가 "계속되고 있다"를 말한다.
+_WARN_AMP = [1.0, 0.92, 0.86, 0.82]
+
+
+def _warn_pulse(f0: float, dur: float, rough: float, noise: float,
+                rng: np.random.Generator) -> np.ndarray:
+    """경보 펄스 하나 — 맥놀이 + 하드 드라이브 + 소량의 밴드 노이즈.
+
+    맥놀이 폭을 기음에 비례시키는(4.5%) 이유: 고정 폭이면 기음이 올라갈수록 떨림이 상대적으로
+    느려져 세 단계의 성격이 달라진다. 비례시키면 셋이 같은 악기로 들린다.
+    """
+    n = int(dur * SR)
+    t = np.arange(n) / SR
+    base = np.sin(2 * np.pi * f0 * t) + np.sin(2 * np.pi * (f0 * 1.045) * t)
+    body = np.tanh(base * rough)   # 홀수 배음 — 폰 스피커가 낼 수 있는 대역을 만든다(§2)
+    nz = band_filter(rng.standard_normal(n), f0 * 0.6, 6000.0)
+    nz /= max(np.max(np.abs(nz)), 1e-9)
+    # 사각에 가까운 포락선 — 경보는 켜졌다 꺼진다. 양끝 페이드는 딸깍임 방지용이다.
+    env = np.ones(n)
+    a, r = int(0.006 * SR), int(0.05 * SR)
+    env[:a] = np.linspace(0.0, 1.0, a)
+    env[-r:] = np.linspace(1.0, 0.0, r) ** 1.5
+    return (body + noise * nz) * env
+
+
+def _klaxon(f0: float, count: int, on: float, gap: float, rise: float,
+            rough: float, noise: float, name: str) -> np.ndarray:
+    """펄스 count 개. 간격은 매번 0.82배로 줄고 음정은 rise 배씩 오른다 — 다급해진다."""
+    rng = _rng_for(name)
+    parts = []
+    at = 0
+    for i in range(count):
+        p = _warn_pulse(f0 * (rise ** i), on, rough, noise, rng) * _WARN_AMP[min(i, 3)]
+        parts.append((at, p))
+        at += int((on + gap * (0.82 ** i)) * SR)
+    out = np.zeros(max(s + len(p) for s, p in parts))
+    for s, p in parts:
+        out[s:s + len(p)] += p
+    return out
+
+
+def synth_warn_swarm(_rng: np.random.Generator) -> np.ndarray:
+    """좀비 무리 — 두 번. 낮고 느긋하다(대비할 시간이 있다)."""
+    return _klaxon(280.0, 2, 0.13, 0.075, 1.00, 2.4, 0.55, "warn_swarm")
+
+
+def synth_warn_elite(_rng: np.random.Generator) -> np.ndarray:
+    """정예 무리 — 세 번. 한 계단 위, 조금 더 거칠다."""
+    return _klaxon(400.0, 3, 0.11, 0.065, 1.04, 3.2, 0.55, "warn_elite")
+
+
+def synth_warn_boss(_rng: np.random.Generator) -> np.ndarray:
+    """보스 예고 — 네 번. 가장 높고 가장 거칠고 가장 빠르다.
+
+    보스 **등장**은 여전히 `boss_alarm`(2.6초)이 맡는다. 예고와 등장은 다른 사건이라
+    소리도 갈라 둔다 — 길이 0.54s vs 2.60s(21%), 플랫니스 0.0197 vs 0.0028(7배)로
+    두 축이 벌어져 있다(SOUND_GUIDE §3).
+    """
+    return _klaxon(560.0, 4, 0.10, 0.058, 1.07, 4.2, 0.55, "warn_boss")
+
+
 # ─────────────────────── P2-12: 비어 있던 자리를 메우는 소리들 ───────────────────────
 #
 # 검수에서 나온 공백은 두 종류였다. 하나는 **무기 모듈 10개 중 3개가 완전히 무음**인 것,
@@ -603,6 +680,10 @@ FORMATS = {
     "ui_close": ("sfx_ui_close.ogg", 44100),
     "ui_select": ("sfx_ui_select.ogg", 44100),
     "ui_deny": ("sfx_ui_deny.ogg", 44100),
+    # 경고음도 대역이 200~3kHz 안에 있어 44.1kHz 로 충분하다.
+    "warn_swarm": ("sfx_warn_swarm.ogg", 44100),
+    "warn_elite": ("sfx_warn_elite.ogg", 44100),
+    "warn_boss": ("sfx_warn_boss.ogg", 44100),
 }
 
 GENERATORS = {
@@ -614,6 +695,9 @@ GENERATORS = {
     "ui_close": synth_ui_close,
     "ui_select": synth_ui_select,
     "ui_deny": synth_ui_deny,
+    "warn_swarm": synth_warn_swarm,
+    "warn_elite": synth_warn_elite,
+    "warn_boss": synth_warn_boss,
     "tesla_arc": synth_tesla_arc,
     "ult_quake": synth_ult_quake,
     "chainsaw": synth_chainsaw,
