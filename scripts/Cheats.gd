@@ -303,7 +303,13 @@ func _pick_score(id: String) -> float:
 			continue              # 이미 진화함
 		if String(e["base"]) == id and int(Events.passives.get(e["passive"], 0)) >= 1:
 			score += 900.0 + lv * 60.0        # 만렙에 가까울수록 급하다
-		elif String(e["passive"]) == id and int(Events.weapons.get(e["base"], 0)) >= 1:
+		# 짝꿍 패시브는 **1레벨이면 조건이 끝난다**(Events.available_evolutions 가 `>= 1` 로 본다).
+		# 이 항에 상한이 없어서, 이미 1을 가진 패시브에도 계속 +700 이 붙어 레벨을 빨아들였다 —
+		# 그 사이 정작 필요한 **베이스 무기 만렙(Lv8)** 에는 표가 모자라 진화가 한 번도 안 났다
+		# (실측: greedy 12판 최고 무기 Lv 5~6 · 진화 0회 · 보스 잔여 체력 78.5% 로 random 38% 보다
+		#  화력이 낮았다 = 상한 근사가 하한선보다 약했다). 조건이 충족된 뒤엔 이 항을 끈다.
+		elif String(e["passive"]) == id and int(Events.weapons.get(e["base"], 0)) >= 1 \
+				and int(Events.passives.get(id, 0)) < 1:
 			score += 700.0
 	# ② 집중 — 이미 가진 것을 올리는 쪽이 새 슬롯을 여는 것보다 낫다. 진화 조건이 만렙이라
 	# 레벨이 오를수록 더 급해진다(가속 가중). 슬롯을 넓게 벌리면 아무것도 만렙이 안 된다.

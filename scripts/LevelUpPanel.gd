@@ -250,12 +250,37 @@ func _draw_choices(n: int) -> Array:
 	var avail: Array = []
 	_collect(ItemDB.weapons(), Events.weapons, Events.weapons.size() < ItemDB.MAX_WEAPON_SLOTS, avail)
 	_collect(ItemDB.passives(), Events.passives, Events.passives.size() < ItemDB.MAX_PASSIVE_SLOTS, avail)
-	avail.shuffle()
-	for a in avail:
+	for a in _weighted_take(avail, n - choices.size()):
 		choices.append({"kind": "item", "data": a})
-		if choices.size() >= n:
-			break
 	return choices
+
+
+## 후보에서 n 개를 **레벨 가중 비복원 추출**한다. 가중치 = 1 + 레벨 × balance.levelup_focus_weight.
+##
+## 균등 셔플이었을 때 슬롯 만석(후보 12) 기준으로 특정 무기가 뜰 확률이 25% 라, 진화 조건인
+## 무기 만렙(Lv8)까지 평균 28 레벨업이 걸렸다 — 그 레벨에 도달하는 판이 거의 없어 진화 11종이
+## 사실상 잠겨 있었다(BALANCE.md §3-14). 이미 올린 것이 더 자주 뜨게 해서, 집중을 운이 아니라
+## 선택으로 만든다. 가중치 0 이면 예전의 균등 추출과 같다.
+func _weighted_take(pool: Array, n: int) -> Array:
+	var out: Array = []
+	if n <= 0 or pool.is_empty():
+		return out
+	var rest: Array = pool.duplicate()
+	var fw: float = maxf(0.0, GameData.balance.levelup_focus_weight)
+	while out.size() < n and not rest.is_empty():
+		var total := 0.0
+		for a in rest:
+			total += 1.0 + float(a["lv"]) * fw
+		var roll := randf() * total
+		var idx := rest.size() - 1        # 부동소수 오차로 루프가 안 걸릴 때의 안전한 기본값
+		for i in rest.size():
+			roll -= 1.0 + float(rest[i]["lv"]) * fw
+			if roll <= 0.0:
+				idx = i
+				break
+		out.append(rest[idx])
+		rest.remove_at(idx)
+	return out
 
 
 ## 선택 캐릭터의 궁극기 해금 카드(레벨 8+ & 미보유일 때만, 아니면 {}).
