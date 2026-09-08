@@ -106,7 +106,7 @@
 | P2-14 UI 연출 Phase 1-② 화면 문자열 로케일화 — 하드코딩 영어 15종 | D | ✅ (c00fe32) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
 | P2-17 UI 연출 Phase 1-③ HUD 수치 연출 + 일시정지 페이드 + 토스트 큐 | D | ✅ (aa6c02b) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
 | P2-18 UI 연출 Phase 1-④ 게임오버/승리 분리 + 통계 카운트업 + 부활 복귀 | D | ✅ (57b98be) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
-| P2-19 UI 연출 Phase 1-⑤ 레벨업 카드 확정 연출 + 진화 강조 | D | ✅ (머지 후 sha 기입) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
+| P2-19 UI 연출 Phase 1-⑤ 레벨업 카드 확정 연출 + 진화 강조 (Phase 1 완료) | D | ✅ (7294d96) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
 
 **결정 대기 항목은 전부 해소됐다(2026-08-18).** 아래 §2 결정 로그 참고 — 이제 모든 항목이 바로 착수 가능하다.
 새로 🟡 가 필요한 판단이 생기면 임의로 고르지 말고 이 표에 🟡 로 올린 뒤 사용자 확인을 받는다.
