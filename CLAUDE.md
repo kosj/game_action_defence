@@ -231,7 +231,24 @@ godot --headless --path . --script res://tools/verify_sound_keys.gd
 godot --headless --path . --script res://tools/verify_gameover_vignette.gd
 godot --headless --path . --script res://tools/verify_evolution_reach.gd
 godot --headless --path . --script res://tools/verify_hud_alert.gd
+godot --headless --path . --script res://tools/verify_hud_layout.gd
 ```
+
+### ⚠️ 컨테이너에 `godot` 이 없으면 받아서 쓴다 — 건너뛰지 말 것
+원격 세션 컨테이너에는 Godot 이 안 깔려 있을 수 있다. 그러면 위 검사가 전부 못 돌고,
+"실렌더로 확인 못 했다"는 말이 계속 쌓인다. **받으면 된다**(약 50MB, 1분):
+```sh
+cd /tmp && curl -sSL -o godot.zip \
+  https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+unzip -oq godot.zip && chmod +x Godot_v4.3-stable_linux.x86_64
+export GODOT=/tmp/Godot_v4.3-stable_linux.x86_64 && $GODOT --version   # 4.3.stable 이어야 한다
+```
+버전은 **CI 와 같은 4.3** 이어야 한다(다른 버전은 파싱 규칙이 달라 여기서만 통과할 수 있다).
+`xvfb-run` 은 이미 있으므로 실렌더 스크린샷(`shot_*.gd`)도 바로 된다.
+실제로 이걸 받고 나서야 `verify_hud_layout.gd` 가 **눈으로는 안 보이는 1px 겹침**을 잡아냈다 —
+그 전까지는 "실렌더 못 함"으로 넘기고 있었다(P2-30).
+
+> 다만 **소리는 여전히 못 듣는다.** 오디오 장치가 없어 `analyze_sfx.py` 의 수치까지가 전부다.
 
 ⚠️ **`main` 을 새로 받은 직후에는 `--import` 를 먼저(가능하면 두 번) 돌린다.**
 다른 세션이 추가한 PNG·폰트가 로컬 `.godot` 캐시에 없으면 그 리소스를 preload 하는 스크립트가
@@ -288,7 +305,7 @@ SwiftShader(소프트웨어 GL)로 도는 값이라 실기기와 무관하다.
 ⚠️ **"웹은 데스크톱의 3~4배"는 틀린 상수다** — 실측하면 렌더 경합이 없을 때 **0.99배**다(§5-L).
 남은 미지수는 폰 CPU 의 절대 속도와 모바일 GPU fill-rate 뿐이고, 그것만 실기기가 필요하다.
 
-**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 27종이 이 프로젝트의 안전망 전부다.
+**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 28종이 이 프로젝트의 안전망 전부다.
 
 비주얼을 건드렸으면 **실렌더 스크린샷**으로 확인한다 — 헤드리스는 `_draw` 를 부르고 오류도 안 내지만,
 그려진 것이 다른 레이어에 덮였는지·좌표가 화면 밖인지는 알려주지 않는다.

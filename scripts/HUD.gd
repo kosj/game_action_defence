@@ -307,8 +307,8 @@ func _on_boss_died() -> void:
 func _build_timeline() -> void:
 	_timeline = _Timeline.new()
 	_timeline.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_timeline.offset_top = 84.0
-	_timeline.offset_bottom = 92.0
+	_timeline.offset_top = _TIMELINE_RECT.position.y
+	_timeline.offset_bottom = _TIMELINE_RECT.end.y
 	add_child(_timeline)
 
 
@@ -729,7 +729,27 @@ func _build_fog() -> void:
 	move_child(fog, 0)   # 최하단으로 — 월드 위, 모든 HUD 위젯 아래
 
 
-## 위협 등급 표시(P1-12) — 레벨 뱃지 바로 아래, 상단바 중앙.
+## 상단바(높이 96) 안에서 자리를 다투는 두 위젯의 사각형. **상수로 꺼내 둔 이유가 있다** —
+## 예전에는 위협 뱃지가 y72~92, 타임라인이 y84~92 로 **8px 겹쳐 있었고**, 타임라인이 나중에
+## 만들어져 위에 그려지는 바람에 뱃지 글자의 아래가 잘렸다(사용자 스크린샷으로 확인).
+## 화면에는 "글자가 반쯤 지워진" 것으로만 보여서 배치 문제인 줄 알기 어려웠다.
+## `verify_hud_layout.gd` 가 이 둘이 다시 겹치지 않는지 검사한다.
+##
+## 뱃지를 옮긴 자리는 골드 줄(y49~85)의 빈 칸이다 — 골드 라벨 상자가 x210 에서 끝나고
+## 레벨 뱃지가 x328 에서 시작해, 그 사이 116px 이 통째로 비어 있었다.
+## 골드 글자는 6자리라도 x109 에서 끝나지만 **상자끼리도 겹치지 않게** x214 부터 잡는다 —
+## 이 문제가 애초에 "글자는 제 상자 안에 있는데 상자가 겹쳐서" 생겼다.
+## 세로는 골드 줄(y49~85)과 중심을 맞추되(y67) 타임라인과 2px 띄운다. 골드 줄 그대로면
+## y85 라 타임라인(y84~)과 **1px 겹친다** — 글자에는 안 닿지만, 상자가 닿는 것 자체가
+## 이 버그의 원인이었다. `verify_hud_layout.gd` 가 그 1px 을 잡아냈다.
+const _THREAT_RECT := Rect2(214.0, 52.0, 112.0, 30.0)
+const _TIMELINE_RECT := Rect2(0.0, 84.0, 720.0, 8.0)
+const _THREAT_FONT := 16   # 13 → 16. 자리가 넉넉해졌으니 읽기 쉬운 크기로 올린다.
+
+var _threat_badge: Label = null
+
+
+## 위협 등급 표시(P1-12) — 상단바 둘째 줄, 골드와 레벨 뱃지 사이.
 ## **등급 1 에서는 만들지 않는다.** 등급을 아직 해금하지 못한 사람에게 "R1" 은 아무 정보가
 ## 아니고, 상단바만 붐빈다 — 사다리를 오르기 시작한 사람에게만 보이면 된다.
 func _build_threat_badge() -> void:
@@ -737,16 +757,19 @@ func _build_threat_badge() -> void:
 		return
 	var lbl := Label.new()
 	lbl.text = Locale.t("threat_badge_fmt") % ThreatManager.selected_rank()
-	lbl.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	lbl.offset_top = 72.0
-	lbl.offset_bottom = 92.0
+	lbl.offset_left = _THREAT_RECT.position.x
+	lbl.offset_right = _THREAT_RECT.end.x
+	lbl.offset_top = _THREAT_RECT.position.y
+	lbl.offset_bottom = _THREAT_RECT.end.y
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", _THREAT_FONT)
 	lbl.add_theme_color_override("font_color", UITheme.SEC_THREAT_TXT)
 	lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
 	lbl.add_theme_constant_override("outline_size", 3)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(lbl)
+	_threat_badge = lbl
 
 
 ## 경험치 바 — 화면 최상단 엣지(전 너비) + 상단바 중앙의 알약형 레벨 뱃지.
@@ -1804,8 +1827,11 @@ func _apply_safe_area() -> void:
 	top_bg.offset_bottom += inset   # 바 배경은 노치 뒤까지 채우고, 내용만 아래로 민다
 	# 뱃지 모드에선 라벨이 뱃지의 풀렉트 자식이라 뱃지 쪽을 옮긴다.
 	var lv_node: Control = _level_badge if _level_badge else _level_label
+	# ⚠️ 위협 뱃지와 타임라인이 이 목록에서 빠져 있었다. 나머지만 내려가면 노치 폰에서
+	# 둘이 상단바 안쪽으로 파고들어 **다시 겹친다** — 배치를 고쳐도 노치 기기에서만 되살아난다.
 	for c in [get_node("CoinIcon"), gold_label, hp_bar, kills_label, time_label,
-			lv_node, _xp_bg, _pause_btn, _auto_tag, boss_bar, weapon_label, buff_label] + _stat_icons:
+			lv_node, _xp_bg, _pause_btn, _auto_tag, boss_bar, weapon_label, buff_label,
+			_threat_badge, _timeline] + _stat_icons:
 		if c is Control:
 			c.offset_top += inset
 			c.offset_bottom += inset
