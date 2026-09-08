@@ -58,6 +58,7 @@ const STRINGS: Dictionary = {
 	"title_tagline":   {"en": "SURVIVE THE OUTBREAK", "ko": "감염에서 살아남아라", "ja": "アウトブレイクを生きのびろ"},
 	"title_tap":       {"en": "TAP TO START", "ko": "화면을 터치해 시작", "ja": "タップしてスタート"},
 	"menu_sound":      {"en": "Sound",       "ko": "사운드",    "ja": "サウンド"},
+	"menu_music":      {"en": "Music",       "ko": "음악",      "ja": "ミュージック"},
 	"sound_on":        {"en": "On",          "ko": "켜짐",      "ja": "オン"},
 	"sound_off":       {"en": "Off",         "ko": "꺼짐",      "ja": "オフ"},
 	"menu_options":    {"en": "Options",     "ko": "옵션",      "ja": "オプション"},

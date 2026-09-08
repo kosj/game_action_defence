@@ -126,6 +126,10 @@ const _MUSIC_FADE := 0.9        # 트랙 전환 크로스페이드(초)
 const _DUCK_DB := -14.0         # 사망 시 음악을 낮추는 상대량(dB)
 
 const SETTING_PATH := "user://sound.save"
+## 음악만 따로 끄는 설정(P2-33). 예전에는 스위치가 하나라 음악을 끄면 효과음도 같이 꺼졌다 —
+## 모바일에서 가장 흔한 요구가 "음악만 끄기"인데 그것이 불가능했다. 파일 형식은 sound.save 와
+## 같다("0"=끔). 서명 대상(SaveGuard 9종)이 아닌 것도 같다 — 값을 고쳐 봐야 얻는 것이 없다.
+const MUSIC_SETTING_PATH := "user://music.save"
 
 # 연속 재생 스로틀 — 같은 프레임에 대량으로 몰리는 효과음(스플래시 다중 피격·다중 총알·군집
 # 사망·동전 자석 흡수)은 프레임당 play() 호출이 수십 번 터져 특히 웹에서 프레임 드랍을 유발한다.
@@ -154,6 +158,7 @@ var _last_play: Dictionary = {}   # sound -> 마지막 재생 시각(ms)
 var _combo: Dictionary = {}       # sound -> 콤보 단계
 var _stop_tweens: Dictionary = {} # sound -> 진행 중인 정지 페이드 트윈
 var muted: bool = false   # 옵션에서 끄면 효과음·배경음악 모두 음소거
+var music_muted: bool = false   # 음악만 음소거(효과음은 그대로). muted 와 독립이다.
 
 # ── 배경음악 상태 ──
 var _music_player: AudioStreamPlayer
@@ -166,6 +171,7 @@ func _ready() -> void:
 	# 레벨업/게임오버에서 트리를 일시정지해도 음악(과 그 페이드 트윈)은 계속 흘러야 한다.
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	muted = _read_setting()
+	music_muted = _read_flag_off(MUSIC_SETTING_PATH)
 	for key in _SOUNDS:
 		var p := AudioStreamPlayer.new()
 		_force_stream_playback(p)
@@ -292,7 +298,7 @@ func _on_web_visibility_change(_args: Array) -> void:
 
 func _on_music_finished() -> void:
 	# 루프 설정이 통하지 않는 환경 폴백 — 같은 트랙(테마 고정 곡)을 즉시 재시작한다.
-	if not muted and _music_current != "":
+	if not muted and not music_muted and _music_current != "":
 		_start_music(_music_current, _MUSIC_VOL.get(_music_current, -9.0))
 
 
@@ -404,7 +410,7 @@ func play_music(track: String) -> void:
 	var target: float = _MUSIC_VOL.get(track, -9.0)
 	if track == _music_current:
 		_music_ducked = false   # 다시하기 등 재진입 — 사망 덕킹이 남아있으면 복구
-		if not muted:
+		if not muted and not music_muted:
 			if _music_player.playing:
 				_fade_music_to(target, _MUSIC_FADE * 0.5)
 			else:
@@ -412,8 +418,8 @@ func play_music(track: String) -> void:
 		return
 	_music_current = track
 	_music_ducked = false
-	if muted:
-		return
+	if muted or music_muted:
+		return   # 트랙 이름만 기억해 두면 켤 때 이어서 시작한다(set_enabled/set_music_enabled)
 	if _music_player.playing:
 		# 페이드 아웃 → 트랙 교체 → 페이드 인 (단일 플레이어 크로스페이드)
 		_kill_music_tween()
@@ -471,7 +477,7 @@ func _duck_music(down: bool) -> void:
 	if _music_player == null or not is_instance_valid(_music_player):
 		return
 	_music_ducked = down
-	if muted or not _music_player.playing or _music_current == "":
+	if muted or music_muted or not _music_player.playing or _music_current == "":
 		return
 	var base: float = _MUSIC_VOL.get(_music_current, -9.0)
 	_fade_music_to(base + (_DUCK_DB if down else 0.0), 0.8)
@@ -507,16 +513,39 @@ func set_enabled(on: bool) -> void:
 	if muted:
 		_kill_music_tween()
 		_music_player.stop()
-	elif _music_current != "":
+	elif _music_current != "" and not music_muted:
+		_start_music(_music_current, _MUSIC_VOL.get(_music_current, -9.0))
+
+
+func is_music_enabled() -> bool:
+	return not music_muted
+
+
+## 음악만 켜고 끈다. 효과음(muted)과 독립이다 — 둘 다 켜져야 음악이 난다.
+func set_music_enabled(on: bool) -> void:
+	music_muted = not on
+	var f := FileAccess.open(MUSIC_SETTING_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string("1" if on else "0")
+		f.close()
+	if music_muted:
+		_kill_music_tween()
+		_music_player.stop()
+	elif not muted and _music_current != "":
 		_start_music(_music_current, _MUSIC_VOL.get(_music_current, -9.0))
 
 
 func _read_setting() -> bool:
-	if not FileAccess.file_exists(SETTING_PATH):
-		return false   # 기본: 음소거 아님(사운드 On)
-	var f := FileAccess.open(SETTING_PATH, FileAccess.READ)
+	return _read_flag_off(SETTING_PATH)
+
+
+## "0" 이 적혀 있으면 true(=꺼짐). 파일이 없으면 false(=켜짐이 기본).
+func _read_flag_off(path: String) -> bool:
+	if not FileAccess.file_exists(path):
+		return false
+	var f := FileAccess.open(path, FileAccess.READ)
 	if not f:
 		return false
 	var txt := f.get_as_text().strip_edges()
 	f.close()
-	return txt == "0"   # "0" = Off → muted=true
+	return txt == "0"

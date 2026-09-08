@@ -24,6 +24,8 @@ var _status_row: Control = null
 var _lang_title: Label
 var _sound_title: Label
 var _sound_btn: Button
+var _music_title: Label
+var _music_btn: Button
 var _options_btn: Button
 var _codex_btn: Button
 ## 도감은 **처음 열 때 만든다.** 좀비·보스 아이콘이 게임플레이 아틀라스(767KB)에 있어
@@ -392,70 +394,111 @@ func _prewarm_panels() -> void:
 
 
 ## 옵션 패널(언어 / 사운드 On/Off) — Option 버튼으로 열고 닫는 오버레이.
+## 옵션 팝업(P2-33). 세 줄의 설정 행 카드 + 맨 아래 개발용 기록 복사.
+##
+## 예전 모습: 언어 제목·칩 세 개·사운드 제목·"Sound: On" 버튼이 **전체 화면 판 한가운데**
+## 250px 로 떠 있었다(center_body). 위아래가 텅 비어 설정 화면이 아니라 미완성 화면처럼
+## 읽혔고, 제목 "Sound" 아래 버튼이 또 "Sound: On" 이라 같은 말을 두 번 했다.
+## 개발용 기록 복사 버튼은 구분선 하나로 설정 사이에 끼어 있었다.
+##
+## 지금: 행 하나가 [제목 ─ 조작] 한 카드다(다른 팝업의 행 문법과 같다). 위에서부터 차곡차곡
+## 쌓이고, 기록 복사는 닫기 버튼 바로 위 — 설정이 아니라 도구라는 자리다.
+const _OPT_TITLE_W := 150.0
+## 칩 폭 104 인 이유: 플레이트 여백(36)을 빼고 "English"(16px 에서 58px)가 들어가야 한다.
+## 예전 92px 은 폭 검사 케이스가 없어서 조용히 넘치고 있었다 — 이번에 케이스를 넣으며 드러났다.
+const _OPT_CHIP := Vector2(104, 42)
+const _OPT_TOGGLE := Vector2(112, 42)
+
 func _build_options_panel() -> void:
 	var p := _UIPopup.make(self, "menu_options", UITheme.SEC_NEUTRAL, UITheme.TEXT,
-		_on_close_options, {"separation": 16, "center_body": true})
+		_on_close_options, {"separation": 12})
 	_options_dim = p["dim"]
 	_options_panel = p["panel"]
 	_options_title = p["title"]
 	_close_btn = p["close"]
 	var vb: VBoxContainer = p["body"]
 
-	# 언어 설정
-	_lang_title = Label.new()
-	_lang_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_lang_title.add_theme_font_size_override("font_size", 18)
-	_lang_title.add_theme_color_override("font_color", UITheme.TEXT_DIM)
-	vb.add_child(_lang_title)
-
-	var lang_row := HBoxContainer.new()
-	lang_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	lang_row.add_theme_constant_override("separation", 8)
-	vb.add_child(lang_row)
+	# ── 언어: 칩 셋 ──
+	var lang := _make_option_row(vb)
+	_lang_title = lang["title"]
+	var chips: HBoxContainer = lang["slot"]
+	chips.add_theme_constant_override("separation", 6)
 	_lang_buttons.clear()
-	for lang in Locale.SUPPORTED:
+	for l in Locale.SUPPORTED:
 		var lb := Button.new()
-		lb.text = Locale.native_name(lang)
-		lb.custom_minimum_size = Vector2(92, 46)
-		lb.add_theme_font_size_override("font_size", 17)
-		lb.pressed.connect(_on_language_pressed.bind(lang))
-		lang_row.add_child(lb)
-		_lang_buttons.append({"btn": lb, "lang": lang})
+		lb.text = Locale.native_name(l)
+		lb.custom_minimum_size = _OPT_CHIP
+		lb.add_theme_font_size_override("font_size", 16)
+		lb.pressed.connect(_on_language_pressed.bind(l))
+		chips.add_child(lb)
+		_lang_buttons.append({"btn": lb, "lang": l})
 
-	# 사운드 On/Off
-	_sound_title = Label.new()
-	_sound_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_sound_title.add_theme_font_size_override("font_size", 18)
-	_sound_title.add_theme_color_override("font_color", UITheme.TEXT_DIM)
-	vb.add_child(_sound_title)
+	# ── 사운드(효과음)·음악: 각각 On/Off 토글 ──
+	# 예전에는 스위치가 하나라 음악을 끄면 효과음도 같이 꺼졌다. 둘로 나눈다.
+	var snd := _make_option_row(vb)
+	_sound_title = snd["title"]
+	_sound_btn = _make_toggle(snd["slot"], _on_sound_pressed)
 
-	var snd_row := HBoxContainer.new()
-	snd_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	vb.add_child(snd_row)
-	_sound_btn = Button.new()
-	_sound_btn.custom_minimum_size = Vector2(180, 50)
-	_sound_btn.add_theme_font_size_override("font_size", 19)
-	_sound_btn.pressed.connect(_on_sound_pressed)
-	snd_row.add_child(_sound_btn)
+	var mus := _make_option_row(vb)
+	_music_title = mus["title"]
+	_music_btn = _make_toggle(mus["slot"], _on_music_pressed)
 
-	vb.add_child(HSeparator.new())
-
-	# 플레이 기록 내보내기 — 출시 전 밸런스 검증용. 릴리스 빌드에서도 보인다(치트와 무관).
-	# 웹은 user:// 가 IndexedDB 라 파일로 뺄 방법이 없어 클립보드가 유일한 경로다.
-	# 기록은 이 기기에만 있고 전송되지 않는다 — 힌트 문구로 그 사실을 명시한다.
+	# ── 기록 복사: 설정이 아니라 도구다 — 닫기 바로 위, 작게 ──
+	# 출시 전 밸런스 검증용. 릴리스 빌드에서도 보인다(치트와 무관). 웹은 user:// 가 IndexedDB 라
+	# 파일로 뺄 방법이 없어 클립보드가 유일한 경로다. 기록은 이 기기에만 있고 전송되지 않는다.
+	var tool_box := VBoxContainer.new()
+	tool_box.add_theme_constant_override("separation", 6)
 	_log_btn = Button.new()
-	_log_btn.custom_minimum_size = Vector2(0, 50)
-	_log_btn.add_theme_font_size_override("font_size", 18)
-	_UIStyle.apply_button_style(_log_btn, Color(0.16, 0.18, 0.26), Color(0.5, 0.6, 0.8))
+	_log_btn.custom_minimum_size = Vector2(0, 44)
+	_log_btn.add_theme_font_size_override("font_size", 16)
+	_UIStyle.apply_button_style(_log_btn, Color(0.16, 0.18, 0.26), Color(0.42, 0.50, 0.66))
 	_log_btn.pressed.connect(_on_copy_log_pressed)
-	vb.add_child(_log_btn)
-
+	tool_box.add_child(_log_btn)
 	_log_hint = Label.new()
 	_log_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_log_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_log_hint.add_theme_font_size_override("font_size", 13)
 	_log_hint.add_theme_color_override("font_color", UITheme.TEXT_DIM)
-	vb.add_child(_log_hint)
+	tool_box.add_child(_log_hint)
+	_UIPopup.add_above_close(p, tool_box)
+
+
+## 설정 행 카드 — [제목 ────── 조작]. 반환: { "title": Label, "slot": HBoxContainer }.
+## 판은 버튼 플레이트를 그대로 쓴다(다른 팝업의 행과 같은 재질). 카드 자체는 눌리지 않고
+## 오른쪽 조작만 반응한다.
+func _make_option_row(vb: VBoxContainer) -> Dictionary:
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", _UIStyle.button_box(UITheme.SEC_NEUTRAL))
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vb.add_child(card)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	card.add_child(row)
+
+	var title := Label.new()
+	title.custom_minimum_size = Vector2(_OPT_TITLE_W, 0)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 19)
+	title.add_theme_color_override("font_color", UITheme.TEXT)
+	row.add_child(title)
+
+	var slot := HBoxContainer.new()
+	slot.alignment = BoxContainer.ALIGNMENT_END
+	slot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(slot)
+	return {"title": title, "slot": slot}
+
+
+## On/Off 토글 버튼. 문구는 _refresh_*_button 이 상태에 맞춰 넣는다.
+func _make_toggle(slot: HBoxContainer, on_pressed: Callable) -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = _OPT_TOGGLE
+	b.add_theme_font_size_override("font_size", 17)
+	b.pressed.connect(on_pressed)
+	slot.add_child(b)
+	return b
 
 
 func _on_options_pressed() -> void:
@@ -1479,6 +1522,8 @@ func _apply_language() -> void:
 	_refresh_rewards_badge()   # 보상 버튼 라벨도 로케일에서 가져온다
 	_lang_title.text = Locale.t("menu_language")
 	_sound_title.text = Locale.t("menu_sound")
+	_music_title.text = Locale.t("menu_music")
+	_refresh_music_button()
 	_options_btn.text = Locale.t("menu_options")
 	_options_title.text = Locale.t("menu_options")
 	_log_hint.text = Locale.t("opt_log_hint")
@@ -1501,12 +1546,28 @@ func _on_sound_pressed() -> void:
 
 
 func _refresh_sound_button() -> void:
-	var on := SoundManager.is_enabled()
-	_sound_btn.text = "%s: %s" % [Locale.t("menu_sound"), Locale.t("sound_on") if on else Locale.t("sound_off")]
+	_style_toggle(_sound_btn, SoundManager.is_enabled())
+
+
+func _on_music_pressed() -> void:
+	SoundManager.set_music_enabled(not SoundManager.is_music_enabled())
+	_refresh_music_button()
+
+
+func _refresh_music_button() -> void:
+	_style_toggle(_music_btn, SoundManager.is_music_enabled())
+
+
+## 토글의 문구·색. 제목 칸이 "사운드"/"음악"을 이미 말하므로 버튼은 On/Off 만 말한다 —
+## 예전 "Sound: On" 은 제목과 같은 말을 두 번 했다.
+func _style_toggle(btn: Button, on: bool) -> void:
+	if btn == null:
+		return
+	btn.text = Locale.t("sound_on") if on else Locale.t("sound_off")
 	if on:
-		_UIStyle.apply_button_style(_sound_btn, Color(0.14, 0.34, 0.20), Color(0.4, 0.85, 0.45))
+		_UIStyle.apply_button_style(btn, Color(0.14, 0.34, 0.20), Color(0.4, 0.85, 0.45))
 	else:
-		_UIStyle.apply_button_style(_sound_btn, Color(0.30, 0.14, 0.14), Color(0.85, 0.4, 0.4))
+		_UIStyle.apply_button_style(btn, Color(0.30, 0.14, 0.14), Color(0.85, 0.4, 0.4))
 
 
 func _on_language_pressed(lang: String) -> void:

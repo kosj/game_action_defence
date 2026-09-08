@@ -77,6 +77,13 @@ def boss_names() -> list:
     return [("data", v) for v in sorted(set(re.findall(r'"name":\s*"([^"]+)"', raw)))]
 
 
+def Locale_native(lang: str) -> str:
+    """Locale.NATIVE_NAMES — 언어 칩에 그대로 찍히는 원어 이름."""
+    src = open("scripts/Locale.gd", encoding="utf-8").read()
+    m = re.search(r'"%s":\s*"([^"]+)"' % lang, src.split("NATIVE_NAMES")[1].split("}")[0])
+    return m.group(1) if m else lang
+
+
 def meta_strings(prop: str) -> list:
     """영구 강화 문구는 data/meta/<id>.tres 에 하나씩 흩어져 있다."""
     out = []
@@ -171,6 +178,14 @@ def main() -> None:
                       "menu_ranking", "menu_powerup", "menu_options",
                       "menu_codex") for t in loc(k)]),
         ("메뉴 · 버전 라벨", 320, 14, False, lit("v1.0.0 · 8f52771 · 2026-08-13 09:45 UTC")),
+        # 옵션 행 카드(MainMenu._make_option_row). 제목 칸은 카드 폭 616 - 플레이트 여백 36
+        # - 조작(언어 칩 3x104 + 간격 12 = 324) - 간격 12 = 244. 토글 행은 더 넓다.
+        ("옵션 · 행 제목", 244, 19, False,
+         loc("menu_language") + loc("menu_sound") + loc("menu_music")),
+        ("옵션 · 언어 칩", 104 - BTN_PAD, 16, True,
+         [(l, Locale_native(l)) for l in ("en", "ko", "ja")]),
+        ("옵션 · 토글", 112 - BTN_PAD, 17, True, loc("sound_on") + loc("sound_off")),
+        ("옵션 · 기록 복사", 580 - BTN_PAD, 16, True, loc("opt_copy_log", 999) + loc("opt_copy_log_done")),
         # 계정 상태 줄(MainMenu._build_status_strip). 칩 셋이 가로 한 줄에 서므로 칩 하나는
         # (720 - 간격 26x2 - 아이콘 28x3) / 3 ≈ 190 을 넘지 않아야 셋이 한 줄에 든다.
         ("메뉴 · 상태 줄", 190, 18, False,
