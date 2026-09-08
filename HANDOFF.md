@@ -100,6 +100,7 @@
 | P2-15 사운드 검수 잔여 — gold 길이·보상 징글 3종 혼동·스테레오 3개 등 | J | ⚪ 대기 | — | P2-12 이후 |
 | P2-12 누락 효과음 — 무음 무기 3종·보스 큰 순간·연출 2곳 | J | ✅ (74e87f1) | claude/j-lane-missing-sfx | 2026-09-08 |
 | P2-16 지속형 무기 루프 사운드 지원(화염방사기) — SoundManager 루프 API | J | ⚪ 대기 | — | P2-12 이후 |
+| P2-23 게임오버 스팅어가 메인 메뉴까지 새어 나온다 — 길이 + 씬 전환 정지 | J | 🔵 진행중 | claude/j-lane-sfx-scene-stop | 2026-09-08 |
 | P2-10 사운드 전체 검수 — 고아 정리(`swing`) + 연출 대비 누락 보완 | J | 🔵 진행중 | claude/ultimate-ability-sound-improvement-gx2j1x | 2026-09-07 |
 | 5-R 실기기 병목 판정 도구(HALF RES·PERF HUD avg/max·자동 플레이테스트) — `OPTIMIZATION_PLAN.md` §5-R | I | ✅ (ecf7af7 · a3f5c08) | claude/project-optimization-review-bgoocs | 2026-09-05 |
 | P2-13 UI 연출 Phase 1-① 공용 모션 상수 + 팝업 열기/닫기 연출 — `UI_POLISH_PLAN.md` §3 | D | ✅ (6e691a2) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
