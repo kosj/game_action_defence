@@ -1212,8 +1212,10 @@ func _on_rewarded_granted(placement: String) -> void:
 	if player == null or not player.has_method("revive"):
 		return
 	_revive_used = true
-	# 부활 시 사라진 게임오버 패널을 닫고 정지를 해제해 그대로 진행 재개.
-	game_over_panel.visible = false
+	# 부활 시 게임오버 패널을 닫고 정지를 해제해 그대로 진행 재개.
+	# 패널은 페이드로 물러난다 — 툭 사라지면 광고를 본 보상이 화면에서 사라지기만 한다.
+	# 블러는 즉시 걷는다(뒤 화면이 흐린 채로 조작이 돌아오면 안 된다).
+	UIMotion.fade_out_hide(game_over_panel)
 	_set_blur(false)
 	Events.pause_pop(game_over_panel)
 	if _pause_btn:
@@ -1305,6 +1307,15 @@ func _build_gameover_stats() -> void:
 	vbox.move_child(gap, holder.get_index() + 1)
 
 
+## 사망 순간을 **잠깐 늘였다가** 패널을 띄운다. 예전에는 죽은 프레임에서 곧바로 패널이
+## 튀어나와, 무엇에 맞아 죽었는지 볼 틈이 없었다.
+##
+## 시간 배율은 Events.hit_stop 으로만 만진다 — 직접 Engine.time_scale 을 건드리면 어딘가에서
+## 복구를 빠뜨렸을 때 "화면은 멀쩡한데 게임만 느린" 상태로 남는다(CLAUDE.md §4 워치독).
+## 대기 타이머도 ignore_time_scale 이라 배율이 낮아도 정확히 그 시간 뒤에 깨어난다.
+const _DEATH_SLOWMO_SEC := 0.35
+const _DEATH_SLOWMO_SCALE := 0.25
+
 func _on_player_died() -> void:
 	if SoundManager.has_stream("defeat"):
 		SoundManager.play_ui("defeat", 0.02, 1.0)   # 게임오버 스팅어(파일 있을 때만)
@@ -1315,6 +1326,10 @@ func _on_player_died() -> void:
 		_loadout_box.visible = false   # 좌하단 로드아웃이 게임오버 버튼을 가리지 않게
 	# 부활 버튼은 아직 안 썼고 광고가 준비됐을 때만 노출.
 	_revive_btn.visible = not _revive_used and AdManager.is_rewarded_ready()
+	Events.hit_stop(_DEATH_SLOWMO_SEC, _DEATH_SLOWMO_SCALE)
+	await get_tree().create_timer(_DEATH_SLOWMO_SEC, true, false, true).timeout
+	if not is_inside_tree():
+		return   # 그 사이 씬이 바뀌었으면(메뉴 복귀 등) 패널을 띄우지 않는다
 	_show_end_panel(false)
 
 
@@ -1331,10 +1346,51 @@ func _on_game_won() -> void:
 	_show_end_panel(true)
 
 
+## 승리 패널의 프레임 색조. 1.0 을 넘는 성분은 밝히는 쪽으로 곱해져 강철 프레임이
+## 금빛으로 읽힌다(패널 자신에만 적용 — self_modulate).
+const _VICTORY_TINT := Color(1.20, 1.03, 0.70)
+const _END_COUNT_SEC := 0.6      # 통계 숫자가 0 에서 올라오는 시간
+const _END_BTN_STAGGER := 0.07   # 버튼이 차례로 나타나는 간격
+
+
+## 카운트업이 매 스텝 부르는 두 함수. 인라인 여러 줄 람다 대신 이름을 붙인 이유는,
+## 람다 본문 뒤에 다른 인자가 이어지는 형태가 어디까지 본문인지 가려내기 어렵기 때문이다.
+func _set_kill_count(v: float) -> void:
+	_go_vals["kills"].text = "%d" % int(round(v))
+
+
+func _set_time_count(v: float) -> void:
+	var t := int(round(v))
+	_go_vals["time"].text = "%02d:%02d" % [t / 60, t % 60]
+
+
+## 게임오버 통계 — 처치 수와 생존 시간을 0 에서 굴려 올린다. 그냥 대입하면 "이미 정해진 값"
+## 이지만, 올라가는 동안은 그 판의 결과를 읽게 된다(골드 롤링 카운터와 같은 이유).
+## 트리가 정지된 뒤에 돈다 — HUD 가 PROCESS_MODE_ALWAYS 라 여기서 만든 트윈도 계속 흐른다.
+func _play_end_stats(kills: int, seconds: int) -> void:
+	var tw := create_tween()
+	tw.set_parallel(true)
+	tw.tween_method(_set_kill_count, 0.0, float(kills), _END_COUNT_SEC).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_method(_set_time_count, 0.0, float(seconds), _END_COUNT_SEC).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+
+
+## 버튼은 통계가 다 올라간 뒤 차례로 나타난다 — 숫자를 읽기도 전에 손이 먼저 가지 않게.
+func _stagger_end_buttons() -> void:
+	var btns: Array = []
+	for b in [_revive_btn, restart_button, main_menu_button]:
+		if b != null and b.visible:
+			btns.append(b)
+	var i := 0
+	for b in btns:
+		b.modulate.a = 0.0
+		var tw := create_tween()
+		tw.tween_interval(_END_COUNT_SEC * 0.5 + _END_BTN_STAGGER * float(i))
+		tw.tween_property(b, "modulate:a", 1.0, UIMotion.DUR_FADE)
+		i += 1
+
+
 func _show_end_panel(victory: bool) -> void:
 	boss_bar.visible = false
-	var m := int(Events.elapsed_time) / 60
-	var s := int(Events.elapsed_time) % 60
 
 	# 점수 등급별 메달 색 (승리는 무조건 금)
 	var medal := Color(0.80, 0.52, 0.32)   # bronze
@@ -1342,11 +1398,22 @@ func _show_end_panel(victory: bool) -> void:
 	elif Events.score >= 800: medal = Color(0.78, 0.80, 0.88)            # silver
 	_go_medal.color = medal
 	_go_medal.queue_redraw()
+	# 메달은 패널보다 한 박자 늦게 튀어나온다 — 패널·메달·숫자가 한꺼번에 나오면
+	# 어디를 봐야 할지 알 수 없다.
+	# (패널이 숨어 있던 동안 배치가 안 됐을 수 있어, size 가 0 이면 최소 크기로 중심을 잡는다)
+	var medal_sz := _go_medal.size if _go_medal.size.x > 0.0 else _go_medal.custom_minimum_size
+	_go_medal.pivot_offset = medal_sz * 0.5
+	_go_medal.scale = Vector2(0.4, 0.4)
+	var mtw := create_tween()
+	mtw.tween_interval(0.18)
+	mtw.tween_property(_go_medal, "scale", Vector2.ONE, 0.34).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 	_go_record.visible = false   # 신기록 배너(스코어 기반) 미표시
 
-	_go_vals["kills"].text = "%d" % Events.total_kills
-	_go_vals["time"].text = "%02d:%02d" % [m, s]
+	# 승리와 패배가 같은 붉은 프레임을 쓰고 제목 색만 달랐다. 프레임은 나인패치 아트라
+	# StyleBox 로 색을 못 바꾸지만(UIStyle.panel 은 색 인자를 무시한다), self_modulate 는
+	# **패널 자신의 그리기에만** 곱해지고 자식(글자·버튼)에는 번지지 않는다.
+	game_over_panel.self_modulate = _VICTORY_TINT if victory else Color.WHITE
 
 	_set_blur(true)
 	game_over_panel.visible = true
@@ -1356,6 +1423,8 @@ func _show_end_panel(victory: bool) -> void:
 	tw.set_parallel(true)
 	tw.tween_property(game_over_panel, "modulate:a", 1.0, 0.3)
 	tw.tween_property(game_over_panel, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_play_end_stats(Events.total_kills, int(Events.elapsed_time))
+	_stagger_end_buttons()
 
 	# 게임 전체 정지 — 좀비·총알·플레이어 이동까지 모두 멈춘다(HUD/광고는 PROCESS_MODE_ALWAYS 라 계속 동작).
 	Events.pause_push(game_over_panel, "gameover")

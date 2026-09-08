@@ -110,7 +110,7 @@ MainMenu 가 붙어 있는 구조다.
 | 1-1 ✅ | **팝업 열림/닫힘 연출** — `UIPopup.open(p)` / `close(p)`: dim 0→0.6 (0.15s), 패널 scale 0.96→1 + alpha (0.18s, BACK/OUT); 닫힘은 역재생 0.12s. 열림/닫힘음. 새 게임 흐름은 "다음 팝업이 오른쪽에서 슬라이드 인"으로 단계감을 준다. | A-1 A-2 D-1 C-4 | `UIPopup.gd` `MainMenu.gd`(호출부 9곳) `CodexPanel.gd` `ThreatPanel.gd` |
 | 1-2 ✅ | **하드코딩 문자열 → Locale 키**, ASCII 장식 → `UIIcon`(별=도전과제, 깃발=과제, 번개=진화, 체크=선택). ⚠️ ja 키는 `font_known_absent.txt` 를 먼저 보고 한자 대신 가나로. | B-1 B-2 | `Locale.gd` `HUD.gd` `LevelUpPanel.gd` `ChestRewardPanel.gd` `MainMenu.gd` |
 | 1-3 ✅ | **HUD 숫자 살리기** — XP 바 `anchor_right` 트윈(0.2s) + 레벨업 순간 바 플래시 후 0 으로; 처치 수 10 단위 펄스; 타이머 막판 1분 초당 1회 맥동 + 마지막 10초 붉은 점멸. | A-4 A-5 | `HUD.gd` |
-| 1-4 | **게임오버/승리 분리** — 승리: 금색 프레임 + `victory` 징글 + 메달 팝(BACK) + 숫자 카운트업(0.6s) + 버튼 stagger. 패배: `defeat` 와 함께 `Engine.time_scale` 0.3 → 0.4s 뒤 패널(워치독 안전: `hit_stop` 과 같은 `ignore_time_scale` 타이머). 부활은 패널 페이드아웃 + 플레이어 흰색 플래시. | A-7 A-8 B-6 | `HUD.gd` `HUD.tscn` |
+| 1-4 ✅ | **게임오버/승리 분리** — 승리: 금색 프레임 + `victory` 징글 + 메달 팝(BACK) + 숫자 카운트업(0.6s) + 버튼 stagger. 패배: `defeat` 와 함께 `Engine.time_scale` 0.3 → 0.4s 뒤 패널(워치독 안전: `hit_stop` 과 같은 `ignore_time_scale` 타이머). 부활은 패널 페이드아웃 + 플레이어 흰색 플래시. | A-7 A-8 B-6 | `HUD.gd` `HUD.tscn` |
 | 1-5 | **레벨업 카드 확정** — 누른 카드 1.06 배 확대 + 금빛 플래시 0.22s, 나머지 페이드; 그 뒤 `_refresh`/닫기. 등장 stagger 에 세로 24px 슬라이드 추가. 진화 카드는 금색 테두리 맥동 + 뒤 광휘. 줌펀치(`Player._camera_zoom_punch(0.94, 0.3)`)를 `level_up` 에 연결. | A-6 | `LevelUpPanel.gd` `Player.gd` |
 | 1-6 ✅ | **일시정지 페이드** — dim 0.15s, 패널 팝 0.18s, 닫힘 0.12s(1-1 과 같은 `UIMotion`). | A-3 | `HUD.gd` |
 | 1-7 ✅ | **토스트 큐** — `HUDToast.gd` 분리: 동시에 최대 2줄, 세 번째부터는 대기열; 같은 종류는 병합(MAX BUILD 는 이미 병합함). | A-10 D-3 | `HUDToast.gd`(신규) `HUD.gd` |
@@ -154,6 +154,19 @@ MainMenu 가 붙어 있는 구조다.
 > 이 과정에서 **토스트 문구가 한 번도 폭 검사를 받지 않았다는 것**이 드러났다(옮기고 나니
 > `check_text_fit` 의 커버리지 게이트가 미검증 파일로 잡았다). 네 케이스를 추가했다 — 가장
 > 빠듯한 것은 일본어 과제 알림으로 여유 27%.
+
+> **④ 완료** — 게임오버/승리 분리 · 통계 카운트업 · 부활 복귀.
+>
+> 프레임은 나인패치 아트라 `StyleBox` 로 색을 못 바꾼다(`UIStyle.panel` 은 색 인자를 무시한다).
+> `self_modulate` 를 쓰면 **패널 자신의 그리기에만** 곱해지고 자식(글자·버튼)에는 번지지 않아,
+> 승리에서만 프레임이 금빛으로 읽힌다.
+>
+> 사망은 `Events.hit_stop(0.35, 0.25)` 으로 잠깐 늘였다가 패널을 띄운다. 시간 배율을 직접
+> 만지지 않는 이유는 복구를 빠뜨렸을 때 "화면은 멀쩡한데 게임만 느린" 상태가 남기 때문이다
+> (`CLAUDE.md` §4 워치독). 대기 타이머도 `ignore_time_scale` 이라 배율과 무관하게 깨어난다.
+>
+> 통계는 0 에서 굴려 올리고(0.6초), 메달은 0.18초 늦게 튀어나오며, 버튼은 통계가 반쯤 오른 뒤
+> 차례로 나타난다 — 숫자를 읽기도 전에 손이 먼저 가지 않게. 부활은 패널이 페이드로 물러난다.
 
 ### Phase 2 — 문법 통일 🟡
 
