@@ -62,7 +62,10 @@ const _VOLUMES: Dictionary = {
 	"fanfare":     -9.0,
 	"level_up":    -8.0,
 	"boss_alarm":   0.0,
-	"defeat":      -5.0,
+	# 파일이 규격(-16dB)보다 5.6dB 높게 커밋돼 있어 볼륨을 -5.0 으로 눌러 쓰고 있었다.
+	# P2-23 에서 길이를 줄이며 규격에 맞췄고, 그만큼 여기서 되돌려 **플레이어가 듣는 크기는
+	# 그대로**다(실효 -20.2dB, 세트 최대 — 런이 끝나는 순간이라 의도된 값이다).
+	"defeat":       0.8,
 	"victory":     -7.0,
 	"ui_click":     -3.0,   # 버튼 피드백 — 들리되 전투음을 덮지 않는 선
 	"ult_quake":   -3.0,
@@ -124,6 +127,7 @@ const _COMBO_WINDOW := 380   # ms — 이 안에 연속되면 콤보로 보고 �
 var _players: Dictionary = {}
 var _last_play: Dictionary = {}   # sound -> 마지막 재생 시각(ms)
 var _combo: Dictionary = {}       # sound -> 콤보 단계
+var _stop_tweens: Dictionary = {} # sound -> 진행 중인 정지 페이드 트윈
 var muted: bool = false   # 옵션에서 끄면 효과음·배경음악 모두 음소거
 
 # ── 배경음악 상태 ──
@@ -310,8 +314,59 @@ func play(sound: String, pitch_vary: float = 0.1, base_pitch: float = 1.0, ui: b
 			base_pitch *= 1.0 + mini(_combo[sound], 6) * 0.025
 		_last_play[sound] = now
 
+	# 정지 페이드가 걸려 있던 플레이어를 다시 쓰는 경우를 여기서 정리한다.
+	# 이 두 줄이 없으면 stop_sfx() 직후(페이드 0.3초 안)에 난 소리가 **줄어든 볼륨으로
+	# 재생되다가 그 페이드의 콜백에 의해 끊긴다.** 볼륨을 항상 설정값으로 되돌려 두면
+	# "재생 시점의 volume_db 는 언제나 옳다"가 무조건 성립해 이 종류의 상태 누출이 사라진다.
+	_cancel_stop_fade(sound)
+	p.volume_db = _VOLUMES.get(sound, 0.0)
+
 	p.pitch_scale = max(0.05, base_pitch * (1.0 + randf_range(-pitch_vary, pitch_vary)))
 	p.play()
+
+
+## 씬을 떠날 때 효과음을 **페이드해서** 끈다 — 배경음악은 건드리지 않는다.
+##
+## 왜 필요한가
+## -----------
+## 효과음 플레이어는 오토로드(SoundManager)의 자식이고 `process_mode = ALWAYS` 다.
+## 즉 **씬이 바뀌어도 재생이 그대로 이어진다.** 게임오버 스팅어가 2.6초짜리 지속음이었고
+## 패널은 0.35초 만에 뜨므로, 플레이어가 곧바로 메뉴로 나가면 그 소리가 최대 음량인 채로
+## 메인 메뉴까지 따라 들어왔다(P2-23 — 사용자 보고).
+##
+## ⚠️ **그냥 stop() 하면 안 된다.** 이 스팅어는 감쇠하지 않고 최대 음량을 유지하다가
+## 끝에서만 떨어진다. 진행 중간에 끊으면 파형이 0 이 아닌 지점에서 잘려 딸깍임이 난다.
+## 그래서 화면 페이드와 **같은 시간에 걸쳐** 소리도 함께 빼면, 그림과 소리가 같이 사라진다.
+##
+## ⚠️ 볼륨을 낮췄다가 되돌리는 구조라, 되돌리기를 빠뜨리면 **그 소리가 영영 작아진 채로
+## 남는다.** 복구는 두 겹으로 둔다 — 이 트윈의 마지막 콜백, 그리고 위 play() 의 재설정.
+func stop_sfx(fade: float = 0.15) -> void:
+	for key in _players:
+		var p: AudioStreamPlayer = _players[key]
+		if p == null or not p.playing:
+			continue
+		var base: float = _VOLUMES.get(key, 0.0)
+		_cancel_stop_fade(key)
+		if fade <= 0.0:
+			p.stop()
+			p.volume_db = base
+			continue
+		var tw := create_tween()
+		_stop_tweens[key] = tw
+		tw.tween_property(p, "volume_db", base - 40.0, fade)
+		tw.tween_callback(func() -> void:
+			p.stop()
+			p.volume_db = base
+			_stop_tweens.erase(key))
+
+
+## 진행 중인 정지 페이드를 취소한다. 볼륨 복구는 호출부가 맡는다(중간에 죽이면
+## 낮아진 값이 남으므로, 부르는 쪽이 반드시 base 로 되돌리거나 새 페이드를 건다).
+func _cancel_stop_fade(key: String) -> void:
+	var tw: Tween = _stop_tweens.get(key)
+	if tw != null and tw.is_valid():
+		tw.kill()
+	_stop_tweens.erase(key)
 
 
 # ───────────────────────── 배경음악 ─────────────────────────

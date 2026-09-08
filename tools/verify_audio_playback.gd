@@ -95,6 +95,65 @@ func _init() -> void:
 			% [lat, MIN_WEB_LATENCY_MS])
 		print("       project.godot 의 [audio] driver/output_latency.web 를 확인할 것.")
 
+	# ── 씬 전환 정지(P2-23) — 되돌리기가 빠지면 그 소리가 영영 작아진다 ──
+	#
+	# stop_sfx() 는 볼륨을 낮췄다가 정지하고 다시 되돌린다. 되돌리기를 빠뜨리면
+	# **화면상 아무 증상 없이 그 효과음만 영구히 작아진 채로 남는다** — 사람이 알아채기
+	# 어렵고, 알아채도 원인을 찾기 어려운 종류의 결함이라 여기서 잠근다.
+	#
+	# ⚠️ 트윈이 실제로 볼륨을 내리기까지는 프레임이 지나야 한다. 만든 직후에 검사하면
+	# 아직 원래 값이라 **무엇을 고장 내도 통과하는 검사**가 된다 — 그래서 아래 두 검사는
+	# 트윈 진행에 기대지 않고, 낮아진 상태를 직접 만들거나 실제 시간을 기다린다.
+	var probe := "defeat"
+	var pp: AudioStreamPlayer = sm._players.get(probe)
+	var vols: Dictionary = sm.get_script().get_script_constant_map()["_VOLUMES"]
+	if pp == null or pp.stream == null:
+		print("  --   정지 검사 건너뜀 (%s 스트림 없음)" % probe)
+	else:
+		var want: float = vols.get(probe, 0.0)
+
+		# 1) 즉시 정지 경로 — 멈추고, 볼륨을 되돌린다.
+		sm.play_ui(probe, 0.0, 1.0)
+		sm.stop_sfx(0.0)
+		if pp.playing:
+			_fail += 1
+			print("  FAIL stop_sfx(0.0) 뒤에도 %s 가 재생 중이다" % probe)
+		elif absf(pp.volume_db - want) > 0.01:
+			_fail += 1
+			print("  FAIL stop_sfx 가 %s 볼륨을 되돌리지 않았다 (%.2f, 기대 %.2f)"
+				% [probe, pp.volume_db, want])
+			print("       이 상태로 배포되면 그 효과음만 조용히 작아진 채 남는다.")
+		else:
+			print("  ok   stop_sfx 가 정지 후 볼륨을 설정값으로 되돌린다")
+
+		# 2) 낮아진 상태에서 재생 — play() 가 볼륨을 되찾아야 한다.
+		#    페이드 도중을 흉내 내려고 값을 직접 낮춘다(트윈 타이밍에 의존하지 않는다).
+		pp.volume_db = want - 30.0
+		sm.play_ui(probe, 0.0, 1.0)
+		if absf(pp.volume_db - want) > 0.01:
+			_fail += 1
+			print("  FAIL 볼륨이 낮아진 플레이어로 재생했는데 설정값으로 복구되지 않았다 (%.2f, 기대 %.2f)"
+				% [pp.volume_db, want])
+		else:
+			print("  ok   낮아진 플레이어로 재생하면 볼륨이 설정값으로 복구된다")
+
+		# 3) 정지 페이드가 걸린 뒤 다시 재생하면, **그 페이드가 새 소리를 끊으면 안 된다.**
+		#    페이드 시간이 다 지나도록 실제로 기다려 콜백이 살아 있는지 본다.
+		sm.play_ui(probe, 0.0, 1.0)
+		sm.stop_sfx(0.20)
+		sm.play_ui(probe, 0.0, 1.0)          # 페이드를 취소하고 다시 울린 소리
+		await get_tree().create_timer(0.35, true, false, true).timeout
+		if not pp.playing:
+			_fail += 1
+			print("  FAIL 취소했어야 할 정지 페이드가 새로 재생한 %s 를 끊었다" % probe)
+		elif absf(pp.volume_db - want) > 0.01:
+			_fail += 1
+			print("  FAIL 정지 페이드 취소 뒤 %s 볼륨이 설정값이 아니다 (%.2f, 기대 %.2f)"
+				% [probe, pp.volume_db, want])
+		else:
+			print("  ok   재생이 진행 중이던 정지 페이드를 취소한다")
+		sm.stop_sfx(0.0)
+
 	if _fail == 0:
 		print("\n오디오 재생 방식 OK")
 		quit(0)

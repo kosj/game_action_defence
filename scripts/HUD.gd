@@ -1419,6 +1419,10 @@ func _on_restart_pressed() -> void:
 	MetaManager.bank(Events.total_gold)   # 이번 판 골드를 영구 은행에 적립
 	Events.reset()
 	Pool.clear()
+	# 다시하기는 SceneFade 를 거치지 않고 씬을 곧바로 갈아 끼운다 — 그래서 여기서만
+	# 직접 꺼야 게임오버 스팅어가 새 판까지 이어지지 않는다(P2-23).
+	# 화면 페이드가 없으므로 딸깍임을 막을 만큼만 짧게 준다.
+	SoundManager.stop_sfx(0.12)
 	get_tree().reload_current_scene()
 
 
