@@ -156,6 +156,18 @@ static func set_button_content_margin_left(btn: Button, px: int) -> void:
 			sb.set_content_margin(SIDE_LEFT, px)
 
 
+## 버튼 우측 콘텐츠 여백(우측에 뱃지/가격 같은 위젯을 놓을 자리 확보).
+## set_button_content_margin_left 와 같은 이유로 오버라이드된 StyleBox 만 건드린다 —
+## 전역 테마 인스턴스는 모든 버튼이 공유하므로 그대로 변형하면 관계없는 버튼까지 밀린다.
+static func set_button_content_margin_right(btn: Button, px: int) -> void:
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		if not btn.has_theme_stylebox_override(state):
+			continue
+		var sb := btn.get_theme_stylebox(state)
+		if sb:
+			sb.set_content_margin(SIDE_RIGHT, px)
+
+
 ## 좌측 세로 색상 띠 — 텍스처 스타일박스에는 테두리 색이 없으므로 카테고리 구분을 자식으로 그린다.
 static func add_left_stripe(ctrl: Control, color: Color, width: int = 7) -> void:
 	var stripe := ColorRect.new()

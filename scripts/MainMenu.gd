@@ -39,7 +39,7 @@ var _rank_dim: ColorRect
 var _rank_panel: PanelContainer
 var _rank_title: Label
 var _rank_note: Label
-var _rank_rows: Array = []       # [{ "name": Label, "score": Label, "mode": String }]
+var _rank_list: VBoxContainer = null       # 난이도별 최고점 카드가 담기는 세로 목록
 var _rank_online_btn: Button
 var _rank_close_btn: Button
 
@@ -406,7 +406,7 @@ func _build_power_panel() -> void:
 			tr.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			btn.add_child(tr)
 			_UIStyle.set_button_content_margin_left(btn, 86)
-		_power_rows.append({"btn": btn, "u": u})
+		_power_rows.append(_add_power_side(btn, u))
 
 
 ## 위협 등급 선택 열기. 첫 호출에서만 패널을 만든다.
@@ -532,7 +532,19 @@ func _build_character_panel() -> void:
 		lock.offset_bottom = 22.0
 		lock.visible = false
 		btn.add_child(lock)
-		_char_rows.append({"btn": btn, "c": c, "thumb": thumb, "lock": lock})
+
+		# 선택 표시 — 예전에는 이름 앞에 `"> "` 를 붙였다. 잠금 표시를 아이콘으로 바꾼 것과
+		# 같은 이유로(P2-4) 여기도 아이콘으로 한다: 글자는 언어·폰트에 매이고 화살표는
+		# "다음"으로도 읽힌다. 자물쇠와 같은 방식으로 한 번 만들고 visible 만 토글한다.
+		var pick := UIIcon.make("check", 30, Color(0.55, 1.0, 0.6))
+		pick.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		pick.offset_left = -46.0
+		pick.offset_right = -16.0
+		pick.offset_top = 12.0
+		pick.offset_bottom = 42.0
+		pick.visible = false
+		btn.add_child(pick)
+		_char_rows.append({"btn": btn, "c": c, "thumb": thumb, "lock": lock, "pick": pick})
 
 
 
@@ -545,8 +557,10 @@ func _refresh_character() -> void:
 		var c: CharacterData = row["c"]
 		var btn: Button = row["btn"]
 		var thumb: TextureRect = row.get("thumb")
+		if row.get("pick"):
+			row["pick"].visible = CharacterManager.is_unlocked(c) and c.id == sel
 		if CharacterManager.is_unlocked(c):
-			btn.text = "%s%s\n%s\n%s" % ["> " if c.id == sel else "", c.display, c.desc, _char_stat_line(c)]
+			btn.text = "%s\n%s\n%s" % [c.display, c.desc, _char_stat_line(c)]
 			if c.id == sel:
 				_UIStyle.apply_button_style(btn, Color(c.color.r * 0.30, c.color.g * 0.30, c.color.b * 0.30, 1.0), c.color)
 			else:
@@ -935,6 +949,11 @@ func _build_theme_panel() -> void:
 		lock.visible = false
 		name_row.add_child(lock)
 
+		# 선택 표시 — 캐릭터 카드와 같은 이유로 `"> "` 대신 체크 아이콘을 쓴다.
+		var pick := UIIcon.make("check", 22, Color(0.55, 1.0, 0.6))
+		pick.visible = false
+		name_row.add_child(pick)
+
 		# 이름/설명은 autowrap 을 끄고 넘치면 잘라낸다(위 주석의 최소 크기 폭주 방지).
 		var name_lbl := Label.new()
 		name_lbl.add_theme_font_size_override("font_size", 22)
@@ -965,7 +984,7 @@ func _build_theme_panel() -> void:
 			thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			col.add_child(thumb)
 		_theme_rows.append({"btn": btn, "t": t, "thumb": thumb,
-			"name": name_lbl, "desc": desc_lbl, "lock": lock})
+			"name": name_lbl, "desc": desc_lbl, "lock": lock, "pick": pick})
 
 
 
@@ -982,9 +1001,11 @@ func _refresh_theme() -> void:
 		var lock: Control = row.get("lock")
 		if lock:
 			lock.visible = not ThemeManager.is_unlocked(t)
+		if row.get("pick"):
+			row["pick"].visible = ThemeManager.is_unlocked(t) and t.id == sel
 		if ThemeManager.is_unlocked(t):
 			var picked: bool = t.id == sel
-			name_lbl.text = ("> %s" % t.display) if picked else String(t.display)
+			name_lbl.text = String(t.display)
 			name_lbl.add_theme_color_override("font_color",
 				UITheme.SEC_ARENA_TXT if picked else UITheme.TEXT)
 			desc_lbl.text = t.desc
@@ -1065,17 +1086,105 @@ func _refresh_power() -> void:
 		var lv := MetaManager.level(id)
 		var mx := int(u["max"])
 		var btn: Button = row["btn"]
+		# 이름·설명만 글자로 남는다 — 레벨과 가격은 우측 열의 위젯이 말한다.
+		btn.text = "%s\n%s" % [u["name"], u["desc"]]
+		for i in row["pips"].size():
+			row["pips"][i].add_theme_stylebox_override("panel", _power_pip_box(i < lv))
 		if lv >= mx:
-			btn.text = Locale.t("power_max_fmt") % [u["name"], u["desc"]]
+			row["price_box"].visible = false
+			row["maxed"].visible = true
 			btn.disabled = true
 		else:
 			var c := MetaManager.cost(id)
-			btn.text = Locale.t("power_buy_fmt") % [u["name"], lv, mx, u["desc"], c]
+			row["price_box"].visible = true
+			row["maxed"].visible = false
+			row["price"].text = "%d" % c
 			btn.disabled = MetaManager.meta_gold < c
+		# apply_button_style 이 다시 깔릴 수 있으므로 좌우 여백을 여기서 다시 잡지 않는다 —
+		# 이 행들은 스타일을 한 번만 적용한다(_build_power_panel).
 
 
 ## 랭킹 오버레이 — 모드(난이도)별 최고 점수. 온라인 백엔드(안드로이드 PGS)면 네이티브 리더보드
 ## 버튼도 노출한다. 로컬 빌드(웹/PC)에서는 이 기기의 모드별 최고점만 보여준다.
+## 강화 행의 우측 열 — 레벨 핍과 가격표. 예전에는 둘 다 버튼 글자 안에 있었다
+## ("이름 (2/5)\n설명   -300 G"). 숫자를 글로 읽어야 해서 남은 레벨도 가격도 눈에 안 들어왔다.
+##
+## 핍을 쓰는 이유: 최대 레벨이 3~10 으로 제각각이라 "3/10"과 "3/3"이 글자로는 같은 무게인데,
+## 핍은 남은 칸이 그대로 보인다. 최대 10개까지라 폭을 그에 맞춰 잡았다.
+const _POWER_PIP := 7          # 핍 지름
+const _POWER_PIP_GAP := 3
+const _POWER_MAX_PIPS := 10    # data/meta 의 max_level 최댓값
+const _POWER_RIGHT_W := _POWER_MAX_PIPS * (_POWER_PIP + _POWER_PIP_GAP)   # 100
+const _POWER_RIGHT_PAD := 14
+
+func _add_power_side(btn: Button, u: Dictionary) -> Dictionary:
+	# 글자가 이 열을 파고들지 않도록 버튼의 우측 콘텐츠 여백을 그만큼 확보한다.
+	_UIStyle.set_button_content_margin_right(btn, _POWER_RIGHT_W + _POWER_RIGHT_PAD * 2)
+
+	var col := VBoxContainer.new()
+	col.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
+	col.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	col.offset_left = -(_POWER_RIGHT_W + _POWER_RIGHT_PAD)
+	col.offset_right = -_POWER_RIGHT_PAD
+	col.alignment = BoxContainer.ALIGNMENT_CENTER
+	col.add_theme_constant_override("separation", 7)
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(col)
+
+	# 가격 — 보상함·퀘스트 카드와 같은 문법(코인 아이콘 + 숫자).
+	var price_box := HBoxContainer.new()
+	price_box.alignment = BoxContainer.ALIGNMENT_END
+	price_box.add_theme_constant_override("separation", 4)
+	price_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(price_box)
+	price_box.add_child(UIIcon.make("coin", 16, Color(1.0, 0.82, 0.30)))
+	var price := Label.new()
+	price.add_theme_font_size_override("font_size", 16)
+	price.add_theme_color_override("font_color", Color(1.0, 0.86, 0.42))
+	price_box.add_child(price)
+
+	# 만렙 표시 — 가격 자리를 대신 차지한다(둘이 동시에 보일 일은 없다).
+	var maxed := Label.new()
+	maxed.text = Locale.t("power_max_tag")
+	maxed.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	maxed.add_theme_font_size_override("font_size", 16)
+	maxed.add_theme_color_override("font_color", Color(0.62, 0.66, 0.74))
+	maxed.visible = false
+	col.add_child(maxed)
+
+	# 레벨 핍 — 한 번만 만들고 갱신 때는 색만 바꾼다.
+	var pips_box := HBoxContainer.new()
+	pips_box.alignment = BoxContainer.ALIGNMENT_END
+	pips_box.add_theme_constant_override("separation", _POWER_PIP_GAP)
+	pips_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	col.add_child(pips_box)
+	var pips: Array = []
+	for _i in int(u["max"]):
+		var dot := Panel.new()
+		dot.custom_minimum_size = Vector2(_POWER_PIP, _POWER_PIP)
+		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pips_box.add_child(dot)
+		pips.append(dot)
+
+	return {"btn": btn, "u": u, "price": price, "price_box": price_box,
+		"maxed": maxed, "pips": pips}
+
+
+## 핍 하나의 색 — 채운 칸은 강화색, 빈 칸은 어두운 함몰부.
+func _power_pip_box(filled: bool) -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.set_corner_radius_all(int(_POWER_PIP / 2.0))
+	sb.corner_detail = 4
+	sb.anti_aliasing = true
+	if filled:
+		sb.bg_color = Color(0.78, 0.58, 1.00)
+	else:
+		sb.bg_color = Color(0.10, 0.10, 0.14, 0.9)
+		sb.set_border_width_all(1)
+		sb.border_color = Color(0.40, 0.35, 0.50, 0.55)
+	return sb
+
+
 func _build_ranking_panel() -> void:
 	var p := _UIPopup.make(self, "rank_title", UITheme.SEC_NEUTRAL, UITheme.SEC_REWARD,
 		_on_close_ranking, {"separation": 14, "center_body": true})
@@ -1093,28 +1202,12 @@ func _build_ranking_panel() -> void:
 
 	vb.add_child(HSeparator.new())
 
-	# 모드(난이도)별 최고점 행 — 난이도 강조색으로 모드명을 칠한다.
-	var accents := [Color(0.40, 0.85, 0.45), Color(0.40, 0.60, 0.95), Color(0.95, 0.40, 0.35)]
-	_rank_rows.clear()
-	for i in RankingManager.MODES.size():
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 12)
-		vb.add_child(row)
-
-		var name_lbl := Label.new()
-		name_lbl.add_theme_font_size_override("font_size", 22)
-		name_lbl.add_theme_color_override("font_color", accents[i])
-		name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(name_lbl)
-
-		var score_lbl := Label.new()
-		score_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-		score_lbl.add_theme_font_size_override("font_size", 22)
-		score_lbl.add_theme_color_override("font_color", Color(0.95, 0.96, 0.99))
-		score_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		row.add_child(score_lbl)
-
-		_rank_rows.append({"name": name_lbl, "score": score_lbl, "mode": RankingManager.MODES[i], "key": _DIFF_KEYS[i]})
+	# 모드(난이도)별 최고점 — 다른 팝업(퀘스트·도전과제·보상함)과 같은 카드 문법으로 만든다.
+	# 예전에는 이 팝업만 Label 두 개짜리 맨 줄이라, 같은 메뉴 안에서 혼자 구식으로 보였다.
+	# 행은 _refresh_ranking_rows 가 매번 새로 만든다(도전과제 목록과 같은 방식).
+	_rank_list = VBoxContainer.new()
+	_rank_list.add_theme_constant_override("separation", 8)
+	vb.add_child(_rank_list)
 
 	vb.add_child(HSeparator.new())
 
@@ -1144,11 +1237,27 @@ func _on_view_online_pressed() -> void:
 
 
 ## 각 모드의 최고점을 다시 읽어 행에 반영하고, 온라인 버튼 노출 여부를 갱신.
+## 난이도별 강조색 — 쉬움=초록, 보통=파랑, 어려움=빨강.
+const _RANK_ACCENTS: Array = [Color(0.40, 0.85, 0.45), Color(0.40, 0.60, 0.95), Color(0.95, 0.40, 0.35)]
+
 func _refresh_ranking_rows() -> void:
+	if _rank_list == null:
+		return
+	for c in _rank_list.get_children():
+		_rank_list.remove_child(c)
+		c.queue_free()
 	var bests := RankingManager.all_bests()
-	for r in _rank_rows:
-		r["name"].text = Locale.t(r["key"])
-		r["score"].text = "%d" % int(bests.get(r["mode"], 0))
+	for i in RankingManager.MODES.size():
+		var best := int(bests.get(RankingManager.MODES[i], 0))
+		_rank_list.add_child(UIListRow.make({
+			"icon": "star",
+			"icon_color": _RANK_ACCENTS[i],
+			"title": Locale.t(_DIFF_KEYS[i]),
+			"title_color": _RANK_ACCENTS[i],
+			"value": "%d" % best,
+			# 한 번도 안 해본 난이도는 가라앉혀 "여기 기록이 없다"가 보이게 한다.
+			"state": UIListRow.STATE_ACTIVE if best > 0 else UIListRow.STATE_DONE,
+		}))
 	_rank_online_btn.visible = RankingManager.is_online() and RankingManager.is_signed_in()
 
 

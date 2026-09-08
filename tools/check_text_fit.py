@@ -13,6 +13,7 @@ custom_minimum_size 로 폭이 고정된 위젯만 본다.
 
 사용:  python3 tools/check_text_fit.py
 """
+import glob
 import re
 import sys
 
@@ -59,6 +60,14 @@ def res_strings(path: str, prop: str) -> list:
         return []
     vals = sorted(set(re.findall(rf'{prop}\s*=\s*"((?:[^"\\]|\\.)*)"', raw)))
     return [("data", v) for v in vals]
+
+
+def meta_strings(prop: str) -> list:
+    """영구 강화 문구는 data/meta/<id>.tres 에 하나씩 흩어져 있다."""
+    out = []
+    for path in sorted(glob.glob("data/meta/*.tres")):
+        out += res_strings(path, prop)
+    return out
 
 
 def main() -> None:
@@ -245,10 +254,15 @@ def main() -> None:
          res_strings("data/character_db.tres", "display")
          + res_strings("data/character_db.tres", "desc"), "word"),
 
-        # ── 영구 강화 카드 — 좌측 여백 86 ──
-        ("영구 강화 카드", 612 - 86 - 18, 19, True,
-         res_strings("data/meta_upgrades.tres", "display")
-         + res_strings("data/meta_upgrades.tres", "desc"), "word"),
+        # ── 영구 강화 카드 — 좌측 아이콘 여백 86, 우측 레벨 핍/가격 열 128 ──
+        # (MainMenu._POWER_RIGHT_W 100 + 좌우 패딩 14*2)
+        #
+        # ⚠️ 문구는 data/meta_upgrades.tres 가 아니라 **data/meta/*.tres** 에 있다.
+        # 그 파일은 ExtResource 목록일 뿐이라, 예전에는 이 케이스가 후보 0개로 아무것도
+        # 재지 않았다(리포트에 줄이 안 뜨는데 커버리지 게이트는 이름만 보고 통과시켰다).
+        # 속성 이름도 display 가 아니라 name 이다(MetaUpgradeData).
+        ("영구 강화 카드", 612 - 86 - 128, 19, True,
+         meta_strings("name") + meta_strings("desc"), "word"),
     ]
 
     # 줄바꿈(autowrap)이 켜진 위젯은 전체 문자열이 아니라 "쪼갤 수 없는 가장 긴 단어"가
@@ -354,7 +368,6 @@ EXEMPT = {
 
 def coverage_gaps() -> list:
     """텍스트 위젯이 있는 파일 중 케이스도 면제도 없는 곳을 돌려준다."""
-    import glob
     counts = {}
     for path in glob.glob("scripts/*.gd") + glob.glob("scenes/*.tscn"):
         name = path.replace("\\", "/").split("/")[-1]
