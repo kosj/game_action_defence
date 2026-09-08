@@ -196,6 +196,23 @@ def main() -> None:
         ("광고 · 버튼", 420 - 36 - 48 - BTN_PAD, 22, True,
          loc("ad_watch_fmt", 5) + loc("ad_finished") + loc("ad_claim")),
 
+        # ── 상단 토스트(HUDToast) — 화면 전 너비를 쓰고 **잘라내지 않는다**.
+        # 넘치면 글자가 화면 밖으로 나간다(clip_text 도 autowrap 도 켜지 않는다 —
+        # 두 줄이 되면 아래 줄과 겹치고, 잘라내면 무슨 알림인지 못 읽는다).
+        # 과제 제목은 QuestManager 가 "<이름> <로마숫자>" 로 만든다(최장 VIII 기준).
+        ("HUD 토스트 · 달성", 720, 22, False,
+         [(lang, fmt % n) for lang, fmt in L.get("toast_achievement_fmt", {}).items()
+          for _, n in res_strings("data/achievements.tres", "display")]),
+        ("HUD 토스트 · 과제", 720, 22, False,
+         [(lang, fmt % (t, 9999)) for lang, fmt in L.get("toast_quest_fmt", {}).items()
+          for t in ("Zombie Hunter VIII", "Boss Breaker VIII", "Survivor VIII")]),
+        ("HUD 토스트 · 만렙 보상", 720, 22, False,
+         [(lang, fmt % (head, 99999))
+          for lang, fmt in L.get("toast_gold_gain_fmt", {}).items()
+          for head in [h for _, h in loc("toast_maxbuild") + loc("toast_maxbuild_fmt", 99)]]),
+        ("HUD 토스트 · 날씨", 720, 22, False,
+         [t for k in ("weather_clear", "weather_rain", "weather_snow") for t in loc(k)]),
+
         # ── 보상 카드(보물 상자) — 카드 폭이 고정이라 이름이 카드를 넘칠 수 있다.
         # 카드 128(4장) / 140(3장) / 152(2장 이하), 콘텐츠 여백 10*2.
         # 줄바꿈이 켜져 있으므로 "가장 긴 단어"가 기준이다.
@@ -317,6 +334,7 @@ def _is_cjk(ch: str) -> bool:
 COVERED_BY = {
     "MainMenu.gd": ("메뉴", "팝업 행", "아레나", "캐릭터", "영구 강화"),
     "HUD.gd": ("HUD", "게임오버"),
+    "HUDToast.gd": ("HUD 토스트",),
     "IntroStory.gd": ("인트로",),
     "ChestRewardPanel.gd": ("보상 카드",),
     "LevelUpPanel.gd": ("레벨업",),

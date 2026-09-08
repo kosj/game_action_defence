@@ -63,6 +63,21 @@ var _magnet_tween: Tween = null
 var _revive_btn: Button = null
 var _revive_used: bool = false
 
+# 상단 토스트 레인(달성·과제·날씨·만렙 보상) — 줄 세우기는 HUDToast 가 맡는다.
+var _toasts: HUDToast = null
+
+# 경험치 바는 값이 아주 자주 바뀐다(젬 하나마다). 트윈을 매번 만들면 그만큼 할당이
+# 생기므로, 목표값만 저장하고 _process 에서 부드럽게 따라가게 한다 — 할당이 없다.
+# 다 따라잡으면 set_process(false) 로 스스로 멈춘다.
+var _xp_target: float = 0.0
+var _xp_shown: float = 0.0
+var _xp_flash: float = 0.0     # 레벨업 순간 바를 가득 채워 두는 잔여 시간
+const _XP_FILL_SPEED := 2.6    # 초당 채워지는 비율(빈 바 -> 가득 0.38초)
+const _XP_FLASH_SEC := 0.12
+
+# 마지막 1분 카운트다운 맥동 — 초가 바뀔 때만 튀게 하려고 직전 표시값을 들고 있는다.
+var _prev_remain: int = -1
+
 # 게임오버 패널 뒤 배경 블러 + 터치 차단막. 패널이 뜰 때만 활성화한다.
 var _blur_bbc: BackBufferCopy = null
 var _blur_rect: ColorRect = null
@@ -155,12 +170,14 @@ func _ready() -> void:
 	_build_loadout()
 	_build_goal_hint()
 	_build_gameover_stats()
+	_toasts = HUDToast.make(self)
 	_build_blur_overlay()
 	_build_pause_menu()
 	_apply_safe_area()
 	UITheme.heading(banner_label)
 	UITheme.heading($GameOverPanel/Margin/VBoxContainer/GameOverLabel)
 	call_deferred("_init_pivots")
+	set_process(false)   # 경험치 바가 따라잡을 것이 있을 때만 켠다
 
 	Events.gold_changed.connect(_on_gold_changed)
 	Events.player_health_changed.connect(_on_player_health_changed)
@@ -205,6 +222,12 @@ func _init_pivots() -> void:
 	gold_label.pivot_offset = gold_label.size * 0.5
 	score_label.pivot_offset = score_label.size * 0.5
 	weapon_label.pivot_offset = weapon_label.size * 0.5
+	# 새로 펄스하는 라벨 둘은 **오른쪽 끝**을 피벗으로 잡는다. 둘 다 우측 정렬이고
+	# 바로 오른쪽에 아이콘(해골·시계)이 붙어 있는데, 그 아이콘은 라벨의 자식이 아니라
+	# 형제다(_right_stat_icon 이 HUD 에 직접 붙인다). 중앙 피벗으로 키우면 숫자만
+	# 오른쪽으로 자라 아이콘을 파고든다 — 사이 간격이 6px 뿐이다.
+	kills_label.pivot_offset = Vector2(kills_label.size.x, kills_label.size.y * 0.5)
+	time_label.pivot_offset = Vector2(time_label.size.x, time_label.size.y * 0.5)
 	banner_bg.pivot_offset = banner_bg.size * 0.5
 	banner_label.pivot_offset = banner_label.size * 0.5
 	game_over_panel.pivot_offset = game_over_panel.size * 0.5
@@ -233,9 +256,17 @@ func _set_gold_shown(v: float) -> void:
 
 
 func _pulse_gold() -> void:
-	gold_label.scale = Vector2(1.35, 1.35)
+	_pulse(gold_label, 1.35)
+
+
+## 라벨을 잠깐 키웠다 되돌린다 — 골드·점수·처치 수·타이머가 함께 쓴다.
+## (지속 시간이 0.16 / 0.18 로 갈려 있던 것을 UIMotion 상수 하나로 모은다)
+func _pulse(node: Control, amount: float) -> void:
+	if node == null:
+		return
+	node.scale = Vector2(amount, amount)
 	var tw := create_tween()
-	tw.tween_property(gold_label, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(node, "scale", Vector2.ONE, UIMotion.DUR_POP).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _on_score_changed(total: int) -> void:
@@ -246,9 +277,7 @@ func _on_score_changed(total: int) -> void:
 
 
 func _pulse_score() -> void:
-	score_label.scale = Vector2(1.25, 1.25)
-	var tw := create_tween()
-	tw.tween_property(score_label, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_pulse(score_label, 1.25)
 
 
 func _on_high_score_changed(high: int) -> void:
@@ -386,19 +415,19 @@ func _on_weather_changed(key: String) -> void:
 	# 같은 파일이지만 방향이 반대인 사건이라 피치로만 갈라도 충분히 구분된다.
 	SoundManager.play("weather", 0.05, 1.12 if key == "" else 0.94)
 	var col := Color(0.72, 0.86, 1.0) if key != "" else Color(0.85, 0.88, 0.92)
-	_show_toast(Locale.t("weather_clear" if key == "" else "weather_" + key), col, 215.0)
+	_show_toast(Locale.t("weather_clear" if key == "" else "weather_" + key), col, 215.0, "weather")
 
 
 ## 도전과제 달성 토스트 — 화면 상단 중앙에 잠깐 떴다 사라진다(코드로 즉석 생성).
 func _on_achievement_unlocked(title: String) -> void:
 	SoundManager.play_ui("gold", 0.0, 1.4)   # 달성 보상 하이톤 차임
-	_show_toast(Locale.t("toast_achievement_fmt") % title, Color(1.0, 0.85, 0.35), 150.0)
+	_show_toast(Locale.t("toast_achievement_fmt") % title, Color(1.0, 0.85, 0.35), 150.0, "achievement")
 
 
 ## 끝없는 과제 완료 — 보상은 자동 지급되지 않고 메뉴의 REWARDS 보관함에서 직접 수령한다.
 func _on_quest_completed(title: String, reward: int) -> void:
 	SoundManager.play_ui("gold", 0.0, 1.5)
-	_show_toast(Locale.t("toast_quest_fmt") % [title, reward], Color(0.6, 1.0, 0.6), 190.0)
+	_show_toast(Locale.t("toast_quest_fmt") % [title, reward], Color(0.6, 1.0, 0.6), 190.0, "quest")
 
 
 # 만렙 레벨업 골드 보상 알림 — 후반에는 레벨업이 초당 몇 번씩 들어와 토스트가 겹친다.
@@ -426,29 +455,17 @@ func _on_maxed_level_gold(_level: int, gold: int) -> void:
 	_maxed_gold_pending = false
 	SoundManager.play_ui("gold", 0.0, 1.35)
 	var head: String = Locale.t("toast_maxbuild") if count == 1 else Locale.t("toast_maxbuild_fmt") % count
-	_show_toast(Locale.t("toast_gold_gain_fmt") % [head, total], Color(1.0, 0.85, 0.35), 190.0)
+	_show_toast(Locale.t("toast_gold_gain_fmt") % [head, total], Color(1.0, 0.85, 0.35), 190.0, "maxbuild")
 
 
-## 화면 상단 중앙에 잠깐 떠오르는 토스트 알림(달성/과제 공용).
-func _show_toast(text: String, col: Color, from_y: float) -> void:
-	var toast := Label.new()
-	toast.text = text
-	toast.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	toast.offset_top = from_y
-	toast.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	toast.add_theme_font_size_override("font_size", 22)
-	toast.add_theme_color_override("font_color", col)
-	toast.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
-	toast.add_theme_constant_override("outline_size", 4)
-	toast.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	toast.modulate.a = 0.0
-	add_child(toast)
-	var tw := create_tween()
-	tw.tween_property(toast, "modulate:a", 1.0, 0.25)
-	tw.parallel().tween_property(toast, "offset_top", from_y - 30.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_interval(2.0)
-	tw.tween_property(toast, "modulate:a", 0.0, 0.5)
-	tw.tween_callback(toast.queue_free)
+## 화면 상단 중앙에 잠깐 떠오르는 토스트 알림(달성·과제·날씨·만렙 보상 공용).
+## 줄 세우기와 겹침 처리는 HUDToast 레인이 한다 — 예전에는 여기서 Label 을 그때그때
+## 만들었고, 서로를 모르니 같은 순간에 둘이 뜨면 그대로 겹쳤다(UI_POLISH_PLAN §A-10).
+## kind 는 같은 종류가 떠 있을 때 새 줄 대신 글자만 갈아끼우게 한다(날씨가 그 경우다).
+func _show_toast(text: String, col: Color, from_y: float, kind: String = "") -> void:
+	if _toasts == null:
+		return
+	_toasts.push(text, col, from_y, kind)
 
 
 func _on_player_health_changed(health: int, max_health: int) -> void:
@@ -687,8 +704,14 @@ func _on_gold_magnet_changed(active: bool, time_left: float) -> void:
 
 
 ## 엔들리스 — 상단 우측에 누적 처치 수를 표시한다(웨이브 개념은 없다).
+## 10 단위에서만 펄스한다. 매 처치마다 튀면 후반(초당 수십 킬)에는 라벨이 계속 떨고,
+## 그러면 오히려 아무 신호도 아니게 된다 — 자릿수가 바뀌는 순간만 눈에 들어오면 된다.
+const _KILL_PULSE_EVERY := 10
+
 func _on_kills_changed(kills: int) -> void:
 	kills_label.text = Locale.t("hud_kills_fmt") % kills
+	if kills > 0 and kills % _KILL_PULSE_EVERY == 0:
+		_pulse(kills_label, 1.18)
 
 
 ## 메인 타이머 — 클리어(30분)까지의 "남은 시간" 카운트다운 하나만 보여준다(경과·진행률 라벨 통합).
@@ -703,8 +726,13 @@ func _on_run_progress(elapsed: float, clear: float) -> void:
 	else:
 		var remain := int(ceil(clear - elapsed))
 		time_label.text = "%02d:%02d" % [remain / 60, remain % 60]
+		# 막판 1분은 초가 바뀔 때마다 한 번 튄다 — 색만 붉히면 "언제부터"가 안 읽힌다.
+		# 이 신호는 초당 1회 오므로(ZombieSpawner) 여기서 세는 것으로 충분하다.
 		if remain <= 60:
 			time_label.add_theme_color_override("font_color", Color(1.0, 0.45, 0.4))
+			if remain != _prev_remain:
+				_pulse(time_label, 1.20 if remain <= 10 else 1.10)
+		_prev_remain = remain
 
 
 ## 30분 생존 클리어 — 웨이브 클리어 배너를 재사용해 크게 알린다(승리 아님, 이후 무한 하드모드).
@@ -850,13 +878,42 @@ func _build_xp_bar() -> void:
 		add_child(_level_label)
 
 
+## 경험치 바 채우기만 담당한다. 트윈을 쓰지 않는 이유는 XP 가 젬 하나마다 바뀌어
+## (후반에는 초당 수십 번) 그때마다 Tween 을 만들면 그 할당이 그대로 비용이 되기 때문이다.
+## 따라잡을 것이 없으면 스스로 꺼진다.
+func _process(delta: float) -> void:
+	if _xp_fill == null:
+		set_process(false)
+		return
+	if _xp_flash > 0.0:
+		_xp_flash -= delta
+		if _xp_flash <= 0.0:
+			_xp_shown = 0.0   # 가득 찬 바를 비우고 새 레벨의 몫부터 다시 차오른다
+			_xp_fill.anchor_right = 0.0
+		return
+	if is_equal_approx(_xp_shown, _xp_target):
+		set_process(false)
+		return
+	_xp_shown = move_toward(_xp_shown, _xp_target, _XP_FILL_SPEED * delta)
+	_xp_fill.anchor_right = _xp_shown
+
+
+## 경험치 바는 값이 아니라 **차오르는 것**으로 읽혀야 한다. 예전에는 anchor_right 를 그대로
+## 대입해 젬을 먹을 때마다 툭툭 뛰었다(골드는 롤링, 체력은 트윈인데 XP 만 즉시였다).
+## 레벨업 순간에는 한 번 가득 채웠다가 비우고 다시 차오른다 — 그냥 두면 바가 뒤로 흐른다.
 func _on_xp_changed(xp: int, xp_to_next: int, level: int) -> void:
+	var leveled := _prev_level >= 0 and level > _prev_level
+	_xp_target = clampf(float(xp) / float(maxi(xp_to_next, 1)), 0.0, 1.0)
 	if _xp_fill:
-		_xp_fill.anchor_right = clampf(float(xp) / float(maxi(xp_to_next, 1)), 0.0, 1.0)
+		if leveled:
+			_xp_flash = _XP_FLASH_SEC
+			_xp_shown = 1.0
+			_xp_fill.anchor_right = 1.0
+		set_process(true)
 	if _level_label:
 		_level_label.text = str(level) if _level_badge else "Lv %d" % level
 		# 레벨업 순간 뱃지 펄스(초기 -1 → 첫 설정은 제외).
-		if _prev_level >= 0 and level > _prev_level:
+		if leveled:
 			var target: Control = _level_badge if _level_badge else _level_label
 			target.pivot_offset = target.size * 0.5
 			target.scale = Vector2(1.3, 1.3)
@@ -1500,6 +1557,9 @@ func _fit_pause_scroll() -> void:
 	# 패널 여백(마진 26x2 + 프레임 콘텐츠 18x2)과 화면 위아래 숨통을 뺀 값이 실제 여유.
 	var room := get_viewport().get_visible_rect().size.y - 88.0 - 80.0
 	_pause_scroll.custom_minimum_size.y = minf(want, maxf(room, 200.0))
+	# 높이가 방금 바뀌었으므로 스케일 팝의 중심도 다시 잡는다 — 열기 트윈이 먼저 잡은
+	# 피벗은 이 계산 이전의 크기 기준이라, 그대로 두면 팝이 살짝 위로 치우친다.
+	_pause_panel.pivot_offset = _pause_panel.size * 0.5
 
 
 ## 성능 디버그 오버레이(좌상단). 기본은 숨김이며 CHEATS > PERF HUD 로 켠다.
@@ -1645,8 +1705,10 @@ func _on_pause_pressed() -> void:
 		var m := int(Events.elapsed_time) / 60
 		var s := int(Events.elapsed_time) % 60
 		_pause_time.text = Locale.t("pause_time_fmt") % ("%02d:%02d" % [m, s])
-	_pause_dim.visible = true
-	_pause_panel.visible = true
+	# 팝업과 같은 문법으로 연다(UIPopup.open 이 하는 것과 같은 모션 — 여기는 셸을 쓰지
+	# 않는 코드로 만든 패널이라 UIMotion 을 직접 부른다).
+	UIMotion.fade_in(_pause_dim)
+	UIMotion.pop_in(_pause_panel)
 	Events.pause_push(_pause_panel, "pausemenu")
 	call_deferred("_fit_pause_scroll")   # 열 때마다 현재 화면 크기에 맞춰 재계산
 	if _pause_btn:
@@ -1654,8 +1716,8 @@ func _on_pause_pressed() -> void:
 
 
 func _on_resume_pressed() -> void:
-	_pause_dim.visible = false
-	_pause_panel.visible = false
+	UIMotion.fade_out_hide(_pause_dim)
+	UIMotion.fade_out_hide(_pause_panel)
 	if _pause_btn:
 		_pause_btn.visible = true
 	Events.pause_pop(_pause_panel)
