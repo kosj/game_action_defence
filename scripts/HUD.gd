@@ -1335,6 +1335,10 @@ func _on_player_died() -> void:
 
 ## REAPER 처치 → 승리. 게임오버 패널을 승리용으로 재사용(부활 없음).
 func _on_game_won() -> void:
+	# 승리 징글. 지금까지 이 소리는 30분 클리어(_on_run_cleared)에서만 울렸고, 정작 REAPER 를
+	# 잡아 판을 끝낸 순간은 무음이었다 — 패배에는 defeat 스팅어가 있는데 승리에만 소리가 없었다.
+	if SoundManager.has_stream("victory"):
+		SoundManager.play_ui("victory", 0.02, 1.0)
 	SaveManager.delete_save()   # 런 종료 — 체크포인트 무효화
 	if _pause_btn:
 		_pause_btn.visible = false
