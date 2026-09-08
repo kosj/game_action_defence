@@ -4,6 +4,7 @@ extends CanvasLayer
 const FOG_TEX := preload("res://assets/ui/fog_vision.png")   # 주변 시야 제한 오버레이(방사형 암전)
 const _UIStyle := preload("res://scripts/UIStyle.gd")
 const _Timeline := preload("res://scripts/TimelineBar.gd")
+const _HUDAlert := preload("res://scripts/HUDAlert.gd")
 ## 카운트다운 임계값. 보스는 대비할 시간이 필요해 길게, 엘리트는 "곧 온다"만 알리면 되어 짧게.
 const BOSS_WARN_SEC := 60.0
 const ELITE_WARN_SEC := 20.0
@@ -84,15 +85,14 @@ var _go_medal: UIIcon = null
 var _go_record: Label = null
 var _go_vals: Dictionary = {}   # "score"/"best"/"kills"/"time" -> Label
 
-# 스웜 경고 배너 — 코드로 생성. 무리/엘리트 팩 등장 직전 화면 중앙 상단에 붉게 번쩍.
-var _swarm_banner: Label = null
+## 상단 경고 띠. 무리·정예·보스 예고·보스 등장이 **하나를** 같이 쓴다(HUDAlert 주석).
+var _alert: HUDAlert = null
 ## 런 타임라인 바(P1-4) — 상단 바 아래 가장자리. 다음 엘리트/보스/클리어 눈금을 얹는다.
 var _timeline: Control = null
 ## 카운트다운 배너를 한 마일스톤당 한 번만 띄우기 위한 잠금. 예정 시각이 바뀌면(다음 회차로
 ## 넘어가거나 치트로 밀리면) 풀린다 — 같은 배너가 매초 다시 뜨면 화면이 깜박인다.
 var _boss_warned_at: float = -1.0
 var _elite_warned_at: float = -1.0
-var _swarm_tween: Tween = null
 
 # 인게임 레벨 표시 — 코드로 생성. 화면 최상단 경험치 바 + 상단바 중앙의 레벨 뱃지(알약형).
 var _xp_bg: ColorRect = null
@@ -161,7 +161,7 @@ func _ready() -> void:
 	_build_hud_icons()
 	_build_xp_bar()
 	_build_threat_badge()
-	_build_swarm_banner()
+	_build_alerts()
 	_build_timeline()
 	_build_perf_overlay()
 	_build_loadout()
@@ -274,28 +274,14 @@ func _on_boss_spawned(max_health: int) -> void:
 	_announce_boss(Events.boss_display_name)
 
 
-## 보스 등장 배너 — 화면 중앙에 이름이 크게 슬라이드 인 했다가 사라진다(등장 연출).
+## 보스 등장 띠 — 이름이 상단에 크게 떴다가 사라진다.
+## 예전에는 등장마다 Label 을 새로 만들어 붙이고 트윈 끝에 free 했다. 지금은 미리 만들어 둔
+## 띠를 다시 쓴다 — 한 판에 여러 번 나오는 연출이라, 매번 노드를 만드는 것이 아깝다.
 func _announce_boss(boss_name: String) -> void:
-	var banner := Label.new()
-	banner.text = Locale.t("hud_boss_banner_fmt") % boss_name
-	banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	banner.offset_top = 210.0
-	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	banner.add_theme_font_size_override("font_size", 40)
-	banner.add_theme_color_override("font_color", Color(1.0, 0.35, 0.30))
-	banner.add_theme_color_override("font_outline_color", Color(0.1, 0, 0, 0.95))
-	banner.add_theme_constant_override("outline_size", 6)
-	banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	banner.modulate.a = 0.0
-	banner.scale = Vector2(0.7, 0.7)
-	banner.pivot_offset = Vector2(180, 24)
-	add_child(banner)
-	var tw := create_tween()
-	tw.tween_property(banner, "modulate:a", 1.0, 0.2)
-	tw.parallel().tween_property(banner, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_interval(1.4)
-	tw.tween_property(banner, "modulate:a", 0.0, 0.5)
-	tw.tween_callback(banner.queue_free)
+	if _alert == null:
+		return
+	_alert.flash(Locale.t("hud_boss_banner_fmt") % boss_name,
+		_HUDAlert.LV_BOSS, _ALERT_FONT_BOSS)
 
 
 func _on_boss_health_changed(health: int, max_health: int) -> void:
@@ -333,56 +319,45 @@ func _on_forecast(next_boss: float, next_elite: float) -> void:
 		var to_boss := next_boss - now
 		if to_boss > 0.0 and to_boss <= BOSS_WARN_SEC and _boss_warned_at != next_boss:
 			_boss_warned_at = next_boss
-			_show_banner(Locale.t("hud_boss_in_fmt") % int(ceil(to_boss)), Color(1.0, 0.35, 0.3))
+			_show_banner(Locale.t("hud_boss_in_fmt") % int(ceil(to_boss)), _HUDAlert.LV_BOSS)
 	if next_elite > 0.0:
 		var to_elite := next_elite - now
 		if to_elite > 0.0 and to_elite <= ELITE_WARN_SEC and _elite_warned_at != next_elite:
 			_elite_warned_at = next_elite
 			# 보스 예고가 떠 있는 동안에는 덮어쓰지 않는다 — 더 큰 위협이 먼저다.
 			if _boss_warned_at != next_boss or next_boss <= 0.0:
-				_show_banner(Locale.t("hud_elite_in_fmt") % int(ceil(to_elite)), Color(1.0, 0.6, 0.3))
+				_show_banner(Locale.t("hud_elite_in_fmt") % int(ceil(to_elite)), _HUDAlert.LV_ELITE)
 
 
-func _build_swarm_banner() -> void:
-	_swarm_banner = Label.new()
-	_swarm_banner.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_swarm_banner.offset_top = 260.0   # 무기/버프 라벨(y160~224)·보스 바(y112~152)와 겹치지 않게 아래로
-	_swarm_banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_swarm_banner.add_theme_font_size_override("font_size", 30)
-	_swarm_banner.add_theme_color_override("font_color", Color(1.0, 0.85, 0.25))
-	_swarm_banner.add_theme_color_override("font_outline_color", Color(0.4, 0.05, 0.05))
-	_swarm_banner.add_theme_constant_override("outline_size", 6)
-	_swarm_banner.modulate.a = 0.0
-	_swarm_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_swarm_banner)
+## 경고 띠. y232 인 이유: 위로는 버프 라벨(y196~224)을 덮지 않아야 한다 — 띠는 글자와 달리
+## 불투명한 판이라 겹치면 아래 위젯이 통째로 사라진다. 보스 바(y112~152)·무기 라벨(y160~194)도
+## 그 위에 있다. 아래로는 조작 영역(화면 아래 절반)을 침범하지 않는다.
+const _ALERT_Y := 232.0
+const _ALERT_H := 58.0
+const _ALERT_FONT := 30       # 무리·정예·카운트다운
+## 보스 이름은 크게 띄우되 38 이 아니라 34 다 — "BOSS  PRIME MUTATION"(en)이 38 에서
+## 460px 중 451px 을 먹어 여유가 1.9% 였다(check_text_fit). 예전 배너는 폭 제약이 없어
+## 넘치는 것이 안 보였을 뿐이고, 띠가 양끝 130px 을 경고 기호에 내주면서 드러났다.
+const _ALERT_FONT_BOSS := 34
+
+func _build_alerts() -> void:
+	_alert = _HUDAlert.make(self, _ALERT_Y, _ALERT_H)
 
 
-## 무리/엘리트 팩 경고를 배너로 번쩍인다(등장 직전 대비 시간).
+## 무리/엘리트 팩 경고(등장 직전 대비 시간).
 func _on_swarm_incoming(elite: bool) -> void:
-	if _swarm_banner == null:
-		return
 	_show_banner(Locale.t("hud_elite") if elite else Locale.t("hud_swarm"),
-		Color(1.0, 0.55, 0.25) if elite else Color(1.0, 0.85, 0.25))
+		_HUDAlert.LV_ELITE if elite else _HUDAlert.LV_SWARM)
 
 
-## 상단 예고 배너 한 줄 — 스웜/엘리트 등장 경고와 마일스톤 카운트다운이 함께 쓴다.
-## 같은 컴포넌트를 재사용하는 이유는 이 자리에 두 줄이 겹치면 무엇을 피해야 할지 읽히지 않기
-## 때문이다. 늦게 온 쪽이 이긴다(트윈을 죽이고 새로 띄운다).
-func _show_banner(text: String, col: Color) -> void:
-	if _swarm_banner == null:
+## 상단 예고 띠 — 스웜/엘리트 등장 경고와 마일스톤 카운트다운이 함께 쓴다.
+## 같은 것을 재사용하는 이유는 이 자리에 두 줄이 겹치면 무엇을 피해야 할지 읽히지 않기
+## 때문이다. 겹칠 때는 **더 큰 위험이 이긴다**(HUDAlert.flash 참고) — 예전에는 늦게 온
+## 쪽이 무조건 이겨서, 보스 등장 직후 무리 경고가 오면 보스 이름이 지워졌다.
+func _show_banner(text: String, level: int) -> void:
+	if _alert == null:
 		return
-	_swarm_banner.text = text
-	_swarm_banner.add_theme_color_override("font_color", col)
-	if _swarm_tween and _swarm_tween.is_valid():
-		_swarm_tween.kill()
-	_swarm_banner.modulate.a = 0.0
-	_swarm_banner.scale = Vector2(0.7, 0.7)
-	_swarm_banner.pivot_offset = _swarm_banner.size * 0.5
-	_swarm_tween = create_tween()
-	_swarm_tween.tween_property(_swarm_banner, "modulate:a", 1.0, 0.18)
-	_swarm_tween.parallel().tween_property(_swarm_banner, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	_swarm_tween.tween_interval(0.7)
-	_swarm_tween.tween_property(_swarm_banner, "modulate:a", 0.0, 0.4)
+	_alert.flash(text, level, _ALERT_FONT)
 
 
 ## 날씨 전환 알림 — 상시 위젯을 두지 않고(시간 표시 과밀 방지) 바뀌는 순간만 짧게 띄운다.

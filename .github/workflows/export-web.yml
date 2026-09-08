@@ -157,6 +157,9 @@ jobs:
           # 게임오버 비네트는 블러 재질을 재사용한다 — 끌 때 되돌리지 않으면 부활 뒤
           # 재사망이 이미 물든 화면에서 시작한다(P2-25). 부활을 거쳐야만 나오는 증상이다.
           godot --headless --path . --script res://tools/verify_gameover_vignette.gd
+          # 상단 경고 띠는 하나를 넷이 나눠 쓴다 — 낮은 위험이 덮어쓸 수 있게 되면
+          # "가끔 보스 이름이 안 보인다"로만 나타나 재현이 어렵다(P2-26).
+          godot --headless --path . --script res://tools/verify_hud_alert.gd
 
       - name: Export to Web
         run: |
