@@ -20,6 +20,22 @@ const TILE_W := 148.0
 const TILE_H := 96.0
 const ICON_PX := 52.0
 const NAME_SIZE := 12
+## "새로 발견" 점의 지름(px).
+const NEW_DOT := 10
+
+
+## 붉은 점 하나 — 알림 뱃지와 같은 문법(메인 메뉴의 보상 배지가 같은 색을 쓴다).
+static func _new_dot_box() -> StyleBoxFlat:
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = Color(0.92, 0.24, 0.24)
+	sb.set_corner_radius_all(int(NEW_DOT / 2.0))
+	sb.corner_detail = 4
+	sb.anti_aliasing = true
+	sb.set_border_width_all(2)
+	sb.border_color = Color(0.05, 0.05, 0.07, 0.9)
+	return sb
+
+
 ## 미발견 실루엣 색. 셰이더가 알파만 남기고 RGB 를 이 색으로 갈아끼운다 —
 ## 곱셈(modulate)으로는 색이 새거나 배경에 묻힌다(codex_silhouette.gdshader 주석 참고).
 ## 팝업 배경(0.11~0.17)보다 확실히 밝아야 형태가 읽힌다.
@@ -79,6 +95,10 @@ func refresh() -> void:
 			tile["name_lbl"].text = String(tile["name"]) if got else UNKNOWN_TEXT
 			tile["name_lbl"].add_theme_color_override("font_color",
 				UITheme.TEXT if got else UITheme.TEXT_DIM)
+			# 캐릭터는 CodexManager 가 기록하지 않는다(해금 상태를 CharacterManager 가
+			# 이미 들고 있다 — _is_found 주석 참고). 그래서 "새로 발견"도 없다.
+			if tile.get("dot"):
+				tile["dot"].visible = kind != "character" and CodexManager.is_new(kind, String(tile["id"]))
 		var count: int = sec["tiles"].size()
 		sec["label"].text = "%s   %d/%d" % [Locale.t(String(sec["title_key"])), n, count]
 		found += n
@@ -168,7 +188,21 @@ func _make_tile(grid: GridContainer, e: Dictionary) -> Dictionary:
 	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	cell.add_child(name_lbl)
 
-	return {"id": e["id"], "name": e["name"], "thumb": thumb, "name_lbl": name_lbl}
+	# "새로 발견" 점 — 지난번 도감을 닫은 뒤에 발견한 것에만 붙는다. 글자가 아니라 점인 이유는
+	# 칸이 74px 뿐이라 "NEW" 를 넣을 자리가 없고, 넣으면 이름을 밀어내기 때문이다.
+	# 썸네일 우상단에 얹으므로 한 번 만들어 두고 visible 만 토글한다.
+	var dot := Panel.new()
+	dot.custom_minimum_size = Vector2(NEW_DOT, NEW_DOT)
+	dot.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	dot.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	dot.offset_left = -NEW_DOT
+	dot.offset_bottom = NEW_DOT
+	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	dot.add_theme_stylebox_override("panel", _new_dot_box())
+	dot.visible = false
+	thumb.add_child(dot)
+
+	return {"id": e["id"], "name": e["name"], "thumb": thumb, "name_lbl": name_lbl, "dot": dot}
 
 
 # ── 카탈로그 → 항목 목록 ────────────────────────────────────────────────────

@@ -202,9 +202,10 @@ const STRINGS: Dictionary = {
 	"diff_hard":       {"en": "Hard",       "ko": "어려움",    "ja": "ハード"},
 
 	# ── HUD (포맷 문자열은 %d 자리 유지) ──────────────────────────────────
-	"hud_score_fmt":   {"en": "Score %d",   "ko": "점수 %d",   "ja": "スコア %d"},
+	# 점수·최고점 표시는 화면에서 제거됐다(2026-08 요청). 노드까지 지운 뒤로는 이 키를
+	# 읽는 곳이 없어 함께 지운다 — 남겨 두면 다음 사람이 "어디에 쓰이지"를 다시 찾는다.
+	# 점수 자체는 랭킹·텔레메트리에서 계속 쓰인다(표시만 없다).
 	"hud_hp_fmt":      {"en": "HP %d / %d", "ko": "체력 %d / %d", "ja": "HP %d / %d"},
-	"hud_best_fmt":    {"en": "Best %d",    "ko": "최고 %d",   "ja": "ベスト %d"},
 	"hud_kills_fmt":   {"en": "%d Kills",   "ko": "%d 처치",   "ja": "%d キル"},
 	"boss_cleared":    {"en": "Boss %d Clear!", "ko": "보스 %d 클리어!", "ja": "ボス %d クリア！"},
 	"run_cleared":     {"en": "SURVIVED 30:00\nCLEAR!", "ko": "30분 생존\n클리어!", "ja": "30:00 生存\nクリア！"},
