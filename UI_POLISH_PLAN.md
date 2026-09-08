@@ -107,14 +107,20 @@ MainMenu 가 붙어 있는 구조다.
 
 | # | 작업 | 해결 | 손대는 파일 |
 |---|---|---|---|
-| 1-1 | **팝업 열림/닫힘 연출** — `UIPopup.open(p)` / `close(p)`: dim 0→0.6 (0.15s), 패널 scale 0.96→1 + alpha (0.18s, BACK/OUT); 닫힘은 역재생 0.12s. 열림/닫힘음. 새 게임 흐름은 "다음 팝업이 오른쪽에서 슬라이드 인"으로 단계감을 준다. | A-1 A-2 D-1 C-4 | `UIPopup.gd` `MainMenu.gd`(호출부 9곳) `CodexPanel.gd` `ThreatPanel.gd` |
+| 1-1 ✅ | **팝업 열림/닫힘 연출** — `UIPopup.open(p)` / `close(p)`: dim 0→0.6 (0.15s), 패널 scale 0.96→1 + alpha (0.18s, BACK/OUT); 닫힘은 역재생 0.12s. 열림/닫힘음. 새 게임 흐름은 "다음 팝업이 오른쪽에서 슬라이드 인"으로 단계감을 준다. | A-1 A-2 D-1 C-4 | `UIPopup.gd` `MainMenu.gd`(호출부 9곳) `CodexPanel.gd` `ThreatPanel.gd` |
 | 1-2 | **하드코딩 문자열 → Locale 키**, ASCII 장식 → `UIIcon`(별=도전과제, 깃발=과제, 번개=진화, 체크=선택). ⚠️ ja 키는 `font_known_absent.txt` 를 먼저 보고 한자 대신 가나로. | B-1 B-2 | `Locale.gd` `HUD.gd` `LevelUpPanel.gd` `ChestRewardPanel.gd` `MainMenu.gd` |
 | 1-3 | **HUD 숫자 살리기** — XP 바 `anchor_right` 트윈(0.2s) + 레벨업 순간 바 플래시 후 0 으로; 처치 수 10 단위 펄스; 타이머 막판 1분 초당 1회 맥동 + 마지막 10초 붉은 점멸. | A-4 A-5 | `HUD.gd` |
 | 1-4 | **게임오버/승리 분리** — 승리: 금색 프레임 + `victory` 징글 + 메달 팝(BACK) + 숫자 카운트업(0.6s) + 버튼 stagger. 패배: `defeat` 와 함께 `Engine.time_scale` 0.3 → 0.4s 뒤 패널(워치독 안전: `hit_stop` 과 같은 `ignore_time_scale` 타이머). 부활은 패널 페이드아웃 + 플레이어 흰색 플래시. | A-7 A-8 B-6 | `HUD.gd` `HUD.tscn` |
 | 1-5 | **레벨업 카드 확정** — 누른 카드 1.06 배 확대 + 금빛 플래시 0.22s, 나머지 페이드; 그 뒤 `_refresh`/닫기. 등장 stagger 에 세로 24px 슬라이드 추가. 진화 카드는 금색 테두리 맥동 + 뒤 광휘. 줌펀치(`Player._camera_zoom_punch(0.94, 0.3)`)를 `level_up` 에 연결. | A-6 | `LevelUpPanel.gd` `Player.gd` |
 | 1-6 | **일시정지 페이드** — dim 0.15s, 패널 팝 0.18s, 닫힘 0.12s(1-1 과 같은 `UIMotion`). | A-3 | `HUD.gd` |
 | 1-7 | **토스트 큐** — `HUDToast.gd` 분리: 동시에 최대 2줄, 세 번째부터는 대기열; 같은 종류는 병합(MAX BUILD 는 이미 병합함). | A-10 D-3 | `HUDToast.gd`(신규) `HUD.gd` |
-| 1-8 | **`UIMotion.gd`** — 1-1/1-4/1-5/1-6 이 같은 상수를 쓰게 한다: `DUR_POP=0.18` `DUR_FADE=0.15` `DUR_CLOSE=0.12` `HOLD_WARN=0.8` `HOLD_INFO=2.0` `HOLD_CELEBRATE=1.4`. 기존 9가지 지속 시간을 이 셋으로 수렴. | C-1 C-2 D-2 | `UIMotion.gd`(신규) |
+| 1-8 ✅ | **`UIMotion.gd`** — 1-1/1-4/1-5/1-6 이 같은 상수를 쓰게 한다: `DUR_POP=0.18` `DUR_FADE=0.15` `DUR_CLOSE=0.12` `HOLD_WARN=0.8` `HOLD_INFO=2.0` `HOLD_CELEBRATE=1.4`. ⚠️ **기존 리터럴 수렴은 남았다** — `HUD.gd`·`LevelUpPanel.gd` 의 9가지 지속 시간은 그 파일을 건드리는 ③④⑤에서 함께 바꾼다(충돌 1순위 파일을 한 PR에 몰지 않는다). | C-1 C-2 D-2 | `UIMotion.gd`(신규) |
+
+> **① 완료 (PR ⑥ 중 첫 번째)** — `UIMotion.gd` 신설 + `UIPopup.open()/close()` 로 팝업 10종(옵션·랭킹·
+> 강화·캐릭터·도전과제·과제·보상함·아레나·도감·위협)의 `visible` 토글 24곳을 대체했다. 새 게임 흐름
+> 3단계는 `forward=true`(1.05 → 1.0)로 "앞으로 나아감"을 구분한다. 여는 소리는 넣지 않았다 — 팝업은
+> 전부 버튼으로 열리고 그 버튼이 이미 탭음을 내므로, 같은 샘플을 한 번 더 내면 플램으로 들린다.
+> 딤(바깥) 탭에만 탭음을 붙였다(그전엔 무음이었다). 전용 열림/닫힘음은 Phase 3-1 에서.
 
 ### Phase 2 — 문법 통일 🟡
 

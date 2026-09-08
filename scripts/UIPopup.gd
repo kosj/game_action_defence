@@ -16,6 +16,12 @@ extends RefCounted
 ##     var p := UIPopup.make(self, "popup_quests", UITheme.SEC_QUEST, UITheme.SEC_QUEST_TXT,
 ##             _on_quests_close, {"hint_key": "quest_hint", "scroll": true})
 ##     _quest_dim = p.dim ; _quest_panel = p.panel ; _quest_list = p.body
+##     ...
+##     UIPopup.open(_quest_dim, _quest_panel)     # 여는 쪽
+##     UIPopup.close(_quest_dim, _quest_panel)    # 닫는 쪽
+##
+## **`visible` 을 직접 켜고 끄지 말 것.** 그렇게 하면 이 파일이 소유한 연출·사운드를 건너뛴다
+## (예전에는 팝업 9종이 전부 그렇게 열리고 닫혀서 화면이 툭툭 바뀌었다 — UI_POLISH_PLAN §A-1).
 ##
 ## 반환: { dim, panel, body, close, vbox, title, hint }
 ##  - dim/panel 은 호출부가 visible 을 켜고 끈다(열고 닫는 정책은 화면마다 다르다).
@@ -36,6 +42,10 @@ const CLOSE_H := 52.0
 const CLOSE_BG := Color(0.18, 0.20, 0.26)
 const CLOSE_ACCENT := Color(0.5, 0.55, 0.65)
 
+## 딤(바깥 영역) 탭으로 닫을 때의 탭음 피치. 닫기 **버튼**은 apply_button_style 이 같은
+## 소리를 이미 내주므로 딤도 같은 피치를 쓴다 — 같은 동작이면 같은 소리여야 한다.
+const _PITCH_TAP := 1.0
+
 
 ## opts:
 ##   scroll        bool   — body 를 ScrollContainer 로 감싼다(항목이 늘어나는 목록형). 기본 false
@@ -51,8 +61,11 @@ static func make(parent: Node, title_key: String, accent: Color, accent_txt: Col
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	dim.visible = false
 	# 바깥 영역 탭 시 닫기. 터치와 마우스를 함께 본다(웹은 둘 다 들어온다).
+	# 닫기 버튼은 apply_button_style 이 탭음을 붙여 주지만 딤에는 붙는 것이 없다 — 여기서 낸다.
+	# (양쪽에서 내면 닫기 버튼을 누를 때 소리가 두 번 난다)
 	dim.gui_input.connect(func(e: InputEvent) -> void:
 		if (e is InputEventScreenTouch and e.pressed) or (e is InputEventMouseButton and e.pressed):
+			SoundManager.play_ui("ui_click", 0.06, _PITCH_TAP)
 			on_close.call())
 	parent.add_child(dim)
 
@@ -128,6 +141,36 @@ static func make(parent: Node, title_key: String, accent: Color, accent_txt: Col
 
 	return {"dim": dim, "panel": panel, "body": body, "close": close, "vbox": vb,
 		"title": title, "hint": hint_label}
+
+
+## ── 열기 / 닫기 ────────────────────────────────────────────────────────────
+## 셸이 연출을 소유한다. 예전에는 호출부가 dim·panel 의 `visible` 을 직접 켜고 껐고, 그래서
+## 팝업 9종이 전부 한 프레임에 튀어나왔다 — 연출을 넣으려면 20줄을 똑같이 고쳐야 하는 구조
+## 자체가 원인이었다(UI_POLISH_PLAN §A-1·D-1).
+##
+## forward=true 는 **한 단계 앞으로 나아가는** 열기다(새 게임 흐름: 생존자 → 아레나 → 위협).
+## 크게 시작해 제자리를 찾으므로 "다음 화면이 앞에서 다가온다"로 읽히고, 평소의 열기(작게
+## 시작해 튀어나옴)와 구분된다. 앞 팝업의 닫힘(0.12s)과 겹쳐 재생돼 크로스페이드가 된다.
+##
+## ⚠️ 여는 소리는 **일부러 내지 않는다.** 팝업은 전부 버튼으로 열리고 그 버튼이 이미 탭음을
+## 낸다 — 여기서 같은 샘플을 피치만 바꿔 한 번 더 내면 두 소리가 한두 프레임 차로 겹쳐
+## 플램(딸-깍)으로 들린다. 전용 열림음이 생기면(UI_POLISH_PLAN Phase 3-1) 그때 넣는다.
+static func open(dim: Control, panel: Control, forward: bool = false) -> void:
+	if not is_instance_valid(panel):
+		return
+	if is_instance_valid(dim):
+		UIMotion.fade_in(dim)
+	UIMotion.pop_in(panel, UIMotion.SCALE_FORWARD if forward else UIMotion.SCALE_IN)
+
+
+## 닫기 — 딤과 패널을 함께 페이드아웃하고 visible 까지 끈다.
+## 이미 닫혀 있으면 아무것도 하지 않는다(딤 탭은 터치·마우스가 둘 다 들어와 두 번 불릴 수 있다).
+static func close(dim: Control, panel: Control) -> void:
+	if not is_instance_valid(panel) or not panel.visible:
+		return
+	if is_instance_valid(dim):
+		UIMotion.fade_out_hide(dim)
+	UIMotion.fade_out_hide(panel)
 
 
 ## 닫기 버튼 **위**에 요소를 덧붙인다(합계 라벨·일괄 수령 버튼 등).
