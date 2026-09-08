@@ -2,6 +2,7 @@ extends Node2D
 ## 날씨 연출 — 일정 주기(슬롯)마다 선택 테마의 날씨를 하나 뽑아 페이드 인/아웃 한다.
 ##
 ## **연출 전용이다.** 이동속도·명중률·피해량 등 어떤 전투 수치도 건드리지 않는다.
+## **배경 색도 건드리지 않는다** — 떨어지는 입자(+ 눈의 옅은 흰 판, 비의 번개 섬광)가 전부다.
 ##
 ## 스케줄은 결정론적이다: Events.env_seed(런마다 발급·세이브됨) + 슬롯 인덱스로만 결정되는
 ## 순수 함수라, 이어하기가 같은 날씨 타임라인을 그대로 복원하고 헤드리스 검증이 가능하다.
@@ -23,18 +24,24 @@ const BOLT_FLASH := 0.5   # 섬광 알파 피크
 const BOLT_DECAY := 3.0   # 초당 감쇠
 
 ## 날씨 정의.
-##   tint     = 시간 틴트에 곱할 색(어둡게/따뜻하게)
-##   haze     = 화면 전체를 덮는 옅은 판의 알파 — 시야가 뿌예지는 날씨(현재는 눈)에만
-##   haze_col = 그 판의 색조. 모래바람 삭제로 지금은 전부 흰색이지만, 색이 있는 날씨가
-##              다시 들어올 때를 위해 필드는 남긴다(황사·화산재 등은 흰 판이면 가짜로 읽힌다)
+##   haze     = 화면 전체를 덮는 옅은 **흰** 판의 알파 — 공기 중 눈발의 밀도로 읽힌다
+##   haze_col = 그 판의 색조. 지금은 전부 흰색이지만, 색이 있는 날씨(황사·화산재)가 들어올 때를
+##              위해 필드는 남긴다(흰 판이면 가짜로 읽힌다)
+##
+## ⚠️ **날씨는 배경 색을 바꾸지 않는다.** 예전에는 여기 `tint` 가 있어 비/눈이 월드 전체를
+## 곱연산으로 어둡게 물들였다(비 0.84배). "비가 오면 뒷배경이 어두워져 답답하다"는 실플레이
+## 피드백으로 걷어냈다 — 날씨는 **떨어지는 입자**로만 보여 준다.
+## 세 종류의 화면 처리 중 이것만 뺀 이유:
+##   · 배경 틴트  = 월드 전체를 어둡게 → **삭제**
+##   · 뿌연 판    = 눈일 때만, 흰색 0.06 → 밝히는 쪽이라 유지(눈발 밀도 표현)
+##   · 번개 섬광  = 순간적으로 밝힘 → 유지(비의 드라마)
 const _DEF: Dictionary = {
-	"rain": {"tint": Color(0.80, 0.84, 0.92), "haze": 0.00, "haze_col": Color(1.00, 1.00, 1.00), "bolt": true},
-	"snow": {"tint": Color(0.92, 0.95, 1.00), "haze": 0.06, "haze_col": Color(1.00, 1.00, 1.00), "bolt": false},
+	"rain": {"haze": 0.00, "haze_col": Color(1.00, 1.00, 1.00), "bolt": true},
+	"snow": {"haze": 0.06, "haze_col": Color(1.00, 1.00, 1.00), "bolt": false},
 }
 
 var _keys: PackedStringArray = PackedStringArray()   # 이 테마에서 나올 수 있는 날씨
 var _player: Node2D = null
-var _day: Node = null            # DayNightCycle — 합성 틴트를 여기에 넘긴다
 var _emitter: CPUParticles2D = null
 ## 빗방울 착지 파문 — 비일 때만 켜지는 보조 이미터(지면 레벨). 다른 날씨에서는 항상 꺼져 있다.
 var _splash: CPUParticles2D = null
@@ -63,7 +70,6 @@ func _ready() -> void:
 			if _DEF.has(k):
 				_keys.append(k)
 	_player = get_tree().get_first_node_in_group("player")
-	_day = get_tree().get_first_node_in_group("daynight")
 	_streak_tex = _make_streak()
 	_soft_tex = _make_soft()
 	_ring_tex = _make_ring()
@@ -149,14 +155,12 @@ func _process(delta: float) -> void:
 		_player = get_tree().get_first_node_in_group("player")
 	if is_instance_valid(_player):
 		global_position = _player.global_position
-	if not is_instance_valid(_day):
-		_day = get_tree().get_first_node_in_group("daynight")
 	var elapsed: float = Events.elapsed_time
 	var s := slot_of(elapsed)
 	if s != _slot:
 		_slot = s
 		_switch(weather_for_slot(s))
-	# 치트(CHEATS > WEATHER)로 날씨를 끄면 세기를 0 으로 눌러 입자·뿌연 판·틴트·번개가 한꺼번에
+	# 치트(CHEATS > WEATHER)로 날씨를 끄면 세기를 0 으로 눌러 입자·뿌연 판·번개가 한꺼번에
 	# 사라진다(=상시 맑음). 슬롯 스케줄과 _key 는 그대로 굴러가므로 결정론·이어하기가 유지되고,
 	# 다시 켜면 그 시점에 원래 와야 할 날씨가 이어진다.
 	var strength := strength_at(elapsed) if (_key != "" and Cheats.weather) else 0.0
@@ -167,16 +171,10 @@ func _process(delta: float) -> void:
 		_splash.emitting = _key == "rain" and strength > 0.01
 		_splash.modulate.a = strength
 	_tick_bolt(delta, strength)
-	if _day != null and _day.has_method("set_weather_tint"):
-		_day.call("set_weather_tint", Color.WHITE.lerp(_tint_of(_key), strength))
 	# 번개 섬광은 날씨 색조와 무관하게 흰빛이어야 하므로, 섬광 세기만큼 흰색으로 당긴다.
 	var hc := _haze_col.lerp(Color.WHITE, clampf(_flash / BOLT_FLASH, 0.0, 1.0)) if _flash > 0.0 else _haze_col
 	self_modulate = Color(hc.r, hc.g, hc.b, clampf(_haze_base * strength + _flash, 0.0, 1.0))
 	_sync_haze_size()
-
-
-func _tint_of(key: String) -> Color:
-	return _DEF[key]["tint"] if _DEF.has(key) else Color.WHITE
 
 
 ## 비가 충분히 세게 올 때만 간헐적으로 번개가 친다.
