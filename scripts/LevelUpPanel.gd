@@ -359,6 +359,10 @@ const _CONFIRM_TINT := Color(1.55, 1.45, 1.05, 1.0)
 
 func _confirm_card(picked: Control) -> void:
 	_confirming = true
+	# 확정음 — 그림(카드가 커지며 밝아짐)과 같은 순간에 소리도 있어야 "정해졌다"가 된다.
+	# 진화는 뒤이어 전용 팡파르가 나므로 여기서는 내지 않는다(둘이 겹쳐 뭉갠다).
+	if not _evo_mode:
+		SoundManager.play_ui("ui_select", 0.03)
 	for c in _card_box.get_children():
 		var ctrl := c as Control
 		if ctrl == null:

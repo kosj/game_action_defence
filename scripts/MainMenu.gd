@@ -452,12 +452,13 @@ func _build_power_panel() -> void:
 
 ## 위협 등급 선택 열기. 첫 호출에서만 패널을 만든다.
 ## forward — 새 게임 흐름의 3단계로 들어올 때(아레나 다음). UIPopup.open 주석 참고.
-func _open_threat(forward: bool = false) -> void:
+## silent — 앞 단계의 확정음이 이 전환을 이미 말하고 있을 때(UIPopup.open 주석).
+func _open_threat(forward: bool = false, silent: bool = false) -> void:
 	if _threat == null:
 		_threat = _ThreatPanel.new()
 		_threat.build(self, _on_threat_close, _on_threat_picked)
 	_threat.refresh()
-	_UIPopup.open(_threat.dim, _threat.panel, forward)
+	_UIPopup.open(_threat.dim, _threat.panel, forward, silent)
 
 
 func _on_threat_close() -> void:
@@ -470,7 +471,7 @@ func _on_threat_close() -> void:
 
 
 func _on_threat_picked() -> void:
-	_UIPopup.close(_threat.dim, _threat.panel)
+	_UIPopup.close(_threat.dim, _threat.panel, true)   # 확정음이 이 전환을 말한다
 	_finish_newgame_flow()
 
 
@@ -656,20 +657,25 @@ func _on_char_pick(id: String) -> void:
 		return
 	var picked := false
 	if CharacterManager.is_unlocked(c):
+		# 이미 가진 것을 고르는 것과 사는 것은 다른 사건이다 — 선택은 확정음, 구매는
+		# 동전음. 예전에는 둘 다 gold 를 피치만 바꿔 썼다.
+		SoundManager.play_ui("ui_select", 0.03)
 		CharacterManager.select(id)
-		SoundManager.play_ui("gold", 0.03, 1.2)
 		picked = true
 	elif c.unlock_cost > 0 and CharacterManager.try_buy(id):
 		CharacterManager.select(id)   # 구매 성공 → 즉시 선택
 		SoundManager.play_ui("gold", 0.02, 1.0)
 		picked = true
 	else:
-		SoundManager.play_ui("player_hurt", 0.2, 1.0)   # 해금 불가(골드 부족/도전과제 미달)
+		# 해금 불가(골드 부족/도전과제 미달). 예전에는 player_hurt(피격음)를 냈다 —
+		# 살 돈이 없을 때 맞는 소리가 나는 셈이었다.
+		SoundManager.play_ui("ui_deny", 0.04)
 	_refresh_character()
 	if picked and _newgame_flow:
-		# 다음 단계: 아레나(테마) 선택
-		_UIPopup.close(_char_dim, _char_panel)
-		_on_theme_pressed(true)
+		# 다음 단계: 아레나(테마) 선택. 이 전환의 소리는 위의 확정음 하나뿐이다 —
+		# 닫힘·열림음까지 내면 한 번의 탭에 네 소리가 겹친다(UIPopup.open 주석).
+		_UIPopup.close(_char_dim, _char_panel, true)
+		_on_theme_pressed(true, true)
 
 
 ## forward — 새 게임 흐름의 1단계로 열릴 때. 버튼 시그널은 인자 없이 호출한다(기본값 false).
@@ -1136,9 +1142,10 @@ func _theme_unlock_hint(t: ThemeData) -> String:
 
 
 ## forward — 새 게임 흐름의 2단계(생존자 다음)로 열릴 때.
-func _on_theme_pressed(forward: bool = false) -> void:
+## silent — 앞 단계의 확정음이 이 전환을 이미 말하고 있을 때(UIPopup.open 주석).
+func _on_theme_pressed(forward: bool = false, silent: bool = false) -> void:
 	_refresh_theme()
-	_UIPopup.open(_theme_dim, _theme_panel, forward)
+	_UIPopup.open(_theme_dim, _theme_panel, forward, silent)
 
 
 func _on_theme_close() -> void:
@@ -1158,22 +1165,22 @@ func _on_theme_pick(id: String) -> void:
 		return
 	var picked := false
 	if ThemeManager.is_unlocked(t):
+		SoundManager.play_ui("ui_select", 0.03)   # 캐릭터 선택과 같은 문법
 		ThemeManager.select(id)
-		SoundManager.play_ui("gold", 0.03, 1.2)
 		picked = true
 	elif t.unlock_cost > 0 and ThemeManager.try_buy(id):
 		ThemeManager.select(id)
 		SoundManager.play_ui("gold", 0.02, 1.0)
 		picked = true
 	else:
-		SoundManager.play_ui("player_hurt", 0.2, 1.0)
+		SoundManager.play_ui("ui_deny", 0.04)
 	_refresh_theme()
 	if picked and _newgame_flow:
-		_UIPopup.close(_theme_dim, _theme_panel)
+		_UIPopup.close(_theme_dim, _theme_panel, true)   # 확정음이 이 전환을 말한다
 		# 다음 단계: 위협 등급. 해금된 등급이 하나뿐이면 고를 것이 없으므로 건너뛴다 —
 		# 새 플레이어에게 선택지 없는 화면을 세우지 않는다(P1-12).
 		if ThreatManager.max_rank() > 1:
-			_open_threat(true)
+			_open_threat(true, true)
 		else:
 			_finish_newgame_flow()
 
