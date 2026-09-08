@@ -10,11 +10,13 @@ extends CanvasLayer
 const _UIStyle := preload("res://scripts/UIStyle.gd")
 
 ## 등급 정의 — 확률 가중치(행운 패시브가 상위 등급을 끌어올린다)와 연출 파라미터.
+## title 은 표시 문구가 아니라 **Locale 키**다 — const 는 런타임 번역을 담을 수 없으므로
+## 여기엔 키만 두고 그릴 때 Locale.t() 로 푼다.
 const _RARITY := [
-	{"key": "common",    "title": "COMMON",        "col": Color(0.80, 0.84, 0.90), "flash": 0.0,  "shake": 0.0, "spark": 14, "hold": 1.6, "build": 1.1, "count": 1},
-	{"key": "rare",      "title": "RARE !",        "col": Color(0.35, 0.65, 1.00), "flash": 0.25, "shake": 3.0, "spark": 26, "hold": 2.0, "build": 1.5, "count": 2},
-	{"key": "epic",      "title": "EPIC !!",       "col": Color(0.75, 0.45, 1.00), "flash": 0.5,  "shake": 6.0, "spark": 44, "hold": 2.4, "build": 2.0, "count": 3},
-	{"key": "legendary", "title": "LEGENDARY !!!", "col": Color(1.00, 0.82, 0.25), "flash": 0.85, "shake": 10.0, "spark": 70, "hold": 3.0, "build": 2.6, "count": 4},
+	{"key": "common",    "title": "chest_rar_common", "col": Color(0.80, 0.84, 0.90), "flash": 0.0,  "shake": 0.0, "spark": 14, "hold": 1.6, "build": 1.1, "count": 1},
+	{"key": "rare",      "title": "chest_rar_rare",   "col": Color(0.35, 0.65, 1.00), "flash": 0.25, "shake": 3.0, "spark": 26, "hold": 2.0, "build": 1.5, "count": 2},
+	{"key": "epic",      "title": "chest_rar_epic",   "col": Color(0.75, 0.45, 1.00), "flash": 0.5,  "shake": 6.0, "spark": 44, "hold": 2.4, "build": 2.0, "count": 3},
+	{"key": "legendary", "title": "chest_rar_legend", "col": Color(1.00, 0.82, 0.25), "flash": 0.85, "shake": 10.0, "spark": 70, "hold": 3.0, "build": 2.6, "count": 4},
 ]
 
 ## 카드 앞면 아이콘 — 아이템은 카탈로그 아이콘, 나머지는 종류별 범용 아이콘/엠블럼.
@@ -115,54 +117,54 @@ static func _roll_tier(t: int, gs: float) -> Dictionary:
 static func _roll_common(gs: float) -> Dictionary:
 	if randf() < 0.6:
 		var g := int(randi_range(15, 35) * gs)
-		return {"rarity": 0, "text": "+%d Gold" % g, "kind": "gold", "icon": _reward_icon("gold"), "apply": func(): Events.add_gold(g)}
+		return {"rarity": 0, "text": Locale.t("chest_gold_fmt") % g, "kind": "gold", "icon": _reward_icon("gold"), "apply": func(): Events.add_gold(g)}
 	var xp := maxi(5, int(Events.xp_to_next * 0.3))
-	return {"rarity": 0, "text": "+%d XP" % xp, "kind": "xp", "icon": _ICON_XP, "apply": func(): Events.add_xp(xp)}
+	return {"rarity": 0, "text": Locale.t("chest_xp_fmt") % xp, "kind": "xp", "icon": _ICON_XP, "apply": func(): Events.add_xp(xp)}
 
 
 static func _roll_rare(gs: float) -> Dictionary:
 	var r := randi() % 3
 	if r == 0:
 		var g := int(randi_range(50, 90) * gs)
-		return {"rarity": 1, "text": "+%d Gold" % g, "kind": "gold", "icon": _reward_icon("gold"), "apply": func(): Events.add_gold(g)}
+		return {"rarity": 1, "text": Locale.t("chest_gold_fmt") % g, "kind": "gold", "icon": _reward_icon("gold"), "apply": func(): Events.add_gold(g)}
 	if r == 1:
 		var pick := _random_grantable_item()
 		if not pick.is_empty():
 			var id: String = pick["id"]
 			var owned := int(Events.weapons.get(id, Events.passives.get(id, 0)))
-			var label: String = ("NEW  %s" % pick["name"]) if owned == 0 else ("%s  Lv+1" % pick["name"])
+			var label: String = Locale.t("chest_item_new_fmt" if owned == 0 else "chest_item_up_fmt") % pick["name"]
 			return {"rarity": 1, "text": label, "kind": "item", "icon": pick.get("icon"), "apply": func(): Events.grant_item(id)}
 		# 지급 가능한 아이템이 없으면 자석으로 폴백
 	var magnet := func():
 		var pl := _player()
 		if pl != null and pl.has_method("activate_gold_magnet"):
 			pl.activate_gold_magnet(8.0)
-	return {"rarity": 1, "text": "XP Magnet  8s", "kind": "magnet", "icon": _ICON_MAGNET, "apply": magnet}
+	return {"rarity": 1, "text": Locale.t("chest_magnet_fmt") % 8, "kind": "magnet", "icon": _ICON_MAGNET, "apply": magnet}
 
 
 static func _roll_epic(gs: float) -> Dictionary:
 	var r := randi() % 3
 	if r == 0:
-		return {"rarity": 2, "text": "FREE LEVEL UP", "kind": "levelup", "icon": _reward_icon("levelup"), "apply": func(): Events.bonus_level()}
+		return {"rarity": 2, "text": Locale.t("chest_free_level"), "kind": "levelup", "icon": _reward_icon("levelup"), "apply": func(): Events.bonus_level()}
 	if r == 1:
 		var do_heal := func():
 			var pl := _player()
 			if pl != null and pl.has_method("heal"):
 				pl.heal(999)
-		return {"rarity": 2, "text": "Full Heal", "kind": "heal", "icon": _ICON_HEAL, "apply": do_heal}
+		return {"rarity": 2, "text": Locale.t("chest_full_heal"), "kind": "heal", "icon": _ICON_HEAL, "apply": do_heal}
 	var g := int(randi_range(130, 200) * gs)
-	return {"rarity": 2, "text": "+%d Gold" % g, "kind": "gold", "icon": _reward_icon("gold"), "apply": func(): Events.add_gold(g)}
+	return {"rarity": 2, "text": Locale.t("chest_gold_fmt") % g, "kind": "gold", "icon": _reward_icon("gold"), "apply": func(): Events.add_gold(g)}
 
 
 static func _roll_legendary(gs: float) -> Dictionary:
 	var r := randi() % 3
 	if r == 0:
-		return {"rarity": 3, "text": "+1 REVIVE", "kind": "revive", "icon": _reward_icon("revive"), "apply": func(): Events.revives_left += 1}
+		return {"rarity": 3, "text": Locale.t("chest_revive_fmt") % 1, "kind": "revive", "icon": _reward_icon("revive"), "apply": func(): Events.revives_left += 1}
 	if r == 1:
 		var mg := randi_range(40, 80)
-		return {"rarity": 3, "text": "+%d Meta Gold" % mg, "kind": "meta", "icon": _reward_icon("meta"), "apply": func(): MetaManager.reward_gold(mg)}
+		return {"rarity": 3, "text": Locale.t("chest_meta_fmt") % mg, "kind": "meta", "icon": _reward_icon("meta"), "apply": func(): MetaManager.reward_gold(mg)}
 	var g := int(randi_range(280, 420) * gs)
-	return {"rarity": 3, "text": "JACKPOT\n+%d Gold" % g, "kind": "gold", "icon": _reward_icon("gold"), "apply": func(): Events.add_gold(g)}
+	return {"rarity": 3, "text": Locale.t("chest_jackpot_fmt") % g, "kind": "gold", "icon": _reward_icon("gold"), "apply": func(): Events.add_gold(g)}
 
 
 ## 새 슬롯 여유/만렙 규칙을 지켜 지급 가능한 아이템 하나를 무작위로 고른다(없으면 {}).
@@ -390,14 +392,14 @@ func _reveal() -> void:
 	margin.add_child(vb)
 
 	var head := Label.new()
-	head.text = "- TREASURE -"
+	head.text = Locale.t("chest_head")
 	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	head.add_theme_font_size_override("font_size", 18)
 	head.add_theme_color_override("font_color", Color(0.7, 0.72, 0.78))
 	vb.add_child(head)
 
 	var title := Label.new()
-	title.text = _rar["title"]
+	title.text = Locale.t(_rar["title"])
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 40)
 	title.add_theme_color_override("font_color", col)

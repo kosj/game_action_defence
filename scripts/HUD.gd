@@ -271,7 +271,7 @@ func _on_boss_spawned(max_health: int) -> void:
 ## 보스 등장 배너 — 화면 중앙에 이름이 크게 슬라이드 인 했다가 사라진다(등장 연출).
 func _announce_boss(boss_name: String) -> void:
 	var banner := Label.new()
-	banner.text = ">>  %s  <<" % boss_name
+	banner.text = Locale.t("hud_boss_banner_fmt") % boss_name
 	banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	banner.offset_top = 210.0
 	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -389,13 +389,13 @@ func _on_weather_changed(key: String) -> void:
 ## 도전과제 달성 토스트 — 화면 상단 중앙에 잠깐 떴다 사라진다(코드로 즉석 생성).
 func _on_achievement_unlocked(title: String) -> void:
 	SoundManager.play_ui("gold", 0.0, 1.4)   # 달성 보상 하이톤 차임
-	_show_toast("[*]  %s  - reward waiting" % title, Color(1.0, 0.85, 0.35), 150.0)
+	_show_toast(Locale.t("toast_achievement_fmt") % title, Color(1.0, 0.85, 0.35), 150.0)
 
 
 ## 끝없는 과제 완료 — 보상은 자동 지급되지 않고 메뉴의 REWARDS 보관함에서 직접 수령한다.
 func _on_quest_completed(title: String, reward: int) -> void:
 	SoundManager.play_ui("gold", 0.0, 1.5)
-	_show_toast("[+]  Quest: %s   +%d gold waiting" % [title, reward], Color(0.6, 1.0, 0.6), 190.0)
+	_show_toast(Locale.t("toast_quest_fmt") % [title, reward], Color(0.6, 1.0, 0.6), 190.0)
 
 
 # 만렙 레벨업 골드 보상 알림 — 후반에는 레벨업이 초당 몇 번씩 들어와 토스트가 겹친다.
@@ -422,8 +422,8 @@ func _on_maxed_level_gold(_level: int, gold: int) -> void:
 	_maxed_gold_count = 0
 	_maxed_gold_pending = false
 	SoundManager.play_ui("gold", 0.0, 1.35)
-	var head := "MAX BUILD" if count == 1 else "MAX BUILD x%d" % count
-	_show_toast("%s   +%d gold" % [head, total], Color(1.0, 0.85, 0.35), 190.0)
+	var head: String = Locale.t("toast_maxbuild") if count == 1 else Locale.t("toast_maxbuild_fmt") % count
+	_show_toast(Locale.t("toast_gold_gain_fmt") % [head, total], Color(1.0, 0.85, 0.35), 190.0)
 
 
 ## 화면 상단 중앙에 잠깐 떠오르는 토스트 알림(달성/과제 공용).

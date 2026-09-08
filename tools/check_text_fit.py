@@ -79,11 +79,20 @@ def main() -> None:
     def lit(*texts):
         return [("-", t) for t in texts]
 
-    # 보물 상자 카드에 실제로 올라가는 문구 전체(ChestRewardPanel 의 _roll_* 참고)
-    chest_texts = ([("data", "NEW  %s" % n) for _, n in res_strings("data/item_catalog.tres", "display")]
-                   + [("data", "%s  Lv+1" % n) for _, n in res_strings("data/item_catalog.tres", "display")]
-                   + lit("+999 Gold", "+9999 XP", "XP Magnet  8s", "FREE LEVEL UP",
-                         "Full Heal", "+1 REVIVE", "+99 Meta Gold", "JACKPOT\n+999 Gold"))
+    # 보물 상자 카드에 실제로 올라가는 문구 전체(ChestRewardPanel 의 _roll_* 참고).
+    # 2026-09 로케일화(P2-14) 이후 이 문구들은 **세 언어 전부** 카드에 올라간다 —
+    # 예전처럼 영어 리터럴만 재면 ko/ja 넘침을 놓친다.
+    items = res_strings("data/item_catalog.tres", "display")
+    chest_texts = []
+    for key in ("chest_item_new_fmt", "chest_item_up_fmt"):
+        for lang, fmt in L.get(key, {}).items():
+            chest_texts += [(lang, fmt % n) for _, n in items]
+    for key, arg in (("chest_gold_fmt", 999), ("chest_xp_fmt", 9999),
+                     ("chest_magnet_fmt", 8), ("chest_free_level", None),
+                     ("chest_full_heal", None), ("chest_revive_fmt", 1),
+                     ("chest_meta_fmt", 99), ("chest_jackpot_fmt", 999)):
+        chest_texts += loc(key, arg)
+    # 등급 제목은 카드가 아니라 패널 제목(40px)이라 별도 케이스에서 잰다.
 
     # (화면·위젯, 사용 가능 폭 px, 글꼴 크기, 굵게, 후보 문자열들, [mode])
     cases = [
@@ -191,6 +200,11 @@ def main() -> None:
         # 카드 128(4장) / 140(3장) / 152(2장 이하), 콘텐츠 여백 10*2.
         # 줄바꿈이 켜져 있으므로 "가장 긴 단어"가 기준이다.
         ("보상 카드 · 계속 안내", 640, 18, False, loc("tap_continue")),
+        # 패널 vb 최소 폭 330 + 좌우 여백 30*2 = 390 까지 늘어난다. 제목은 40px 로 가장 크다.
+        ("보상 · 등급 제목", 330, 40, True,
+         [t for k in ("chest_rar_common", "chest_rar_rare", "chest_rar_epic",
+                      "chest_rar_legend") for t in loc(k)]),
+        ("보상 · 머리말", 330, 18, False, loc("chest_head")),
         ("보상 카드 · 이름(4장)", 128 - 20, 14, False, chest_texts, "word"),
         ("보상 카드 · 이름(3장)", 140 - 20, 14, False, chest_texts, "word"),
 

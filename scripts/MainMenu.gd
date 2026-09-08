@@ -1066,11 +1066,11 @@ func _refresh_power() -> void:
 		var mx := int(u["max"])
 		var btn: Button = row["btn"]
 		if lv >= mx:
-			btn.text = "%s  (MAX)\n%s" % [u["name"], u["desc"]]
+			btn.text = Locale.t("power_max_fmt") % [u["name"], u["desc"]]
 			btn.disabled = true
 		else:
 			var c := MetaManager.cost(id)
-			btn.text = "%s  (%d/%d)\n%s   -%d G" % [u["name"], lv, mx, u["desc"], c]
+			btn.text = Locale.t("power_buy_fmt") % [u["name"], lv, mx, u["desc"], c]
 			btn.disabled = MetaManager.meta_gold < c
 
 

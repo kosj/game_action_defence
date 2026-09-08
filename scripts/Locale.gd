@@ -149,8 +149,40 @@ const STRINGS: Dictionary = {
 						  "ko": "레벨 %d  ·  강화 선택",
 						  "ja": "レベル %d  ·  アップグレードをえらぶ"},
 
+	# 진화 — 인게임 최대 파워업. 일본어 한자(進化)는 서브셋에 없어 픽업 라벨과 같은
+	# 가타카나 표기를 쓴다(pickup_evolution 과 용어를 맞춘다).
+	"evo_title":       {"en": "EVOLUTION  ·  CHOOSE ONE",
+						"ko": "진화  ·  하나를 선택",
+						"ja": "エボリューション  ·  ひとつ えらぶ"},
+	"evo_card_fmt":    {"en": "EVOLVE  %s", "ko": "진화  %s", "ja": "エボリューション  %s"},
+	"item_tag_new":    {"en": "NEW!", "ko": "신규!", "ja": "NEW!"},
+
 	# ── 보물상자 보상 카드 ────────────────────────────────────────────────
+	# 카드 폭이 128px(4장)뿐이라 **가장 긴 낱말**이 108px 를 넘으면 안 된다.
+	# tools/check_text_fit.py 의 "보상 카드 · 이름" 케이스가 세 언어를 모두 잰다 —
+	# 문구를 고치면 그 검사를 반드시 다시 돌릴 것.
 	"tap_continue":    {"en": "tap to continue", "ko": "탭하여 계속", "ja": "タップでつづける"},
+	"chest_head":      {"en": "TREASURE", "ko": "보물상자", "ja": "トレジャー"},
+	"chest_rar_common": {"en": "COMMON", "ko": "일반", "ja": "ノーマル"},
+	# 한국어는 서브셋에 없는 음절을 피한다 — "희귀"(귀·희)·"영웅"(웅)을 못 써
+	# 같은 등급감의 "고급"·"정예"로 적는다(tools/font_known_absent.txt 와 같은 제약).
+	"chest_rar_rare":  {"en": "RARE !", "ko": "고급 !", "ja": "レア !"},
+	"chest_rar_epic":  {"en": "EPIC !!", "ko": "정예 !!", "ja": "エピック !!"},
+	"chest_rar_legend": {"en": "LEGENDARY !!!", "ko": "전설 !!!", "ja": "レジェンド !!!"},
+	"chest_gold_fmt":  {"en": "+%d Gold", "ko": "+%d 골드", "ja": "+%d ゴールド"},
+	"chest_xp_fmt":    {"en": "+%d XP", "ko": "+%d 경험치", "ja": "+%d けいけんち"},
+	"chest_magnet_fmt": {"en": "XP Magnet  %ds", "ko": "경험치 자석  %d초",
+						 "ja": "けいけんち マグネット  %d秒"},
+	# "레벨업"의 "업"이 서브셋에 없어 "레벨 상승"으로 적는다.
+	"chest_free_level": {"en": "FREE LEVEL UP", "ko": "무료 레벨 상승", "ja": "むりょう レベルアップ"},
+	"chest_full_heal": {"en": "Full Heal", "ko": "체력 모두 회복", "ja": "たいりょく かいふく"},
+	"chest_revive_fmt": {"en": "+%d REVIVE", "ko": "+%d 부활", "ja": "+%d ふっかつ"},
+	"chest_meta_fmt":  {"en": "+%d Meta Gold", "ko": "+%d 은행 골드", "ja": "+%d ぎんこう ゴールド"},
+	# 카드 한 장에 두 줄로 들어간다. 일본어 "ジャックポット"(7자)는 128px 카드에서
+	# 여유가 9%%밖에 안 남아 같은 뜻의 "おおあたり"(5자)로 줄였다.
+	"chest_jackpot_fmt": {"en": "JACKPOT\n+%d Gold", "ko": "대박\n+%d 골드", "ja": "おおあたり\n+%d ゴールド"},
+	"chest_item_new_fmt": {"en": "NEW  %s", "ko": "신규  %s", "ja": "NEW  %s"},
+	"chest_item_up_fmt": {"en": "%s  Lv+1", "ko": "%s  Lv+1", "ja": "%s  Lv+1"},
 
 	# ── 필드 아이템 픽업 라벨(월드에 그린다) ───────────────────────────────
 	"pickup_bomb":     {"en": "Bomb", "ko": "폭탄", "ja": "ボム"},
@@ -181,6 +213,26 @@ const STRINGS: Dictionary = {
 	# 서브셋 폰트 주의: 일본어는 한자 글리프가 서브셋에 없을 수 있어 가나 위주로 쓴다.
 	"hud_goal_fmt":    {"en": "SURVIVE %s → CLEAR", "ko": "%s 생존 → 클리어", "ja": "%s 生存 → クリア"},
 	"hud_overtime":    {"en": "OVERTIME", "ko": "연장전", "ja": "OVERTIME"},
+	# 보스 등장 배너 — 예전에는 ">>  이름  <<" 였다. 장식 대신 "보스"라는 말이
+	# 정보를 준다(무엇이 왔는지 모르는 사람에게 꺾쇠는 아무 뜻이 아니다).
+	"hud_boss_banner_fmt": {"en": "BOSS  %s", "ko": "보스  %s", "ja": "ボス  %s"},
+
+	# ── 상단 토스트(달성·과제·만렙 보상) ──────────────────────────────────
+	"toast_achievement_fmt": {"en": "%s  ·  reward waiting",
+							  "ko": "%s  ·  보상 대기",
+							  "ja": "%s  ·  ほうしゅう まち"},
+	"toast_quest_fmt": {"en": "Quest  %s  ·  +%d gold waiting",
+						"ko": "과제  %s  ·  +%d 골드 대기",
+						"ja": "クエスト  %s  ·  +%d ゴールド まち"},
+	"toast_maxbuild":     {"en": "MAX BUILD", "ko": "최대 강화", "ja": "さいだい きょうか"},
+	"toast_maxbuild_fmt": {"en": "MAX BUILD x%d", "ko": "최대 강화 x%d", "ja": "さいだい きょうか x%d"},
+	"toast_gold_gain_fmt": {"en": "%s   +%d gold", "ko": "%s   +%d 골드", "ja": "%s   +%d ゴールド"},
+
+	# ── 영구 강화(파워업) 행 ──────────────────────────────────────────────
+	"power_max_fmt": {"en": "%s  (MAX)\n%s", "ko": "%s  (최대)\n%s", "ja": "%s  (さいだい)\n%s"},
+	# 가격의 "G"는 골드 단위 기호라 세 언어 공통이다(줄이 이미 길어 단어를 쓰지 않는다).
+	"power_buy_fmt": {"en": "%s  (%d/%d)\n%s   -%d G", "ko": "%s  (%d/%d)\n%s   -%d G",
+					  "ja": "%s  (%d/%d)\n%s   -%d G"},
 	"hud_swarm":       {"en": "!! SWARM !!", "ko": "!! 좀비 무리 !!", "ja": "!! ゾンビラッシュ !!"},
 	"hud_elite":       {"en": "!! ELITE PACK !!", "ko": "!! 정예 무리 !!", "ja": "!! エリート !!"},
 	# 마일스톤 카운트다운(P1-4). 기존 문구의 글자만 조합해 폰트 서브셋을 늘리지 않는다.
