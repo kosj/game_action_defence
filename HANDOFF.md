@@ -96,9 +96,10 @@
 | P2-9 `subset_fonts.py` 가 서브셋 폰트를 원본으로 착각해 금지 목록을 오염시킨다 | D | ✅ (fd65477) | claude/d-lane-subset-guard | 2026-08-21 |
 | P3-4/5/6 문서 정합성 (1·2·3 은 해소됨) | — | ✅ (56974a7) | claude/docs-lane-p3 | 2026-08-20 |
 | P2-11 사운드 고아 정리 — 삭제된 무기·자산이 남긴 흔적 6건 | J | ✅ (8b419de) | claude/j-lane-sfx-orphans | 2026-09-08 |
-| P1-34 안 들리는 효과음 3종(shoot·boom·ui_click) — 폰 대역 밖 | J | ✅ (머지 후 sha 기입) | claude/j-lane-inaudible-sfx | 2026-09-08 |
-| P2-13 사운드 검수 잔여 — gold 길이·보상 징글 3종 혼동·스테레오 3개 등 | J | ⚪ 대기 | — | P2-12 이후 |
-| P2-12 누락 효과음 — 재생 훅 + 생성 프롬프트 | J | ⚪ 대기 | — | P1-34 이후 |
+| P1-34 안 들리는 효과음 3종(shoot·boom·ui_click) — 폰 대역 밖 | J | ✅ (fc74aaa) | claude/j-lane-inaudible-sfx | 2026-09-08 |
+| P2-15 사운드 검수 잔여 — gold 길이·보상 징글 3종 혼동·스테레오 3개 등 | J | ⚪ 대기 | — | P2-12 이후 |
+| P2-12 누락 효과음 — 무음 무기 3종·보스 큰 순간·연출 2곳 | J | 🔵 진행중 | claude/j-lane-missing-sfx | 2026-09-08 |
+| P2-16 지속형 무기 루프 사운드 지원(화염방사기) — SoundManager 루프 API | J | ⚪ 대기 | — | P2-12 이후 |
 | P2-10 사운드 전체 검수 — 고아 정리(`swing`) + 연출 대비 누락 보완 | J | 🔵 진행중 | claude/ultimate-ability-sound-improvement-gx2j1x | 2026-09-07 |
 | 5-R 실기기 병목 판정 도구(HALF RES·PERF HUD avg/max·자동 플레이테스트) — `OPTIMIZATION_PLAN.md` §5-R | I | ✅ (ecf7af7 · a3f5c08) | claude/project-optimization-review-bgoocs | 2026-09-05 |
 | P2-13 UI 연출 Phase 1-① 공용 모션 상수 + 팝업 열기/닫기 연출 — `UI_POLISH_PLAN.md` §3 | D | ✅ (6e691a2) | claude/game-hud-improvement-plan-4j6z91 | 2026-09-08 |
@@ -2187,7 +2188,7 @@ CI 게이트(`check_font_coverage.gd`)도 원래 같은 범위(Locale + data/*.t
 이중 가공된다. `PRISTINE_REV` 커밋에서 원본을 꺼내 막았다(멱등성은 PCM 으로 확인 —
 libvorbis 는 같은 입력에도 매번 다른 바이트를 써서 ogg 해시로는 판정할 수 없다).
 
-**남은 검수 지적** — P2-13 으로 넘겼다.
+**남은 검수 지적** — P2-15 로 넘겼다.
 
 ---
 
