@@ -122,7 +122,7 @@ func _run() -> void:
 	get_tree().quit(0 if _ok == _total else 1)
 
 
+## 임의 내용의 체크포인트를 만든다. 서명본으로 쓴다(P2-29) — 검사 대상은 "필드가 빠진 구세이브"지
+## "서명 없는 파일"이 아니고, 평문은 스탬프가 생긴 뒤(두 번째 실행부터) 변조로 취급된다.
 func _write_raw(d: Dictionary) -> void:
-	var f := FileAccess.open(SaveManager.SAVE_PATH, FileAccess.WRITE)
-	f.store_string(JSON.stringify(d))
-	f.close()
+	SaveGuard.write_json(SaveManager.SAVE_PATH, d)

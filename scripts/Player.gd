@@ -46,7 +46,12 @@ var _base_zoom: Vector2 = Vector2.ONE   # 카메라 기본 줌(줌 펀치 복귀
 var _zoom_tween: Tween = null
 
 var joystick: Node = null
-var health: int
+## 변조 허들(P2-29): 체력은 평문이 아니라 금고에 두고 프로퍼티로 드나든다(무적 핵 허들).
+## 불일치를 잡으면 Events.report_tamper 로 알려 골드·점수와 같은 판 표시로 합산된다.
+var _hp_vault := TamperVault.new()
+var health: int:
+	get: return _hp_vault.get_int(&"hp")
+	set(value): _hp_vault.set_int(&"hp", value)
 var _attack_accum: float = 0.0
 var _hurt_timer: float = 0.0
 var _dead: bool = false
@@ -94,6 +99,7 @@ var _magnet_last_sec: int = -1
 
 func _ready() -> void:
 	add_to_group("player")
+	_hp_vault.tamper_detected.connect(func(_n: StringName) -> void: Events.report_tamper("player_health"))
 	_apply_character_sprite()        # 선택 캐릭터 전용 스프라이트 적용(기본 스케일 캡처 전에)
 	_body_base_scale = body.scale   # 걷기 스쿼시는 이 기본 스케일을 기준으로 오간다
 	_fit_shadow()

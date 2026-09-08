@@ -114,12 +114,18 @@ func is_signed_in() -> bool:
 func _on_high_score_changed(high: int) -> void:
 	if _booting:
 		return
+	# 변조가 감지된 판의 점수는 보존하지 않는다(P2-29). 아래 사망 제출과 같은 관문.
+	if Events.tamper_detected():
+		return
 	# 실시간 로컬 보존. 온라인 제출은 게임오버(_on_player_died)에서만.
 	if _backend:
 		_backend.set_best(current_mode_id(), high)
 
 
 func _on_player_died() -> void:
+	if Events.tamper_detected():
+		push_warning("[RankingManager] 변조가 감지된 판 — 점수 %d 제출을 건너뛴다" % Events.score)
+		return
 	submit(Events.score)
 
 

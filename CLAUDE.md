@@ -211,6 +211,7 @@ godot --headless --path . res://scenes/PauseWatchdogTest.tscn
 godot --headless --path . res://scenes/TelemetryTest.tscn
 godot --headless --path . res://scenes/CodexTest.tscn
 godot --headless --path . res://scenes/ThreatTest.tscn
+godot --headless --path . res://scenes/TamperGuardTest.tscn
 godot --headless --path . res://scenes/KeyboardMoveTest.tscn
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_arena.gd
 godot --headless --path . --fixed-fps 60 --script res://tools/verify_boss_heal.gd
@@ -288,7 +289,7 @@ SwiftShader(소프트웨어 GL)로 도는 값이라 실기기와 무관하다.
 ⚠️ **"웹은 데스크톱의 3~4배"는 틀린 상수다** — 실측하면 렌더 경합이 없을 때 **0.99배**다(§5-L).
 남은 미지수는 폰 CPU 의 절대 속도와 모바일 GPU fill-rate 뿐이고, 그것만 실기기가 필요하다.
 
-**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 27종이 이 프로젝트의 안전망 전부다.
+**기능을 고쳤으면 해당 회귀 테스트도 같이 늘린다.** 위 28종이 이 프로젝트의 안전망 전부다.
 
 비주얼을 건드렸으면 **실렌더 스크린샷**으로 확인한다 — 헤드리스는 `_draw` 를 부르고 오류도 안 내지만,
 그려진 것이 다른 레이어에 덮였는지·좌표가 화면 밖인지는 알려주지 않는다.
@@ -326,6 +327,16 @@ Events.pause_pop(self)                # 닫을 때
 ### 보스 노드의 루트를 트윈하지 않는다
 루트 `CharacterBody2D` 의 scale/position 을 트윈하면 `move_and_slide` 가 깨져 보스가 얼어붙는다.
 **Body 스프라이트만** 애니메이트한다.
+
+### 재화·점수·체력은 평문 변수가 아니다 — 금고 프로퍼티다 (P2-29)
+`Events.total_gold`·`score`·`xp`·`level`·`xp_to_next`·`MetaManager.meta_gold`·`Player.health` 는
+`TamperVault` 에 XOR 인코딩으로 보관되고 프로퍼티 접근자로만 드나든다(메모리 스캐너 허들).
+호출부 문법은 그대로지만, **`_vault._enc` 같은 내부를 직접 만지면 변조로 잡힌다.** 값을 새로 보호하려면
+같은 패턴(`var x: int: get/set → 금고`)을 쓰고, 선언부 기본값은 줄 수 없으니 `_init()` 에서 채운다.
+세이브 9종(`meta·reward_inbox·achievements·quests·threat·character·theme·ranking·save.json`)은
+`SaveGuard.write_json/read_json` 을 거치는 **HMAC 서명본**이다 — 테스트·도구에서 이 파일들을
+`FileAccess` 로 평문 JSON 을 직접 쓰면 두 번째 실행부터 변조로 취급돼 무시된다(`SaveGuard` 헤더 참고).
+둘 다 **허들이지 방어가 아니다**(키·방식이 공개 소스에 있다) — 온라인 기능 전에는 서버 검증이 본질이다.
 
 ### 물리 레이어
 `1=player · 2=zombies · 3=bullets · 4=gold`
