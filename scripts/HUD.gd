@@ -20,8 +20,6 @@ const _PerfOverlay := preload("res://scripts/PerfOverlay.gd")
 @onready var buff_label: Label = $BuffLabel
 @onready var kills_label: Label = $KillsLabel
 @onready var time_label: Label = $TimeLabel
-@onready var score_label: Label = $ScoreLabel
-@onready var high_score_label: Label = $HighScoreLabel
 @onready var flash_overlay: ColorRect = $FlashOverlay
 @onready var low_hp_overlay: ColorRect = $LowHpOverlay
 @onready var boss_bar: Control = $BossBar
@@ -33,7 +31,6 @@ const _PerfOverlay := preload("res://scripts/PerfOverlay.gd")
 @onready var banner_label: Label = $BannerLabel
 @onready var game_over_panel: Panel = $GameOverPanel
 @onready var game_over_label: Label = $GameOverPanel/Margin/VBoxContainer/GameOverLabel
-@onready var stats_label: Label = $GameOverPanel/Margin/VBoxContainer/StatsLabel
 @onready var restart_button: Button = $GameOverPanel/Margin/VBoxContainer/RestartButton
 @onready var main_menu_button: Button = $GameOverPanel/Margin/VBoxContainer/MainMenuButton
 
@@ -42,7 +39,6 @@ const HP_BAR_W := 296.0   # 체력 게이지 채움부의 최대 폭(씬의 BarF
 
 var _prev_health: int = -1
 var _prev_gold: int = -1
-var _prev_score: int = -1
 var _max_health: int = 0
 var _low_hp_tween: Tween = null
 var _hp_fill_sb: StyleBox = null       # 체력 게이지 채움부 스타일 — Flat(bg_color) 또는 Texture(modulate)
@@ -152,7 +148,7 @@ func _ready() -> void:
 	# clip_text: 이들은 앵커로 폭이 고정돼 있어 늘어날 수 없다. 번역이나 수치가 예상보다
 	# 길어져도 글자가 전장 위로 새지 않도록 위젯 안에서 잘라낸다(현재는 전부 여유가 있다 —
 	# tools/check_text_fit.py 로 검증). 안전장치이지 상시 동작하는 기능이 아니다.
-	for lbl in [gold_label, score_label, kills_label, time_label, high_score_label, hp_label,
+	for lbl in [gold_label, kills_label, time_label, hp_label,
 			weapon_label, buff_label, boss_name_label]:
 		UITheme.outline_label(lbl)
 		lbl.clip_text = true
@@ -190,8 +186,6 @@ func _ready() -> void:
 	Events.weapon_equipped.connect(_on_weapon_equipped)
 	Events.weapon_timer_changed.connect(_on_weapon_timer_changed)
 	Events.gold_magnet_changed.connect(_on_gold_magnet_changed)
-	Events.score_changed.connect(_on_score_changed)
-	Events.high_score_changed.connect(_on_high_score_changed)
 	Events.boss_spawned.connect(_on_boss_spawned)
 	Events.boss_health_changed.connect(_on_boss_health_changed)
 	Events.boss_died.connect(_on_boss_died)
@@ -211,8 +205,6 @@ func _ready() -> void:
 		_on_player_health_changed(Events.player_health, Events.player_max_health)
 	_on_kills_changed(Events.total_kills)
 	_on_run_progress(Events.elapsed_time, GameData.difficulty.clear_seconds)
-	_on_score_changed(Events.score)
-	_on_high_score_changed(Events.high_score)
 	_on_xp_changed(Events.xp, Events.xp_to_next, Events.level)
 	_on_inventory_changed()
 
@@ -220,7 +212,6 @@ func _ready() -> void:
 ## 둥근 패널/라벨이 자신의 중심을 기준으로 스케일되도록 pivot 보정 (레이아웃 확정 후 1회).
 func _init_pivots() -> void:
 	gold_label.pivot_offset = gold_label.size * 0.5
-	score_label.pivot_offset = score_label.size * 0.5
 	weapon_label.pivot_offset = weapon_label.size * 0.5
 	# 새로 펄스하는 라벨 둘은 **오른쪽 끝**을 피벗으로 잡는다. 둘 다 우측 정렬이고
 	# 바로 오른쪽에 아이콘(해골·시계)이 붙어 있는데, 그 아이콘은 라벨의 자식이 아니라
@@ -267,21 +258,6 @@ func _pulse(node: Control, amount: float) -> void:
 	node.scale = Vector2(amount, amount)
 	var tw := create_tween()
 	tw.tween_property(node, "scale", Vector2.ONE, UIMotion.DUR_POP).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-
-
-func _on_score_changed(total: int) -> void:
-	score_label.text = Locale.t("hud_score_fmt") % total
-	if _prev_score >= 0 and total > _prev_score:
-		_pulse_score()
-	_prev_score = total
-
-
-func _pulse_score() -> void:
-	_pulse(score_label, 1.25)
-
-
-func _on_high_score_changed(high: int) -> void:
-	high_score_label.text = Locale.t("hud_best_fmt") % high
 
 
 func _on_boss_spawned(max_health: int) -> void:
@@ -1228,8 +1204,6 @@ func _on_rewarded_granted(placement: String) -> void:
 # 상단 바 작은 아이콘들(웨이브·시간 아이콘) — 텍스트 위주 HUD 보강.
 # 점수(★)와 랭킹(최고 🏆)은 HUD 에서 숨긴다(요청) — 처치 수/시간만 노출해 상단을 간결하게.
 func _build_hud_icons() -> void:
-	score_label.visible = false
-	high_score_label.visible = false
 	_right_stat_icon("skull",  kills_label,       Color(0.95, 0.6, 0.6))
 	_right_stat_icon("clock",  time_label,       Color(0.82, 0.86, 0.95))
 
@@ -1260,14 +1234,16 @@ func _right_stat_icon(kind: String, label: Label, col: Color) -> void:
 
 # 게임오버 패널: 메달 + 아이콘 통계 그리드를 코드로 구성(기존 텍스트 라벨 대체).
 func _build_gameover_stats() -> void:
-	stats_label.visible = false
-	var vbox := stats_label.get_parent()
+	# 통계는 아래 아이콘 그리드가 대신한다. 예전에는 씬의 StatsLabel 을 숨겨 두고 그
+	# 바로 뒤에 그리드를 끼웠는데, 그 라벨은 이제 씬에서 지웠다(P2-22) — 제목 바로
+	# 뒤에 넣는다.
+	var vbox := game_over_label.get_parent()
 
 	var holder := VBoxContainer.new()
 	holder.alignment = BoxContainer.ALIGNMENT_CENTER
 	holder.add_theme_constant_override("separation", 10)
 	vbox.add_child(holder)
-	vbox.move_child(holder, stats_label.get_index() + 1)
+	vbox.move_child(holder, game_over_label.get_index() + 1)
 
 	# 메달 + 신기록 표시
 	_go_medal = UIIcon.make("trophy", 56, Color(1.0, 0.82, 0.25))

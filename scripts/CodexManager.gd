@@ -27,12 +27,16 @@ const KINDS := ["weapon", "evolution", "passive", "zombie", "boss", "arena"]
 signal changed
 
 var _found: Dictionary = {}        # kind -> {id: true}
+## kind -> {id: true} — **도감에서 이미 본** 항목. 발견했지만 아직 안 본 것이 "새로 발견"이다.
+## 채워진 칸이 아니라 방금 늘어난 칸이 다음 판의 이유가 되므로, 그것만 표시해 준다.
+var _seen: Dictionary = {}
 var _evolution_ids: Dictionary = {}   # 진화 결과 무기 id 집합(무기/진화 분류용)
 
 
 func _ready() -> void:
 	for k in KINDS:
 		_found[k] = {}
+		_seen[k] = {}
 	for e in GameData.evolution_defs:
 		_evolution_ids[e.into_id] = true
 	_load()
@@ -58,6 +62,37 @@ func discover(kind: String, id: String) -> bool:
 
 func has(kind: String, id: String) -> bool:
 	return _found.has(kind) and (_found[kind] as Dictionary).has(id)
+
+
+## 발견은 했지만 도감에서 아직 못 본 것.
+func is_new(kind: String, id: String) -> bool:
+	return has(kind, id) and not (_seen.has(kind) and (_seen[kind] as Dictionary).has(id))
+
+
+## 새로 발견한 것이 몇 개인가 — 메뉴 버튼에 뱃지를 달고 싶을 때 쓸 수 있다.
+func new_count() -> int:
+	var n := 0
+	for kind in KINDS:
+		for id in (_found[kind] as Dictionary):
+			if not (_seen[kind] as Dictionary).has(id):
+				n += 1
+	return n
+
+
+## 도감을 닫을 때 부른다 — 지금 발견된 것을 전부 "봤다"로 표시한다.
+## 여는 순간이 아니라 닫는 순간인 이유: 열자마자 표시가 사라지면 무엇이 새것이었는지
+## 볼 시간이 없다. 바뀐 것이 없으면 파일을 쓰지 않는다.
+func mark_all_seen() -> void:
+	var dirty := false
+	for kind in KINDS:
+		var seen: Dictionary = _seen[kind]
+		for id in (_found[kind] as Dictionary):
+			if not seen.has(id):
+				seen[id] = true
+				dirty = true
+	if dirty:
+		_save()
+		changed.emit()
 
 
 func found_count(kind: String) -> int:
@@ -90,18 +125,32 @@ func _load() -> void:
 	f.close()
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return
+	var seen_all = parsed.get("_seen", null)
 	for kind in KINDS:
 		var ids = parsed.get(kind, [])
 		if typeof(ids) != TYPE_ARRAY:
 			continue
 		for id in ids:
 			(_found[kind] as Dictionary)[String(id)] = true
+		# 예전 저장 파일에는 "_seen" 이 없다. 그때는 **이미 발견한 것을 전부 본 것으로**
+		# 친다 — 그러지 않으면 기존 플레이어의 도감이 통째로 "새로 발견"으로 뜬다.
+		var seen_ids = null
+		if typeof(seen_all) == TYPE_DICTIONARY:
+			seen_ids = seen_all.get(kind, [])
+		if typeof(seen_ids) != TYPE_ARRAY:
+			seen_ids = ids
+		for id in seen_ids:
+			(_seen[kind] as Dictionary)[String(id)] = true
 
 
 func _save() -> void:
 	var out: Dictionary = {}
+	var seen_out: Dictionary = {}
 	for kind in KINDS:
 		out[kind] = (_found[kind] as Dictionary).keys()
+		seen_out[kind] = (_seen[kind] as Dictionary).keys()
+	# 종류 이름과 겹치지 않도록 밑줄로 시작하는 키를 쓴다(KINDS 는 전부 소문자 낱말이다).
+	out["_seen"] = seen_out
 	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify(out))
@@ -112,5 +161,6 @@ func _save() -> void:
 func clear_all() -> void:
 	for k in KINDS:
 		_found[k] = {}
+		_seen[k] = {}
 	_save()
 	changed.emit()

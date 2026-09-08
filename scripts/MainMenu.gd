@@ -494,6 +494,9 @@ func _on_codex_pressed() -> void:
 func _on_codex_close() -> void:
 	if _codex == null:
 		return
+	# **닫을 때** 지금 발견된 것을 전부 "봤다"로 표시한다. 여는 순간에 지우면 무엇이
+	# 새것이었는지 볼 시간이 없다(CodexManager.mark_all_seen 주석 참고).
+	CodexManager.mark_all_seen()
 	_UIPopup.close(_codex.dim, _codex.panel)
 
 
