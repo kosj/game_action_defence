@@ -9,7 +9,11 @@ const SAVE_PATH := "user://meta.save"
 ## 영구 강화 카탈로그는 데이터 에셋(res://data/meta_upgrades.tres, GameData)에서 로드한다.
 ## cost(level) = base_cost * cost_mul^level.
 
-var meta_gold: int = 0
+## 변조 허들(P2-29): 은행 잔액은 금고에 두고 프로퍼티로 드나든다(Events.total_gold 와 같은 방식).
+var _vault := TamperVault.new()
+var meta_gold: int:
+	get: return _vault.get_int(&"meta_gold")
+	set(value): _vault.set_int(&"meta_gold", value)
 var _levels: Dictionary = {}   # id -> level
 
 
@@ -79,6 +83,10 @@ func reward_gold(amount: int) -> void:
 func bank(run_gold: int) -> void:
 	if run_gold <= 0:
 		return
+	# 변조가 감지된 판의 골드는 적립하지 않는다(P2-29). 은행 잔액이 곧 영구 진행이라 여기가 관문이다.
+	if Events.tamper_detected() or _vault.tampered:
+		push_warning("[MetaManager] 변조가 감지된 판 — 골드 %d 적립을 건너뛴다" % run_gold)
+		return
 	meta_gold += run_gold
 	_save()
 
@@ -116,13 +124,8 @@ func _sum_effect(kind: String) -> float:
 
 
 func _load() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
-		return
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if f == null:
-		return
-	var parsed = JSON.parse_string(f.get_as_text())
-	f.close()
+	var r := SaveGuard.read_json(SAVE_PATH)   # 서명 검증(P2-29) — 불일치 파일은 없는 것으로 본다
+	var parsed = r["data"]
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return
 	meta_gold = int(parsed.get("gold", 0))
@@ -130,10 +133,14 @@ func _load() -> void:
 	if typeof(lv) == TYPE_DICTIONARY:
 		for k in lv.keys():
 			_levels[str(k)] = int(lv[k])
+	if r["status"] == SaveGuard.Status.UNSIGNED:
+		_save()   # 구버전 평문 파일 → 첫 실행에 서명본으로 이관
 
 
 func _save() -> void:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify({"gold": meta_gold, "levels": _levels}))
-		f.close()
+	# 은행 잔액이 메모리에서 변조된 세션은 디스크에 내리지 않는다 — 내리면 변조된 잔액이 정상 서명을
+	# 달고 세탁된다(buy·spend·reward 경로가 전부 여기로 온다). 다음 실행은 마지막 정상 서명본으로 돌아간다.
+	if _vault.tampered:
+		push_warning("[MetaManager] 은행 잔액 변조 감지 — meta.save 를 쓰지 않는다")
+		return
+	SaveGuard.write_json(SAVE_PATH, {"gold": meta_gold, "levels": _levels})

@@ -2417,6 +2417,53 @@ Lv1 → Lv8(7회 선택) → 평균 28 레벨업 → 캐릭터 레벨 40 근처
 
 ---
 
+## P2-29. 클라이언트 변조 허들 — 런타임 값 금고 + 세이브 서명 🔵
+
+**배경** — 보안·라이선스 점검(2026-09-08)에서 확인한 것. 골드·점수·체력이 평문 `int` 라
+메모리 스캐너(Cheat Engine · GameGuardian · 브라우저의 WASM 메모리 뷰어)로 "화면의 숫자 검색 →
+덮어쓰기"가 그대로 통했고, 세이브 9종이 평문 JSON 이라 IndexedDB/파일을 편집기로 고치면 메타
+골드·해금·랭킹이 마음대로였다. 지금은 랭킹·재화가 전부 기기 안에 있어 남에게 피해가 없지만,
+온라인 랭킹·클라우드 세이브·IAP·실광고 중 하나라도 붙는 순간 문제가 된다.
+**서버 검증이 본질**이고(`LAUNCH_CHECKLIST.md` C), 이 항목은 그 전까지의 **클라이언트 허들**이다.
+
+**한 것**
+
+1. **런타임 값 금고 `TamperVault`**(`scripts/TamperVault.gd`) — 값을 64비트 난수 키로 XOR 해
+   보관한다(평문이 메모리에 없다). **쓰기마다 키를 갈아** 모든 칸의 저장 바이트가 함께 바뀌므로
+   "변함/안 변함" 스캔으로도 좁히기 어렵다. 칸마다 별도 솔트의 섀도 해시를 두어, 인코딩 칸을 찾아
+   직접 고치면 **읽는 순간 `tampered`** 가 선다. 정상 경로는 전부 `set_int` 를 거치므로 오탐은 없다.
+   대상: `Events.total_gold / score / xp / level / xp_to_next`, `MetaManager.meta_gold`,
+   `Player.health`. 전부 **프로퍼티 접근자**(`var x: int: get/set`)로 바꿔 호출부 문법은 그대로다.
+2. **탐지 시 조치** — `Events.tamper_detected()` 가 판 단위 표시(`reset()` 이 내린다).
+   `RankingManager` 는 사망 제출·실시간 최고점 보존을 건너뛰고, `MetaManager.bank` 는 적립을
+   건너뛰며, 텔레메트리는 `cheated=true` 에 합산하고 `tampered` 필드를 따로 남긴다.
+   Player 체력 금고의 불일치는 `Events.report_tamper` 로 같은 표시에 합산된다.
+3. **세이브 서명 `SaveGuard`**(`scripts/SaveGuard.gd`) — HMAC-SHA256 으로 `{"v","payload","sig"}`
+   포장. `payload` 는 **문자열째** 서명한다(parse→stringify 를 거치면 `5`→`5.0` 으로 바이트가 달라진다).
+   대상 9종: `meta · reward_inbox · achievements · quests · threat · character · theme · ranking
+   · save.json`. 구버전 평문 파일은 **첫 실행(스탬프 전)에만** 받아들여 각 매니저가 즉시 서명본으로
+   이관하고, 스탬프 이후의 평문·서명 불일치 파일은 없는 것으로 본다(그 파일의 진행은 버린다).
+   체크포인트(`save.json`)는 시작 시 읽히지 않으므로 `SaveManager._migrate_unsigned()` 가 따로 이관한다.
+
+**하지 않은 것 · 한계** — 키와 방식이 공개 소스에 있다. "숫자만 고치면 된다"를 "소스를 읽고 HMAC 을
+계산해야 한다"로 올린 것이지 방어가 아니다. `elapsed_time`(float) · `total_kills` · `high_score` 는
+평문이다. 서버 검증은 없다 — 온라인 랭킹을 열 때의 선행 조건이다.
+
+**검증** — `scenes/TamperGuardTest.tscn` 41건(T1~T12: 금고 왕복·키 교체·변조 탐지·rekey 가 흔적을
+안 지움·Events 프로퍼티·랭킹/적립 관문·체력 합산·서명 왕복·payload 변조·서명 제거·구버전 이관·
+CORRUPT/MISSING·MetaManager 변조 무시) + 회귀 28종(신규 포함) 전부 통과. CI 목록·`CLAUDE.md` §3 에 추가했다.
+
+**⚠️ 다음 세션이 알아야 할 것**
+- 테스트·도구에서 위 9종 파일을 `FileAccess` 로 **평문 JSON 을 직접 쓰지 말 것** — 두 번째 실행부터
+  변조로 취급된다. `SaveGuard.write_json` 을 쓴다(`ContinueSaveTest._write_raw` 와
+  `verify_quest_tracks.gd` 의 구세이브 픽스처가 그렇게 바뀌었다 — 후자는 실제로 그렇게 깨졌다).
+- 금고 프로퍼티는 선언부 기본값을 줄 수 없다(금고가 먼저 있어야 한다) — `Events._init()` 이 채운다.
+- `Events.reset()` 은 `_vault.reset_all()` 을 부른다. `clear_tamper_flag()` 만 내리고 값을 덮어쓰면
+  첫 `set_int` 가 남아 있던 변조 칸을 재검증하며 표시를 다시 세운다(T4 가 실제로 그렇게 실패했다).
+- 비용: `set_int` 는 칸 수(≤5)만큼 재인코딩한다 — 골드 픽업 한 번에 수 µs. `verify_hotpath` 통과.
+
+---
+
 # P3 — 문서 정합성 ✅ **여섯 항목 전부 해소됨**
 
 > 계획 문서 상당수가 현재 구현과 어긋나 있었다. 그대로 두면 다음 에이전트가 없는 시스템을 전제로
@@ -2445,7 +2492,7 @@ Lv1 → Lv8(7회 선택) → 평균 28 레벨업 → 캐릭터 레벨 40 근처
 |---|---|---|
 | **A 인프라** | P2-5 ✅ → P0-1 ✅ | `.github/workflows/`, `HUD.gd`(치트 블록) — **레인 완료, E 해금됨** |
 | **B 데이터** | P1-2 → P1-3 → P1-1 → P2-7 | `data/themes.tres`, `tools/gen_theme_data.gd`, `ZombieSpawner.gd` |
-| **C 시스템** | P0-2 → P0-3 → P2-6 | `Events.gd`, `QuestManager.gd`, `SaveManager.gd` |
+| **C 시스템** | P0-2 → P0-3 → P2-6 → P2-29 | `Events.gd`, `QuestManager.gd`, `SaveManager.gd` (+ P2-29: `MetaManager`·`RewardInbox`·`AchievementManager`·`ThreatManager`·`CharacterManager`·`ThemeManager`·`ranking/LocalRankingBackend` 의 저장부, `Player.gd` 체력 선언) |
 | **D UI** | P2-1 → P2-3 → P2-2 → P2-4 | `MainMenu.gd`, `UIStyle.gd`, `Locale.gd` |
 | **E HUD** | P1-4 | `HUD.gd`(진행바·배너) — ~~A 의 P0-1 대기~~ **이제 착수 가능**(P0-1 완료) |
 | **F 밸런스·측정** | P1-6 ✅ → P2-8 ✅ → P1-8 ✅ → P1-7 ✅ → P1-9 ✅ → P1-11 ✅ → **P1-5** | `data/difficulty.tres`, `tools/sim_balance.*`, `Telemetry.gd` |

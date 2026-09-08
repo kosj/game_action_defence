@@ -10,9 +10,28 @@ const _BUILD_INFO_PATH := "res://build_info.json"
 var _build_stamp_cache := ""
 
 
+## 금고 프로퍼티는 선언부에서 기본값을 줄 수 없어(금고가 먼저 있어야 한다) 여기서 채운다.
+## reset() 전에 읽히는 값(레벨 1 · 첫 레벨업 경험치 12)이 예전 선언 기본값과 같도록.
+func _init() -> void:
+	level = 1
+	xp_to_next = 12
+
+
 ## 일시정지 워치독이 정지 중에도 돌아야 하므로 이벤트 버스는 항상 처리한다.
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+
+
+## 이번 판에 메모리 변조가 감지됐는가 — 금고의 모든 칸을 **지금** 검증한다(아직 안 읽힌 칸까지).
+## 랭킹 제출(RankingManager)·메타 골드 적립(MetaManager.bank)·텔레메트리 기록이 결정 직전에 부른다.
+## 판 단위 표시라 reset() 이 내린다. 정상 코드 경로는 전부 접근자를 거치므로 오탐은 없다.
+func tamper_detected() -> bool:
+	return (not _vault.verify_all()) or _reported_tamper
+
+
+## 다른 금고(Player 체력)가 불일치를 잡았을 때 알려 온다 — 같은 판 표시로 합산한다.
+func report_tamper(_source: String) -> void:
+	_reported_tamper = true
 
 
 ## 예: "v1.0.0 · a1b2c3d · 2026-07-03 10:00 UTC" (배포 빌드) / "v1.0.0 · dev build" (로컬)
@@ -100,7 +119,16 @@ signal achievement_unlocked(title: String)   # 도전과제 달성 — HUD 토�
 signal quest_completed(title: String, reward: int)   # 끝없는 과제 완료 — HUD 토스트 + 메타 골드 보상
 signal maxed_level_gold(level: int, gold: int)      # 고를 카드가 없는 레벨업 → 골드로 보상(HUD 알림)
 
-var total_gold: int = 0
+## 변조 허들(P2-29): 골드·점수·경험치·레벨은 평문 int 가 아니라 TamperVault 에 XOR 인코딩으로
+## 보관하고 프로퍼티 접근자로만 드나든다 — 호출부 문법(`Events.total_gold`)은 그대로다.
+## 메모리 스캐너로 인코딩 칸을 고치면 읽는 순간 금고가 불일치를 잡고, 그 판은 랭킹 제출·메타
+## 골드 적립에서 제외된다(tamper_detected 참고). 상세는 scripts/TamperVault.gd 헤더.
+var _vault := TamperVault.new()
+var _reported_tamper: bool = false   # 다른 금고(Player 체력)가 알려 온 변조 — 판 단위
+
+var total_gold: int:
+	get: return _vault.get_int(&"gold")
+	set(value): _vault.set_int(&"gold", value)
 var total_kills: int = 0
 var did_clear: bool = false   # 이번 런에서 30분 클리어를 달성했는가
 var player_health: int = 0
@@ -123,14 +151,22 @@ var xp_mult: float = 1.0
 var revives_left: int = 0   # 이번 런 남은 무료 부활 횟수(메타 'revive') — 사망 시 소비
 
 # 점수: score=이번 판 점수, high_score=저장된 최고점, _prev_high=이번 판 시작 시점 최고점(갱신 판정용)
-var score: int = 0
+var score: int:
+	get: return _vault.get_int(&"score")
+	set(value): _vault.set_int(&"score", value)
 var high_score: int = 0
 var _prev_high: int = 0
 
 # 인게임 레벨: 코인 수집으로 xp 누적 → xp_to_next 도달 시 레벨업(강화 카드 선택). 판마다 초기화.
-var xp: int = 0
-var level: int = 1
-var xp_to_next: int = 12
+var xp: int:
+	get: return _vault.get_int(&"xp")
+	set(value): _vault.set_int(&"xp", value)
+var level: int:
+	get: return _vault.get_int(&"level")
+	set(value): _vault.set_int(&"level", value)
+var xp_to_next: int:
+	get: return _vault.get_int(&"xp_to_next")
+	set(value): _vault.set_int(&"xp_to_next", value)
 
 # 인벤토리(뱀서식 슬롯 성장): 무기/패시브 아이템의 보유 레벨. gun 은 시작 시 Lv1 보유.
 # ItemDB.recompute 가 이 인벤토리를 upgrade_* 로 반영한다(전투 코드는 upgrade_* 만 읽는다).
@@ -533,6 +569,8 @@ func is_new_record() -> bool:
 
 
 func reset() -> void:
+	_vault.reset_all()   # 변조 표시는 판 단위 — 지난 판의 칸을 버리고 새 키로 깨끗하게 시작한다
+	_reported_tamper = false
 	total_gold = 0
 	total_kills = 0
 	did_clear = false

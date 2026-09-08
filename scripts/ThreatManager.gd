@@ -109,13 +109,8 @@ func _finish_run() -> void:
 
 
 func _load() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
-		return
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if f == null:
-		return
-	var parsed = JSON.parse_string(f.get_as_text())
-	f.close()
+	var r := SaveGuard.read_json(SAVE_PATH)   # 서명 검증(P2-29) — 불일치 파일은 없는 것으로 본다
+	var parsed = r["data"]
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return
 	_max_rank = clampi(int(parsed.get("max_rank", 1)), 1, maxi(count(), 1))
@@ -124,13 +119,12 @@ func _load() -> void:
 	if typeof(b) == TYPE_DICTIONARY:
 		for k in b.keys():
 			_best[str(k)] = float(b[k])
+	if r["status"] == SaveGuard.Status.UNSIGNED:
+		_save()   # 구버전 평문 파일 → 첫 실행에 서명본으로 이관
 
 
 func _save() -> void:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify({"max_rank": _max_rank, "selected": _selected, "best": _best}))
-		f.close()
+	SaveGuard.write_json(SAVE_PATH, {"max_rank": _max_rank, "selected": _selected, "best": _best})   # 서명본(P2-29)
 
 
 ## 테스트 전용 — 진행 상태를 초기화한다.

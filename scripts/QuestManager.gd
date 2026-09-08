@@ -132,22 +132,14 @@ func _flush() -> void:
 
 
 func _save() -> void:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	if f == null:
+	if not SaveGuard.write_json(SAVE_PATH, {"tier": _tier, "count": _count, "frac": _survive_frac}):   # 서명본(P2-29)
 		return
-	f.store_string(JSON.stringify({"tier": _tier, "count": _count, "frac": _survive_frac}))
-	f.close()
 	_dirty = false
 
 
 func _load() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
-		return
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
-	if f == null:
-		return
-	var parsed = JSON.parse_string(f.get_as_text())
-	f.close()
+	var r := SaveGuard.read_json(SAVE_PATH)   # 서명 검증(P2-29) — 불일치 파일은 없는 것으로 본다
+	var parsed = r["data"]
 	if typeof(parsed) != TYPE_DICTIONARY:
 		return
 	var tier = parsed.get("tier", {})
@@ -160,3 +152,5 @@ func _load() -> void:
 			_tier[id] = int(tier[id])
 		if typeof(count) == TYPE_DICTIONARY and count.has(id):
 			_count[id] = int(count[id])
+	if r["status"] == SaveGuard.Status.UNSIGNED:
+		_save()   # 구버전 평문 파일 → 첫 실행에 서명본으로 이관

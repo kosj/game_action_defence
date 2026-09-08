@@ -52,20 +52,14 @@ func set_best(mode_id: String, value: int) -> void:
 
 
 func _load() -> void:
-	if not FileAccess.file_exists(PATH):
-		return
-	var f := FileAccess.open(PATH, FileAccess.READ)
-	if f == null:
-		return
-	var parsed = JSON.parse_string(f.get_as_text())
-	f.close()
+	var r := SaveGuard.read_json(PATH)   # 서명 검증(P2-29) — 불일치 파일은 없는 것으로 본다
+	var parsed = r["data"]
 	if typeof(parsed) == TYPE_DICTIONARY:
 		for k in parsed:
 			_bests[k] = int(parsed[k])
+		if r["status"] == SaveGuard.Status.UNSIGNED:
+			_save()   # 구버전 평문 파일 → 첫 실행에 서명본으로 이관
 
 
 func _save() -> void:
-	var f := FileAccess.open(PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify(_bests))
-		f.close()
+	SaveGuard.write_json(PATH, _bests)   # 서명본(P2-29)
