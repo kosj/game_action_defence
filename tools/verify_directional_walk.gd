@@ -21,13 +21,13 @@ func verify() -> void:
 		var p = PLAYER.instantiate()
 		p.process_mode = Node.PROCESS_MODE_DISABLED
 		add_child(p)
-		if id == "hunter":
-			check(p._directional_walk, "hunter directional mode")
+		if id in ["hunter", "engineer"]:
+			check(p._directional_walk, "%s directional mode" % id)
 			check(p.body.texture.get_size() == Vector2(128, 1024), "idle texture dimensions")
 			check(p.body.vframes == 8 and p.body.hframes == 1, "idle grid")
 			var module = PROJECTILE.new()
 			p.add_child(module)
-			module.setup("crossbow")
+			module.setup("crossbow" if id == "hunter" else "gun")
 			for d in range(8):
 				var direction: Vector2 = p._WALK_DIRECTIONS[d].normalized()
 				p.velocity = direction * 220.0
@@ -37,7 +37,7 @@ func verify() -> void:
 				check(int(p.body.frame / 24) == d and p.body.vframes == 8, "walk atlas row %d" % d)
 				check(p.body.scale.x > 0 and p.body.rotation == 0, "no double flip or procedural tilt")
 				check(p.aim_direction().is_equal_approx(direction), "base aim %d" % d)
-				check(module._aim_direction().is_equal_approx(direction), "crossbow aim %d" % d)
+				check(module._aim_direction().is_equal_approx(direction), "%s module aim %d" % [id, d])
 				var layer: Node = Events.fx_layer()
 				var before_shot: int = layer.get_child_count()
 				module._fire(1)
@@ -46,11 +46,11 @@ func verify() -> void:
 					var shot = layer.get_child(index)
 					if shot.get_script() == load("res://scripts/Bullet.gd"):
 						shot_count += 1
-						check(shot.direction.is_equal_approx(direction), "actual bolt direction %d" % d)
-						check(shot.global_position.is_equal_approx(p.muzzle_position()), "actual bolt origin %d" % d)
-				check(shot_count > 0, "spawned bolt %d" % d)
+						check(shot.direction.is_equal_approx(direction), "%s shot direction %d" % [id, d])
+						check(shot.global_position.is_equal_approx(p.muzzle_position()), "%s shot origin %d" % [id, d])
+				check(shot_count > 0, "%s spawned shot %d" % [id, d])
 				var muzzle_bob := 0.6875 * cos(4.0 * PI * float(p.body.frame % 24) / 24.0)
-				var expected_muzzle: Vector2 = p.body.to_global(p._WALK_MUZZLES[d] + Vector2(0, muzzle_bob))
+				var expected_muzzle: Vector2 = p.body.to_global(p._walk_muzzles[d] + Vector2(0, muzzle_bob))
 				check(p.muzzle_position().is_equal_approx(expected_muzzle), "muzzle transform %d" % d)
 				var phase: float = p._walk_phase
 				p.velocity = Vector2.ZERO
@@ -65,7 +65,8 @@ func verify() -> void:
 			check(p.body.frame % 24 == 12, "half cycle by distance")
 			p._animate_walk(p._walk_cycle_distance * 0.5)
 			check(p.body.frame % 24 == 0, "cycle wraps")
-			check(absf(p.shadow.position.y - 35.88) < 0.01, "ground anchor preserved")
+			check(p.shadow.position.is_equal_approx(p._walk_shadow_position), "%s ground anchor" % id)
+			check(p.shadow.scale.is_equal_approx(p._walk_shadow_scale), "%s shadow scale" % id)
 			check(p._sheet_tex.get_size() == Vector2(3072, 1024), "mobile atlas size")
 		else:
 			check(not p._directional_walk and p._run_frames == 0, "%s legacy mode" % id)

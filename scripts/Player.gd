@@ -148,8 +148,10 @@ var _idle_shown: bool = false
 var _directional_walk: bool = false
 var _walk_direction: int = 6
 var _walk_cycle_distance: float = 211.2
+var _walk_muzzles := PackedVector2Array()
+var _walk_shadow_scale := Vector2(0.7605, 0.39546)
+var _walk_shadow_position := Vector2(0, 35.88)
 const _WALK_DIRECTIONS := [Vector2.DOWN, Vector2(-1, 1), Vector2.LEFT, Vector2(-1, -1), Vector2.UP, Vector2(1, -1), Vector2.RIGHT, Vector2(1, 1)]
-const _WALK_MUZZLES := [Vector2(0, -24), Vector2(-35, -29), Vector2(-36, -28), Vector2(-35, -29), Vector2(0, -26), Vector2(35, -29), Vector2(36, -28), Vector2(35, -29)]
 var _proj_style: String = "bullet"   # 기본총 탄 모양 — 그림 속 무기와 맞춘다(캐릭터 데이터)
 
 func _apply_character_sprite() -> void:
@@ -166,6 +168,9 @@ func _apply_character_sprite() -> void:
 		_sheet_tex = c.walk_texture
 		_idle_tex = c.walk_idle_texture
 		_walk_cycle_distance = maxf(1.0, c.walk_cycle_distance)
+		_walk_muzzles = c.walk_muzzle_offsets
+		_walk_shadow_scale = c.walk_shadow_scale
+		_walk_shadow_position = c.walk_shadow_position
 		body.texture = _sheet_tex
 		body.hframes = _run_frames
 		body.vframes = 8
@@ -412,9 +417,8 @@ func _fit_shadow() -> void:
 	if body.texture == null:
 		return
 	if _directional_walk:
-		# Preserve the previous hunter's ground anchor and footprint, excluding cell padding.
-		shadow.scale = Vector2(0.7605, 0.39546)
-		shadow.position = Vector2(0, 35.88)
+		shadow.scale = _walk_shadow_scale
+		shadow.position = _walk_shadow_position
 		return
 	var tex: Vector2 = body.texture.get_size()
 	tex.x /= float(maxi(1, body.hframes))   # 러닝 시트면 프레임 1칸 폭 기준
@@ -455,7 +459,7 @@ func _animate_walk(moved: float) -> void:
 		body.scale = _body_base_scale
 		body.rotation = 0.0
 		body.position = Vector2.ZERO
-		muzzle.position = _WALK_MUZZLES[_walk_direction]
+		muzzle.position = _walk_muzzles[_walk_direction] if _walk_muzzles.size() == 8 else Vector2.ZERO
 		if not idle:
 			var sampled_phase := float(int(_walk_phase * _run_frames)) / float(_run_frames)
 			muzzle.position.y += 0.6875 * cos(4.0 * PI * sampled_phase)
