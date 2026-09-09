@@ -11,10 +11,10 @@ export function footAt(phase) {
   const x=(2*u**3-3*u*u+1)*(-a)+(u**3-2*u*u+u)*m+(-2*u**3+3*u*u)*a+(u**3-u*u)*m;
   return {x,z:lift*Math.sin(Math.PI*u)**2,contact:false};
 }
-export function poseAt(phase, idle=false) {
+export function poseAt(phase, idle=false, halfStance=6) {
   const p=wrap(phase), bob=idle?0:-1.1*Math.cos(4*Math.PI*p);
   const legs=[0,1].map(i=>{
-    const f=idle?{x:0,z:0,contact:true}:footAt(p+i*.5), lateral=i===0?-6:6;
+    const f=idle?{x:0,z:0,contact:true}:footAt(p+i*.5), lateral=i===0?-halfStance:halfStance;
     const hip={x:0,y:lateral,z:SETTINGS.hip+bob};
     const ankle={x:f.x,y:lateral,z:SETTINGS.ankle+f.z};
     const dx=ankle.x-hip.x,dz=ankle.z-hip.z,d=Math.hypot(dx,dz);

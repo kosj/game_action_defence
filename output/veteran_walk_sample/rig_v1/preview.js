@@ -56,7 +56,8 @@ function drawGrid(dir,phase){
   }ctx.restore();
 }
 function drawCharacter(dir,phase,x,y,scale,options={}){
-  const p=poseAt(phase,options.idle??false);ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
+  // Spread both legs slightly in front/rear views, including the matching idle.
+  const p=poseAt(phase,options.idle??false,(dir===0||dir===4)?10:6);ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);
   if(options.ground)drawGrid(dir,phase);
   if(options.shadow!==false){ctx.fillStyle='#10232b88';ctx.beginPath();ctx.ellipse(0,1,22,6,0,0,Math.PI*2);ctx.fill();}
   const ordered=[...p.legs].sort((a,b)=>project(a.hip,dir).depth-project(b.hip,dir).depth);
