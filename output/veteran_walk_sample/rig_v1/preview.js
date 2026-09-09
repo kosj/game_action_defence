@@ -17,7 +17,9 @@ const tcw=torso.width/4,tch=torso.height/2;
 // Use the same canonical art for left/right views to prevent costume drift.
 // Imagegen rendered the requested E source facing left. Use the opposite profile
 // cell for both cardinal sides so W points left and E points right after mirroring.
-const sources=[0,7,2,5,4,5,2,7];
+const torsoSources=[0,7,2,5,4,5,2,7];
+// Boots have the correct atlas orientation; do not apply the torso correction.
+const bootSources=[0,7,6,5,4,5,6,7];
 const mirrored=[false,true,true,true,false,false,false,false];
 const anchors=[[.5,.83],[.5,.83],[.42,.83],[.36,.83],[.5,.87],[.36,.83],[.42,.83],[.46,.86]];
 const pw=parts.width/3,ph=parts.height;
@@ -32,13 +34,13 @@ function drawLeg(leg,dir){
   // Broader trouser attachment fills the waist connection; the source tapers at the knee.
   segment(h,k,[pw*.24,ph*.02,pw*.52,ph*.94],ph*.09,ph*.83,28);
   segment(k,a,[pw*1.22,ph*.035,pw*.53,ph*.92],ph*.075,ph*.815,21);
-  const source=sources[dir],cw=boots.width/4,ch=boots.height/2;
+  const source=bootSources[dir],cw=boots.width/4,ch=boots.height/2;
   const footAnchors=[.5,.5,.7,.6,.5,.4,.30,.4];
   ctx.save();ctx.translate(f.x,f.y);if(mirrored[dir])ctx.scale(-1,1);
   ctx.drawImage(boots,source%4*cw,Math.floor(source/4)*ch,cw,ch,-footAnchors[source]*38,-.85*27,38,27);ctx.restore();
 }
 function drawTorso(p,dir){
-  const source=sources[dir],col=source%4,row=Math.floor(source/4),anchor=anchors[source];
+  const source=torsoSources[dir],col=source%4,row=Math.floor(source/4),anchor=anchors[source];
   const size=116;
   ctx.save();ctx.translate(0,-SETTINGS.hip-p.bob+4);if(mirrored[dir])ctx.scale(-1,1);
   ctx.drawImage(torso,col*tcw,row*tch,tcw,tch,-anchor[0]*size,-anchor[1]*size,size,size);ctx.restore();
