@@ -15,7 +15,9 @@ const [torso,parts,boots]=await Promise.all(['torso_parts.png','leg_parts.png','
 // Bounds/pivots are fixed rig authoring data, never estimated again per frame.
 const tcw=torso.width/4,tch=torso.height/2;
 // Use the same canonical art for left/right views to prevent costume drift.
-const sources=[0,7,6,5,4,5,6,7];
+// Imagegen rendered the requested E source facing left. Use the opposite profile
+// cell for both cardinal sides so W points left and E points right after mirroring.
+const sources=[0,7,2,5,4,5,2,7];
 const mirrored=[false,true,true,true,false,false,false,false];
 const anchors=[[.5,.83],[.5,.83],[.42,.83],[.36,.83],[.5,.87],[.36,.83],[.42,.83],[.46,.86]];
 const pw=parts.width/3,ph=parts.height;
