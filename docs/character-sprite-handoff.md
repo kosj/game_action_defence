@@ -3,11 +3,15 @@
 > 2026-09-10 업데이트: **헌터는 이제 8방향 IK 베이크 걷기(24프레임)와 방향별 대기 시트를 게임에서 사용한다.**
 > 허벅지 폭을 보강한 승인 샘플을 `assets/characters/hunter/`에 출력했다.
 > 설정·재생성·검증 안내는 `assets/characters/hunter/README.md` 참조.
-> 베테랑은 기존 정지 그림 + 절차 걷기를 유지한다. 아래 본문은 이전 3종 시트 작업 기록이다.
+> 아래 본문은 이전 3종 시트 작업 기록이며, 현재 게임은 새 방향별 리그를 우선 사용한다.
 >
 > 2026-09-10 추가: **엔지니어도 동일한 IK 베이크 방식의 8방향 24프레임 걷기를 적용했다.**
 > 노란 안전모·고글·네일건·넓은 멜빵바지 실루엣을 유지하며, 제작 자료는
 > `output/engineer_walk_sample/rig_v1/`, 게임 에셋은 `assets/characters/engineer/`에 있다.
+>
+> 2026-09-10 추가: **베테랑까지 동일한 IK 베이크 방식의 8방향 24프레임 걷기를 적용했다.**
+> 붉은 머리띠·회색 수염·녹색 전술 조끼·양손 기관총·넓은 전투 바지 실루엣을 유지한다.
+> 제작 자료는 `output/veteran_walk_sample/rig_v1/`, 게임 에셋은 `assets/characters/veteran/`에 있다.
 
 새 세션에서 이 문서만 읽고 이어서 작업할 수 있도록 정리한 문서입니다.
 마지막 갱신: 세 캐릭터 걷기 4프레임 시트 완성 시점.
@@ -16,27 +20,20 @@
 
 ## 1. 지금 게임에 적용된 상태
 
-> **지금 게임은 시트를 쓰지 않는다.** 세 캐릭터 모두 `run_frames = 0` 이라 대기 그림
-> 한 장(`idle_<id>.png`)에 절차 걷기(스쿼시·바운스·뒤뚱)를 입혀 움직인다. 4프레임 시트를
-> 돌려 보니 프레임마다 팔레트·장비가 미묘하게 흔들려 오히려 어색했기 때문이다.
-> 시트는 아래 표대로 만들어져 저장소에 남아 있고, `run_frames` 를 4로 되돌리면 코드 수정
-> 없이 다시 쓸 수 있다.
+> **지금 게임은 세 캐릭터 모두 8방향 24프레임 IK 베이크 시트를 쓴다.** 각 방향의 상체와
+> 무기는 고정 파츠를 재사용하고 다리만 고정 길이 2관절 IK로 움직여, 반복 경계와 장비 형태가
+> 흔들리지 않는다. 정지 상태에서는 같은 방향의 별도 `idle.png` 행을 사용한다.
 
-| 캐릭터 | 걷기 시트(보관) | 대기 이미지(사용 중) | 인접 실루엣차 | 프레임간 팔레트 편차 |
-|---|---|---|---|---|
-| veteran | `run_veteran.png` (536×161) | `idle_veteran.png` (123×150) | 44.8% | 17.7 |
-| hunter | `run_hunter.png` (564×164) | `idle_hunter.png` (116×150) | 53.1% | 16.5 |
-| engineer | `run_engineer.png` (576×168) | `idle_engineer.png` (103×150) | 33.8% | 22.2 |
+| 캐릭터 | 게임 걷기 시트 | 게임 대기 시트 | 제작 자료 |
+|---|---|---|---|
+| veteran | `assets/characters/veteran/walk.png` | `assets/characters/veteran/idle.png` | `output/veteran_walk_sample/rig_v1/` |
+| hunter | `assets/characters/hunter/walk.png` | `assets/characters/hunter/idle.png` | `output/hunter_walk_sample/rig_v3/` |
+| engineer | `assets/characters/engineer/walk.png` | `assets/characters/engineer/idle.png` | `output/engineer_walk_sample/rig_v1/` |
 
-- `run_frames` 가 무엇을 쓸지 정한다: **2 이상**이면 시트, **0/1**이면 그림 한 장 + 절차 걷기.
-  기본값이 8이므로 시트를 안 쓰려면 세 캐릭터 모두에 0을 명시해야 한다.
-- 시트를 쓸 때 걷기 속도는 프레임 수와 무관하다 — `Player.gd` 의 `_RUN_CYCLE_PX = 80.0`,
-  한 사이클 = 80px 이동.
-- **화면 크기**: `sprite_scale = 0.52`. 아트는 세 캐릭터 모두 높이 150px 이므로 화면에서 78px 이고,
-  일반 좀비(66px)의 1.18배, 대형 bloater(76px)와 비슷하다. 새 아트가 무기를 앞으로 뻗어
-  폭이 예전(80px)보다 크게 넓어졌기(123px) 때문에 예전 값 0.66 은 과도하게 커 보였다.
-- 발밑 그림자는 그림 폭이 아니라 `sprite_path`(`player_<id>.png`) 폭을 기준으로 잡는다 —
-  뻗은 무기까지 덮어 2배로 커지는 것을 막기 위해서다.
+- `run_frames = 24`와 `walk_texture`/`walk_idle_texture`가 방향별 모드를 켠다.
+- 행 순서는 S, SW, W, NW, N, NE, E, SE이고 각 셀은 128×128이다.
+- 걷기 위상은 시간 대신 실제 이동 거리를 따라가며, 멈췄다가 움직여도 위상이 이어진다.
+- 방향별 총구 위치와 그림자 크기는 `CharacterData`에서 캐릭터별로 설정한다.
 
 ---
 

@@ -21,7 +21,7 @@ func verify() -> void:
 		var p = PLAYER.instantiate()
 		p.process_mode = Node.PROCESS_MODE_DISABLED
 		add_child(p)
-		if id in ["hunter", "engineer"]:
+		if id in ["hunter", "veteran", "engineer"]:
 			check(p._directional_walk, "%s directional mode" % id)
 			check(p.body.texture.get_size() == Vector2(128, 1024), "idle texture dimensions")
 			check(p.body.vframes == 8 and p.body.hframes == 1, "idle grid")

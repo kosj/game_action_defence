@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="CharacterDB" load_steps=10 format=3]
+[gd_resource type="Resource" script_class="CharacterDB" load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/CharacterData.gd" id="1_0yjwo"]
 [ext_resource type="Script" path="res://scripts/data/CharacterDB.gd" id="2_olelw"]
@@ -6,6 +6,8 @@
 [ext_resource type="Texture2D" path="res://assets/characters/hunter/idle.png" id="4_idle"]
 [ext_resource type="Texture2D" path="res://assets/characters/engineer/walk.png" id="5_eng_walk"]
 [ext_resource type="Texture2D" path="res://assets/characters/engineer/idle.png" id="6_eng_idle"]
+[ext_resource type="Texture2D" path="res://assets/characters/veteran/walk.png" id="7_vet_walk"]
+[ext_resource type="Texture2D" path="res://assets/characters/veteran/idle.png" id="8_vet_idle"]
 
 [sub_resource type="Resource" id="Resource_5cidr"]
 script = ExtResource("1_0yjwo")
@@ -18,7 +20,11 @@ signature_passive = "armor"
 sprite_path = "res://assets/atlas/idle_veteran.tres"
 sprite_scale = 0.52
 shadow_ref_width = 80.0
-run_frames = 0
+run_frames = 24
+walk_texture = ExtResource("7_vet_walk")
+walk_idle_texture = ExtResource("8_vet_idle")
+walk_muzzle_offsets = PackedVector2Array(0, -30, -49, -34, -54, -34, -49, -34, 0, -32, 49, -34, 54, -34, 49, -34)
+walk_shadow_scale = Vector2(0.82, 0.42)
 muzzle_offset = Vector2(60, -27)
 projectile_style = "bullet"
 bonus_max_health = 3
