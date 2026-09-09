@@ -1,0 +1,9 @@
+{
+  "samples": 2000,
+  "loopPositionExact": true,
+  "loopAndLiftoffVelocityContinuous": true,
+  "atLeastOneFootGrounded": true,
+  "fixedBoneLengthMaxError": 1.4210854715202004e-14,
+  "stanceVelocityError": 8.7074880639193e-10,
+  "minimumFootHeight": 0
+}

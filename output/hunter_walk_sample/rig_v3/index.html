@@ -1,0 +1,8 @@
+<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>헌터 · IK 걷기 검토</title>
+<style>body{margin:0;background:#121e27;color:#e5edf2;font:15px system-ui}main{max-width:1000px;margin:28px auto;padding:0 24px}h1{font-size:25px;margin:0 0 8px}p{color:#a9becb;line-height:1.6}nav{display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin:20px 0}button,select{background:#304958;color:white;padding:9px;border:1px solid #547082;border-radius:5px}canvas{width:100%;background:#20323d;border-radius:8px}input{vertical-align:middle}a{color:#8cdfce}.hint{font-size:13px}</style>
+<main><h1>헌터 · 관절로 만드는 걷기</h1><p>같은 상체와 다리 부품을 매 프레임 재사용합니다. 초록 점은 접지, 주황 점은 들어 올린 발입니다.</p>
+<nav><button id="pause">일시 정지</button><label>속도 <input id="speed" type="range" min="0.25" max="1.5" step=".05" value="1"></label><label><input id="bones" type="checkbox"> 관절 보기</label><label><input id="ground" type="checkbox" checked> 이동 바닥</label><label>방향 <select id="direction"><option value="all">8방향</option><option>E</option><option>SE</option><option>S</option><option>SW</option><option>W</option><option>NW</option><option>N</option><option>NE</option></select></label></nav>
+<canvas id="view" width="900" height="780"></canvas><nav><label>프레임 <input id="scrub" type="range" min="0" max="95" value="0"></label><span id="phase"></span></nav>
+<p class="hint">0.96초 / 두 걸음 · 접지 60% · 양발 위상차 50% · 고정 길이 2관절 IK · 반복 경계의 위치·속도 연속</p></main>
+<script type="module" src="preview.js"></script></html>

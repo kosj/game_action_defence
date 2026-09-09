@@ -4,8 +4,7 @@ extends Node2D
 ## 여러 종(산탄총/기관총/석궁 등)이 같은 코드를 파라미터만 바꿔 공유한다(동작 모듈 패턴).
 ##
 ## 캐릭터가 손에 들고 쏘는 무기이므로 **그림 속 총구에서 바라보는 쪽으로** 나간다.
-## 예전에는 최근접 적을 360° 자동 조준했는데, 캐릭터 그림은 좌우 플립뿐이라 등 뒤나
-## 위아래로 총알이 나가 어색했다. 360° 조준이 필요한 무기는 소환물 계열(드론/터렛)이 맡는다.
+## Player.aim_direction()을 사용한다: 헌터는 8방향, 기존 사이드뷰 캐릭터는 좌우.
 
 const BULLET := preload("res://scenes/Bullet.tscn")
 const _FXBurst := preload("res://scripts/FXBurst.gd")
@@ -51,7 +50,7 @@ func _interval(lvl: int) -> float:
 
 
 func _fire(lvl: int) -> void:
-	var base_dir := Vector2(_facing(), 0.0)   # 캐릭터가 바라보는 좌/우로만 발사
+	var base_dir := _aim_direction()
 	var origin := _origin()
 
 	var pellets: int = _data.pellets + int((lvl - 1) / 4)     # 레벨업 시 완만히 탄 수 증가
@@ -102,6 +101,11 @@ func _facing() -> float:
 	if _player != null and _player.has_method("aim_facing"):
 		return _player.aim_facing()
 	return 1.0
+
+func _aim_direction() -> Vector2:
+	if _player != null and _player.has_method("aim_direction"):
+		return _player.aim_direction()
+	return Vector2(_facing(), 0.0)
 
 
 ## 쏘는 캐릭터의 기본 탄 모양(예광탄/볼트/못).

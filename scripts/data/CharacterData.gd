@@ -23,10 +23,16 @@ extends Resource
 ## 러닝 시트(run_<id>.png)의 가로 프레임 수. 원본 아트의 고유 포즈 수에 맞춰 시트를
 ## 만들고 여기 기록한다 — 7포즈를 8칸에 욱여넣으면 중복 프레임에서 스터터가 생긴다.
 ## 0 또는 1 이면 시트를 쓰지 않고 그림 한 장(idle_<id>.png)에 절차 걷기를 입힌다.
-## 지금 세 캐릭터는 모두 0 — 생성 아트가 프레임마다 팔레트·장비가 흔들려 시트를 돌리면
-## 오히려 어색했다. 그래서 **시트 PNG 자체를 저장소에서 뺐다**(아틀라스 낭비). 시트로
-## 되돌리려면 run_<id>.png 를 assets/sprites/ 에 다시 넣고 이 값을 프레임 수로 바꾼다.
+## 헌터는 아래 walk_texture의 24프레임을 쓴다. 베테랑·엔지니어는 0으로 기존 아트를 쓴다.
 @export var run_frames: int = 0
+
+## Optional baked 8-direction rig. Rows S, SW, W, NW, N, NE, E, SE.
+## Separate from sprite_path so menus retain their portrait and other heroes keep their art.
+@export var walk_texture: Texture2D
+@export var walk_idle_texture: Texture2D
+@export var walk_scale: float = 0.9
+@export var walk_offset: Vector2 = Vector2(0, -6)
+@export var walk_cycle_distance: float = 211.2
 
 ## 총구 위치 — Body 로컬(텍스처 픽셀, 중심이 원점) 기준. 캐릭터마다 무기를 뻗은 위치가
 ## 달라 씬의 고정값으로는 총알이 몸통에서 나온다. 그림의 무기 끝 픽셀을 재서 넣는다.

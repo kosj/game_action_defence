@@ -1,7 +1,9 @@
-[gd_resource type="Resource" script_class="CharacterDB" load_steps=6 format=3]
+[gd_resource type="Resource" script_class="CharacterDB" load_steps=8 format=3]
 
 [ext_resource type="Script" path="res://scripts/data/CharacterData.gd" id="1_0yjwo"]
 [ext_resource type="Script" path="res://scripts/data/CharacterDB.gd" id="2_olelw"]
+[ext_resource type="Texture2D" path="res://assets/characters/hunter/walk.png" id="3_walk"]
+[ext_resource type="Texture2D" path="res://assets/characters/hunter/idle.png" id="4_idle"]
 
 [sub_resource type="Resource" id="Resource_5cidr"]
 script = ExtResource("1_0yjwo")
@@ -40,7 +42,9 @@ signature_passive = "crit"
 sprite_path = "res://assets/atlas/idle_hunter.tres"
 sprite_scale = 0.52
 shadow_ref_width = 104.0
-run_frames = 0
+run_frames = 24
+walk_texture = ExtResource("3_walk")
+walk_idle_texture = ExtResource("4_idle")
 muzzle_offset = Vector2(56, -42)
 projectile_style = "bolt"
 bonus_max_health = 0

@@ -1,0 +1,4 @@
+# Keep only the approved v3 rig. Earlier generated frame-sheet attempts are superseded.
+/*
+!/.gitignore
+!/rig_v3/

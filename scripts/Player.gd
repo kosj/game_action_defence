@@ -133,7 +133,8 @@ func _ready() -> void:
 
 ## 선택 캐릭터 전용 스프라이트를 Body 에 적용. 데이터가 없거나 경로가 비면 씬 기본 player.png 유지.
 ## sprite_scale(>0)로 스프라이트별 크기 편차를 정규화한다. _body_base_scale 캡처 전에 호출한다.
-## 어떤 그림을 쓸지는 캐릭터 데이터의 run_frames 가 정한다.
+## walk_texture 가 있으면 8방향 베이크 시트를 우선 사용한다(헌터).
+## 그 외 어떤 그림을 쓸지는 캐릭터 데이터의 run_frames 가 정한다.
 ##   run_frames >= 2 : 러닝 시트(run_<id>.png, 가로 균등 분할)로 프레임 애니메이션.
 ##                     멈추면 idle_<id>.png 로 교체(없으면 시트 0번 칸).
 ##   그 외(0/1)      : 그림 한 장(idle_<id>.png 우선, 없으면 sprite_path) + 절차 걷기.
@@ -144,6 +145,11 @@ var _run_frames: int = 0         # 0 = 시트 안 씀(절차 걷기)
 var _sheet_tex: Texture2D = null
 var _idle_tex: Texture2D = null
 var _idle_shown: bool = false
+var _directional_walk: bool = false
+var _walk_direction: int = 6
+var _walk_cycle_distance: float = 211.2
+const _WALK_DIRECTIONS := [Vector2.DOWN, Vector2(-1, 1), Vector2.LEFT, Vector2(-1, -1), Vector2.UP, Vector2(1, -1), Vector2.RIGHT, Vector2(1, 1)]
+const _WALK_MUZZLES := [Vector2(0, -24), Vector2(-35, -29), Vector2(-36, -28), Vector2(-35, -29), Vector2(0, -26), Vector2(35, -29), Vector2(36, -28), Vector2(35, -29)]
 var _proj_style: String = "bullet"   # 기본총 탄 모양 — 그림 속 무기와 맞춘다(캐릭터 데이터)
 
 func _apply_character_sprite() -> void:
@@ -154,7 +160,21 @@ func _apply_character_sprite() -> void:
 	if muzzle != null and c.muzzle_offset != Vector2.ZERO:
 		muzzle.position = c.muzzle_offset
 	_proj_style = c.projectile_style
-	# 러닝 시트 경로. 지금은 세 캐릭터 모두 run_frames = 0 이라 이 분기에 들어오지 않고,
+	if c.walk_texture != null and c.run_frames >= 2:
+		_directional_walk = true
+		_run_frames = c.run_frames
+		_sheet_tex = c.walk_texture
+		_idle_tex = c.walk_idle_texture
+		_walk_cycle_distance = maxf(1.0, c.walk_cycle_distance)
+		body.texture = _sheet_tex
+		body.hframes = _run_frames
+		body.vframes = 8
+		body.scale = Vector2.ONE * c.walk_scale
+		body.offset = c.walk_offset
+		_body_base_scale = body.scale
+		_animate_walk(0.0)
+		return
+	# 기존 1방향 러닝 시트 경로. 베테랑/엔지니어는 run_frames = 0 이고,
 	# 시트 PNG 도 저장소에서 빼 뒀다(안 쓰는 그림이 아틀라스 한 변을 두 배로 키우고 있었다).
 	# 되살리려면 run_<id>.png 를 assets/sprites/ 에 넣고 build_atlas.py 를 돌린 뒤
 	# 캐릭터 데이터의 run_frames 만 프레임 수로 바꾸면 된다(코드 수정 불필요).
@@ -237,11 +257,12 @@ func _physics_process(delta: float) -> void:
 	if body.modulate.a != want_a:
 		body.modulate.a = want_a
 	_check_contact_damage()
+	var before_move := global_position
 	_handle_move()
 	_update_trait_mods(delta)   # 캐릭터 조건부 트레잇(velocity 확정 후)
-	_update_facing()                 # 이동(좌우)으로 조준 방향 결정
-	_handle_attack(delta)            # 바라보는 방향으로 자동 발사
-	_animate_walk(velocity.length() * delta)   # 이동량 기반 걷기 연출(스프라이트만)
+	_update_facing()                 # 이동 방향으로 조준 결정(헌터 8방향, 나머지 좌우)
+	_animate_walk(global_position.distance_to(before_move))
+	_handle_attack(delta)            # 갱신된 그림 속 총구에서 발사
 
 	# 주기적 자동저장(체크포인트 사이 진행 보존). 사망 시엔 위에서 이미 return.
 	_autosave_accum += delta
@@ -357,21 +378,26 @@ func _handle_attack(delta: float) -> void:
 	if _attack_accum < attack_cooldown:
 		return
 	_attack_accum = 0.0
-	_shoot_dir(Vector2(_facing, 0.0))   # 바라보는 좌/우 방향으로 직선 발사
+	_shoot_dir(aim_direction())
 
 
-## 사이드뷰: 이동(좌우)으로 조준한다 — 수평 이동 방향으로 캐릭터를 뒤집고 그 방향으로 발사한다.
-## 위/아래로만 움직이면(velocity.x≈0) 방향은 마지막 좌/우 값을 유지한다.
+## 헌터는 이동 각도를 8방향 행으로 양자화한다. 정지하면 마지막 방향을 유지한다.
+## 기존 사이드뷰 캐릭터는 수평 이동 방향으로만 뒤집는다.
 func _update_facing() -> void:
+	if _directional_walk and velocity.length_squared() > 25.0:
+		_walk_direction = posmod(roundi(velocity.angle() / (PI / 4.0)) + 6, 8)
 	if absf(velocity.x) > 5.0:
 		_facing = -1.0 if velocity.x < 0.0 else 1.0
 
 
-## 캐릭터가 들고 쏘는 무기 모듈이 쓰는 조준 기준.
-## 모듈이 제각각 360° 자동 조준하면 좌우 플립만 있는 그림과 어긋나(등 뒤로 발사) 어색하다.
-## 손에 든 무기는 이 둘을 써서 그림 속 총구에서 바라보는 쪽으로 나가게 한다.
+## 기존 좌우 조준 인터페이스. 방향 벡터가 필요한 무기는 aim_direction()을 쓴다.
 func aim_facing() -> float:
 	return _facing
+
+func aim_direction() -> Vector2:
+	if _directional_walk:
+		return _WALK_DIRECTIONS[_walk_direction].normalized()
+	return Vector2(_facing, 0.0)
 
 func muzzle_position() -> Vector2:
 	return muzzle.global_position if muzzle != null else global_position
@@ -384,6 +410,11 @@ func projectile_style() -> String:
 ## 그림자를 스프라이트 폭에 맞춘 납작한 타원으로 발밑에 배치(shadow.png 128x72).
 func _fit_shadow() -> void:
 	if body.texture == null:
+		return
+	if _directional_walk:
+		# Preserve the previous hunter's ground anchor and footprint, excluding cell padding.
+		shadow.scale = Vector2(0.7605, 0.39546)
+		shadow.position = Vector2(0, 35.88)
 		return
 	var tex: Vector2 = body.texture.get_size()
 	tex.x /= float(maxi(1, body.hframes))   # 러닝 시트면 프레임 1칸 폭 기준
@@ -411,6 +442,24 @@ const _RUN_BOB := 1.6             # 걸음당 수직 바운스(px) — 프레임
 const _RUN_LEAN := 0.05           # 달리는 동안 전방 기울임(rad)
 
 func _animate_walk(moved: float) -> void:
+	if _directional_walk:
+		var idle := moved <= 0.01 and _idle_tex != null
+		if moved > 0.01:
+			_walk_phase = fposmod(_walk_phase + moved / _walk_cycle_distance, 1.0)
+		if idle != _idle_shown:
+			body.frame = 0
+			body.texture = _idle_tex if idle else _sheet_tex
+			body.hframes = 1 if idle else _run_frames
+			_idle_shown = idle
+		body.frame = _walk_direction * body.hframes + (0 if idle else mini(_run_frames - 1, int(_walk_phase * _run_frames)))
+		body.scale = _body_base_scale
+		body.rotation = 0.0
+		body.position = Vector2.ZERO
+		muzzle.position = _WALK_MUZZLES[_walk_direction]
+		if not idle:
+			var sampled_phase := float(int(_walk_phase * _run_frames)) / float(_run_frames)
+			muzzle.position.y += 0.6875 * cos(4.0 * PI * sampled_phase)
+		return
 	var fx := _body_base_scale.x * _facing
 	if _run_frames > 0:
 		if moved <= 0.01:
