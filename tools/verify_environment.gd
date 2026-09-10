@@ -73,7 +73,7 @@ func _process(_delta: float) -> bool:
 func _test_ground_darken() -> void:
 	var ground: GDScript = load("res://scripts/Ground.gd")
 	var d: Color = ground.get("TILE_DARKEN")
-	var l: float = day_script.luma(d)
+	var l: float = 0.2126 * d.r + 0.7152 * d.g + 0.0722 * d.b
 	_ok("바닥 감광이 과하지 않음(휘도 >= 0.75)", l >= 0.75, "실측 %.3f — %s" % [l, str(d)])
 	# 감광을 아예 없애면(1.0) 밝은 이펙트가 묻힌다. 목적 자체는 남아 있어야 한다.
 	_ok("바닥 감광이 남아 있음(휘도 <= 0.95)", l <= 0.95, "실측 %.3f" % l)
