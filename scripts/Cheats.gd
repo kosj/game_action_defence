@@ -43,10 +43,6 @@ var autoplay_persona: String = "random"
 ## 실기기에서 프레임 시간·드로우 콜·FX 상한을 눈으로 확인하기 위한 것 — 헤드리스 측정으로는
 ## 렌더 경로 비용이 드러나지 않아 실측 수단이 필요하다.
 var perf_overlay: bool = false
-## 낮/밤 시간 처리. false 면 DayNightCycle 이 시간 틴트를 한낮(무보정)으로 고정하고
-## 달빛 헤일로·반딧불 앰비언트도 끈다 — 날씨 연출은 그대로 남는다(끄는 건 "시간"뿐).
-## 밤 구간의 화면 색 때문에 스크린샷·아트 확인이 어려울 때 쓴다.
-var daynight: bool = true
 ## 날씨 연출. false 면 WeatherSystem 이 입자·뿌연 판·날씨 틴트·번개를 전부 끈다(=상시 맑음).
 ## 스케줄 자체는 계속 돌아 결정론과 이어하기가 그대로 유지된다 — 켜면 그 시점의 날씨가 이어진다.
 var weather: bool = true
@@ -146,17 +142,12 @@ func toggle_perf_overlay() -> void:
 	changed.emit()
 
 
-func toggle_daynight() -> void:
-	daynight = not daynight
-	changed.emit()
-
-
 func toggle_weather() -> void:
 	weather = not weather
 	changed.emit()
 
 
-## 아래 넷은 표시만 바꾸고 점수·진행에 관여하지 않는다 — perf_overlay·daynight·weather 와
+## 아래 넷은 표시만 바꾸고 점수·진행에 관여하지 않는다 — perf_overlay·weather 와
 ## 같은 부류라 enabled 게이트를 걸지 않는다(게이트는 판을 오염시키는 치트에만 건다).
 func toggle_half_res() -> void:
 	half_res = not half_res

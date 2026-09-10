@@ -125,7 +125,6 @@ var _stat_icons: Array = []               # 상단 우측 스탯 아이콘들 �
 var _cheat_box: VBoxContainer = null      # 일시정지 메뉴의 치트 하위 메뉴(접이식)
 var _cheat_auto_btn: Button = null        # 자동플레이 토글 버튼(라벨 ON/OFF 갱신)
 var _cheat_perf_btn: Button = null        # 성능 오버레이 토글 버튼(라벨 ON/OFF 갱신)
-var _cheat_day_btn: Button = null         # 낮/밤 시간 처리 토글 버튼(라벨 ON/OFF 갱신)
 var _cheat_weather_btn: Button = null     # 날씨 연출 토글 버튼(라벨 ON/OFF 갱신)
 var _cheat_halfres_btn: Button = null     # 렌더 해상도 절반 토글(GPU/CPU 병목 판정 — 5-R)
 var _cheat_vignette_btn: Button = null    # 전체화면 비네트 토글
@@ -1695,8 +1694,6 @@ func _build_pause_menu() -> void:
 		_make_cheat_button("GOLD +500", func(): Events.add_gold(500))
 		_make_cheat_button("LEVEL UP +1", func(): Events.bonus_level())
 		_cheat_perf_btn = _make_cheat_button("PERF HUD: OFF", func(): Cheats.toggle_perf_overlay())
-		# 낮/밤 시간 틴트를 통째로 끈다(날씨는 유지) — 밤 구간에서 화면이 어두워 확인이 어려울 때.
-		_cheat_day_btn = _make_cheat_button("DAY/NIGHT: ON", func(): Cheats.toggle_daynight())
 		# 비·눈과 번개를 통째로 끈다(=상시 맑음). 스케줄은 계속 돌아 다시 켜면 이어진다.
 		_cheat_weather_btn = _make_cheat_button("WEATHER: ON", func(): Cheats.toggle_weather())
 		# ── 실기기 병목 판정 (5-R Phase 0) ─────────────────────────────────
@@ -1773,8 +1770,6 @@ func _refresh_cheat_ui() -> void:
 		_cheat_perf_btn.text = "PERF HUD: ON" if Cheats.perf_overlay else "PERF HUD: OFF"
 	if _perf_overlay:
 		_perf_overlay.visible = Cheats.perf_overlay
-	if _cheat_day_btn:
-		_cheat_day_btn.text = "DAY/NIGHT: ON" if Cheats.daynight else "DAY/NIGHT: OFF"
 	if _cheat_weather_btn:
 		_cheat_weather_btn.text = "WEATHER: ON" if Cheats.weather else "WEATHER: OFF"
 	if _cheat_halfres_btn:

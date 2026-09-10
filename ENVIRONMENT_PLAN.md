@@ -1,9 +1,13 @@
-# 게임 환경 — 시간 경과 + 날씨 (구현 완료)
+# 게임 환경 — 날씨 (구현 완료)
+
+> **2026-09-10 현행화:** 화면을 어둡게 만들던 낮/밤 순환은 삭제했다. 아래 A절은 삭제 전 설계와
+> 판단 근거를 보존한 이력이며 현재 런타임에는 `DayNightCycle`, 시간대 틴트, 달빛 헤일로 및
+> `DAY/NIGHT` 치트가 존재하지 않는다. 현재 환경 연출은 B절의 날씨 입자와 번개뿐이다.
 
 아레나에 "시간이 흐른다"는 감각과, 주기적으로 바뀌는 날씨를 넣는다.
 전부 **런타임 절차 생성**(신규 아트 0장)이며 `gl_compatibility`/WebGL·모바일 예산 안에서 돈다.
 
-구현: `scripts/DayNightCycle.gd`, `scripts/WeatherSystem.gd`, 검증 `tools/verify_environment.gd`.
+구현: `scripts/WeatherSystem.gd`, 검증 `tools/verify_environment.gd`.
 
 ---
 
@@ -21,7 +25,7 @@
 
 ---
 
-## A. 시간 경과 — Day/Night Cycle
+## A. 삭제 이력 — Day/Night Cycle
 
 ### 구동원
 `Events.elapsed_time` 하나만 읽는다. 자체 타이머를 두지 않는 이유:

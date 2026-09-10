@@ -151,7 +151,7 @@
 빌드 종류(`OS.is_debug_build()`)나 export feature 태그로 걸러지지 않는다.
 
 노출되는 기능: `AUTO-PLAY`(AI 대리 플레이) · `TIME +5 MIN` · `SPAWN TO CAP` · `SPAWN BOSS` ·
-`GOLD +500` · `LEVEL UP +1` · `PERF HUD` · `DAY/NIGHT` · `WEATHER`.
+`GOLD +500` · `LEVEL UP +1` · `PERF HUD` · `WEATHER`.
 
 **영향** — 점수/랭킹(`RankingManager`), 도전과제(`AchievementManager`: 레벨 20/40·생존 시간),
 퀘스트 티어(`QuestManager`), 메타 골드 경제가 전부 오염된다. 특히 `AUTO-PLAY` 는 방치 파밍을

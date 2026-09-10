@@ -34,7 +34,7 @@ extends SceneTree
 ##   out=       스크린샷 저장 폴더(기본 user://playtest)
 ##   every=     표본 출력 주기(초, 기본 10)
 ##   half=1     HALF RES 를 켜고 플레이한다(fill-rate 판정)
-##   cheats=    쉼표 구분 토글 끄기: weather,props,decals,vignette,daynight
+##   cheats=    쉼표 구분 토글 끄기: weather,props,decals,vignette
 ##
 ## 플레이어는 죽지 않게 매 프레임 체력을 채운다 — 안 그러면 후반 시나리오에서 20초 만에 죽어
 ## **게임오버 화면을 측정하게 된다.**
@@ -108,7 +108,6 @@ func _setup() -> void:
 	for c in String(_args.get("cheats", "")).split(",", false):
 		match c:
 			"weather":  cheats.weather = false
-			"daynight": cheats.daynight = false
 			"props":    cheats.props = false
 			"decals":   cheats.decals = false
 			"vignette": cheats.vignette = false

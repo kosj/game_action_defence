@@ -23,12 +23,12 @@ extends SceneTree
 ##   측정하게 된다**(값이 통째로 얼어붙고 phys_ms 가 0.06 으로 떨어지는 것이 그 신호다).
 ##
 ## off=<태그> — 그 계통만 끄고 같은 시나리오를 돌린다. 기준선과의 차이가 그 계통의 몫이다.
-##     ground / props / weather / daynight / hud / zombies / fxlayer
+##     ground / props / weather / hud / zombies / fxlayer
 ##     shadowmod — 좀비 그림자의 modulate 알파만 흰색으로(아래 참조)
 ##
 ## cpuoff=<태그> — **스크립트 실행**을 끈다(`set_process`/`set_physics_process` = false).
 ##     `off=` 는 `visible=false` 라 그리기만 멈추고 `_process` 는 계속 돈다 — 그리기 비용
-##     전용이다. CPU 를 재려면 이쪽을 쓴다. 태그: ground / props / weather / daynight /
+##     전용이다. CPU 를 재려면 이쪽을 쓴다. 태그: ground / props / weather /
 ##     hud / zombies / gems / fxlayer / gimmicks / player / weapons / spawners
 ##     CPU 어블레이션은 드로우 콜과 달리 **거의 가산적**이다 — 배칭처럼 서로의 비용을
 ##     바꿔 놓는 상호작용이 없어서, 계통별 몫을 그대로 더하고 뺄 수 있다.
@@ -233,7 +233,7 @@ const _CPU_SCRIPTS := {
 }
 const _CPU_NODES := {
 	"ground": "Ground", "props": "PropField", "weather": "Weather",
-	"daynight": "DayNight", "hud": "HUD", "player": "Player",
+	"hud": "HUD", "player": "Player",
 }
 
 
@@ -485,7 +485,6 @@ func _setup() -> void:
 		"ground":   _hide("Ground")
 		"props":    _hide("PropField")
 		"weather":  root.get_node("Cheats").weather = false; _hide("Weather")
-		"daynight": root.get_node("Cheats").daynight = false; _hide("DayNight")
 		"hud":      _hide("HUD")
 	# 해상도 절반은 HUD 가 Cheats.changed 를 받아 적용한다 — 실기기 토글과 같은 경로로 재야
 	# 측정과 제보가 같은 것을 가리킨다.

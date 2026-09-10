@@ -33,7 +33,6 @@ Main.tscn ─ Main.gd                 # 판 진입점(풀 프리워밍·이전 �
  ├─ Background (ColorRect)          # 테마 배경색
  ├─ Ground ─ Ground.gd              # 테마별 바닥 타일(월드 고정 타일링)
  ├─ PropField ─ PropField.gd        # 미장센 프롭 배치(테마별, 일부는 장애물)
- ├─ DayNight ─ DayNightCycle.gd     # 시간대 색조
  ├─ Weather ─ WeatherSystem.gd      # 비/눈/모래(테마별 후보에서 추첨)
  ├─ Player.tscn ─ Player.gd         # CharacterBody2D. Body/Shadow=Sprite2D, Muzzle, Camera2D
  ├─ ZombieSpawner ─ ZombieSpawner.gd  # 시간 기반 스폰·엘리트·스웜·보스
