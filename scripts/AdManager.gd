@@ -52,7 +52,7 @@ static func rewarded_unit_id() -> String:
 
 
 func _ready() -> void:
-	if not USE_STUB:
+	if BuildProfile.is_mobile() and not USE_STUB:
 		_admob_init()   # 실광고 빌드에서만 SDK 초기화 + 동의 + 첫 로드
 
 # 더미 광고 오버레이 (지연 생성). 오토로드 하위에 두면 씬 전환과 무관하게 유지된다.
@@ -65,6 +65,8 @@ var _count := 0
 
 ## 보상형 광고를 지금 노출할 수 있는 상태인지. (실 SDK 에선 load 완료 여부를 반환)
 func is_rewarded_ready() -> bool:
+	if not BuildProfile.is_mobile():
+		return false
 	if _busy:
 		return false
 	return true if USE_STUB else _real_rewarded_ready()
@@ -72,6 +74,8 @@ func is_rewarded_ready() -> bool:
 
 ## 보상형 광고 노출. 완료 시 rewarded_granted(placement), 중도종료/실패 시 rewarded_dismissed.
 func show_rewarded(placement: String) -> void:
+	if not is_rewarded_ready():
+		return
 	if _busy:
 		return
 	_busy = true

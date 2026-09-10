@@ -45,6 +45,8 @@ func get_value() -> Vector2:
 
 
 func _input(event: InputEvent) -> void:
+	if not BuildProfile.touch_controls():
+		return
 	# ── 터치 시작/종료 ────────────────────────────────────────────
 	if event is InputEventScreenTouch:
 		if event.pressed:

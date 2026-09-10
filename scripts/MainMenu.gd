@@ -42,16 +42,6 @@ var _log_hint: Label = null
 var _diff_buttons: Array = []
 var _lang_buttons: Array = []   # [{ "btn": Button, "lang": String }]
 
-# ── 랭킹 오버레이 ──
-var _rank_btn: Button
-var _rank_dim: ColorRect
-var _rank_panel: PanelContainer
-var _rank_title: Label
-var _rank_note: Label
-var _rank_list: VBoxContainer = null       # 난이도별 최고점 카드가 담기는 세로 목록
-var _rank_online_btn: Button
-var _rank_close_btn: Button
-
 # ── 메타 성장(PowerUp) 오버레이 ──
 var _power_btn: Button
 var _power_dim: ColorRect
@@ -117,7 +107,7 @@ func _build_backdrop() -> void:
 	glow.texture = gtex
 	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	glow.size = Vector2(700, 520)
-	glow.position = Vector2(360.0 - 350.0, 330.0 - 260.0)
+	glow.position = Vector2(get_viewport().get_visible_rect().size.x * 0.5 - 350.0, 330.0 - 260.0)
 	add_child(glow)
 
 	var p := CPUParticles2D.new()
@@ -125,7 +115,7 @@ func _build_backdrop() -> void:
 	p.lifetime = 7.0
 	p.preprocess = 4.0
 	p.lifetime_randomness = 0.6
-	p.position = Vector2(360.0, 1300.0)
+	p.position = Vector2(get_viewport().get_visible_rect().size.x * 0.5, 1300.0)
 	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
 	p.emission_rect_extents = Vector2(380.0, 8.0)
 	p.direction = Vector2(0, -1)
@@ -235,9 +225,6 @@ func _build_ui() -> void:
 	RewardInbox.changed.connect(_refresh_rewards_badge)
 	_refresh_rewards_badge()
 
-	_rank_btn = _make_menu_btn("star", UITheme.MENU_ICON_REWARD)
-	_rank_btn.pressed.connect(_on_ranking_pressed)
-	box.add_child(_rank_btn)
 
 	_codex_btn = _make_menu_btn("book", UITheme.MENU_ICON_CODEX)
 	_codex_btn.pressed.connect(_on_codex_pressed)
@@ -258,7 +245,6 @@ func _build_ui() -> void:
 	box.add_child(ver)
 
 	_build_options_panel()
-	_build_ranking_panel()
 	_build_power_panel()
 	_build_character_panel()
 	_build_achievement_panel()
@@ -1347,8 +1333,6 @@ func _refresh_power() -> void:
 		# 이 행들은 스타일을 한 번만 적용한다(_build_power_panel).
 
 
-## 랭킹 오버레이 — 모드(난이도)별 최고 점수. 온라인 백엔드(안드로이드 PGS)면 네이티브 리더보드
-## 버튼도 노출한다. 로컬 빌드(웹/PC)에서는 이 기기의 모드별 최고점만 보여준다.
 ## 강화 행의 우측 열 — 레벨 핍과 가격표. 예전에는 둘 다 버튼 글자 안에 있었다
 ## ("이름 (2/5)\n설명   -300 G"). 숫자를 글로 읽어야 해서 남은 레벨도 가격도 눈에 안 들어왔다.
 ##
@@ -1428,84 +1412,6 @@ func _power_pip_box(filled: bool) -> StyleBoxFlat:
 	return sb
 
 
-func _build_ranking_panel() -> void:
-	var p := _UIPopup.make(self, "rank_title", UITheme.SEC_NEUTRAL, UITheme.SEC_REWARD,
-		_on_close_ranking, {"separation": 14, "center_body": true})
-	_rank_dim = p["dim"]
-	_rank_panel = p["panel"]
-	_rank_title = p["title"]
-	_rank_close_btn = p["close"]
-	var vb: VBoxContainer = p["body"]
-
-	_rank_note = Label.new()
-	_rank_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_rank_note.add_theme_font_size_override("font_size", 15)
-	_rank_note.add_theme_color_override("font_color", Color(0.70, 0.74, 0.82))
-	vb.add_child(_rank_note)
-
-	vb.add_child(HSeparator.new())
-
-	# 모드(난이도)별 최고점 — 다른 팝업(퀘스트·도전과제·보상함)과 같은 카드 문법으로 만든다.
-	# 예전에는 이 팝업만 Label 두 개짜리 맨 줄이라, 같은 메뉴 안에서 혼자 구식으로 보였다.
-	# 행은 _refresh_ranking_rows 가 매번 새로 만든다(도전과제 목록과 같은 방식).
-	_rank_list = VBoxContainer.new()
-	_rank_list.add_theme_constant_override("separation", 8)
-	vb.add_child(_rank_list)
-
-	vb.add_child(HSeparator.new())
-
-	# 온라인 리더보드 버튼(안드로이드 PGS 로그인 시에만 노출).
-	_rank_online_btn = Button.new()
-	_rank_online_btn.custom_minimum_size = Vector2(0, 52)
-	_rank_online_btn.add_theme_font_size_override("font_size", 18)
-	_UIStyle.apply_button_style(_rank_online_btn, Color(0.14, 0.28, 0.42), Color(0.4, 0.7, 0.95))
-	_rank_online_btn.pressed.connect(_on_view_online_pressed)
-	_rank_online_btn.visible = false
-	vb.add_child(_rank_online_btn)
-
-
-func _on_ranking_pressed() -> void:
-	_refresh_ranking_rows()
-	_UIPopup.open(_rank_dim, _rank_panel)
-
-
-func _on_close_ranking() -> void:
-	_UIPopup.close(_rank_dim, _rank_panel)
-
-
-
-
-func _on_view_online_pressed() -> void:
-	RankingManager.show_leaderboard()   # 현재 난이도 모드의 네이티브 리더보드
-
-
-## 각 모드의 최고점을 다시 읽어 행에 반영하고, 온라인 버튼 노출 여부를 갱신.
-## 난이도별 강조색 — 쉬움=초록, 보통=파랑, 어려움=빨강.
-const _RANK_ACCENTS: Array = [Color(0.40, 0.85, 0.45), Color(0.40, 0.60, 0.95), Color(0.95, 0.40, 0.35)]
-
-func _refresh_ranking_rows() -> void:
-	if _rank_list == null:
-		return
-	for c in _rank_list.get_children():
-		_rank_list.remove_child(c)
-		c.queue_free()
-	var bests := RankingManager.all_bests()
-	for i in RankingManager.MODES.size():
-		var best := int(bests.get(RankingManager.MODES[i], 0))
-		_rank_list.add_child(UIListRow.make({
-			"icon": "star",
-			"icon_color": _RANK_ACCENTS[i],
-			"title": Locale.t(_DIFF_KEYS[i]),
-			"title_color": _RANK_ACCENTS[i],
-			"value": "%d" % best,
-			# 한 번도 안 해본 난이도는 가라앉혀 "여기 기록이 없다"가 보이게 한다.
-			"state": UIListRow.STATE_ACTIVE if best > 0 else UIListRow.STATE_DONE,
-		}))
-	_rank_online_btn.visible = RankingManager.is_online() and RankingManager.is_signed_in()
-
-
-
-
 ## 현재 언어로 모든 라벨/버튼 텍스트를 갱신하고 선택 강조를 다시 칠한다.
 func _apply_language() -> void:
 	_new_game_btn.text = Locale.t("menu_new_game")
@@ -1529,12 +1435,6 @@ func _apply_language() -> void:
 	_log_hint.text = Locale.t("opt_log_hint")
 	_refresh_log_button()
 	_close_btn.text = Locale.t("menu_close")
-	_rank_btn.text = Locale.t("menu_ranking")
-	_rank_title.text = Locale.t("rank_title")
-	_rank_note.text = Locale.t("rank_local_note")
-	_rank_online_btn.text = Locale.t("rank_online")
-	_rank_close_btn.text = Locale.t("menu_close")
-	_refresh_ranking_rows()
 	_refresh_language_buttons()
 	_refresh_sound_button()
 

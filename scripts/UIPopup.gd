@@ -72,6 +72,17 @@ static func make(parent: Node, title_key: String, accent: Color, accent_txt: Col
 	panel.add_theme_stylebox_override("panel", _UIStyle.panel(UITheme.BG_PANEL, accent))
 	panel.visible = false
 	parent.add_child(panel)
+	# Keep reading width comfortable on landscape screens.
+	var fit_panel := func() -> void:
+		var width: float = parent.get_viewport().get_visible_rect().size.x
+		var inset: float = maxf(MARGIN_X, (width - 960.0) * 0.5)
+		panel.offset_left = inset
+		panel.offset_right = -inset
+	fit_panel.call()
+	var viewport := panel.get_viewport()
+	viewport.size_changed.connect(fit_panel)
+	panel.tree_exiting.connect(func() -> void:
+		viewport.size_changed.disconnect(fit_panel))
 
 	var margin := MarginContainer.new()
 	for m in ["left", "right", "top", "bottom"]:

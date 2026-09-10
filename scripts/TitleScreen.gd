@@ -63,7 +63,7 @@ func _build() -> void:
 	_glow.texture = gtex
 	_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_glow.size = Vector2(680, 480)
-	_glow.position = Vector2(360.0 - 340.0, (TITLE_Y + 50.0) - 240.0)
+	_glow.position = Vector2(get_viewport_rect().size.x * 0.5 - 340.0, (TITLE_Y + 50.0) - 240.0)
 	add_child(_glow)
 
 	# 떠오르는 잔불(ember) 파티클 — 분위기
@@ -73,7 +73,7 @@ func _build() -> void:
 	_title_holder = Control.new()
 	_title_holder.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_title_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_title_holder.pivot_offset = Vector2(360.0, TITLE_Y + 50.0)
+	_title_holder.pivot_offset = Vector2(get_viewport_rect().size.x * 0.5, TITLE_Y + 50.0)
 	add_child(_title_holder)
 
 	# 전용 로고 이미지("ZOMBIE BUSTER") — 드립/아웃라인/그림자가 아트에 포함돼 있어 라벨 스택 불필요.
@@ -81,7 +81,7 @@ func _build() -> void:
 	_logo.texture = preload("res://assets/ui/logo_title.png")
 	_logo.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	_logo.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	_logo.position = Vector2(360.0 - 245.0, TITLE_Y - 92.0)
+	_logo.position = Vector2(get_viewport_rect().size.x * 0.5 - 245.0, TITLE_Y - 92.0)
 	_logo.size = Vector2(490.0, 272.0)   # 로고 1.8:1
 	_logo.pivot_offset = _logo.size * 0.5
 	_logo.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -164,7 +164,7 @@ func _build_embers() -> void:
 	p.lifetime = 7.0
 	p.preprocess = 4.0
 	p.lifetime_randomness = 0.6
-	p.position = Vector2(360.0, 1300.0)
+	p.position = Vector2(get_viewport_rect().size.x * 0.5, 1300.0)
 	p.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
 	p.emission_rect_extents = Vector2(380.0, 8.0)
 	p.direction = Vector2(0, -1)

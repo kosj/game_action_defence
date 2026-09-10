@@ -19,7 +19,6 @@ const PANELS := [
 	["_on_quests_pressed", "quests", "_on_quests_close"],
 	["_on_achievements_pressed", "achievements", "_on_achievements_close"],
 	["_on_rewards_pressed", "rewards", "_on_rewards_close"],
-	["_on_ranking_pressed", "ranking", "_on_close_ranking"],
 	["_on_options_pressed", "options", "_on_close_options"],
 	["_on_power_pressed", "power", "_on_power_close"],
 	["_on_character_pressed", "character", "_on_character_close"],

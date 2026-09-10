@@ -11,8 +11,8 @@ extends Node2D
 const GOLD := preload("res://scenes/Gold.tscn")
 const ENEMY_BULLET := preload("res://scenes/EnemyBullet.tscn")
 const _FXBurst := preload("res://scripts/FXBurst.gd")
-## 이 거리(제곱)보다 멀면 화면 밖으로 보고 연출을 생략한다(뷰포트 720x1280 반대각 ≈ 734).
-const _ANIM_CULL_SQ := 760.0 * 760.0
+## Cull animations beyond this edition's viewport diagonal plus a small margin.
+@onready var _ANIM_CULL_SQ: float = pow(get_viewport_rect().size.length() * 0.5 + 30.0, 2)
 const _DamageNumber := preload("res://scripts/DamageNumber.gd")
 
 # 행동 패턴 파라미터

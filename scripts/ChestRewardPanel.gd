@@ -259,7 +259,7 @@ func _build_anticipation() -> void:
 	var glow := TextureRect.new()
 	glow.texture = gtex
 	glow.size = Vector2(430, 430)
-	glow.position = Vector2(360 - 215, 560 - 215)
+	glow.position = Vector2(get_viewport().get_visible_rect().size.x * 0.5 - 215, 560 - 215)
 	glow.pivot_offset = Vector2(215, 215)
 	glow.scale = Vector2(0.45, 0.45)
 	glow.modulate.a = 0.0
@@ -276,7 +276,7 @@ func _build_anticipation() -> void:
 	var cw := 92.0 if qn >= 3 else 108.0
 	var ch := cw * 1.32
 	var spacing := cw + 14.0
-	var start_x := 360.0 - spacing * float(qn - 1) * 0.5
+	var start_x := get_viewport().get_visible_rect().size.x * 0.5 - spacing * float(qn - 1) * 0.5
 	for qi in qn:
 		var card := _make_card_back(cw, ch)
 		card.position = Vector2(start_x + spacing * float(qi) - cw * 0.5, 560.0 - ch * 0.5)
@@ -291,7 +291,7 @@ func _build_anticipation() -> void:
 
 	# 은은한 상승 입자 — 등급이 높을수록 짙게.
 	var drift := CPUParticles2D.new()
-	drift.position = Vector2(360, 640)
+	drift.position = Vector2(get_viewport().get_visible_rect().size.x * 0.5, 640)
 	drift.amount = 10 + 7 * int(get_meta("rarity"))
 	drift.lifetime = 1.3
 	drift.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
@@ -351,7 +351,7 @@ func _reveal() -> void:
 
 	# 반짝이 입자 분출 — 등급이 높을수록 많고 화려하게.
 	var spark := CPUParticles2D.new()
-	spark.position = Vector2(360, 560)
+	spark.position = Vector2(get_viewport().get_visible_rect().size.x * 0.5, 560)
 	spark.amount = int(_rar["spark"])
 	spark.lifetime = 1.1
 	spark.one_shot = false
@@ -510,7 +510,7 @@ func _pop_firework(holder: Control, size_mul: float) -> void:
 	var rarity := int(get_meta("rarity"))
 	var pos := Vector2(randf_range(90, 630), randf_range(220, 920))
 	if size_mul > 1.5:
-		pos = Vector2(360, 470)   # 피날레는 중앙 상단
+		pos = Vector2(get_viewport().get_visible_rect().size.x * 0.5, 470)   # 피날레는 중앙 상단
 	# 색 변주 — 등급색·밝은 등급색·흰 불꽃을 섞고, 전설은 금/주황/백금 혼합.
 	var cols: Array = [_col, _col.lightened(0.35), Color(1, 1, 1)]
 	if rarity == 3:

@@ -22,10 +22,8 @@ extends SceneTree
 ## 그러면 다음에 실수로 켜져도 아무도 모른다. 열어 두는 것 자체가 아니라 **말없이 열리는 것**이
 ## 위험하므로, 여는 쪽을 여기 적게 하고 검사는 계속 살려 둔다.
 ##
-## 현재 열림: "Web" — 사용자 요청(2026-08-20), **최적화 측정 기간 한정.**
-## 되돌리는 방법은 두 줄이다: 이 배열을 비우고 `export_presets.cfg` 의 `custom_features` 를 "" 로.
-## ⚠️ **사용자의 명시적인 지시 없이 되돌리지 말 것** — `HANDOFF.md` P0-12 참고.
-const CHEAT_ALLOWED_PRESETS := ["Web"]
+## 출시용 Web/Windows/Mobile 프리셋은 치트를 허용하지 않는다.
+const CHEAT_ALLOWED_PRESETS: Array = []
 
 var _fails := 0
 var _done := false

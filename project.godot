@@ -1,5 +1,5 @@
 ; Engine configuration file.
-; Godot 4.x — Zombie Buster (Mobile WebGL)
+; Godot 4.x — Zombie Buster (Web Demo / Windows Full / Mobile Preview)
 ; 에디터에서 한 번 열면 uid 등이 자동 채워집니다.
 
 config_version=5
@@ -7,6 +7,8 @@ config_version=5
 [application]
 
 config/name="Zombie Buster"
+config/name.demo="Zombie Buster Demo"
+config/name.mobile_preview="Zombie Buster Mobile Preview"
 run/main_scene="res://scenes/TitleScreen.tscn"
 config/features=PackedStringArray("4.1", "GL Compatibility")
 
@@ -22,6 +24,7 @@ boot_splash/bg_color=Color(0, 0, 0, 1)
 
 [autoload]
 
+BuildProfile="*res://scripts/BuildProfile.gd"
 Events="*res://scripts/Events.gd"
 Pool="*res://scripts/Pool.gd"
 GameData="*res://scripts/data/GameData.gd"
@@ -52,13 +55,18 @@ theme/custom_font="res://assets/fonts/NotoSansCJK-Subset.otf"
 
 [display]
 
-; 모바일 세로 화면 기준 (필요시 가로로 바꾸세요)
-window/size/viewport_width=720
-window/size/viewport_height=1280
+window/size/viewport_width=2272
+window/size/viewport_height=1278
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/size/viewport_width.mobile_preview=720
+window/size/viewport_height.mobile_preview=1280
+window/size/window_width_override.mobile_preview=360
+window/size/window_height_override.mobile_preview=640
 window/stretch/mode="canvas_items"
-; keep: 720x1280 전체가 항상 보이도록 레터박스(웹/데스크톱 등 다른 화면비에서 화면 잘림 방지).
 window/stretch/aspect="keep"
-window/handheld/orientation="portrait"
+window/handheld/orientation=0
+window/handheld/orientation.mobile_preview=1
 
 [input]
 
@@ -94,8 +102,9 @@ move_down={
 
 [input_devices]
 
-; 데스크톱(에디터/브라우저)에서 마우스로 터치를 흉내 → 조이스틱 테스트 가능
-pointing/emulate_touch_from_mouse=true
+; Mouse-to-touch emulation is only enabled in the mobile preview.
+pointing/emulate_touch_from_mouse=false
+pointing/emulate_touch_from_mouse.mobile_preview=true
 pointing/emulate_mouse_from_touch=true
 
 [internationalization]

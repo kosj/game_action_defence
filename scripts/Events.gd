@@ -38,7 +38,7 @@ func report_tamper(_source: String) -> void:
 func build_label() -> String:
 	if _build_stamp_cache == "":
 		_build_stamp_cache = _read_build_stamp()
-	return "%s · %s" % [VERSION, _build_stamp_cache]
+	return "%s · %s · %s" % [VERSION, BuildProfile.edition_label(), _build_stamp_cache]
 
 
 func _read_build_stamp() -> String:

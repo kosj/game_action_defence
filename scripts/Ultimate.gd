@@ -6,7 +6,7 @@ extends WeaponModule
 
 const _FXMaterial := preload("res://scripts/FXMaterial.gd")
 const TICK := 0.30           # 피해 틱 간격
-const SCREEN_R := 720.0      # 화면 커버 반경(포트레이트 720x1280 반대각 ≈ 734)
+@onready var SCREEN_R: float = get_viewport_rect().size.length() * 0.5      # Cover this edition's viewport.
 const FX_PER_TICK := 6       # 틱마다 무작위 피격 지점에 터뜨릴 버스트 수(과부하 방지 상한)
 const QUAKE_GROW := 0.55     # 균열이 끝까지 뻗는 데 걸리는 시간(초)
 const QUAKE_TREMOR := 9.0    # 균열 끝단이 옆으로 흔들리는 폭(px)
