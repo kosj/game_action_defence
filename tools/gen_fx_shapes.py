@@ -123,23 +123,6 @@ def gen_wedge() -> None:
     _save(im.resize((W, H), Image.LANCZOS), "fx_wedge.png")
 
 
-def gen_ring() -> None:
-    """가는 링. draw_arc(원 전체) 대체용 — 두께는 텍스처에 고정이라 반지름에 비례해 늘어난다.
-
-    쓰는 쪽에서 그 비례를 원치 않으면 세그먼트 쿼드로 그린다(QuadDraw.ring 참고).
-    여기서는 얇은 테두리 강조용으로만 쓴다.
-    """
-    PX = 256
-    im, _, n = _canvas(PX)
-    lay = _layer(n)
-    d = ImageDraw.Draw(lay)
-    outer = n / 2.0 - 1
-    thick = n * (2.5 / PX) * 2.0            # 256px 기준 5px — 표시 크기의 절반에서 2.5px
-    d.ellipse([1, 1, n - 2, n - 2], outline=(255, 255, 255, 255), width=max(1, int(thick)))
-    im = Image.alpha_composite(im, lay)
-    _save(_over(im, PX), "fx_ring.png")
-
-
 def gen_solid() -> None:
     """완전 불투명 흰 사각형. draw_rect 대체 — 색은 쓰는 쪽에서 틴트로 넣는다.
 
@@ -160,7 +143,6 @@ def main() -> int:
     print("[FX] 무기 비주얼 텍스처 생성")
     gen_orb()
     gen_wedge()
-    gen_ring()
     gen_solid()
     print("[FX] 완료 — python3 tools/build_atlas.py 로 아틀라스에 반영하세요")
     return 0
