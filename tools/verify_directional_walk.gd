@@ -68,6 +68,10 @@ func verify() -> void:
 			check(p.shadow.position.is_equal_approx(p._walk_shadow_position), "%s ground anchor" % id)
 			check(p.shadow.scale.is_equal_approx(p._walk_shadow_scale), "%s shadow scale" % id)
 			check(p._sheet_tex.get_size() == Vector2(3072, 1024), "mobile atlas size")
+			if id == "hunter":
+				check(p._walk_muzzles[7].y-p._walk_muzzles[6].y>20, "SE muzzle follows lowered diagonal bow")
+				var atlas: Image = p._sheet_tex.get_image()
+				check(atlas.get_region(Rect2i(0,6*128,3072,128)).get_data()!=atlas.get_region(Rect2i(0,7*128,3072,128)).get_data(), "Hunter E and SE rows duplicated")
 		else:
 			check(not p._directional_walk and p._run_frames == 0, "%s legacy mode" % id)
 			p.velocity = Vector2(-220, 0)

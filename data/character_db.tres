@@ -53,6 +53,7 @@ shadow_ref_width = 104.0
 run_frames = 24
 walk_texture = ExtResource("3_walk")
 walk_idle_texture = ExtResource("4_idle")
+walk_muzzle_offsets = PackedVector2Array(0, -24, -32, 4, -36, -28, -35, -29, 0, -26, 35, -29, 36, -28, 32, 4)
 muzzle_offset = Vector2(56, -42)
 projectile_style = "bolt"
 bonus_max_health = 0

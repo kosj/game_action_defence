@@ -176,6 +176,13 @@ jobs:
             godot --headless --path . --script res://tools/verify_suburb.gd -- --theme=$theme
           done
 
+      - name: Milestone notifications and directional walk
+        run: |
+          set -e
+          godot --headless --path . --script res://tools/verify_milestones.gd
+          godot --headless --path . --script res://tools/verify_milestones.gd -- --mobile-preview
+          godot --headless --path . res://scenes/CharacterWalkTest.tscn
+
       - name: Mouse movement and UI input checks
         run: godot --headless --path . --script res://tools/verify_mouse_move.gd
 

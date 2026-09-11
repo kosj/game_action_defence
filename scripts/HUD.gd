@@ -60,8 +60,9 @@ var _magnet_tween: Tween = null
 var _revive_btn: Button = null
 var _revive_used: bool = false
 
-# 상단 토스트 레인(달성·과제·날씨·만렙 보상) — 줄 세우기는 HUDToast 가 맡는다.
+# 날씨·만렙 보상 토스트와 달성 알림은 각각 전용 레인에서 처리한다.
 var _toasts: HUDToast = null
+var _milestones: HUDMilestone = null
 
 # 경험치 바는 값이 아주 자주 바뀐다(젬 하나마다). 트윈을 매번 만들면 그만큼 할당이
 # 생기므로, 목표값만 저장하고 _process 에서 부드럽게 따라가게 한다 — 할당이 없다.
@@ -175,6 +176,7 @@ func _ready() -> void:
 	_build_goal_hint()
 	_build_gameover_stats()
 	_toasts = HUDToast.make(self)
+	_milestones = HUDMilestone.make(self)
 	_build_blur_overlay()
 	_build_pause_menu()
 	_apply_safe_area()
@@ -380,16 +382,14 @@ func _on_weather_changed(key: String) -> void:
 	_show_toast(Locale.t("weather_clear" if key == "" else "weather_" + key), col, 215.0, "weather")
 
 
-## 도전과제 달성 토스트 — 화면 상단 중앙에 잠깐 떴다 사라진다(코드로 즉석 생성).
+## 달성 카드는 전용 레인에서 순차 재생하여 연속 달성도 빠짐없이 보여 준다.
 func _on_achievement_unlocked(title: String) -> void:
-	SoundManager.play_ui("gold", 0.0, 1.4)   # 달성 보상 하이톤 차임
-	_show_toast(Locale.t("toast_achievement_fmt") % title, Color(1.0, 0.85, 0.35), 150.0, "achievement")
+	_milestones.push(title,true)
 
 
 ## 끝없는 과제 완료 — 보상은 자동 지급되지 않고 메뉴의 REWARDS 보관함에서 직접 수령한다.
 func _on_quest_completed(title: String, reward: int) -> void:
-	SoundManager.play_ui("gold", 0.0, 1.5)
-	_show_toast(Locale.t("toast_quest_fmt") % [title, reward], Color(0.6, 1.0, 0.6), 190.0, "quest")
+	_milestones.push(title,false,reward)
 
 
 # 만렙 레벨업 골드 보상 알림 — 후반에는 레벨업이 초당 몇 번씩 들어와 토스트가 겹친다.

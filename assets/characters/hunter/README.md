@@ -20,11 +20,18 @@ the reviewed cadence; it is not a physically exact foot-to-world stride lock
 (the rig preview's treadmill uses its shorter anatomical stride). Movement
 buffs and slows proportionally change playback speed.
 
-Authoring source: `output/hunter_walk_sample/rig_v3/`. Serve that directory on
-localhost:8765 and run `export_game.mjs` with RIG_NODE_MODULES pointing to the
+Authoring source: `tools/hunter_rig/`. Serve that directory on
+localhost:8767 and run `export_game.mjs` with RIG_NODE_MODULES pointing to the
 Playwright node_modules directory. Exporting the existing rig uses no image
 generation calls. Preview outputs are excluded from Web export.
 
 Regression scene: `res://scenes/CharacterWalkTest.tscn` (headless). It covers
 all 8 directions, idle/resume, distance-based frame selection, shot origin
 and direction, and both legacy characters. It does not save character selection.
+
+2026-09-11: Foot lateral spacing increased from 12 to 20 rig pixels for all
+walking and idle directions. A dedicated front-facing diagonal torso/crossbow
+component replaces the previous side-like SE view; SW mirrors the same component.
+SE/SW muzzle positions are (32,4)/(-32,4) in atlas-cell coordinates relative to
+its center, matching the lower bow tip. Other direction muzzle offsets are unchanged.
+The 24-frame cycle, foot contact timing, movement speed and ground anchor are retained.

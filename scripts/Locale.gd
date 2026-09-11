@@ -223,6 +223,10 @@ const STRINGS: Dictionary = {
 	"hud_boss_banner_fmt": {"en": "BOSS  %s", "ko": "보스  %s", "ja": "ボス  %s"},
 
 	# ── 상단 토스트(달성·과제·만렙 보상) ──────────────────────────────────
+	"milestone_achievement": {"en":"ACHIEVEMENT UNLOCKED", "ko":"도전과제 달성", "ja":"アチーブメント"},
+	"milestone_quest": {"en":"QUEST COMPLETE", "ko":"퀘스트 완료", "ja":"クエスト完了"},
+	"milestone_recorded": {"en":"Added to your achievements", "ko":"도전과제에 기록 완료", "ja":"きろくしました"},
+	"milestone_reward": {"en":"%d gold in Rewards", "ko":"보상함에 %d 골드 적립", "ja":"報酬に %d ゴールド"},
 	"toast_achievement_fmt": {"en": "%s  ·  reward waiting",
 							  "ko": "%s  ·  보상 대기",
 							  "ja": "%s  ·  ほうしゅう まち"},
