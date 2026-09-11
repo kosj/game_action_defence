@@ -7,6 +7,15 @@ func check(ok: bool, label: String) -> void:
 		push_error(label)
 func run() -> void:
 	var profile: Node = root.get_node("BuildProfile")
+	# Browser dimensions can change before Godot's Window size/signal catches up.
+	root.size = Vector2i(1280,720)
+	for extent in [Vector2i(390,844),Vector2i(844,390),Vector2i(390,844)]:
+		profile.apply_browser_sample(extent,true)
+		check(root.content_scale_size==(Vector2i(720,1280) if extent.y>extent.x else Vector2i(2272,1278)),"Browser rotation missed with stale engine size")
+	profile.apply_browser_sample(Vector2i.ZERO,true)
+	check(root.content_scale_size==Vector2i(720,1280),"Transient zero browser size changed orientation")
+	profile.apply_browser_sample(Vector2i(390,844),false)
+	check(root.content_scale_size==Vector2i(2272,1278),"Touch capability change missed")
 	for extent in [Vector2i(390,844),Vector2i(360,800),Vector2i(768,1024),Vector2i(844,390),Vector2i(390,844)]:
 		root.size = extent
 		profile.apply_browser_layout(root,true)
