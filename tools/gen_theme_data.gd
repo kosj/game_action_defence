@@ -28,7 +28,7 @@ func _initialize() -> void:
 		# 날씨: 온대 교외라 비.
 		# 프롭은 기믹과 다르다 — 능동적으로 플레이어를 때리지 않는 미장센이라 입문 아레나에도 깐다.
 		# (기믹 미배치 원칙은 "떨어지는 잔해" 같은 능동 방해물을 두지 않는다는 뜻이다)
-		_t("suburb", "Suburb", "Quiet outskirts. The outbreak begins.", "grass",
+		_t("suburb", "Suburb", "Wide streets and quiet homes. The outbreak begins.", "grass",
 			Color(0.10, 0.16, 0.08), Color(0.13, 0.20, 0.10), Color(0.16, 0.24, 0.13), Color(0.22, 0.31, 0.16),
 			{"boss_key": "mutant_dog",
 			 "prop_keys": PackedStringArray(["mailbox", "bush", "forsale", "hydrant"]),

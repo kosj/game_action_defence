@@ -1500,6 +1500,7 @@ func _on_new_game_pressed() -> void:
 func _start_new_game() -> void:
 	SaveManager.delete_save()
 	SaveManager.pending_continue = false
+	SaveManager.pending_suburb = {}
 	Events.reset()
 	Events.set_high_score(RankingManager.current_best())   # 이번 판 신기록 기준점(단일 모드)
 	SceneFade.transition_to("res://scenes/Main.tscn")

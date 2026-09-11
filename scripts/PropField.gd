@@ -149,6 +149,9 @@ var _sep_solid: Array = []
 
 
 func _ready() -> void:
+	if ThemeManager.selected_id() == "suburb":
+		queue_free()
+		return
 	z_index = -1   # 바닥(-2) 위, 유닛(0) 아래
 	_player = get_tree().get_first_node_in_group("player")
 	Cheats.changed.connect(queue_redraw)   # PROPS 토글이 즉시 화면에 반영되도록

@@ -22,11 +22,20 @@ var _touch_index: int = -1
 var _origin: Vector2 = Vector2.ZERO
 var _knob_pos: Vector2 = Vector2.ZERO
 var _alpha: float = 0.0   # 표시 알파 — 터치 시 빠르게 나타나고 놓으면 부드럽게 사라진다
+var _mouse_enabled := false
 
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_to_group("joystick")
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_mouse_enabled = OS.has_feature("web") or BuildProfile.touch_controls()
+	get_window().focus_exited.connect(_reset)
+	get_window().mouse_exited.connect(_reset)
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PAUSED:
+		_reset()
 
 
 ## 등장/퇴장 페이드 — 갑자기 나타났다 뚝 끊기는 대신 짧게 스미듯 전환해 터치감을 높인다.
@@ -45,20 +54,14 @@ func get_value() -> Vector2:
 
 
 func _input(event: InputEvent) -> void:
-	if not BuildProfile.touch_controls():
-		return
-	# ── 터치 시작/종료 ────────────────────────────────────────────
+	# Releases must still arrive when the cursor is above a HUD button.
 	if event is InputEventScreenTouch:
-		if event.pressed:
-			_try_activate(event.position, event.index)
-		elif event.index == _touch_index:
+		if not event.pressed and event.index == _touch_index:
 			_reset()
 
 	# ── 마우스 버튼 (WebGL 데스크톱 폴백) ──────────────────────────
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		if event.pressed:
-			_try_activate(event.position, _MOUSE_INDEX)
-		elif _touch_index == _MOUSE_INDEX:
+		if not event.pressed and _touch_index == _MOUSE_INDEX:
 			_reset()
 
 	# ── 터치 드래그 ───────────────────────────────────────────────
@@ -68,6 +71,14 @@ func _input(event: InputEvent) -> void:
 	# ── 마우스 이동 ───────────────────────────────────────────────
 	elif event is InputEventMouseMotion and _active and _touch_index == _MOUSE_INDEX:
 		_move_knob(event.position)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	# UI gets the first chance to consume presses. Only the playfield starts movement.
+	if event is InputEventScreenTouch and event.pressed and BuildProfile.touch_controls():
+		_try_activate(event.position,event.index)
+	elif event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and _mouse_enabled:
+		_try_activate(event.position,_MOUSE_INDEX)
 
 
 func _try_activate(pos: Vector2, index: int) -> void:

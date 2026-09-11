@@ -79,6 +79,9 @@ var _noise_tex: NoiseTexture2D = null
 
 
 func _ready() -> void:
+	if ThemeManager.selected_id() == "suburb":
+		queue_free()
+		return
 	# 타일을 한 칸씩 스트레치해 직접 그리므로(draw_texture_rect, tile=false) 반복 샘플링은 필요 없다(CLAMP).
 	texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
 	_player = get_tree().get_first_node_in_group("player")

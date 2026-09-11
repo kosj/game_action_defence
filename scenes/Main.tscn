@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/Main.gd" id="1"]
 [ext_resource type="PackedScene" path="res://scenes/Player.tscn" id="2"]
@@ -11,12 +11,15 @@
 [ext_resource type="Script" path="res://scripts/PropField.gd" id="11"]
 [ext_resource type="Script" path="res://scripts/WeatherSystem.gd" id="13"]
 
+[ext_resource type="Script" path="res://scripts/SuburbWorld.gd" id="14"]
+
 [node name="Main" type="Node2D"]
 y_sort_enabled = true
 script = ExtResource("1")
 
 [node name="Background" type="ColorRect" parent="."]
 z_index = -3
+mouse_filter = 2
 offset_left = -2000.0
 offset_top = -2000.0
 offset_right = 2000.0
@@ -37,6 +40,9 @@ script = ExtResource("13")
 
 [node name="Player" parent="." instance=ExtResource("2")]
 position = Vector2(0, 0)
+
+[node name="SuburbWorld" type="Node2D" parent="."]
+script = ExtResource("14")
 
 [node name="ZombieSpawner" type="Node" parent="."]
 script = ExtResource("3")

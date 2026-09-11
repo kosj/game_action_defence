@@ -50,6 +50,7 @@ var _captured: bool = false             # 자석에 걸려 빨려드는 중
 
 
 func on_spawn() -> void:
+	add_to_group("suburb_drops")
 	_alive = true
 	_launching = false
 	_collecting = false
@@ -124,6 +125,7 @@ func launch(to: Vector2, delay: float = 0.0) -> void:
 
 
 func on_despawn() -> void:
+	remove_from_group("suburb_drops")
 	_alive = false
 	_live.erase(self)
 

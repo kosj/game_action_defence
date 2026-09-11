@@ -17,6 +17,7 @@ var _player: Node2D = null
 
 
 func on_spawn() -> void:
+	add_to_group("enemy_projectiles")
 	_life = 0.0
 	_alive = true
 	_player = get_tree().get_first_node_in_group("player")
@@ -24,6 +25,7 @@ func on_spawn() -> void:
 
 
 func on_despawn() -> void:
+	remove_from_group("enemy_projectiles")
 	_alive = false
 
 

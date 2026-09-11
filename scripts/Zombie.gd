@@ -94,7 +94,10 @@ func _ready() -> void:
 	add_to_group("zombies")
 
 
+var _neighborhood: Node = null
+
 func on_spawn() -> void:
+	_neighborhood = get_tree().get_first_node_in_group("suburb_world")
 	add_to_group("zombies")   # 재사용 시 멱등 재등록(안전)
 	_lod_phase = randi() % 3
 	health = max_health
@@ -194,7 +197,9 @@ func _physics_process(delta: float) -> void:
 	if _knockback != Vector2.ZERO:
 		global_position += _knockback * delta
 		_knockback = _knockback.move_toward(Vector2.ZERO, KNOCKBACK_DECAY * delta)
-	_resolve_overlap()   # 이동·넉백을 모두 반영한 뒤 마지막에 겹침을 푼다
+	_resolve_overlap()
+	if is_instance_valid(_neighborhood):
+		global_position = _neighborhood.motion(prev_pos, global_position)   # 이동·넉백을 모두 반영한 뒤 마지막에 겹침을 푼다
 
 
 ## 겹침 해소 — 플레이어 몸통 안으로 파고들지 못하게 밀어낸다.
@@ -289,7 +294,7 @@ func _fit_shadow() -> void:
 ## 감지가 불필요한데, mask 를 켜두면 물리 엔진이 매 프레임 좀비×좀비 충돌쌍을 O(n²) 로 계산해
 ## 낭비한다. mask=0 으로 그 비용을 제거한다(레이어2 는 남아 총알·플레이어 감지는 그대로).
 func _behave_chase(delta: float) -> void:
-	var dir := (player.global_position - global_position).normalized()
+	var dir := _chase_direction()
 	_face(dir)
 	global_position += dir * speed * delta
 
@@ -297,7 +302,7 @@ func _behave_chase(delta: float) -> void:
 ## 지그재그: 플레이어로 접근하되 진행 방향에 수직으로 흔들어 조준을 어렵게 한다.
 func _behave_weaver(delta: float) -> void:
 	_wt += delta
-	var dir := (player.global_position - global_position).normalized()
+	var dir := _chase_direction()
 	var perp := Vector2(-dir.y, dir.x)
 	var vel := dir * speed + perp * (sin(_wt * WEAVE_FREQ) * speed * WEAVE_AMP_RATIO)
 	_face(dir)
@@ -313,7 +318,7 @@ func _behave_spitter(delta: float) -> void:
 	if dist < SPIT_KEEP_DIST - 30.0:
 		vel = -dir * speed      # 너무 가까우면 물러난다
 	elif dist > SPIT_KEEP_DIST + 30.0:
-		vel = dir * speed       # 너무 멀면 접근
+		vel = _chase_direction() * speed       # 너무 멀면 접근
 	_face(dir)
 	global_position += vel * delta
 	_fire_timer -= delta
@@ -344,7 +349,7 @@ func _behave_bomber(delta: float) -> void:
 			_explode()
 		return
 	var to_p := player.global_position - global_position
-	var dir := to_p.normalized()
+	var dir := _chase_direction()
 	_face(dir)
 	global_position += dir * speed * delta
 	if to_p.length() <= BOMB_TRIGGER:
@@ -417,3 +422,9 @@ func _die() -> void:
 	g.global_position = global_position
 	g.set_value(maxi(1, 1 + int(max_health / 6)))   # 튼튼한 좀비일수록 큰 젬(골드·경험치↑)
 	Pool.release(self)
+
+
+func _chase_direction() -> Vector2:
+	if is_instance_valid(_neighborhood):
+		return _neighborhood.direction(global_position, player.global_position)
+	return (player.global_position - global_position).normalized()

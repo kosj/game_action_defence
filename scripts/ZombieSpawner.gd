@@ -89,6 +89,9 @@ var _cleared: bool = false      # 30분 생존 클리어를 이미 알렸는가(
 var _escort_accum: float = 0.0
 
 
+var _suburb: Node = null
+var _suburb_starting := false
+
 func _ready() -> void:
 	_build_types()   # 데이터 에셋(GameData)에서 좀비 종류 테이블 구성
 	_diff = GameData.difficulty
@@ -104,6 +107,20 @@ func _ready() -> void:
 	_boss_count = int(_elapsed / _diff.boss_seconds)
 	_next_boss_at = float(_boss_count + 1) * _diff.boss_seconds
 	_next_elite_at = (floor(_elapsed / _elite_seconds()) + 1.0) * _elite_seconds()
+	if ThemeManager.selected_id() == "suburb":
+		_suburb = load("res://scripts/SuburbEncounter.gd").new()
+		add_child(_suburb)
+		var saved: Dictionary = SaveManager.pending_suburb.get("encounter", {})
+		if not saved.is_empty():
+			_boss_count = int(saved.get("count",_boss_count))
+			_next_boss_at = float(saved.get("next",_next_boss_at))
+			if saved.get("active",false):
+				_boss_count = maxi(0,_boss_count-1)
+				_next_boss_at = _elapsed + 15.0
+			if saved.has("center"):
+				var xy: Array = saved.center
+				_suburb.center = Vector2(xy[0],xy[1])
+		SaveManager.pending_suburb = {}
 	_cleared = Events.did_clear
 	_swarm_cd = randf_range(_bal.swarm_interval_min, _bal.swarm_interval_max)
 	Cheats.time_skip.connect(_on_time_skip)
@@ -234,9 +251,14 @@ func _process(delta: float) -> void:
 			_spawn_one(_pick_type(WEIGHTS[_tier()]))
 
 	# 보스 마일스톤 — _diff.boss_seconds 마다 1마리(동시 1마리).
-	if not _boss_alive and _elapsed >= _next_boss_at:
+	if _suburb != null and not _boss_alive and _next_boss_at-_elapsed <= 15.0:
+		_suburb.guide(player,_next_boss_at-_elapsed)
+	if not _boss_alive and not _suburb_starting and _elapsed >= _next_boss_at:
 		_next_boss_at += _diff.boss_seconds
-		_spawn_boss()
+		if _suburb != null:
+			_start_suburb_boss()
+		else:
+			_spawn_boss()
 
 	# 엘리트 팩 — _diff.elite_seconds 마다 강제 엘리트 스웜(보스전 중엔 미룬다).
 	if _elapsed >= _next_elite_at:
@@ -296,7 +318,7 @@ func _spawn_at(type_data: Dictionary, pos: Vector2) -> void:
 	if not is_instance_valid(player):
 		return
 	var z := Pool.acquire(ZOMBIE, get_tree().current_scene)
-	z.global_position = pos
+	z.global_position = SuburbLayout.safe(pos) if _suburb != null else pos
 	z.setup(type_data)
 	_alive_zombies += 1
 
@@ -381,6 +403,10 @@ func _theme_boss() -> Dictionary:
 
 ## 보스 소환 + 호위 정예 좀비. 경과 시간·회차에 따라 강화. 테마 보스 우선. 승리 조건 없음(엔들리스).
 func _spawn_boss() -> void:
+	if _suburb != null and _suburb.center == Vector2.INF:
+		_suburb.guide(player,0)
+		_start_suburb_boss()
+		return
 	if not is_instance_valid(player):
 		return
 	_boss_alive = true
@@ -401,7 +427,8 @@ func _spawn_boss() -> void:
 			_bal.boss_arena_radius - _bal.boss_arena_shrink_per_count * float(_boss_count - 1))
 	var boss := BOSS.instantiate()
 	get_tree().current_scene.add_child(boss)
-	boss.global_position = player.global_position \
+	var arena_center: Vector2 = _suburb.center if _suburb != null and _suburb.center != Vector2.INF else player.global_position
+	boss.global_position = arena_center \
 			+ Vector2.from_angle(randf() * TAU) * (arena_r * BOSS_SPAWN_RING)
 	# 좀비 체력 곡선을 boss_curve_scale 만큼 반영해 보스도 후반까지 녹지 않게 한다.
 	# (예전의 분당 +3% 는 후반 보스를 순삭되게 만들었다.)
@@ -426,7 +453,7 @@ func _spawn_boss() -> void:
 	# (BossArena._confine_bosses). 회차가 오를수록 좁아진다.
 	if is_instance_valid(_arena):
 		_arena.queue_free()   # 이전 보스가 처치 없이 사라진 예외 상황 대비
-	_arena = _BossArena.spawn(get_tree().current_scene, player.global_position, arena_r)
+	_arena = _BossArena.spawn(get_tree().current_scene, arena_center, arena_r)
 
 	# 호위 정예 좀비 — 빠른(스프린터)/탱커(공사장) 혼합.
 	var escorts := _bal.boss_escort_base + _boss_count
@@ -454,6 +481,8 @@ func _on_boss_summon(count: int) -> void:
 
 
 func _on_boss_died() -> void:
+	if _suburb != null:
+		_suburb.finish()
 	_boss_alive = false   # 엔들리스 — 승리 없이 계속 진행, 다음 마일스톤에 새 보스.
 	# 이 게임에 남은 유일한 자연스러운 마일스톤이다. 퀘스트·도전과제가 이 시점에 진행분을
 	# 디스크로 내린다 — 웹에서 탭을 닫으면 그 판의 진행이 통째로 날아가던 문제를 막는다(P0-2).
@@ -559,4 +588,22 @@ func _physics_process(_delta: float) -> void:
 			if checked >= SEP_MAX_NEIGHBORS:
 				break
 		if push != Vector2.ZERO:
-			_sep_nodes[i].global_position += (push * SEP_STRENGTH).limit_length(SEP_MAX_PUSH)
+			var before: Vector2 = _sep_nodes[i].global_position
+			var after: Vector2 = before + (push * SEP_STRENGTH).limit_length(SEP_MAX_PUSH)
+			_sep_nodes[i].global_position = _suburb.world.motion(before,after) if _suburb != null else after
+
+
+func _start_suburb_boss() -> void:
+	_suburb_starting = true
+	await _suburb.enter(player)
+	_spawn_queue.clear()
+	_alive_zombies = get_tree().get_nodes_in_group("zombies").size()
+	_suburb_starting = false
+	if not _game_over and is_instance_valid(player):
+		_spawn_boss()
+
+func suburb_save() -> Dictionary:
+	var state := {"count":_boss_count + (1 if _suburb_starting else 0),"next":_next_boss_at,"active":_boss_alive or _suburb_starting}
+	if _suburb != null and _suburb.center != Vector2.INF:
+		state["center"] = [_suburb.center.x,_suburb.center.y]
+	return state

@@ -26,3 +26,6 @@ __pycache__/
 
 # Local engine and visual QA artifacts
 /output/validation/
+
+# Building source art uses a bounded runtime import size.
+!assets/suburb/*.png.import

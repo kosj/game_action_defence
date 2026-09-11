@@ -7,6 +7,8 @@ const SAVE_PATH := "user://save.json"
 const HIGHSCORE_PATH := "user://highscore.save"   # 구버전 단일 최고점 — 이제 RankingManager 가 모드별로 관리
 const DIFFICULTY_PATH := "user://difficulty.save" # 난이도 설정 — 세션 간 보존
 
+var pending_suburb: Dictionary = {}
+
 var pending_continue: bool = false
 var pending_player_health: int = 1
 var pending_weapon_id: String = "pistol"
@@ -104,6 +106,9 @@ func save_game(player: Node) -> void:
 		"weapon_id": player.current_weapon.get("id", "pistol"),
 		"weapon_tier_id": player.current_weapon.get("tier_id", "common"),
 	}
+	var neighborhood := get_tree().get_first_node_in_group("suburb_world")
+	if neighborhood != null:
+		data["suburb"] = {"position": [player.global_position.x,player.global_position.y], "encounter": get_tree().current_scene.get_node("ZombieSpawner").suburb_save()}
 	SaveGuard.write_json(SAVE_PATH, data)   # 서명본(P2-29) — 편집한 체크포인트로 골드를 세탁하지 못하게
 
 
@@ -164,6 +169,7 @@ func apply_to_events(data: Dictionary) -> void:
 	Events.gold_changed.emit(Events.total_gold)
 	Events.score_changed.emit(Events.score)
 
+	pending_suburb = data.get("suburb", {})
 	pending_continue = true
 	pending_player_health = data.get("player_health", 1)
 	pending_weapon_id = data.get("weapon_id", "pistol")

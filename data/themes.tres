@@ -7,7 +7,7 @@
 script = ExtResource("2_mg65s")
 id = "suburb"
 display = "Suburb"
-desc = "Quiet outskirts. The outbreak begins."
+desc = "Wide streets and quiet homes. The outbreak begins."
 bg = Color(0.1, 0.16, 0.08, 1)
 tile_a = Color(0.13, 0.2, 0.1, 1)
 tile_b = Color(0.16, 0.24, 0.13, 1)

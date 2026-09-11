@@ -27,6 +27,9 @@ var current: String = DEFAULT_LANG
 
 ## 키 → { 언어코드: 문자열 }. 번역이 없는 언어는 영어(DEFAULT_LANG)로 폴백된다.
 const STRINGS: Dictionary = {
+	"suburb_boss_ready": {"en":"BOSS AREA READY", "ko":"보스전 준비", "ja":"ボスエリア OK"},
+	"suburb_boss_move": {"en":"BOSS AREA  %dm", "ko":"보스전 구역  %dm", "ja":"ボスエリア  %dm"},
+	"suburb_transfer": {"en":"Auto move in %ds", "ko":"%d초 후 자동 이동", "ja":"あと %d秒で いどう"},
 	# ── 인트로: "Hold the Ground" (이 구역을 사수하라) ─────────────────────
 	# 비컨(송신탑)은 구조 요청이 아니라 "한 구역을 30분 지켜내면 켜지는 표식"이다.
 	# 클리어 조건(30분 생존)·캐릭터 3종(부대 생존자)·테마 진행(교외→도심→연구소)과 맞춘다.
