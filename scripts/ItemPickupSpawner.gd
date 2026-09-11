@@ -69,4 +69,4 @@ func _random_spawn_pos() -> Vector2:
 	var dist := randf_range(vp.length() * 0.18, vp.length() * 0.55 + spawn_margin)
 	var angle := randf() * TAU
 	var pos := player.global_position + Vector2.from_angle(angle) * dist
-	return SuburbLayout.safe(pos) if ThemeManager.selected_id() == "suburb" else pos
+	return SuburbLayout.safe(pos) if SuburbWorld.supports(ThemeManager.selected_id()) else pos

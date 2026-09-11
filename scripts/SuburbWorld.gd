@@ -6,6 +6,11 @@ const TILE := 80
 var chunks: Dictionary = {}
 var destination := Vector2.INF
 var _textures: Dictionary = {}
+var _district: DistrictScenery
+
+static func supports(id: String) -> bool:
+	return id in ["suburb","city","lab"]
+
 var _prop_textures: Dictionary = {}
 var _tiles: TileSet
 var _nav: NavigationPolygon
@@ -21,6 +26,9 @@ var _asphalt: Texture2D
 var _bed_bush := preload("res://assets/atlas/props/suburb/prop_bush.tres")
 
 func _draw_parcels(canvas: Node2D, variant: int) -> void:
+	if _district != null:
+		_district.draw_ground(canvas,variant,_asphalt)
+		return
 	# Static, collision-free landscaping. Every private driveway belongs to a lot.
 	for i in SuburbLayout.LOTS.size():
 		var lot: Vector2 = SuburbLayout.LOTS[i]
@@ -64,30 +72,34 @@ func _draw_parcels(canvas: Node2D, variant: int) -> void:
 			canvas.draw_line(Vector2(driveway.position.x,y),Vector2(driveway.end.x,y),Color(0.37,0.38,0.34,0.6),1)
 
 func _ready() -> void:
-	if ThemeManager.selected_id() != "suburb":
+	if not supports(ThemeManager.selected_id()):
 		queue_free()
 		return
+	if ThemeManager.selected_id() != "suburb":
+		_district = DistrictScenery.new(ThemeManager.selected_id())
 	y_sort_enabled = true
 	add_to_group("suburb_world")
 	_player = get_tree().get_first_node_in_group("player")
 	if ResourceLoader.exists("res://data/suburb_navigation.tres"):
 		_nav = load("res://data/suburb_navigation.tres")
-	for direction_name in ["south","north","east","west"]:
-		var path := "res://assets/suburb/house_%s.png" % direction_name
-		if ResourceLoader.exists(path):
-			_textures[direction_name] = load(path)
-	if _textures.is_empty():
-		var img := Image.create(64,64,false,Image.FORMAT_RGBA8)
-		img.fill(Color(0.36,0.31,0.28))
+	if _district == null:
 		for direction_name in ["south","north","east","west"]:
-			_textures[direction_name] = ImageTexture.create_from_image(img)
+			var path := "res://assets/suburb/house_%s.png" % direction_name
+			if ResourceLoader.exists(path):
+				_textures[direction_name] = load(path)
+		if _textures.is_empty():
+			var img := Image.create(64,64,false,Image.FORMAT_RGBA8)
+			img.fill(Color(0.36,0.31,0.28))
+			for direction_name in ["south","north","east","west"]:
+				_textures[direction_name] = ImageTexture.create_from_image(img)
 	_tiles = _make_tiles()
-	for key in ["mailbox","hydrant"]:
-		var texture: Texture2D = load("res://assets/suburb/prop_%s_top.png" % key)
-		var cropped := AtlasTexture.new()
-		cropped.atlas = texture
-		cropped.region = texture.get_image().get_used_rect()
-		_prop_textures[key] = cropped
+	if _district == null:
+		for key in ["mailbox","hydrant"]:
+			var texture: Texture2D = load("res://assets/suburb/prop_%s_top.png" % key)
+			var cropped := AtlasTexture.new()
+			cropped.atlas = texture
+			cropped.region = texture.get_image().get_used_rect()
+			_prop_textures[key] = cropped
 	_probe = CharacterBody2D.new()
 	_probe.collision_layer = 0
 	_probe.collision_mask = 16
@@ -165,6 +177,8 @@ func ensure_chunk(c: Vector2i) -> void:
 	markings.z_index = -1
 	node.add_child(markings)
 	markings.draw.connect(func() -> void:
+		if _district != null:
+			return
 		for n in range(-12,13):
 			if absi(n)<4:
 				continue
@@ -185,7 +199,7 @@ func ensure_chunk(c: Vector2i) -> void:
 		add_child(house)
 		house.global_position = SuburbLayout.center(c)+SuburbLayout.LOTS[i]+Vector2(0,110)
 		var tint := Color(0.95,0.96,0.94) if (i+variant)%2==0 else Color(0.86,0.90,0.87)
-		house.configure(_textures[SuburbLayout.frontage(i)],tint)
+		house.configure(_district.building(i,variant) if _district != null else _textures[SuburbLayout.frontage(i)],tint)
 		houses.append(house)
 		_add_props(node,i,variant)
 	if _nav != null:
@@ -195,6 +209,9 @@ func ensure_chunk(c: Vector2i) -> void:
 	chunks[c] = {"root":node,"houses":houses,"footprints":footprints}
 
 func _add_props(parent: Node2D, index: int, variant: int) -> void:
+	if _district != null:
+		_district.add_props(parent,index,variant)
+		return
 	var lot: Vector2 = SuburbLayout.LOTS[index]
 	var keys := ["mailbox","bush","forsale","hydrant"]
 	var front := Vector2(-signf(lot.x),0) if absf(lot.x)>800 else Vector2(0,-signf(lot.y))
@@ -232,6 +249,9 @@ func _make_tiles() -> TileSet:
 			if entry[1]==1:
 				_asphalt = ImageTexture.create_from_image(tile)
 			image.blit_rect(tile,Rect2i(0,0,TILE,TILE),Vector2i(int(entry[1])*TILE,0))
+	if _district != null:
+		var base := _district.make_floor(TILE)
+		image.blit_rect(base,Rect2i(0,0,TILE,TILE),Vector2i.ZERO)
 	var atlas := TileSetAtlasSource.new()
 	atlas.texture = ImageTexture.create_from_image(image)
 	atlas.texture_region_size = Vector2i(TILE,TILE)

@@ -149,7 +149,7 @@ var _sep_solid: Array = []
 
 
 func _ready() -> void:
-	if ThemeManager.selected_id() == "suburb":
+	if SuburbWorld.supports(ThemeManager.selected_id()):
 		queue_free()
 		return
 	z_index = -1   # 바닥(-2) 위, 유닛(0) 아래

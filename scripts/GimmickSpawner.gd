@@ -72,4 +72,7 @@ func _spawn() -> void:
 	get_tree().current_scene.add_child(h)
 	var dist := randf_range(SPAWN_MIN, SPAWN_MAX)
 	h.global_position = player.global_position + Vector2.from_angle(randf() * TAU) * dist
+	if SuburbWorld.supports(ThemeManager.selected_id()):
+		h.global_position = SuburbLayout.safe(h.global_position,85)
+	h.add_to_group("district_hazards")
 	_active.append(h)

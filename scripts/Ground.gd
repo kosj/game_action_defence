@@ -79,7 +79,7 @@ var _noise_tex: NoiseTexture2D = null
 
 
 func _ready() -> void:
-	if ThemeManager.selected_id() == "suburb":
+	if SuburbWorld.supports(ThemeManager.selected_id()):
 		queue_free()
 		return
 	# 타일을 한 칸씩 스트레치해 직접 그리므로(draw_texture_rect, tile=false) 반복 샘플링은 필요 없다(CLAMP).

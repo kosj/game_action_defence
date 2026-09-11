@@ -7,6 +7,7 @@ const SAVE_PATH := "user://save.json"
 const HIGHSCORE_PATH := "user://highscore.save"   # 구버전 단일 최고점 — 이제 RankingManager 가 모드별로 관리
 const DIFFICULTY_PATH := "user://difficulty.save" # 난이도 설정 — 세션 간 보존
 
+# Historical save key retained for compatibility; all three district themes use it.
 var pending_suburb: Dictionary = {}
 
 var pending_continue: bool = false

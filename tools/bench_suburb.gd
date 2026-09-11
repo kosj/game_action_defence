@@ -8,7 +8,12 @@ func _initialize() -> void:
 	call_deferred("_run")
 func _run() -> void:
 	seed(42)
-	root.get_node("ThemeManager").select("suburb")
+	var theme_id := "suburb"
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--theme="):
+			theme_id = arg.trim_prefix("--theme=")
+	root.get_node("ThemeManager")._bought[theme_id] = true
+	root.get_node("ThemeManager")._selected_id = theme_id
 	root.get_node("Events").reset()
 	var main: Node = load("res://scenes/Main.tscn").instantiate()
 	root.add_child(main)

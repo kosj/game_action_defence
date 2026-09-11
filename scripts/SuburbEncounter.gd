@@ -86,6 +86,8 @@ func enter(player: Node2D) -> void:
 				Pool.release(z)
 		for projectile in get_tree().get_nodes_in_group("enemy_projectiles"):
 			Pool.release(projectile)
+		for hazard in get_tree().get_nodes_in_group("district_hazards"):
+			hazard.queue_free()
 		var index := 0
 		for group in ["suburb_drops","item_pickups"]:
 			for drop in get_tree().get_nodes_in_group(group):

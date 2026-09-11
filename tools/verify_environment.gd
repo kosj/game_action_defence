@@ -445,10 +445,10 @@ func _test_prop_field(game_data, theme_mgr) -> void:
 		root.add_child(pf)
 		pf.set_process(false)
 		pf.set_physics_process(false)
-		if th.id == "suburb":
+		if SuburbWorld.supports(th.id):
 			# SuburbWorld owns this theme; its layout/collision/encounters have a
 			# dedicated CI test in verify_suburb.gd. Legacy scattering must stop.
-			_ok("[suburb] 기존 무작위 프롭 필드 비활성", pf.is_queued_for_deletion())
+			_ok("[%s] 기존 무작위 프롭 필드 비활성" % th.id, pf.is_queued_for_deletion())
 			continue
 
 		_ok("[%s] 프롭이 로드됨" % th.id, pf._props.size() == th.prop_keys.size(),

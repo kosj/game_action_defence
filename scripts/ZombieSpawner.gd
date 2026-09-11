@@ -107,7 +107,7 @@ func _ready() -> void:
 	_boss_count = int(_elapsed / _diff.boss_seconds)
 	_next_boss_at = float(_boss_count + 1) * _diff.boss_seconds
 	_next_elite_at = (floor(_elapsed / _elite_seconds()) + 1.0) * _elite_seconds()
-	if ThemeManager.selected_id() == "suburb":
+	if SuburbWorld.supports(ThemeManager.selected_id()):
 		_suburb = load("res://scripts/SuburbEncounter.gd").new()
 		add_child(_suburb)
 		var saved: Dictionary = SaveManager.pending_suburb.get("encounter", {})

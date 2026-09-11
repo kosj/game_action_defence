@@ -1,5 +1,6 @@
 extends SceneTree
 var failures := 0
+var theme_id := "suburb"
 func _initialize() -> void:
 	call_deferred("_run")
 func check(value: bool, label: String) -> void:
@@ -8,7 +9,12 @@ func check(value: bool, label: String) -> void:
 		push_error(label)
 func _run() -> void:
 	seed(42)
-	root.get_node("ThemeManager").select("suburb")
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--theme="):
+			theme_id = arg.trim_prefix("--theme=")
+	check(theme_id in ["suburb","city","lab"],"Invalid test theme")
+	root.get_node("ThemeManager")._bought[theme_id] = true
+	root.get_node("ThemeManager")._selected_id = theme_id
 	root.get_node("Events").reset()
 	if "--mobile-preview" in OS.get_cmdline_user_args():
 		root.content_scale_size = Vector2i(720,1280)
@@ -28,6 +34,29 @@ func _run() -> void:
 	await create_timer(1.5).timeout
 	var world: Node = get_first_node_in_group("suburb_world")
 	check(world != null,"Missing world")
+	check(main.get_node_or_null("PropField") == null,"Legacy props still active")
+	check(main.get_node_or_null("Ground") == null,"Legacy ground still active")
+	if theme_id != "suburb":
+		check(world.get("_district") != null,"Missing district dressing")
+		for texture in world.get("_district").buildings:
+			check(texture != null and texture.get_width()<=512,"Missing or oversized building texture")
+	# Native house collision and fade must agree with the player position.
+	var house: Node2D = get_first_node_in_group("suburb_houses")
+	var actor: Node2D = get_first_node_in_group("player")
+	actor.global_position = house.global_position+Vector2(0,-250)
+	house.set("_check",0.0)
+	house.call("_process",0.2)
+	check(house.get("_sprite").modulate.a<0.5,"Building did not fade over actor")
+	actor.global_position = Vector2.ZERO
+	if theme_id != "suburb":
+		var hazards: Node = main.get_node("GimmickSpawner")
+		actor.global_position = house.global_position+Vector2(0,140)
+		for sample in 12:
+			hazards.call("_spawn")
+		for hazard in get_nodes_in_group("district_hazards"):
+			check(not layout.inside(hazard.global_position,80),"Hazard spawned inside structure")
+			hazard.queue_free()
+		actor.global_position = Vector2.ZERO
 	for variant in 4:
 		check(world.call("_road_offset",-1280.0,variant)==0.0 and world.call("_road_offset",1280.0,variant)==0.0,"Disconnected street socket")
 	var player: Node2D = get_first_node_in_group("player")
@@ -51,7 +80,7 @@ func _run() -> void:
 		player.global_position = Vector2(780,1030)
 		await create_timer(0.4).timeout
 		await RenderingServer.frame_post_draw
-		root.get_texture().get_image().save_png("res://output/validation/theme_suburb.png")
+		root.get_texture().get_image().save_png("res://output/validation/theme_"+theme_id+".png")
 		quit()
 		return
 	var r: Rect2 = layout.footprint(Vector2i.ZERO,3)
@@ -70,12 +99,16 @@ func _run() -> void:
 	player.global_position = expected+Vector2(950,0)
 	var drop: Node2D = root.get_node("Pool").acquire(load("res://scenes/Gold.tscn"),main)
 	drop.global_position = player.global_position+Vector2(100,0)
+	var hazard := Node2D.new()
+	main.add_child(hazard)
+	hazard.add_to_group("district_hazards")
 	var xp: int = root.get_node("Events").xp
 	await guide.enter(player)
 	check(is_instance_valid(drop) and drop.global_position.distance_to(expected)<160,"Drop lost during transfer")
 	check(root.get_node("Events").xp == xp,"Transfer granted XP")
 	check(player.global_position.distance_to(expected)<1,"Transfer did not arrive")
 	check(not paused,"Transfer left tree paused")
+	check(not is_instance_valid(hazard),"Old hazard survived transfer")
 	player.global_position = expected+Vector2(120,0)
 	await guide.enter(player)
 	check(player.global_position.distance_to(expected+Vector2(120,0))<1,"Early arrival should not teleport")
@@ -115,7 +148,7 @@ func _run() -> void:
 	root.get_node("Events").pause_pop(pause_owner)
 	root.get_node("Events").player_died.emit()
 	check(spawner.get("_suburb").center == Vector2.INF,"Death did not cancel guidance")
-	print("SUBURB CHECK failures=",failures)
+	print("DISTRICT CHECK theme=",theme_id," failures=",failures)
 	quit(failures)
 func verify_movers(world: Node, main: Node, spawner: Node, layout: Script) -> void:
 	var target := Node2D.new()
@@ -146,4 +179,4 @@ func capture(tag: String) -> void:
 	if DisplayServer.get_name()=="headless":
 		return
 	await RenderingServer.frame_post_draw
-	root.get_texture().get_image().save_png("res://output/validation/"+tag+("-mobile" if "--mobile-preview" in OS.get_cmdline_user_args() else "")+".png")
+	root.get_texture().get_image().save_png("res://output/validation/"+tag.replace("suburb",theme_id)+("-mobile" if "--mobile-preview" in OS.get_cmdline_user_args() else "")+".png")
