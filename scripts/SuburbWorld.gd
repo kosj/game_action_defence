@@ -26,6 +26,9 @@ var _asphalt: Texture2D
 var _bed_bush := preload("res://assets/atlas/props/suburb/prop_bush.tres")
 
 func _draw_parcels(canvas: Node2D, variant: int) -> void:
+	var lab := _district != null and _district.theme_id == "lab"
+	var pavement := Color(0.36,0.43,0.46) if lab else Color(0.48,0.48,0.43)
+	StreetSurface.draw(canvas,variant,_asphalt,pavement,Color(0.67,0.78,0.82) if lab else Color(0.78,0.80,0.82),_district == null)
 	if _district != null:
 		_district.draw_ground(canvas,variant,_asphalt)
 		return
@@ -43,25 +46,14 @@ func _draw_parcels(canvas: Node2D, variant: int) -> void:
 			canvas.draw_texture_rect(_bed_bush,Rect2(lot+Vector2(offset-19,signf(lot.y)*140-12),Vector2(38,38)),false,Color(0.82,0.91,0.78))
 	for street_side in [-1,1]:
 		var y: float = street_side*SuburbLayout.LOCAL_STREET_Y
-		canvas.draw_rect(Rect2(-1280,y-200,2560,400),Color(0.48,0.48,0.43))
-		canvas.draw_texture_rect(_asphalt,Rect2(-1280,y-160,2560,320),true,Color(0.78,0.80,0.82))
-		# Keep the main through-road open across sidewalk crossings.
-		canvas.draw_texture_rect(_asphalt,Rect2(-240,y-200,480,400),true,Color(0.78,0.80,0.82))
 		for curb_side in [-1,1]:
-			for span in [Vector2(-1280,-320),Vector2(320,1280)]:
+			for span in [Vector2(-1280,-340),Vector2(340,1280)]:
 				canvas.draw_line(Vector2(span.x,y+curb_side*163),Vector2(span.y,y+curb_side*163),Color(0.66,0.65,0.58),3)
 		for x in range(-1280,1280,80):
 			if absi(x)<320:
 				continue
 			for edge in [-1,1]:
 				canvas.draw_line(Vector2(x,y+edge*168),Vector2(x,y+edge*198),Color(0.32,0.33,0.30,0.55),1)
-	for side in [-1,1]:
-		var parking := Rect2(320 if side>0 else -640,-280,320,560)
-		canvas.draw_rect(parking.grow(14),Color(0.48,0.48,0.43))
-		canvas.draw_texture_rect(_asphalt,parking,true,Color(0.78,0.80,0.82))
-		# An unmarked entrance joins the shared car park to the central street.
-		canvas.draw_texture_rect(_asphalt,Rect2(220 if side>0 else -420,-90,200,180),true,Color(0.78,0.80,0.82))
-		canvas.draw_texture_rect(_asphalt,Rect2(parking.position.x-14,-160,348,320),true,Color(0.78,0.80,0.82))
 	for i in SuburbLayout.LOTS.size():
 		var driveway := SuburbLayout.driveway(i)
 		canvas.draw_rect(driveway,Color(0.53,0.52,0.46))
@@ -159,16 +151,7 @@ func ensure_chunk(c: Vector2i) -> void:
 	node.add_child(layer)
 	for x in range(-16,16):
 		for y in range(-16,16):
-			var p := Vector2(x*TILE+40,y*TILE+40)
-			var kind := 0
-			var bend := 40.0*sin(p.y/1280.0*PI)*float(SuburbLayout.variant(c,Events.env_seed)%2)
-			var road_y := _road_offset(p.x,street_variant)
-			if absf(p.x-bend)<320 or absf(p.y-road_y)<320:
-				kind = 2
-			var parking := (absf(p.x)<480 and absf(p.y)<480) if street_variant<2 else (p.x>320 and p.x<640 and absf(p.y)<320)
-			if absf(p.x-bend)<240 or absf(p.y-road_y)<240 or parking:
-				kind = 1
-			layer.set_cell(Vector2i(x,y),0,Vector2i(kind,0))
+			layer.set_cell(Vector2i(x,y),0,Vector2i.ZERO)
 	var parcels := Node2D.new()
 	parcels.z_index = -2
 	node.add_child(parcels)
@@ -335,4 +318,4 @@ func nearest_arena(from: Vector2) -> Vector2:
 
 func _road_offset(x: float, variant: int) -> float:
 	# Alternating paired T junctions reconnect at identical chunk-edge sockets.
-	return signf(x)*320.0*(1.0-absf(x)/1280.0) if variant>=2 else 0.0
+	return StreetSurface.offset(x,variant)

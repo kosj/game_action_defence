@@ -51,16 +51,11 @@ func draw_ground(canvas: Node2D, variant: int, asphalt: Texture2D) -> void:
 	# Two continuous service corridors connect to the same chunk-edge sockets.
 	for side in [-1,1]:
 		var y: float = side*SuburbLayout.LOCAL_STREET_Y
-		canvas.draw_rect(Rect2(-1280,y-200,2560,400),pavement)
-		canvas.draw_texture_rect(asphalt,Rect2(-1280,y-160,2560,320),true,Color(0.67,0.78,0.82) if lab else Color(0.8,0.8,0.8))
-		canvas.draw_texture_rect(asphalt,Rect2(-240,y-200,480,400),true)
-		for x in range(-1280,1280,160):
-			if absi(x)<320:
-				continue
-			canvas.draw_line(Vector2(x,y-170),Vector2(x+110,y-170),lane,3)
-			canvas.draw_line(Vector2(x,y+170),Vector2(x+110,y+170),lane,3)
+		# Both endpoints stay inside the straight asphalt, clear of corner radii.
+		for span in StreetSurface.lane_segments():
+			canvas.draw_line(Vector2(span.x,y-140),Vector2(span.y,y-140),lane,3)
+			canvas.draw_line(Vector2(span.x,y+140),Vector2(span.y,y+140),lane,3)
 	# Broad central muster plaza: every solid remains outside radius 780.
-	canvas.draw_rect(Rect2(-640,-320,1280,640),pavement.darkened(0.12))
 	if lab:
 		for x in range(-600,601,120):
 			canvas.draw_line(Vector2(x,-300),Vector2(x,300),Color(0.22,0.31,0.34,0.45),2)
@@ -68,17 +63,16 @@ func draw_ground(canvas: Node2D, variant: int, asphalt: Texture2D) -> void:
 			canvas.draw_line(Vector2(-620,y),Vector2(620,y),Color(0.22,0.31,0.34,0.45),2)
 		canvas.draw_rect(Rect2(-180,-100,360,200),Color(0.35,0.62,0.62,0.45),false,5)
 	else:
-		canvas.draw_texture_rect(asphalt,Rect2(-640,-320,1280,640),true,Color(0.85,0.85,0.85))
 		for side in [-1,1]:
 			for x in range(-560,561,140):
 				canvas.draw_line(Vector2(x,side*180),Vector2(x,side*290),lane,3)
 			# Crosswalks leave the intersection readable without new obstacles.
-			for x in range(-200,201,65):
+			for x in range(-160,161,60):
 				canvas.draw_rect(Rect2(x,side*370-25,35,50),Color(0.68,0.68,0.61,0.65))
 	for i in SuburbLayout.LOTS.size():
 		var lot: Vector2 = SuburbLayout.LOTS[i]
 		var apron := access_apron(i)
-		canvas.draw_rect(Rect2(lot-Vector2(185,150),Vector2(370,320)),pavement.lightened(0.025*float((i+variant)%2)))
+		StreetSurface.rounded_rect(canvas,Rect2(lot-Vector2(185,150),Vector2(370,320)),pavement.lightened(0.025*float((i+variant)%2)))
 		canvas.draw_rect(apron,pavement)
 		# Loading/service bay next to the structure, not across its entrance.
 		var bay := Rect2(lot+Vector2(-180,150),Vector2(360,70))
