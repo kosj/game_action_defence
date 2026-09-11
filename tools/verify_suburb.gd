@@ -51,7 +51,7 @@ func _run() -> void:
 		player.global_position = Vector2(780,1030)
 		await create_timer(0.4).timeout
 		await RenderingServer.frame_post_draw
-		root.get_texture().get_image().save_png("res://assets/ui/thumbs/theme_suburb.png")
+		root.get_texture().get_image().save_png("res://output/validation/theme_suburb.png")
 		quit()
 		return
 	var r: Rect2 = layout.footprint(Vector2i.ZERO,3)

@@ -84,11 +84,14 @@ jobs:
       - name: Import assets
         run: |
           status=0
-          timeout 600 godot --headless --editor --quit > import.log 2>&1 || status=$?
+          timeout 600 godot --headless --editor --import > import.log 2>&1 || status=$?
           tail -40 import.log
           if [ "$status" -eq 124 ]; then
             echo "에셋 임포트가 600초 타임아웃으로 중단되었습니다 — 빌드를 중단합니다."
             exit 1
+          fi
+          if [ "$status" -ne 0 ]; then
+            exit "$status"
           fi
 
       # assets/fonts 의 CJK 폰트는 "쓰는 글자만" 남긴 서브셋(2.4MB → 0.32MB)이다. 새 문자가 들어간

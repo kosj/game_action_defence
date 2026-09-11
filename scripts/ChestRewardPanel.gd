@@ -401,7 +401,7 @@ func _reveal() -> void:
 	var title := Label.new()
 	title.text = Locale.t(_rar["title"])
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 40)
+	title.add_theme_font_size_override("font_size", 38)
 	title.add_theme_color_override("font_color", col)
 	UITheme.heading(title)
 	vb.add_child(title)

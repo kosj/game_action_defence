@@ -160,6 +160,9 @@ def main() -> None:
         ("HUD · 일시정지 제목", 300, 34, True, loc("pause_title")),
         ("HUD · 생존 시간", 300, 18, False, loc("pause_time_fmt", "99:59")),
         ("HUD · 부활 버튼", 400 - BTN_PAD, 22, True, loc("hud_revive")),
+        ("보스전 · 이동 안내", 680, 26, False,
+         loc("suburb_boss_ready") + loc("suburb_boss_move", 99999)
+         + loc("suburb_transfer", 15) + lit("15s")),
         ("게임오버 · 제목", 400, 44, True, loc("go_defeat") + loc("go_victory")),
         # 결과 요지 표(HUD._STAT_GRID_W 320). 아이콘 22 + 간격 12x2 를 빼고 값 칸에 90 을
         # 남기면 이름 칸은 174px 이다.
@@ -275,7 +278,7 @@ def main() -> None:
         # 줄바꿈이 켜져 있으므로 "가장 긴 단어"가 기준이다.
         ("보상 카드 · 계속 안내", 640, 18, False, loc("tap_continue")),
         # 패널 vb 최소 폭 330 + 좌우 여백 30*2 = 390 까지 늘어난다. 제목은 40px 로 가장 크다.
-        ("보상 · 등급 제목", 330, 40, True,
+        ("보상 · 등급 제목", 330, 38, True,
          [t for k in ("chest_rar_common", "chest_rar_rare", "chest_rar_epic",
                       "chest_rar_legend") for t in loc(k)]),
         ("보상 · 머리말", 330, 18, False, loc("chest_head")),
@@ -394,6 +397,7 @@ def _is_cjk(ch: str) -> bool:
 
 
 COVERED_BY = {
+    "SuburbEncounter.gd": ("보스전 · 이동 안내",),
     "MainMenu.gd": ("메뉴", "팝업 행", "아레나", "캐릭터", "영구 강화"),
     "HUD.gd": ("HUD", "게임오버"),
     "HUDToast.gd": ("HUD 토스트",),
