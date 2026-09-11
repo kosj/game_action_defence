@@ -66,6 +66,7 @@ window/size/window_height_override.mobile_preview=640
 window/stretch/mode="canvas_items"
 window/stretch/aspect="keep"
 window/handheld/orientation=0
+window/handheld/orientation.web=6
 window/handheld/orientation.mobile_preview=1
 
 [input]
