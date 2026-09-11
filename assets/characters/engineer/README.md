@@ -11,5 +11,9 @@ distance, retains phase while idle, and aims shots from direction-specific muzzl
 positions. Lossless Godot texture import is required.
 
 Authoring source and generation prompts are in
-`output/engineer_walk_sample/rig_v1/`. The Player integration is shared with the
+`tools/engineer_rig/`. The Player integration is shared with the
 hunter and configured by `CharacterData` fields.
+
+The revised gait increases lateral spacing from 12 to 20 rig pixels. SE uses a
+front-facing three-quarter torso and lowered, foreshortened nail gun; SW mirrors
+the same component. The diagonal muzzle positions follow the new gun tips.
