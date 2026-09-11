@@ -31,7 +31,7 @@ func _run() -> void:
 	for variant in 4:
 		check(world.call("_road_offset",-1280.0,variant)==0.0 and world.call("_road_offset",1280.0,variant)==0.0,"Disconnected street socket")
 	var player: Node2D = get_first_node_in_group("player")
-	player.global_position = Vector2(600,700)
+	player.global_position = Vector2(600,-700) if "--north-street" in OS.get_cmdline_user_args() else Vector2(600,700)
 	await create_timer(0.3).timeout
 	await capture("suburb-street")
 	if "--block-preview" in OS.get_cmdline_user_args():

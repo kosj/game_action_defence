@@ -208,7 +208,8 @@ func _add_props(parent: Node2D, index: int, variant: int) -> void:
 		var sprite := Sprite2D.new()
 		sprite.texture = _prop_textures[keys[i]] if _prop_textures.has(keys[i]) else load("res://assets/atlas/props/suburb/prop_%s.tres" % keys[i])
 		sprite.position = positions[i]
-		sprite.scale = Vector2.ONE * (46.0/maxf(sprite.texture.get_width(),sprite.texture.get_height()))
+		var visual_size := 54.0 if i==0 else 46.0
+		sprite.scale = Vector2.ONE * (visual_size/maxf(sprite.texture.get_width(),sprite.texture.get_height()))
 		sprite.z_index = -1
 		parent.add_child(sprite)
 

@@ -23,8 +23,10 @@ func configure(texture: Texture2D, tint: Color) -> void:
 	var used: Rect2i = _bounds[texture.resource_path]
 	_sprite.region_enabled = true
 	_sprite.region_rect = used
-	_sprite.position.y = -120
-	_sprite.scale = Vector2(300,250) / Vector2(used.size)
+	# Keep the foundation at the collision body's foot while the visible wall
+	# rises above it. Roof overhang does not change the walkable footprint.
+	_sprite.position.y = -140
+	_sprite.scale = Vector2(320,280) / Vector2(used.size)
 	_sprite.modulate = tint
 	add_child(_sprite)
 
