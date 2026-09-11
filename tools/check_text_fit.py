@@ -166,7 +166,8 @@ def main() -> None:
          loc("milestone_recorded") + loc("milestone_reward", 999999)),
         ("달성 알림 · 제목", 394, 24, False,
          res_strings("data/achievements.tres", "display") + lit("Zombie Hunter VIII", "Boss Breaker VIII", "Survivor VIII"), "word"),
-        ("보스전 · 이동 안내", 680, 26, False,
+        ("HUD · 자석 카드", 308, 24, False, loc("hud_magnet_fmt", 999)),
+        ("보스전 · 이동 안내", 488, 24, False,
          loc("suburb_boss_ready") + loc("suburb_boss_move", 99999)
          + loc("suburb_transfer", 15) + lit("15s")),
         ("게임오버 · 제목", 400, 44, True, loc("go_defeat") + loc("go_victory")),
@@ -403,6 +404,7 @@ def _is_cjk(ch: str) -> bool:
 
 
 COVERED_BY = {
+    "HUDTimedNotice.gd": ("보스전 · 이동 안내", "HUD · 자석 카드"),
     "SuburbEncounter.gd": ("보스전 · 이동 안내",),
     "MainMenu.gd": ("메뉴", "팝업 행", "아레나", "캐릭터", "영구 강화"),
     "HUD.gd": ("HUD", "게임오버"),

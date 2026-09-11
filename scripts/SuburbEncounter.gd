@@ -3,10 +3,9 @@ extends Node
 var world: SuburbWorld
 var center := Vector2.INF
 var transferring := false
-var _label: Label
+var _notice: HUDTimedNotice
 var _layer: CanvasLayer
 var _clock := 0.0
-var _arrow: Node2D
 var _marker: Node2D
 
 func _ready() -> void:
@@ -14,31 +13,19 @@ func _ready() -> void:
 	_layer = CanvasLayer.new()
 	_layer.layer = 20
 	add_child(_layer)
-	_label = Label.new()
-	_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_label.offset_left = -450
-	_label.offset_right = 450
-	_label.offset_top = 180
-	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_label.add_theme_font_size_override("font_size",26)
-	_label.add_theme_color_override("font_color",Color(1,0.83,0.35))
-	_layer.add_child(_label)
-	_arrow = Node2D.new()
-	_layer.add_child(_arrow)
-	_arrow.draw.connect(func() -> void:
-		_arrow.draw_colored_polygon(PackedVector2Array([Vector2(25,0),Vector2(-14,-14),Vector2(-6,0),Vector2(-14,14)]),Color(0.3,0.85,1)))
+	_notice = HUDTimedNotice.new()
+	_notice.boss = true
+	_layer.add_child(_notice)
 	_marker = Node2D.new()
 	_marker.z_index = -1
 	world.add_child(_marker)
 	_marker.draw.connect(func() -> void:
 		_marker.draw_arc(Vector2.ZERO,250,0,TAU,64,Color(0.25,0.8,1,0.75),4)
 		_marker.draw_circle(Vector2.ZERO,20,Color(0.25,0.8,1,0.5)))
-	_arrow.hide()
 	_marker.hide()
 	Events.player_died.connect(func() -> void:
 		center = Vector2.INF
-		_label.hide()
-		_arrow.hide()
+		_notice.clear()
 		_marker.hide()
 		world.destination = Vector2.INF)
 
@@ -56,18 +43,14 @@ func guide(player: Node2D, remaining: float) -> void:
 	var direction := world.direction(player.global_position,center)
 	var arrived := player.global_position.distance_to(center)<250
 	var message := Locale.t("suburb_boss_ready") if arrived else Locale.t("suburb_boss_move") % int(player.global_position.distance_to(center)/80)
-	_label.text = message + "\n" + (("%ds" % maxi(0,ceili(remaining))) if arrived else Locale.t("suburb_transfer") % maxi(0,ceili(remaining)))
-	_arrow.position = Vector2(get_viewport().get_visible_rect().size.x*0.5,275)
-	_arrow.rotation = direction.angle()
-	_arrow.visible = not arrived
+	_notice.update_notice(message,("%ds" % maxi(0,ceili(remaining))) if arrived else Locale.t("suburb_transfer") % maxi(0,ceili(remaining)),remaining,arrived,direction.angle())
 	_marker.global_position = center
 	_marker.show()
-	_label.show()
+
 
 func enter(player: Node2D) -> void:
 	transferring = true
-	_label.hide()
-	_arrow.hide()
+	_notice.clear()
 	_marker.hide()
 	if center == Vector2.INF:
 		center = world.nearest_arena(player.global_position)
@@ -109,8 +92,7 @@ func enter(player: Node2D) -> void:
 func finish() -> void:
 	center = Vector2.INF
 	world.destination = Vector2.INF
-	_label.hide()
-	_arrow.hide()
+	_notice.clear()
 	_marker.hide()
 
 func _exit_tree() -> void:

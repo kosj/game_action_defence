@@ -180,6 +180,8 @@ jobs:
       - name: Milestone notifications and directional walk
         run: |
           set -e
+          godot --headless --path . --script res://tools/verify_timed_notices.gd
+          godot --headless --path . --script res://tools/verify_timed_notices.gd -- --mobile-preview
           godot --headless --path . --script res://tools/verify_milestones.gd
           godot --headless --path . --script res://tools/verify_milestones.gd -- --mobile-preview
           godot --headless --path . res://scenes/CharacterWalkTest.tscn

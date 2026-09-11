@@ -54,7 +54,7 @@ var _gold_roll_tween: Tween = null
 var _boss_max: int = 1
 var _weapon_tween: Tween = null
 var _weapon_base_text: String = ""
-var _magnet_tween: Tween = null
+var _magnet_notice: HUDTimedNotice
 
 # 보상형 광고 부활: 한 판에 1회만 허용. 코드로 생성해 게임오버 패널 최상단에 끼운다.
 var _revive_btn: Button = null
@@ -177,6 +177,8 @@ func _ready() -> void:
 	_build_gameover_stats()
 	_toasts = HUDToast.make(self)
 	_milestones = HUDMilestone.make(self)
+	_magnet_notice = HUDTimedNotice.new()
+	add_child(_magnet_notice)
 	_build_blur_overlay()
 	_build_pause_menu()
 	_apply_safe_area()
@@ -646,23 +648,16 @@ var _magnet_on: bool = false   # 자석 버프가 켜져 있는가(발동음을 
 
 ## 골드 자석 버프 표시 — 활성 중 남은 시간 표시, 종료 시 페이드 아웃.
 func _on_gold_magnet_changed(active: bool, time_left: float) -> void:
-	if _magnet_tween and _magnet_tween.is_valid():
-		_magnet_tween.kill()
+	buff_label.hide()
 	if active:
-		# 발동 순간에만 울린다 — 이 핸들러는 남은 시간 갱신으로도 매초 불린다(P2-12).
-		# `buff_label.visible` 로는 못 가른다: 종료 페이드(0.4초)가 끝나기 전에 다시 주우면
-		# 아직 보이는 상태라 새 발동을 놓친다. 상태를 따로 들고 판정한다.
 		if not _magnet_on:
 			SoundManager.play("magnet", 0.04, 1.0)
 		_magnet_on = true
-		buff_label.text = Locale.t("hud_magnet_fmt") % int(ceil(time_left))
-		buff_label.modulate.a = 1.0
-		buff_label.visible = true
+		_magnet_notice.update_notice(Locale.t("hud_magnet_fmt") % int(ceil(time_left)),"",time_left)
 	else:
 		_magnet_on = false
-		_magnet_tween = create_tween()
-		_magnet_tween.tween_property(buff_label, "modulate:a", 0.0, 0.4)
-		_magnet_tween.tween_callback(func(): buff_label.visible = false)
+		_magnet_notice.dismiss()
+
 
 
 ## 엔들리스 — 상단 우측에 누적 처치 수를 표시한다(웨이브 개념은 없다).
