@@ -37,6 +37,17 @@ var _options_dim: ColorRect
 var _options_panel: PanelContainer
 var _options_title: Label
 var _close_btn: Button
+var _records_btn: Button
+var _records_dim: ColorRect
+var _records_panel: PanelContainer
+var _hero_art: TextureRect
+var _hero_name: Label
+var _hero_desc: Label
+var _arena_label: Label
+var _ranking_label: Label
+var _records_title: Label
+var _records_close: Button
+
 var _log_btn: Button = null
 var _log_hint: Label = null
 var _diff_buttons: Array = []
@@ -136,113 +147,129 @@ func _build_backdrop() -> void:
 
 
 func _build_ui() -> void:
-	# 타이틀 화면과 같은 분위기를 메뉴 배경으로 — 핏빛 그라데이션 + 붉은 글로우 + 잔불.
-	add_child(UITheme.make_gradient_bg(Color(0.12, 0.03, 0.04), Color(0.02, 0.02, 0.03)))
-	_build_backdrop()
-	# (가장자리 비네트 제거 — 화면 외곽 어둡게 처리하지 않음)
-
+	add_child(UITheme.make_gradient_bg(Color("202629"), Color("0e1316")))
 	var center := CenterContainer.new()
-	center.anchor_right = 1.0
-	center.anchor_bottom = 1.0
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(center)
-
 	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 18)
+	box.name = "TacticalLobby"
+	box.custom_minimum_size.x = 656
+	box.add_theme_constant_override("separation", 16)
 	center.add_child(box)
 
-	# 게임 타이틀(브랜드) — 전용 로고 이미지("ZOMBIE BUSTER"). 번역하지 않는다.
+	var header := HBoxContainer.new()
+	header.add_theme_constant_override("separation", 16)
+	box.add_child(header)
 	var title := TextureRect.new()
 	title.texture = preload("res://assets/ui/logo_title.png")
 	title.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	title.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	title.custom_minimum_size = Vector2(400, 222)   # 로고 비율 1.8:1
+	title.custom_minimum_size = Vector2(280, 144)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.add_child(title)
-
-	# 최고점(스코어) 표시 제거 — 요청.
-	# 난이도 모드 제거 — 단일 통합 모드(선택 UI 없음).
-
-	# ── 계정 상태 줄 ──
-	# 로고와 1차 버튼 사이. 예전에는 메뉴에 계정의 상태가 하나도 없었다 — 메타 골드 2480 을
-	# 들고 있어도 강화 팝업을 열기 전에는 알 수 없었고, 지금 고른 위협 등급도 새 게임을
-	# 눌러야 보였다. 한 줄로 "지금 내 계정이 어디까지 왔는가"를 먼저 보여 준다.
+	header.add_child(title)
+	_options_btn = Button.new()
+	_options_btn.custom_minimum_size = Vector2(144, 88)
+	_options_btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_UIStyle.tactical_button(_options_btn)
+	_options_btn.pressed.connect(_on_options_pressed)
+	header.add_child(_options_btn)
 	_build_status_strip(box)
 
-	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(0, 6)
-	box.add_child(spacer)
+	var hero := PanelContainer.new()
+	hero.name = "HeroCard"
+	var hero_frame := _UIStyle.tactical_panel()
+	hero_frame.set_content_margin_all(40)
+	hero.add_theme_stylebox_override("panel", hero_frame)
+	box.add_child(hero)
+	var hero_box := VBoxContainer.new()
+	hero_box.add_theme_constant_override("separation", 8)
+	hero.add_child(hero_box)
+	var stage := Control.new()
+	stage.custom_minimum_size.y = 256
+	stage.clip_contents = true
+	hero_box.add_child(stage)
+	var bg := TextureRect.new()
+	bg.texture = preload("res://assets/ui/bg_title.png")
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	bg.modulate = Color(0.7, 0.85, 0.95)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stage.add_child(bg)
+	_hero_art = TextureRect.new()
+	_hero_art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_hero_art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_hero_art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	_hero_art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stage.add_child(_hero_art)
+	_hero_name = _UIStyle.tactical_label("", 32)
+	_hero_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hero_box.add_child(_hero_name)
+	_hero_desc = _UIStyle.tactical_label("", 24, UITheme.TACTICAL_MUTED)
+	_hero_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hero_desc.custom_minimum_size.x = 560
+	_hero_desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hero_box.add_child(_hero_desc)
+	_arena_label = _UIStyle.tactical_label("", 24, UITheme.TACTICAL_TEAL)
+	_arena_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(_arena_label)
 
-	# ── 1차 CTA — 로고의 핏빛을 그대로 받아 "여기를 눌러라"를 색으로도 말한다 ──
+	_continue_btn = Button.new()
+	_continue_btn.custom_minimum_size.y = 88
+	_continue_btn.visible = SaveManager.has_save()
+	_UIStyle.tactical_button(_continue_btn, true)
+	_continue_btn.pressed.connect(_on_continue_pressed)
+	box.add_child(_continue_btn)
 	_new_game_btn = Button.new()
-	_new_game_btn.custom_minimum_size = Vector2(320, 78)
-	_new_game_btn.add_theme_font_size_override("font_size", 27)
-	# 1차 CTA — 색을 구워 넣은 핏빛 판(P2-2). 틴트 방식은 리벳·하이라이트까지 붉히지만
-	# 이 판은 리벳이 강철, 하이라이트가 크림으로 남아 "빨간 금속"으로 읽힌다.
-	_UIStyle.apply_button_style(_new_game_btn, UITheme.BTN_BG, UITheme.MENU_PRIMARY, 16, "blood")
-	_new_game_btn.add_theme_color_override("font_color", UITheme.LOGO_CREAM)
-	_new_game_btn.add_theme_color_override("font_hover_color", Color.WHITE)
+	_new_game_btn.custom_minimum_size.y = 88
+	_UIStyle.tactical_button(_new_game_btn, not SaveManager.has_save())
 	_new_game_btn.pressed.connect(_on_new_game_pressed)
 	box.add_child(_new_game_btn)
 
-	# ── 2차 — 밝은 건메탈. 크기·명도로만 1차와 구분한다 ──
-	_continue_btn = Button.new()
-	_continue_btn.custom_minimum_size = Vector2(320, 66)
-	_continue_btn.add_theme_font_size_override("font_size", 24)
-	_UIStyle.apply_button_style(_continue_btn, UITheme.BTN_BG, UITheme.MENU_SECONDARY)
-	# 세이브가 없으면 **숨긴다**. 예전에는 disabled 로 뒀는데 이 플레이트는 비활성 표시가
-	# 따로 없어, 눌러도 아무 일도 없는 버튼이 멀쩡한 버튼과 똑같이 보였다.
-	_continue_btn.visible = SaveManager.has_save()
-	_continue_btn.pressed.connect(_on_continue_pressed)
-	box.add_child(_continue_btn)
-
-	# ── 3차 — 플레이트는 전부 같은 어두운 금속. 구분은 좌측 아이콘과 **묶음**이 한다 ──
-	# 예전에는 일곱 개가 위계 없이 한 줄이었다. 셋으로 나눈다:
-	#   강화(골드를 쓰는 곳 — 판을 거듭할수록 가장 자주 여는 버튼)
-	#   기록 다섯(도전과제·과제·보상함·랭킹·도감)
-	#   설정
-	var opt_spacer := Control.new()
-	opt_spacer.custom_minimum_size = Vector2(0, 10)
-	box.add_child(opt_spacer)
-
-	_power_btn = _make_menu_btn("bolt", UITheme.MENU_ICON_POWER)
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 16)
+	grid.add_theme_constant_override("v_separation", 16)
+	box.add_child(grid)
+	_power_btn = _make_menu_btn("bolt", UITheme.SEC_POWER_TXT)
 	_power_btn.pressed.connect(_on_power_pressed)
-	box.add_child(_power_btn)
-
-	box.add_child(_group_gap())
-
-	_ach_btn = _make_menu_btn("trophy", UITheme.MENU_ICON_REWARD)
-	_ach_btn.pressed.connect(_on_achievements_pressed)
-	box.add_child(_ach_btn)
-
-	_quest_btn = _make_menu_btn("flag", UITheme.MENU_ICON_QUEST)
+	grid.add_child(_power_btn)
+	_quest_btn = _make_menu_btn("flag", UITheme.SEC_QUEST_TXT)
 	_quest_btn.pressed.connect(_on_quests_pressed)
-	box.add_child(_quest_btn)
-
-	_rewards_btn = _make_menu_btn("coin", UITheme.MENU_ICON_REWARD)
+	grid.add_child(_quest_btn)
+	_rewards_btn = _make_menu_btn("coin", UITheme.TACTICAL_YELLOW)
 	_rewards_btn.pressed.connect(_on_rewards_pressed)
-	box.add_child(_rewards_btn)
+	grid.add_child(_rewards_btn)
+	_records_btn = _make_menu_btn("book", UITheme.TACTICAL_MUTED)
+	_records_btn.pressed.connect(_on_records_pressed)
+	grid.add_child(_records_btn)
 	_build_rewards_badge()
 	RewardInbox.changed.connect(_refresh_rewards_badge)
-	_refresh_rewards_badge()
 
-
-	_codex_btn = _make_menu_btn("book", UITheme.MENU_ICON_CODEX)
-	_codex_btn.pressed.connect(_on_codex_pressed)
-	box.add_child(_codex_btn)
-
-	box.add_child(_group_gap())
-
-	_options_btn = _make_menu_btn("gear", UITheme.MENU_ICON_PLAIN)
-	_options_btn.pressed.connect(_on_options_pressed)
-	box.add_child(_options_btn)
-
-	# 버전 표시(하단) — 배포 빌드 식별용 SHA·시각 포함(어떤 빌드가 라이브인지 확인)
-	var ver := Label.new()
-	ver.text = Events.build_label()
-	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	ver.add_theme_font_size_override("font_size", 14)
-	ver.add_theme_color_override("font_color", Color(0.55, 0.58, 0.65, 0.8))
-	box.add_child(ver)
+	var record := _UIPopup.make(self, "menu_records", UITheme.TACTICAL_TEAL, UITheme.TACTICAL_TEXT,
+		func(): _UIPopup.close(_records_dim, _records_panel))
+	_records_dim = record["dim"]
+	_records_panel = record["panel"]
+	_records_title = record["title"]
+	_records_close = record["close"]
+	_records_close.custom_minimum_size.y = 88
+	_UIStyle.tactical_button(_records_close)
+	_records_panel.add_theme_stylebox_override("panel", _UIStyle.tactical_panel())
+	var body: VBoxContainer = record["body"]
+	_ach_btn = _make_menu_btn("trophy", UITheme.TACTICAL_YELLOW)
+	_ach_btn.pressed.connect(func():
+		_UIPopup.close(_records_dim, _records_panel, true)
+		_on_achievements_pressed())
+	body.add_child(_ach_btn)
+	_codex_btn = _make_menu_btn("book", UITheme.TACTICAL_TEAL)
+	_codex_btn.pressed.connect(func():
+		_UIPopup.close(_records_dim, _records_panel, true)
+		_on_codex_pressed())
+	body.add_child(_codex_btn)
+	_ranking_label = _UIStyle.tactical_label("", 24)
+	_ranking_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.add_child(_ranking_label)
 
 	_build_options_panel()
 	_build_power_panel()
@@ -253,6 +280,29 @@ func _build_ui() -> void:
 	_build_theme_panel()
 	call_deferred("_prewarm_panels")
 	_stagger_menu_entrance(title, box)
+	_refresh_lobby()
+
+
+func _refresh_lobby() -> void:
+	if _hero_art == null: return
+	var c := CharacterManager.selected()
+	if c != null:
+		var path := "res://assets/atlas/menu/portrait_%s.tres" % c.id
+		if ResourceLoader.exists(path): _hero_art.texture = load(path)
+		_hero_name.text = c.display
+		_hero_desc.text = c.desc
+	var arena := ThemeManager.selected()
+	if arena != null: _arena_label.text = arena.display
+	_records_btn.text = Locale.t("menu_records")
+	_records_title.text = Locale.t("menu_records")
+	_records_close.text = Locale.t("menu_close")
+
+
+func _on_records_pressed() -> void:
+	_ranking_label.text = "%s · %s" % [Locale.t("menu_ranking"), Locale.t("menu_best")]
+	for i in RankingManager.MODES.size():
+		_ranking_label.text += "\n%s  %d" % [Locale.t(_DIFF_KEYS[i]), RankingManager.best_for_mode(RankingManager.MODES[i])]
+	_UIPopup.open(_records_dim, _records_panel)
 
 
 ## 3차 버튼 묶음 사이의 간격. VBox 의 기본 간격(18)에 이만큼을 더해 "여기서 묶음이
@@ -268,8 +318,8 @@ func _group_gap() -> Control:
 
 ## 계정 상태 줄 — [코인 골드] · [검 위협 N] · [시계 최고 mm:ss].
 ## 값은 전부 이미 있던 것이다(MetaManager·ThreatManager). 보여 주지 않았을 뿐이다.
-const _STATUS_FONT := 18
-const _STATUS_ICON := 22
+const _STATUS_FONT := 24
+const _STATUS_ICON := 28
 
 func _build_status_strip(box: VBoxContainer) -> void:
 	var row := HBoxContainer.new()
@@ -304,6 +354,7 @@ func _status_chip(row: HBoxContainer, icon: String, icon_col: Color, txt_col: Co
 ## 강화 구매·보상 수령·등급 변경 뒤에 다시 부른다 — 이 줄은 시그널이 아니라 팝업이 닫힐 때
 ## 갱신된다(MetaManager 에는 변경 시그널이 없고, 골드가 바뀌는 곳은 그 두 팝업뿐이다).
 func _refresh_status_strip() -> void:
+	_refresh_lobby()
 	if _status_gold == null:
 		return
 	var gold := MetaManager.meta_gold
@@ -320,7 +371,7 @@ func _refresh_status_strip() -> void:
 		_status_best.text = Locale.t("threat_best_fmt") % ("%02d:%02d" % [t / 60, t % 60])
 	# 새 계정(골드 0 · 등급 1 · 기록 없음)에는 말할 것이 없다 — 줄을 통째로 숨겨 첫 화면을
 	# 깨끗하게 둔다. 한 판이라도 끝내면 골드가 생겨 줄이 나타난다.
-	_status_row.visible = gold > 0 or rank > 1 or best > 0.0
+	_status_row.visible = true
 
 
 ## 메뉴 진입 연출 — 로고가 먼저 뜨고 버튼이 위에서부터 차례로 내려앉는다.
@@ -716,6 +767,7 @@ func _build_character_panel() -> void:
 
 ## 오버레이 카드 갱신 — 선택/잠금/구매 상태를 반영.
 func _refresh_character() -> void:
+	_refresh_lobby()
 	_roll_meta_gold(MetaManager.meta_gold)
 	var sel := CharacterManager.selected_id()
 	for row in _char_rows:
@@ -900,20 +952,18 @@ func _build_rewards_panel() -> void:
 ## 아이콘의 모양·색만으로 한다. 1·2차보다 좁게(SHRINK_CENTER) 두어 폭으로도 위계를 만든다.
 func _make_menu_btn(icon_kind: String, icon_col: Color) -> Button:
 	var b := Button.new()
-	b.custom_minimum_size = Vector2(284, 52)
-	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	b.add_theme_font_size_override("font_size", 19)
-	b.alignment = HORIZONTAL_ALIGNMENT_LEFT   # 아이콘 오른쪽에서 좌측 정렬
-	# 3차 보조 6개 — 어두운 판으로 한 덩어리로 가라앉힌다. 구분은 좌측 아이콘이 담당한다.
-	_UIStyle.apply_button_style(b, UITheme.BTN_BG, UITheme.MENU_TERTIARY, 16, "dark")
-	_UIStyle.set_button_content_margin_left(b, 56)   # 아이콘 자리 확보
-	var ic := UIIcon.make(icon_kind, 24, icon_col)
+	b.custom_minimum_size = Vector2(320, 88)
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	_UIStyle.tactical_button(b, false, false, icon_col)
+	_UIStyle.set_button_content_margin_left(b, 68)
+	var ic := UIIcon.make(icon_kind, 32, icon_col)
 	ic.anchor_top = 0.5
 	ic.anchor_bottom = 0.5
-	ic.offset_left = 22.0
-	ic.offset_right = 46.0
-	ic.offset_top = -12.0
-	ic.offset_bottom = 12.0
+	ic.offset_left = 24
+	ic.offset_right = 56
+	ic.offset_top = -16
+	ic.offset_bottom = 16
 	b.add_child(ic)
 	return b
 
@@ -1218,6 +1268,7 @@ func _build_theme_panel() -> void:
 
 
 func _refresh_theme() -> void:
+	_refresh_lobby()
 	_roll_meta_gold(MetaManager.meta_gold)
 	var sel := ThemeManager.selected_id()
 	for row in _theme_rows:
@@ -1414,6 +1465,7 @@ func _power_pip_box(filled: bool) -> StyleBoxFlat:
 
 ## 현재 언어로 모든 라벨/버튼 텍스트를 갱신하고 선택 강조를 다시 칠한다.
 func _apply_language() -> void:
+	_refresh_lobby()
 	_new_game_btn.text = Locale.t("menu_new_game")
 	_continue_btn.text = Locale.t("menu_continue")
 	_refresh_status_strip()

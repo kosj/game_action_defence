@@ -27,6 +27,9 @@ var current: String = DEFAULT_LANG
 
 ## 키 → { 언어코드: 문자열 }. 번역이 없는 언어는 영어(DEFAULT_LANG)로 폴백된다.
 const STRINGS: Dictionary = {
+	"menu_records": {"en": "Records", "ko": "기록", "ja": "きろく"},
+	"item_tag_upgrade": {"en": "UPGRADE", "ko": "강화", "ja": "アップ"},
+	"item_tag_evolve": {"en": "EVOLVE", "ko": "진화", "ja": "エボリューション"},
 	"suburb_boss_ready": {"en":"BOSS AREA READY", "ko":"보스전 준비", "ja":"ボスエリア OK"},
 	"suburb_boss_move": {"en":"BOSS AREA  %dm", "ko":"보스전 구역  %dm", "ja":"ボスエリア  %dm"},
 	"suburb_transfer": {"en":"Auto move in %ds", "ko":"%d초 후 자동 이동", "ja":"あと %d秒で いどう"},

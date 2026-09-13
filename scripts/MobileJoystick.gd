@@ -5,6 +5,10 @@ extends Control
 ## - 터치(InputEventScreenTouch) + 마우스(InputEventMouseButton) 모두 지원.
 ##   WebGL에서 emulate_touch_from_mouse 가 작동하지 않는 경우 마우스 경로로 폴백.
 
+var hud_bottom_exclusion: float = 0.0
+var hud_blocked_rect := Rect2()
+var _input_origin := Vector2.ZERO
+
 @export var base_radius: float = 110.0
 @export var knob_radius: float = 48.0
 @export var dead_zone: float = 0.12
@@ -82,6 +86,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func _try_activate(pos: Vector2, index: int) -> void:
+	if hud_blocked_rect.has_point(pos):
+		return
 	if _active:
 		return
 	if activation_ratio < 1.0:
@@ -90,14 +96,17 @@ func _try_activate(pos: Vector2, index: int) -> void:
 			return
 	_active = true
 	_touch_index = index
+	_input_origin = pos
 	_origin = pos
-	_knob_pos = pos
+	if hud_bottom_exclusion > 0:
+		_origin.y = minf(pos.y, get_viewport_rect().size.y - hud_bottom_exclusion - base_radius)
+	_knob_pos = _origin
 	_value = Vector2.ZERO
 	queue_redraw()
 
 
 func _move_knob(pos: Vector2) -> void:
-	var offset := pos - _origin
+	var offset := pos - _input_origin
 	if offset.length() > base_radius:
 		offset = offset.normalized() * base_radius
 	_knob_pos = _origin + offset

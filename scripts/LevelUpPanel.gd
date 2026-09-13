@@ -80,18 +80,18 @@ func _build_ui() -> void:
 	add_child(center)
 
 	_panel = PanelContainer.new()
-	_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.09, 0.13, 0.97), Color(1.0, 0.82, 0.3), 22, 3))
+	_panel.add_theme_stylebox_override("panel", _UIStyle.tactical_panel())
 	center.add_child(_panel)
 
 	# 계층: panel → margin → vb(제목 + 카드 목록)
 	var margin := MarginContainer.new()
 	for m in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + m, 22)
+		margin.add_theme_constant_override("margin_" + m, 16)
 	_panel.add_child(margin)
 
 	var vb := VBoxContainer.new()
 	vb.add_theme_constant_override("separation", 16)
-	vb.custom_minimum_size = Vector2(440, 0)
+	vb.custom_minimum_size = Vector2(560, 0)
 	margin.add_child(vb)
 
 	_title = Label.new()
@@ -100,13 +100,13 @@ func _build_ui() -> void:
 	# 패널 자체를 밀어 넓히고 있었다 — 프레임에 글자가 닿아 여백이 사라진다(실렌더 확인, P2-3).
 	# 크기를 줄이는 대신 줄바꿈을 켠다. 한국어·일본어는 짧아 한 줄로 유지된다.
 	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_title.custom_minimum_size = Vector2(440, 0)
+	_title.custom_minimum_size = Vector2(560, 0)
 	_title.add_theme_font_size_override("font_size", 34)
-	_title.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+	_title.add_theme_color_override("font_color", UITheme.TACTICAL_TEXT)
 	vb.add_child(_title)
 
 	_card_box = VBoxContainer.new()
-	_card_box.add_theme_constant_override("separation", 12)
+	_card_box.add_theme_constant_override("separation", 16)
 	vb.add_child(_card_box)
 
 
@@ -147,7 +147,7 @@ func _present() -> void:
 	_fw_tw = FireworksFX.celebrate(_fw_holder, Rect2(70, 190, 580, 760),
 		[Color(1.0, 0.85, 0.35), Color(0.5, 0.8, 1.0), Color(1.0, 1.0, 0.9)], 40)
 	_refresh()
-	_panel.scale = Vector2(0.85, 0.85)
+	_panel.scale = Vector2(0.96, 0.96)
 	_panel.modulate.a = 0.0
 	var tw := create_tween()
 	tw.set_parallel(true)
@@ -160,7 +160,7 @@ func _refresh() -> void:
 		_card_box.remove_child(c)
 		c.queue_free()
 	if _evo_mode:
-		_title.text = Locale.t("evo_title")
+		_title.text = Locale.t("evo_title").replace("  ·  ", "\n")
 		if _evo_rules.is_empty():
 			_close_evo()
 			return
@@ -172,7 +172,7 @@ func _refresh() -> void:
 	# 대기 레벨업이 많이 쌓여도 스택이 깊어지지 않게 한다.
 	var choices: Array = []
 	while _pending > 0:
-		_title.text = Locale.t("levelup_title_fmt") % Events.level
+		_title.text = (Locale.t("levelup_title_fmt") % Events.level).replace("  ·  ", "\n")
 		choices = _draw_choices(3)
 		if not choices.is_empty():
 			break
@@ -204,7 +204,7 @@ func _stagger_cards() -> void:
 			# 아래 모서리를 잡는다(세로로만 늘이므로 x 피벗은 결과에 영향이 없다).
 			var sz := ctrl.size if ctrl.size.y > 0.0 else ctrl.custom_minimum_size
 			ctrl.pivot_offset = Vector2(sz.x * 0.5, sz.y)
-			ctrl.scale = Vector2(1.0, 0.88)
+			ctrl.scale = Vector2(1.0, 0.97)
 		# 트윈은 **카드 자신**에 묶는다. 패널에 묶으면 카드가 먼저 해제됐을 때(다음 레벨업으로
 		# 넘어가며 _refresh 가 목록을 비운다) 트윈만 남아 해제된 노드를 계속 건드린다.
 		var tw := (ctrl if ctrl != null else self).create_tween()
@@ -322,56 +322,73 @@ func _make_card(ch: Dictionary) -> Button:
 func _make_item_card(a: Dictionary) -> Button:
 	var item: Dictionary = a["item"]
 	var btn := _new_card_button()
-	# 레벨 표기(Lv.3 → 4)는 숫자와 화살표뿐이라 번역하지 않는다 — "NEW!" 만 로케일화한다.
-	var tag: String = Locale.t("item_tag_new") if a["is_new"] else "Lv.%d → %d" % [a["lv"], int(a["lv"]) + 1]
-	btn.text = "%s  (%s)\n%s" % [item["name"], tag, item["desc"]]
-	var col: Color = item["color"]
-	_UIStyle.apply_button_style(btn, Color(col.r * 0.28, col.g * 0.28, col.b * 0.28, 1.0), col)
-	_set_card_icon(btn, item.get("icon"))
+	var tag := Locale.t("item_tag_new") if a["is_new"] else Locale.t("item_tag_upgrade")
+	var levels := "Lv.1" if a["is_new"] else "Lv.%d → %d" % [a["lv"], int(a["lv"])+1]
+	_card_content(btn, item, tag, levels, false)
 	btn.pressed.connect(_on_pick.bind(String(item["id"])))
-	btn.set_meta("pick_id", String(item["id"]))   # 오토플레이 빌드 페르소나가 읽는다
+	btn.set_meta("pick_id", String(item["id"]))
 	return btn
 
 
 func _make_evolve_card(rule: Dictionary) -> Button:
 	var into := ItemDB.meta(rule["into"])
 	var btn := _new_card_button()
-	btn.text = "%s\n%s" % [Locale.t("evo_card_fmt") % into["name"], into["desc"]]
-	var gold := Color(1.0, 0.82, 0.28)
-	_UIStyle.apply_button_style(btn, Color(0.34, 0.26, 0.06, 1.0), gold)
-	btn.add_theme_color_override("font_color", gold)
-	_set_card_icon(btn, into.get("icon"))
+	_card_content(btn, into, Locale.t("item_tag_evolve"), "Lv.1", true)
 	btn.pressed.connect(_on_evolve.bind(String(rule["base"]), String(rule["into"])))
 	btn.set_meta("pick_id", "evolve:" + String(rule["into"]))
-	btn.set_meta("is_evo", true)   # 등장이 끝나면 _stagger_cards 가 맥동을 건다
+	btn.set_meta("is_evo", true)
 	return btn
 
 
-const _SLOT_PX := 68
-const _SLOT_LEFT := 12
-
-## 카드 버튼 왼쪽에 아이템 슬롯 프레임(아이콘 포함)을 붙인다(아이콘 없으면 기존 색상 카드 그대로).
-func _set_card_icon(btn: Button, icon) -> void:
-	if icon == null or not (icon is Texture2D):
-		return
-	var slot := _UIStyle.make_item_slot(icon, _SLOT_PX)
-	slot.anchor_top = 0.5
-	slot.anchor_bottom = 0.5
-	slot.offset_left = _SLOT_LEFT
-	slot.offset_right = _SLOT_LEFT + _SLOT_PX
-	slot.offset_top = -_SLOT_PX / 2.0
-	slot.offset_bottom = _SLOT_PX / 2.0
-	btn.add_child(slot)
-	# 라벨이 슬롯을 넘지 않도록 좌측 여백을 슬롯 폭만큼 확보하고 왼쪽 정렬로 읽히게 한다.
-	_UIStyle.set_button_content_margin_left(btn, _SLOT_LEFT + _SLOT_PX + 12)
-	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+func _card_content(btn: Button, item: Dictionary, tag: String, levels: String, evolved: bool) -> void:
+	_UIStyle.tactical_button(btn)
+	if evolved:
+		btn.add_theme_stylebox_override("normal", _UIStyle.button_box(UITheme.TACTICAL_YELLOW, 0.02))
+	# A container owns text height; long translations grow the card rather than overlap.
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_"+side, 16)
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	btn.add_child(margin)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_child(row)
+	var slot := _UIStyle.tactical_slot(item.get("icon"), 88)
+	slot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(slot)
+	var text := VBoxContainer.new()
+	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	text.add_theme_constant_override("separation", 4)
+	row.add_child(text)
+	var badge := _UIStyle.tactical_label(tag + "   " + levels, 24, UITheme.TACTICAL_YELLOW if evolved else UITheme.TACTICAL_TEAL)
+	badge.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.add_child(badge)
+	var title := _UIStyle.tactical_label(item.get("name", ""), 28)
+	title.add_theme_font_override("font", UITheme.bold_font())
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.add_child(title)
+	var desc := _UIStyle.tactical_label(item.get("desc", ""), 24, UITheme.TACTICAL_MUTED)
+	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	text.add_child(desc)
+	var check := UIIcon.make("check", 28, UITheme.TACTICAL_TEXT)
+	check.name = "SelectedCheck"
+	check.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	check.position = Vector2(-36,8)
+	check.hide()
+	btn.add_child(check)
+	# Width is fixed by the parent; refresh the minimum height after text wrapping.
+	var fit := func(): btn.custom_minimum_size.y = maxf(176, margin.get_combined_minimum_size().y)
+	margin.minimum_size_changed.connect(fit)
+	btn.resized.connect(fit)
+	fit.call_deferred()
 
 
 func _new_card_button() -> Button:
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(0, 88)   # 좌측 슬롯 프레임(68px)이 들어갈 여유
-	btn.add_theme_font_size_override("font_size", 22)
-	btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	btn.custom_minimum_size = Vector2(560, 176)
 	return btn
 
 
@@ -380,7 +397,7 @@ func _new_card_button() -> Button:
 ##
 ## 정지 중에도 흐르는 타이머를 쓴다(레벨업 패널이 트리를 멈춰 둔 상태다).
 const _CONFIRM_SEC := 0.26
-const _CONFIRM_TINT := Color(1.55, 1.45, 1.05, 1.0)
+const _CONFIRM_TINT := Color(1.08, 1.08, 1.02, 1.0)
 
 func _confirm_card(picked: Control) -> void:
 	_confirming = true
@@ -399,10 +416,12 @@ func _confirm_card(picked: Control) -> void:
 				pulse.kill()
 			ctrl.remove_meta("_evo_pulse")
 		if ctrl == picked:
+			ctrl.add_theme_stylebox_override("normal", _UIStyle.button_box(UITheme.TACTICAL_TEAL, 0.0))
+			ctrl.get_node("SelectedCheck").show()
 			ctrl.pivot_offset = ctrl.size * 0.5
 			var tw := ctrl.create_tween()
 			tw.set_parallel(true)
-			tw.tween_property(ctrl, "scale", Vector2(1.06, 1.06), _CONFIRM_SEC * 0.55)\
+			tw.tween_property(ctrl, "scale", Vector2(1.025, 1.025), _CONFIRM_SEC * 0.55)\
 				.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 			tw.tween_property(ctrl, "modulate", _CONFIRM_TINT, _CONFIRM_SEC * 0.4)
 		else:

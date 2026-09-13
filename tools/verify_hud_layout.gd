@@ -19,7 +19,7 @@ extends SceneTree
 
 const _HUD := "res://scripts/HUD.gd"
 ## 상단바 배경(HUD.tscn 의 TopBg)의 높이. 위젯이 이 밖으로 나가면 월드 위에 뜬다.
-const _TOP_BAR_H := 96.0
+const _TOP_BAR_H := 184.0
 
 var _fails := 0
 var _done := false
@@ -68,7 +68,7 @@ func _process(_delta: float) -> bool:
 	# 나머지 위젯만 아래로 내려가면 이 둘이 상단바 안쪽으로 파고들어 다시 겹친다.
 	# 증상이 노치 기기에서만 나므로 데스크톱·웹 확인으로는 절대 안 걸린다.
 	var src := FileAccess.get_file_as_string(_HUD)
-	var safe := src.split("func _apply_safe_area()")
+	var safe := src.split("func _layout_tactical()")
 	_ok("_apply_safe_area 를 찾았다", safe.size() > 1)
 	if safe.size() > 1:
 		var body: String = String(safe[1]).split("\nfunc ")[0]

@@ -50,7 +50,7 @@ const CHEV_X0 := 22.0
 const CHEV_SPEED := 26.0   # 사선이 흐르는 속도(px/s)
 const TRI := 20.0          # 경고 삼각형 크기
 const TRI_X := 96.0        # 양끝에서 삼각형 중심까지
-const TEXT_INSET := 130.0  # 글자가 삼각형·사선을 침범하지 않게 두는 여백
+const TEXT_INSET := 52.0  # 글자가 삼각형·사선을 침범하지 않게 두는 여백
 
 const IN_SEC := 0.20
 const OUT_SEC := 0.40
@@ -61,6 +61,7 @@ var label: Label = null
 var _accent: Color = ACCENT[0]
 var _march: float = 0.0
 var _tween: Tween = null
+var _tactical_style: StyleBox
 var _level: int = -1   # 지금 떠 있는 위험도(-1 = 없음)
 
 
@@ -81,10 +82,11 @@ static func make(parent: Node, y: float, height: float) -> HUDAlert:
 	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	lbl.offset_left = TEXT_INSET
 	lbl.offset_right = -TEXT_INSET
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.add_theme_color_override("font_outline_color", Color(0.08, 0.02, 0.02, 0.95))
-	lbl.add_theme_constant_override("outline_size", 5)
+	lbl.add_theme_constant_override("outline_size", 0)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	a.add_child(lbl)
 	a.label = lbl
@@ -108,9 +110,10 @@ func flash(text: String, level: int, font_size: int, with_sound: bool = true) ->
 		SoundManager.play(SOUND[lv], 0.02)
 	_level = lv
 	_accent = ACCENT[lv]
+	_tactical_style = UIStyle.button_box(_accent, 0.22)
 	label.add_theme_font_size_override("font_size", font_size)
 	label.text = text
-	label.add_theme_color_override("font_color", _accent)
+	label.add_theme_color_override("font_color", UITheme.TACTICAL_TEXT)
 
 	if _tween and _tween.is_valid():
 		_tween.kill()
@@ -164,51 +167,10 @@ func _grad_quad(x0: float, x1: float, y0: float, y1: float, c0: Color, c1: Color
 
 
 func _draw() -> void:
-	var w := size.x
-	var h := size.y
-	if w <= 0.0 or h <= 0.0:
-		return
-
-	# 1) 어두운 띠. 양끝은 완전히 투명해져 화면 가장자리를 막지 않는다.
-	var b0 := Color(BAND_COLOR.r, BAND_COLOR.g, BAND_COLOR.b, 0.0)
-	var b1 := Color(BAND_COLOR.r, BAND_COLOR.g, BAND_COLOR.b, BAND_ALPHA)
-	_grad_quad(0.0, FADE, 0.0, h, b0, b1)
-	_grad_quad(FADE, w - FADE, 0.0, h, b1, b1)
-	_grad_quad(w - FADE, w, 0.0, h, b1, b0)
-
-	# 2) 위아래 강조선 — 가운데가 가장 진하다(글자가 있는 곳으로 눈을 모은다).
-	var r0 := Color(_accent.r, _accent.g, _accent.b, 0.0)
-	var r1 := Color(_accent.r, _accent.g, _accent.b, 0.92)
-	# 배열 리터럴을 그대로 돌면 원소가 Variant 다. Packed 배열은 원소 타입이 서 있어
-	# 아래 `_grad_quad(float, ...)` 호출이 런타임 변환을 거치지 않는다.
-	for band in PackedVector2Array([Vector2(0.0, RULE_H), Vector2(h - RULE_H, h)]):
-		_grad_quad(0.0, w * 0.5, band.x, band.y, r0, r1)
-		_grad_quad(w * 0.5, w, band.x, band.y, r1, r0)
-
-	# 3) 위험 사선 — 양끝에서 안쪽으로 흐른다. 안쪽으로 갈수록 옅어져 글자를 방해하지 않는다.
-	var slant := h * 0.42
-	for i in CHEV_N:
-		var a := 0.92 * pow(1.0 - float(i) / float(CHEV_N), 1.2)
-		var col := Color(_accent.r, _accent.g, _accent.b, a)
-		var x := CHEV_X0 + float(i) * CHEV_GAP + _march
-		var pts := PackedVector2Array([
-			Vector2(x, RULE_H), Vector2(x + CHEV_W, RULE_H),
-			Vector2(x + CHEV_W - slant, h - RULE_H), Vector2(x - slant, h - RULE_H)])
-		draw_colored_polygon(pts, col)
-		var mir := PackedVector2Array()
-		for p in pts:
-			mir.append(Vector2(w - p.x, p.y))
-		draw_colored_polygon(mir, col)
-
-	# 4) 경고 삼각형 — 글자를 못 읽어도 이것 하나는 읽힌다.
-	for cx in PackedFloat32Array([TRI_X, w - TRI_X]):
-		var cy := h * 0.5
-		draw_colored_polygon(PackedVector2Array([
-			Vector2(cx, cy - TRI * 0.62),
-			Vector2(cx + TRI * 0.66, cy + TRI * 0.50),
-			Vector2(cx - TRI * 0.66, cy + TRI * 0.50)]),
-			Color(_accent.r, _accent.g, _accent.b, 0.96))
-		# 느낌표는 삼각형을 파내는 방식이다 — 밝은 삼각형 위에 띠 색을 얹는다.
-		var punch := Color(BAND_COLOR.r, BAND_COLOR.g, BAND_COLOR.b, 1.0)
-		draw_rect(Rect2(cx - 1.6, cy - TRI * 0.20, 3.2, TRI * 0.34), punch)
-		draw_rect(Rect2(cx - 1.6, cy + TRI * 0.24, 3.2, TRI * 0.12), punch)
+	if size.x <= 0 or size.y <= 0: return
+	if _tactical_style == null: return
+	draw_style_box(_tactical_style, Rect2(Vector2.ZERO, size))
+	var cy := size.y*0.5
+	draw_colored_polygon(PackedVector2Array([Vector2(26,cy-13),Vector2(41,cy+12),Vector2(11,cy+12)]), _accent)
+	draw_rect(Rect2(24,cy-5,4,8), UITheme.TACTICAL_PANEL)
+	draw_circle(Vector2(26,cy+7),2,UITheme.TACTICAL_PANEL)

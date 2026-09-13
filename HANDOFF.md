@@ -41,6 +41,7 @@
 
 | 항목 | 레인 | 상태 | 담당 브랜치 | 갱신일 |
 |---|---|---|---|---|
+| UI-TACTICAL 핵심 3화면 생존자 작전 장비 개편 | UI | ✅ 로컬 구현·검증 완료 | codex/tactical-metal-ui | 2026-09-14 |
 | P2-5 CI 회귀 게이트 + PR 트리거 | A | ✅ (9bd1100) | claude/game-designer-task-review-wvhkiq | 2026-08-18 |
 | P0-4 라이브 프리즈 — 진단 계측 | A | ✅ (2029c67) | claude/a-lane-freeze-diag | 2026-08-19 |
 | P0-7 메뉴 복귀 판이 기록에서 사라짐 | A | ✅ (17af508) | claude/a-lane-telemetry-leftrun | 2026-08-19 |

@@ -36,7 +36,7 @@ const _PerfOverlay := preload("res://scripts/PerfOverlay.gd")
 @onready var main_menu_button: Button = $GameOverPanel/Margin/VBoxContainer/MainMenuButton
 
 const BOSS_BAR_W := 400.0
-const HP_BAR_W := 296.0   # 체력 게이지 채움부의 최대 폭(씬의 BarFill 0~296)
+const HP_BAR_W := 240.0   # Tactical header health track width
 
 var _prev_health: int = -1
 var _prev_gold: int = -1
@@ -102,8 +102,8 @@ var _boss_warned_at: float = -1.0
 var _elite_warned_at: float = -1.0
 
 # 인게임 레벨 표시 — 코드로 생성. 화면 최상단 경험치 바 + 상단바 중앙의 레벨 뱃지(알약형).
-var _xp_bg: ColorRect = null
-var _xp_fill: ColorRect = null
+var _xp_bg: Panel = null
+var _xp_fill: Panel = null
 var _level_label: Label = null
 var _level_badge: Control = null   # VARCO 원형 뱃지 텍스처 모드일 때만(라벨은 그 위 숫자)
 var _prev_level: int = -1   # 레벨업 감지(뱃지 펄스)용
@@ -140,12 +140,7 @@ var _auto_tag: Label = null               # 자동플레이 중임을 알리는 
 func _ready() -> void:
 	# 게임오버로 트리를 일시정지해도 HUD(게임오버 패널·버튼·블러)는 계속 동작해야 한다.
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	# 상단바 — VARCO 텍스처(hud_top_bar.png)가 있으면 사용, 없으면 기존 반투명 플랫 바.
-	var bar_box := _UIStyle.hud_top_bar_box()
-	if bar_box:
-		top_bg.add_theme_stylebox_override("panel", bar_box)
-	else:
-		top_bg.add_theme_stylebox_override("panel", _UIStyle.bottom_bar(Color(0.05, 0.06, 0.09, 0.62)))
+	top_bg.add_theme_stylebox_override("panel", _UIStyle.hud_top_bar_box())
 	banner_bg.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.30, 0.14, 0.92), Color(1.0, 0.85, 0.2), 26, 3))
 	game_over_panel.add_theme_stylebox_override("panel", _UIStyle.panel(Color(0.08, 0.05, 0.06, 0.96), Color(0.85, 0.25, 0.22), 22, 3))
 	_UIStyle.apply_button_style(restart_button, Color(0.55, 0.16, 0.16), Color(0.95, 0.35, 0.3))
@@ -181,6 +176,8 @@ func _ready() -> void:
 	add_child(_magnet_notice)
 	_build_blur_overlay()
 	_build_pause_menu()
+	_build_tactical_portrait()
+	get_viewport().size_changed.connect(_layout_tactical)
 	_apply_safe_area()
 	UITheme.heading(banner_label)
 	UITheme.heading($GameOverPanel/Margin/VBoxContainer/GameOverLabel)
@@ -346,13 +343,13 @@ func _on_forecast(next_boss: float, next_elite: float) -> void:
 ## 경고 띠. y232 인 이유: 위로는 버프 라벨(y196~224)을 덮지 않아야 한다 — 띠는 글자와 달리
 ## 불투명한 판이라 겹치면 아래 위젯이 통째로 사라진다. 보스 바(y112~152)·무기 라벨(y160~194)도
 ## 그 위에 있다. 아래로는 조작 영역(화면 아래 절반)을 침범하지 않는다.
-const _ALERT_Y := 232.0
-const _ALERT_H := 58.0
-const _ALERT_FONT := 30       # 무리·정예·카운트다운
+const _ALERT_Y := 192.0
+const _ALERT_H := 48.0
+const _ALERT_FONT := 26       # 무리·정예·카운트다운
 ## 보스 이름은 크게 띄우되 38 이 아니라 34 다 — "BOSS  PRIME MUTATION"(en)이 38 에서
 ## 460px 중 451px 을 먹어 여유가 1.9% 였다(check_text_fit). 예전 배너는 폭 제약이 없어
 ## 넘치는 것이 안 보였을 뿐이고, 띠가 양끝 130px 을 경고 기호에 내주면서 드러났다.
-const _ALERT_FONT_BOSS := 34
+const _ALERT_FONT_BOSS := 28
 
 func _build_alerts() -> void:
 	_alert = _HUDAlert.make(self, _ALERT_Y, _ALERT_H)
@@ -426,10 +423,10 @@ func _on_maxed_level_gold(_level: int, gold: int) -> void:
 ## 줄 세우기와 겹침 처리는 HUDToast 레인이 한다 — 예전에는 여기서 Label 을 그때그때
 ## 만들었고, 서로를 모르니 같은 순간에 둘이 뜨면 그대로 겹쳤다(UI_POLISH_PLAN §A-10).
 ## kind 는 같은 종류가 떠 있을 때 새 줄 대신 글자만 갈아끼우게 한다(날씨가 그 경우다).
-func _show_toast(text: String, col: Color, from_y: float, kind: String = "") -> void:
+func _show_toast(text: String, col: Color, _from_y: float, kind: String = "") -> void:
 	if _toasts == null:
 		return
-	_toasts.push(text, col, from_y, kind)
+	_toasts.push(text, col, 604.0 + _tactical_safe_top, kind)
 
 
 func _on_player_health_changed(health: int, max_health: int) -> void:
@@ -438,6 +435,7 @@ func _on_player_health_changed(health: int, max_health: int) -> void:
 	if _prev_health > 0 and health < _prev_health and health > 0:
 		_flash_hurt()
 	_update_low_hp_warning(health)
+	if _tactical_hurt_marker: _tactical_hurt_marker.visible = health > 0 and health <= 2
 	_prev_health = health
 
 
@@ -474,39 +472,15 @@ func _update_hp_bar(health: int, max_health: int) -> void:
 			_hp_ghost.size.x = target
 
 
-## 체력/보스 게이지 스타일 — VARCO 텍스처(프레임+필)가 있으면 나인패치, 없으면 플랫 폴백.
+## Tactical gauges use native flat styleboxes; damage interpolation is unchanged.
 func _style_bars() -> void:
-	var frame_tex := _UIStyle.hud_tex("hud_gauge_frame.png")
-	var fill_tex := _UIStyle.hud_tex("hud_gauge_fill.png")
-	if frame_tex and fill_tex:
-		_style_bars_textured(frame_tex, fill_tex)
-	else:
-		_style_bars_flat()
-	_build_hp_ghost(fill_tex)
+	_style_bars_flat()
+	_hp_fill_max = HP_BAR_W - 8
+	_hp_fill_sb.bg_color = UITheme.TACTICAL_RED
+	hp_bg.add_theme_stylebox_override("panel", _UIStyle.tactical_panel(UITheme.TACTICAL_EDGE, UITheme.TACTICAL_EDGE, 4, false))
+	_build_hp_ghost(null)
 
 
-## 텍스처 게이지 — 프레임은 나인패치, 필은 무채색 스트립에 modulate 로 의미 색을 입힌다.
-## 필/잔상은 프레임 림 안쪽으로 인셋(±4px)해 채널 안에 앉힌다.
-func _style_bars_textured(frame_tex: Texture2D, fill_tex: Texture2D) -> void:
-	# 마진/인셋은 tools/gen_hud_assets.py 의 나인패치 계약(프레임 7, 필 4, 채널 시작 4px)과 일치.
-	hp_bg.add_theme_stylebox_override("panel", _UIStyle.tex_box(frame_tex, 7))
-	_hp_fill_sb = _UIStyle.tex_box(fill_tex, 4, Color(0.3, 0.85, 0.35))
-	hp_fill.add_theme_stylebox_override("panel", _hp_fill_sb)
-	hp_fill.offset_left = 4.0
-	hp_fill.offset_top = 4.0
-	hp_fill.offset_bottom = 22.0
-	_hp_fill_max = HP_BAR_W - 8.0
-	hp_fill.size.x = _hp_fill_max
-
-	boss_bg.add_theme_stylebox_override("panel", _UIStyle.tex_box(frame_tex, 7))
-	boss_fill.add_theme_stylebox_override("panel", _UIStyle.tex_box(fill_tex, 4, Color(0.92, 0.22, 0.22)))
-	boss_fill.offset_left = 4.0
-	boss_fill.offset_top = 28.0
-	boss_fill.offset_bottom = 36.0
-	_boss_fill_max = BOSS_BAR_W - 8.0
-
-
-## 플랫 게이지(폴백) — 둥근 모서리·테두리의 StyleBoxFlat.
 func _style_bars_flat() -> void:
 	var hp_bg_sb := StyleBoxFlat.new()
 	hp_bg_sb.bg_color = Color(0.09, 0.03, 0.05, 0.9)
@@ -565,15 +539,11 @@ func _build_hp_ghost(fill_tex: Texture2D) -> void:
 	hp_bar.move_child(_hp_ghost, hp_fill.get_index())   # 채움부 바로 아래(뒤)로
 
 
-## 체력 비율에 따른 게이지 색: 높음=초록, 중간=노랑, 낮음=빨강(선형 보간).
+## Health stays muted red; critical health adds a brighter red and an exclamation marker.
 func _hp_color(ratio: float) -> Color:
-	if ratio > 0.5:
-		return Color(0.85, 0.75, 0.2).lerp(Color(0.3, 0.85, 0.35), (ratio - 0.5) * 2.0)
-	return Color(0.9, 0.25, 0.2).lerp(Color(0.85, 0.75, 0.2), ratio * 2.0)
+	return UITheme.TACTICAL_RED if ratio > 0.25 else Color("e85c4f")
 
 
-## 피격 섬광. 전체 화면 ColorRect 는 alpha 0 이어도 visible 이면 매 프레임 풀스크린 블렌딩을
-## 하므로(720x1280 ≈ 92만 픽셀), 연출이 끝나면 visible=false 로 렌더에서 완전히 빼낸다.
 func _flash_hurt() -> void:
 	if _flash_tween and _flash_tween.is_valid():
 		_flash_tween.kill()
@@ -666,7 +636,7 @@ func _on_gold_magnet_changed(active: bool, time_left: float) -> void:
 const _KILL_PULSE_EVERY := 10
 
 func _on_kills_changed(kills: int) -> void:
-	kills_label.text = Locale.t("hud_kills_fmt") % kills
+	kills_label.text = str(kills)
 	if kills > 0 and kills % _KILL_PULSE_EVERY == 0:
 		_pulse(kills_label, 1.18)
 
@@ -678,9 +648,11 @@ func _on_run_progress(elapsed: float, clear: float) -> void:
 	if elapsed >= clear:
 		var over := int(elapsed - clear)
 		time_label.text = "%s +%02d:%02d" % [Locale.t("hud_overtime"), over / 60, over % 60]
-		time_label.add_theme_font_size_override("font_size", 19)
+		time_label.add_theme_font_size_override("font_size", 24)
 		time_label.add_theme_color_override("font_color", Color(1.0, 0.82, 0.25))
 	else:
+		time_label.add_theme_font_size_override("font_size", 44)
+		time_label.add_theme_color_override("font_color", UITheme.TACTICAL_TEXT)
 		var remain := int(ceil(clear - elapsed))
 		time_label.text = "%02d:%02d" % [remain / 60, remain % 60]
 		# 막판 1분은 초가 바뀔 때마다 한 번 튄다 — 색만 붉히면 "언제부터"가 안 읽힌다.
@@ -745,9 +717,9 @@ func _build_fog() -> void:
 ## 세로는 골드 줄(y49~85)과 중심을 맞추되(y67) 타임라인과 2px 띄운다. 골드 줄 그대로면
 ## y85 라 타임라인(y84~)과 **1px 겹친다** — 글자에는 안 닿지만, 상자가 닿는 것 자체가
 ## 이 버그의 원인이었다. `verify_hud_layout.gd` 가 그 1px 을 잡아냈다.
-const _THREAT_RECT := Rect2(214.0, 52.0, 112.0, 30.0)
-const _TIMELINE_RECT := Rect2(0.0, 84.0, 720.0, 8.0)
-const _THREAT_FONT := 16   # 13 → 16. 자리가 넉넉해졌으니 읽기 쉬운 크기로 올린다.
+const _THREAT_RECT := Rect2(500.0, 80.0, 104.0, 32.0)
+const _TIMELINE_RECT := Rect2(16.0, 170.0, 688.0, 6.0)
+const _THREAT_FONT := 24   # 13 → 16. 자리가 넉넉해졌으니 읽기 쉬운 크기로 올린다.
 
 var _threat_badge: Label = null
 
@@ -778,89 +750,23 @@ func _build_threat_badge() -> void:
 ## 경험치 바 — 화면 최상단 엣지(전 너비) + 상단바 중앙의 알약형 레벨 뱃지.
 ## 뱃지가 XP 바와 같은 시안 톤을 공유해 "레벨 ↔ 경험치"가 한 덩어리로 읽히게 한다.
 func _build_xp_bar() -> void:
-	var bg := ColorRect.new()
-	bg.color = Color(0.0, 0.0, 0.0, 0.55)
-	bg.anchor_right = 1.0
-	bg.offset_top = 0.0
-	bg.offset_bottom = 8.0
-	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(bg)
-	_xp_bg = bg
-	_xp_fill = ColorRect.new()
-	_xp_fill.color = Color(0.50, 0.84, 1.0, 1.0)
-	_xp_fill.anchor_right = 0.0
-	_xp_fill.anchor_bottom = 1.0
+	_xp_bg = Panel.new()
+	_xp_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_xp_bg.add_theme_stylebox_override("panel", _UIStyle.tactical_panel(UITheme.TACTICAL_EDGE, UITheme.TACTICAL_EDGE, 3, false))
+	add_child(_xp_bg)
+	_xp_fill = Panel.new()
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = UITheme.TACTICAL_TEAL
+	fill.set_corner_radius_all(2)
+	_xp_fill.add_theme_stylebox_override("panel", fill)
+	_xp_fill.anchor_bottom = 1
 	_xp_fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bg.add_child(_xp_fill)
-
-	# 레벨 표시 — VARCO 원형 뱃지 텍스처가 있으면 뱃지+숫자, 없으면 알약형 라벨.
-	var badge_tex := _UIStyle.hud_tex("hud_badge_level.png")
-	_level_label = Label.new()
+	_xp_bg.add_child(_xp_fill)
+	_level_label = _UIStyle.tactical_label("", 24, UITheme.TACTICAL_TEXT)
 	_level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_level_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_level_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if badge_tex:
-		# 레벨은 성장 게임의 핵심 정보 — 뱃지를 크게(64px), XP 바와 붙여 강조한다.
-		var badge := TextureRect.new()
-		badge.texture = badge_tex
-		badge.anchor_left = 0.5
-		badge.anchor_right = 0.5
-		badge.offset_left = -32.0
-		badge.offset_right = 32.0
-		badge.offset_top = 6.0
-		badge.offset_bottom = 70.0
-		badge.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		badge.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(badge)
-		_level_badge = badge
-		# 숫자만으로는 레벨인지 알기 어려워 뱃지 상단에 "Lv" 캡션을 함께 표시한다.
-		var cap := Label.new()
-		cap.text = "Lv"
-		cap.set_anchors_preset(Control.PRESET_TOP_WIDE)
-		cap.offset_top = 12.0
-		cap.offset_bottom = 26.0
-		cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		cap.add_theme_font_size_override("font_size", 11)
-		cap.add_theme_color_override("font_color", Color(1.0, 0.82, 0.35))
-		cap.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-		cap.add_theme_constant_override("outline_size", 2)
-		cap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		badge.add_child(cap)
-		# 숫자는 캡션 아래로 살짝 내려 중앙 하단에 배치.
-		_level_label.set_anchors_preset(Control.PRESET_FULL_RECT)
-		_level_label.offset_top = 18.0
-		_level_label.offset_bottom = -4.0
-		_level_label.add_theme_font_size_override("font_size", 20)
-		_level_label.add_theme_color_override("font_color", Color(0.95, 0.90, 0.75))
-		_level_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
-		_level_label.add_theme_constant_override("outline_size", 3)
-		badge.add_child(_level_label)
-	else:
-		_level_label.anchor_left = 0.5
-		_level_label.anchor_right = 0.5
-		_level_label.offset_left = -56.0
-		_level_label.offset_right = 56.0
-		_level_label.offset_top = 12.0
-		_level_label.offset_bottom = 40.0
-		_level_label.add_theme_font_size_override("font_size", 19)
-		_level_label.add_theme_color_override("font_color", Color(0.72, 0.90, 1.0))
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.03, 0.08, 0.13, 0.85)
-		sb.set_corner_radius_all(14)
-		sb.corner_detail = 6
-		sb.anti_aliasing = true
-		sb.set_border_width_all(1)
-		sb.border_color = Color(0.45, 0.80, 1.0, 0.55)
-		sb.content_margin_left = 12.0
-		sb.content_margin_right = 12.0
-		_level_label.add_theme_stylebox_override("normal", sb)
-		add_child(_level_label)
+	add_child(_level_label)
 
 
-## 경험치 바 채우기만 담당한다. 트윈을 쓰지 않는 이유는 XP 가 젬 하나마다 바뀌어
-## (후반에는 초당 수십 번) 그때마다 Tween 을 만들면 그 할당이 그대로 비용이 되기 때문이다.
-## 따라잡을 것이 없으면 스스로 꺼진다.
 func _process(delta: float) -> void:
 	if _xp_fill == null:
 		set_process(false)
@@ -905,7 +811,7 @@ func _on_xp_changed(xp: int, xp_to_next: int, level: int) -> void:
 ## 장착 로드아웃 — 좌하단 아이콘 슬롯 그리드(무기 1줄 + 패시브 1줄, 각 최대 6칸).
 ## 텍스트 리스트(후반 16줄+)가 화면 좌측을 덮던 것을 슬롯 두 줄로 압축한다.
 ## 레벨은 슬롯 우하단 뱃지 숫자로, 신규 획득/레벨업 슬롯은 잠깐 펄스로 알린다.
-const _LOADOUT_SLOT_PX := 44
+const _LOADOUT_SLOT_PX := 80
 ## 로드아웃 슬롯을 종류별로 묶어 그리기 위한 z 층(아래 _make_loadout_slot 주석 참고).
 ## 프레임 → 아이콘 → 뱃지 순서는 슬롯 안에서와 똑같지만, z 로 올리면 그 순서가
 ## **슬롯을 가로질러** 적용돼 같은 텍스처끼리 붙는다.
@@ -920,35 +826,25 @@ const _Z_UNDER_UI := -1
 
 
 func _build_loadout() -> void:
-	# 밝은 필드 위에서도 잘 읽히도록 반투명 어두운 패널을 배경에 깔고(내용에 맞춰 자동 크기).
 	var panel := PanelContainer.new()
-	# 좌측 "하단" 정렬 — 바닥 목표 힌트(하단 44px) 바로 위에 붙인다.
-	panel.anchor_top = 1.0
-	panel.anchor_bottom = 1.0
-	panel.offset_left = 8.0
-	panel.offset_top = -54.0
-	panel.offset_bottom = -54.0
-	panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	panel.name = "TacticalLoadout"
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
+	panel.offset_top = -208
+	panel.offset_bottom = -16
+	panel.offset_left = -328
+	panel.offset_right = 328
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = Color(0.0, 0.0, 0.0, 0.40)
-	sb.set_corner_radius_all(10)
-	sb.content_margin_left = 7.0
-	sb.content_margin_right = 7.0
-	sb.content_margin_top = 6.0
-	sb.content_margin_bottom = 6.0
-	panel.add_theme_stylebox_override("panel", sb)
+	panel.add_theme_stylebox_override("panel", _UIStyle.tactical_panel())
 	add_child(panel)
-
 	_loadout_box = VBoxContainer.new()
-	_loadout_box.add_theme_constant_override("separation", 5)
+	_loadout_box.add_theme_constant_override("separation", 12)
 	_loadout_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	panel.add_child(_loadout_box)
-
 	_weapon_row = HBoxContainer.new()
 	_passive_row = HBoxContainer.new()
 	for row in [_weapon_row, _passive_row]:
-		row.add_theme_constant_override("separation", 5)
+		row.add_theme_constant_override("separation", 8)
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_loadout_box.add_child(row)
 
@@ -979,10 +875,17 @@ func _fill_loadout_row(row: HBoxContainer, inv: Dictionary) -> void:
 		if m.is_empty():
 			continue
 		var slot := _make_loadout_slot(m, lv)
+		if row == _passive_row: slot.custom_minimum_size = Vector2(60, 60)
 		row.add_child(slot)
 		# 신규 획득 또는 레벨 상승 슬롯은 펄스로 시선 유도(첫 빌드는 _prev_inv 가 비어 전체 제외).
 		if not _prev_inv.is_empty() and lv > int(_prev_inv.get(id, 0)):
 			_pulse_slot(slot)
+
+	var capacity := ItemDB.MAX_WEAPON_SLOTS if row == _weapon_row else ItemDB.MAX_PASSIVE_SLOTS
+	while row.get_child_count() < capacity:
+		var empty := _UIStyle.tactical_slot(null, _LOADOUT_SLOT_PX if row == _weapon_row else 60)
+		empty.modulate.a = 0.45
+		row.add_child(empty)
 
 
 ## 슬롯 위젯: 어두운 함몰 사각 + 아이콘 + 우하단 레벨 뱃지. (Phase 2 에서 나인패치 프레임으로 교체)
@@ -995,19 +898,7 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 	var frame := Panel.new()
 	frame.set_anchors_preset(Control.PRESET_FULL_RECT)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var slot_tex := _UIStyle.hud_tex("hud_slot_small.png")
-	if slot_tex:
-		frame.add_theme_stylebox_override("panel", _UIStyle.tex_box(slot_tex, 12))
-	else:
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = Color(0.04, 0.05, 0.08, 0.75)
-		sb.set_corner_radius_all(8)
-		sb.corner_detail = 5
-		sb.anti_aliasing = true
-		sb.set_border_width_all(1)
-		var tint: Color = meta.get("color", Color.WHITE)
-		sb.border_color = Color(tint.r, tint.g, tint.b, 0.55)   # 아이템 색은 테두리 힌트로만
-		frame.add_theme_stylebox_override("panel", sb)
+	frame.add_theme_stylebox_override("panel", _UIStyle.tactical_panel(UITheme.TACTICAL_PANEL.lightened(0.03), UITheme.TACTICAL_EDGE, 6, false))
 	# 슬롯 15칸이 프레임→아이콘→뱃지를 번갈아 쌓으면 텍스처가 매번 바뀌어 배치가 끊긴다
 	# (실측: 로드아웃 하나가 HUD 92콜 중 53콜). z 로 종류를 갈라 같은 텍스처끼리 붙인다 —
 	# 프레임은 전부 hud_slot_small.png, 아이콘은 전부 ui.png 아틀라스, 뱃지는 전부 폰트 아틀라스다.
@@ -1022,10 +913,10 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 		# 슬롯 함몰부를 꽉 채우는 여백 — 프레임 림(슬롯의 12.3%)이 끝나는 지점에 맞춘다.
 		# 아이콘 원본에는 투명 여백이 없으므로 이 값이 곧 보이는 크기가 된다.
 		tex.set_anchors_preset(Control.PRESET_FULL_RECT)
-		tex.offset_left = 3.0
-		tex.offset_top = 3.0
-		tex.offset_right = -3.0
-		tex.offset_bottom = -3.0
+		tex.offset_left = 8.0
+		tex.offset_top = 8.0
+		tex.offset_right = -8.0
+		tex.offset_bottom = -16.0
 		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1034,7 +925,7 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 
 	var badge := Label.new()
 	badge.text = str(lv)
-	badge.add_theme_font_size_override("font_size", 13)
+	badge.add_theme_font_size_override("font_size", 24)
 	badge.add_theme_color_override("font_color", Color(1.0, 0.95, 0.8))
 	badge.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
 	badge.add_theme_constant_override("outline_size", 4)
@@ -1215,12 +1106,12 @@ func _on_rewarded_granted(placement: String) -> void:
 # 상단 바 작은 아이콘들(웨이브·시간 아이콘) — 텍스트 위주 HUD 보강.
 # 점수(★)와 랭킹(최고 🏆)은 HUD 에서 숨긴다(요청) — 처치 수/시간만 노출해 상단을 간결하게.
 func _build_hud_icons() -> void:
-	_right_stat_icon("skull",  kills_label,       Color(0.95, 0.6, 0.6))
-	_right_stat_icon("clock",  time_label,       Color(0.82, 0.86, 0.95))
+	var skull := UIIcon.make("skull", 28, UITheme.TACTICAL_TEXT)
+	skull.name = "TacticalSkull"
+	add_child(skull)
+	_stat_icons.append(skull)
 
 
-## 우측 정렬 라벨의 오른쪽 끝에 작은 아이콘을 붙이고, 값 텍스트 자리를 그만큼 확보.
-## 아이콘을 화면 오른쪽 끝(EDGE_MARGIN)에 정확히 맞추고, 라벨 텍스트는 그 왼쪽으로 물려준다.
 func _right_stat_icon(kind: String, label: Label, col: Color) -> void:
 	const SZ := 18.0
 	const EDGE_MARGIN := 70.0   # 오른쪽 끝의 일시정지 버튼(44px + 여백)을 비켜 간다
@@ -1560,35 +1451,14 @@ func _build_pause_menu() -> void:
 	_pause_btn.pressed.connect(_on_pause_pressed)
 	_pause_btn.z_index = _Z_OVERLAY
 	add_child(_pause_btn)
-	# VARCO 원형 버튼 텍스처(⏸ 아이콘 포함)가 있으면 플레이트 대신 사용 —
-	# 스타일박스는 비우고 텍스처를 얼굴로 깐다(눌림 팝은 UITheme 전역 스케일이 담당).
-	var round_tex := _UIStyle.hud_tex("hud_btn_round.png")
-	if round_tex:
-		for state in ["normal", "hover", "pressed", "disabled"]:
-			_pause_btn.add_theme_stylebox_override(state, StyleBoxEmpty.new())
-		var face := TextureRect.new()
-		face.texture = round_tex
-		face.set_anchors_preset(Control.PRESET_FULL_RECT)
-		face.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		face.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		face.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_pause_btn.add_child(face)
-	else:
-		# 일시정지 아이콘 — 폰트 글리프 대신 흰 막대 2개(어떤 폰트/빌드에서도 안 깨짐).
-		var pico := CenterContainer.new()
-		pico.set_anchors_preset(Control.PRESET_FULL_RECT)
-		pico.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_pause_btn.add_child(pico)
-		var bars := HBoxContainer.new()
-		bars.add_theme_constant_override("separation", 5)
-		bars.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		pico.add_child(bars)
-		for i in 2:
-			var bar := ColorRect.new()
-			bar.color = Color(0.85, 0.88, 0.95)
-			bar.custom_minimum_size = Vector2(5, 18)
-			bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			bars.add_child(bar)
+	_UIStyle.tactical_button(_pause_btn)
+	for x in [28, 48]:
+		var bar := ColorRect.new()
+		bar.color = UITheme.TACTICAL_TEXT
+		bar.position = Vector2(x, 28)
+		bar.size = Vector2(10, 32)
+		bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_pause_btn.add_child(bar)
 
 	_pause_dim = ColorRect.new()
 	_pause_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1897,24 +1767,7 @@ func _on_resume_pressed() -> void:
 ## 노치/펀치홀 세이프에어리어 — 상단 인셋만큼 상단 고정 위젯들을 아래로 내린다.
 ## 데스크톱/웹은 인셋 0 이라 무동작. canvas_items 스트레치(keep)라 창→캔버스 스케일로 환산한다.
 func _apply_safe_area() -> void:
-	var win := DisplayServer.window_get_size()
-	if win.y <= 0:
-		return
-	var inset_px := float(DisplayServer.get_display_safe_area().position.y)
-	if inset_px <= 0.0:
-		return
-	var inset := inset_px * get_viewport().get_visible_rect().size.y / float(win.y)
-	top_bg.offset_bottom += inset   # 바 배경은 노치 뒤까지 채우고, 내용만 아래로 민다
-	# 뱃지 모드에선 라벨이 뱃지의 풀렉트 자식이라 뱃지 쪽을 옮긴다.
-	var lv_node: Control = _level_badge if _level_badge else _level_label
-	# ⚠️ 위협 뱃지와 타임라인이 이 목록에서 빠져 있었다. 나머지만 내려가면 노치 폰에서
-	# 둘이 상단바 안쪽으로 파고들어 **다시 겹친다** — 배치를 고쳐도 노치 기기에서만 되살아난다.
-	for c in [get_node("CoinIcon"), gold_label, hp_bar, kills_label, time_label,
-			lv_node, _xp_bg, _pause_btn, _auto_tag, boss_bar, weapon_label, buff_label,
-			_threat_badge, _timeline] + _stat_icons:
-		if c is Control:
-			c.offset_top += inset
-			c.offset_bottom += inset
+	_layout_tactical()
 
 
 func _on_main_menu_pressed() -> void:
@@ -1926,3 +1779,79 @@ func _on_main_menu_pressed() -> void:
 	Events.reset()
 	Pool.clear()
 	SceneFade.transition_to("res://scenes/MainMenu.tscn")
+
+
+var _tactical_portrait: Control
+var _tactical_hurt_marker: Label
+var _tactical_safe_top := 0.0
+
+func _build_tactical_portrait() -> void:
+	var c := CharacterManager.selected()
+	var icon: Texture2D = null
+	if c != null:
+		var path := "res://assets/atlas/menu/portrait_%s.tres" % c.id
+		if ResourceLoader.exists(path): icon = load(path)
+	_tactical_portrait = _UIStyle.tactical_slot(icon, 80)
+	add_child(_tactical_portrait)
+	_tactical_hurt_marker = _UIStyle.tactical_label("!", 28, UITheme.TACTICAL_YELLOW)
+	_tactical_hurt_marker.position = Vector2(64,0)
+	_tactical_hurt_marker.hide()
+	_tactical_portrait.add_child(_tactical_hurt_marker)
+
+func _tactical_rect(ctrl: Control, rect: Rect2) -> void:
+	ctrl.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	ctrl.position = rect.position
+	ctrl.size = rect.size
+
+func _layout_tactical() -> void:
+	var extent := get_viewport().get_visible_rect().size
+	var win := DisplayServer.window_get_size()
+	_tactical_safe_top = 0
+	if win.y > 0 and (OS.has_feature("android") or OS.has_feature("ios")):
+		_tactical_safe_top = maxf(0, DisplayServer.get_display_safe_area().position.y * extent.y / win.y)
+	var y := _tactical_safe_top
+	_tactical_rect(top_bg, Rect2(0, 0, extent.x, 184 + y))
+	top_bg.add_theme_stylebox_override("panel", _UIStyle.hud_top_bar_box())
+	_tactical_rect(_tactical_portrait, Rect2(16, 16+y, 80, 80))
+	_tactical_rect(hp_bar, Rect2(112, 20+y, HP_BAR_W, 48))
+	_tactical_rect(hp_bg, Rect2(0, 0, HP_BAR_W, 48))
+	hp_fill.position = Vector2(4,4)
+	hp_fill.size.y = 40
+	_hp_ghost.position = Vector2(4,4)
+	_hp_ghost.size.y = 40
+	hp_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hp_label.add_theme_font_size_override("font_size", 24)
+	_tactical_rect(time_label, Rect2(extent.x*0.5+8 if extent.x<1000 else extent.x*0.5-116, 16+y, 224, 60))
+	time_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	time_label.add_theme_font_size_override("font_size", 44)
+	time_label.add_theme_font_override("font", UITheme.bold_font())
+	_tactical_rect(_pause_btn, Rect2(extent.x-104, 16+y, 88, 88))
+	_tactical_rect($CoinIcon, Rect2(112, 84+y, 28, 28))
+	_tactical_rect(gold_label, Rect2(148, 78+y, 172, 40))
+	_tactical_rect(_stat_icons[0], Rect2(328, 84+y, 28, 28))
+	_tactical_rect(kills_label, Rect2(364, 78+y, 128, 40))
+	for label in [gold_label, kills_label]:
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		label.add_theme_font_size_override("font_size", 24)
+		label.add_theme_color_override("font_color", UITheme.TACTICAL_TEXT)
+	_tactical_rect(_level_label, Rect2(16, 126+y, 88, 36))
+	_tactical_rect(_xp_bg, Rect2(112, 136+y, extent.x-136, 16))
+	if _threat_badge: _tactical_rect(_threat_badge, Rect2(_THREAT_RECT.position+Vector2(0,y), _THREAT_RECT.size))
+	_tactical_rect(_timeline, Rect2(16, 170+y, extent.x-32, 6))
+	_tactical_rect(_alert, Rect2((extent.x-600)*0.5, _ALERT_Y+y, 600, _ALERT_H))
+	_tactical_rect(boss_bar, Rect2((extent.x-BOSS_BAR_W)*0.5, 248+y, BOSS_BAR_W, 64))
+	boss_name_label.add_theme_font_size_override("font_size", 24)
+	boss_name_label.add_theme_color_override("font_color", UITheme.TACTICAL_TEXT)
+	_tactical_rect(boss_name_label, Rect2(0,0,BOSS_BAR_W,36))
+	_tactical_rect(boss_bg, Rect2(0,40,BOSS_BAR_W,12))
+	boss_fill.position = Vector2(0,40)
+	boss_fill.size.y = 12
+	# Timed equipment notices stay away from the boss and alert lanes.
+	_tactical_rect(weapon_label, Rect2(extent.x*0.5-260, extent.y-294, 520, 36))
+	_tactical_rect(buff_label, Rect2(extent.x*0.5-260, extent.y-254, 520, 36))
+	weapon_label.add_theme_font_size_override("font_size", 24)
+	buff_label.add_theme_font_size_override("font_size", 24)
+	_goal_label.offset_top = -344
+	_goal_label.add_theme_font_size_override("font_size", 24)
+	$Joystick.set("hud_bottom_exclusion", 220.0)
+	$Joystick.set("hud_blocked_rect", Rect2(extent.x*0.5-328,extent.y-208,656,192))

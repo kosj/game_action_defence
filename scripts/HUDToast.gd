@@ -7,7 +7,7 @@ extends Control
 ## 둘이 뜨면 그대로 겹쳤다 — 후반에는 도전과제와 과제가 같은 처치 수에서 함께 달성된다.
 ##
 ## 여기서 정하는 규칙은 셋이다:
-##   1. 동시에 보이는 것은 **2줄까지**. 그 이상은 앞줄이 사라진 뒤에 나온다.
+##   1. 동시에 보이는 것은 **1줄까지**. 그 이상은 앞줄이 사라진 뒤에 나온다.
 ##   2. 두 줄이 겹치지 않도록 뒤에 오는 줄은 앞줄보다 최소 SLOT_GAP 아래에 놓는다.
 ##   3. 같은 종류(kind)가 아직 떠 있으면 새 줄을 만들지 않고 **그 줄의 글자를 바꾼다**
 ##      — 날씨처럼 짧은 새에 여러 번 바뀌는 알림이 줄을 다 차지하지 않게.
@@ -20,9 +20,9 @@ extends Control
 ##     _toasts.push(text, color, 190.0, "quest")
 
 const SLOT_GAP := 38.0     # 두 줄 사이 최소 간격(글꼴 22px + 외곽선 여유)
-const MAX_VISIBLE := 2     # 동시에 보이는 줄 수
+const MAX_VISIBLE := 1     # 동시에 보이는 줄 수
 const RISE := 30.0         # 떠오르는 거리
-const FONT_SIZE := 22
+const FONT_SIZE := 24
 
 ## [{node, y, kind, tw}] — 지금 화면에 있는 줄들.
 var _active: Array = []
@@ -80,6 +80,9 @@ func _spawn(text: String, col: Color, y: float, kind: String) -> void:
 	var lbl := Label.new()
 	lbl.text = text
 	lbl.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	lbl.offset_left = -300
+	lbl.offset_right = 300
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.offset_top = y
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_size_override("font_size", FONT_SIZE)

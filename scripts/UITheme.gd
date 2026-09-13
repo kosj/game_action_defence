@@ -1,4 +1,12 @@
 extends Node
+## Opt-in tactical palette; legacy popups retain their installed theme.
+const TACTICAL_PANEL := Color("202629")
+const TACTICAL_EDGE := Color("4a565b")
+const TACTICAL_TEXT := Color("eee7d8")
+const TACTICAL_MUTED := Color("a6b0af")
+const TACTICAL_RED := Color("b83a35")
+const TACTICAL_TEAL := Color("72b9ad")
+const TACTICAL_YELLOW := Color("c5a060")
 ## 전역 UI 테마 (Autoload "UITheme").
 ## 루트 윈도우에 Theme 를 설치해 모든 컨트롤의 기본 폰트/크기/버튼·패널 스타일·색을 통일한다.
 ## (개별 위젯의 add_theme_*_override 는 그대로 우선 적용되므로 기존 강조 스타일은 유지된다.)
@@ -159,15 +167,9 @@ func _btn(accent: Color, darken: float = 0.42) -> StyleBoxTexture:
 	return sb
 
 
-func _panel() -> StyleBoxFlat:
-	var sb := StyleBoxFlat.new()
-	sb.bg_color = BG_PANEL
-	sb.border_color = Color(0.32, 0.36, 0.46)
-	sb.set_border_width_all(2)
-	sb.set_corner_radius_all(18)
-	sb.shadow_color = Color(0, 0, 0, 0.45)
-	sb.shadow_size = 12
-	return sb
+func _panel() -> StyleBoxTexture:
+	return UIStyle.panel(BG_PANEL, BTN_LINE)
+
 
 
 func _empty() -> StyleBoxEmpty:

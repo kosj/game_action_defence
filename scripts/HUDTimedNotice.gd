@@ -19,15 +19,15 @@ var _box := StyleBoxFlat.new()
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	process_mode = Node.PROCESS_MODE_PAUSABLE
-	_box.bg_color = Color(0.035,0.06,0.075,0.94)
+	_box.bg_color = UITheme.TACTICAL_PANEL
 	_box.set_border_width_all(2)
-	_box.set_corner_radius_all(12)
+	_box.set_corner_radius_all(6)
 	title = Label.new()
 	title.position = Vector2(92,13)
 	title.add_theme_font_size_override("font_size",24)
 	detail = Label.new()
 	detail.position = Vector2(92,48)
-	detail.add_theme_font_size_override("font_size",20)
+	detail.add_theme_font_size_override("font_size",24)
 	for label in [title,detail]:
 		label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(label)
@@ -41,7 +41,7 @@ func _layout() -> void:
 	var screen := get_viewport_rect().size
 	var portrait := screen.y>screen.x
 	size = Vector2(600 if boss else 420,100)
-	position = Vector2((screen.x-size.x)*0.5,120) if boss else Vector2((screen.x-size.x)*0.5 if portrait else 24,480 if portrait else 310)
+	position = Vector2((screen.x-size.x)*0.5,320) if boss else Vector2((screen.x-size.x)*0.5 if portrait else 24,screen.y-452)
 	pivot_offset = size*0.5
 	for label in [title,detail]: label.size.x = size.x-112
 

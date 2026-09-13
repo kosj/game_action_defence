@@ -1,5 +1,77 @@
 class_name UIStyle
 extends RefCounted
+
+## Metal frames reuse the existing nine-patch art without changing control geometry.
+static func tactical_panel(bg: Color = UITheme.TACTICAL_PANEL, edge: Color = UITheme.TACTICAL_EDGE, radius: int = 6, shadow: bool = true) -> StyleBox:
+	# Thin gauges keep their readable fill and cannot fit a decorative frame.
+	if radius <= 4:
+		var track := StyleBoxFlat.new()
+		track.bg_color = bg
+		track.border_color = edge
+		track.set_border_width_all(2)
+		track.set_corner_radius_all(radius)
+		return track
+	var sb := panel(bg, edge, radius, 2, 16)
+	sb.set_texture_margin_all(40)
+	return sb
+
+static func tactical_button(btn: Button, primary: bool = false, selected: bool = false, accent: Color = Color("8395ad")) -> void:
+	var tint := UITheme.TACTICAL_TEAL if selected else accent
+	var kind := "blood" if primary else "steel"
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		var darken := 0.08
+		if state == "hover": darken = 0.0
+		if state == "pressed": darken = 0.28
+		if state == "disabled": darken = 0.40
+		var sb := button_box(tint, darken, "dark" if state == "disabled" else kind)
+		sb.set_content_margin_all(16)
+		btn.add_theme_stylebox_override(state, sb)
+	var focus := StyleBoxFlat.new()
+	focus.bg_color = Color.TRANSPARENT
+	focus.border_color = UITheme.TACTICAL_TEAL
+	focus.set_border_width_all(2)
+	focus.set_corner_radius_all(6)
+	focus.draw_center = false
+	btn.add_theme_stylebox_override("focus", focus)
+	var text := UITheme.TACTICAL_TEXT
+	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		btn.add_theme_color_override(state, text)
+	btn.add_theme_color_override("font_disabled_color", UITheme.TACTICAL_MUTED.darkened(0.3))
+	btn.add_theme_constant_override("outline_size", 2)
+	btn.add_theme_color_override("font_outline_color", Color("182025"))
+	btn.add_theme_font_size_override("font_size", 28)
+	btn.add_theme_font_override("font", UITheme.bold_font())
+
+static func tactical_label(text: String, px: int = 28, color: Color = UITheme.TACTICAL_TEXT) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", px)
+	label.add_theme_color_override("font_color", color)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return label
+
+static func tactical_slot(icon: Texture2D, px: int = 88) -> Control:
+	var slot := Control.new()
+	slot.custom_minimum_size = Vector2(px, px)
+	slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var frame := Panel.new()
+	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	frame.add_theme_stylebox_override("panel", tex_box(_SLOT_TEX, 12))
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(frame)
+	if icon != null:
+		var art := TextureRect.new()
+		art.texture = icon
+		art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		art.offset_left = 8
+		art.offset_top = 8
+		art.offset_right = -8
+		art.offset_bottom = -8
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot.add_child(art)
+	return slot
 ## 공용 UI 스타일 팩토리 — 코드로 생성/구성되는 UI 전반(HUD·메뉴·레벨업)에서 재사용.
 
 # VARCO 생성 나인패치 패널 프레임(강철+골드 베벨 테두리). 320px 소스, 테두리 분할 40px.

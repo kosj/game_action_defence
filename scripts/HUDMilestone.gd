@@ -33,12 +33,12 @@ func _ready() -> void:
 	_card = Panel.new()
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_card)
-	_heading = _label(20,Vector2(100,14),Vector2(394,27))
+	_heading = _label(24,Vector2(100,14),Vector2(394,27))
 	_title = _label(24,Vector2(100,43),Vector2(394,60))
 	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_title.max_lines_visible = 2
 	_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_detail = _label(18,Vector2(100,109),Vector2(394,26))
+	_detail = _label(24,Vector2(100,109),Vector2(394,26))
 	_fx = Control.new()
 	_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.add_child(_fx)
@@ -61,7 +61,7 @@ func _layout() -> void:
 	var screen := get_viewport_rect().size
 	_card.size = Vector2(minf(520,screen.x-48),148)
 	var portrait := screen.y>screen.x
-	_card.position = Vector2((screen.x-_card.size.x)*0.5 if portrait else screen.x-_card.size.x-24,310 if portrait else 120)
+	_card.position = Vector2((screen.x-_card.size.x)*0.5 if portrait else screen.x-_card.size.x-24,416)
 	for label in [_heading,_title,_detail]:
 		label.size.x = _card.size.x-126
 	_card.pivot_offset = _card.size*0.5
@@ -77,14 +77,7 @@ func _next() -> void:
 		return
 	current = pending.pop_front()
 	_accent = Color(1,0.79,0.27) if current.achievement else Color(0.33,0.9,0.73)
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0.055,0.08,0.10,0.96)
-	box.border_color = _accent.darkened(0.35)
-	box.set_border_width_all(2)
-	box.border_width_left = 5
-	box.set_corner_radius_all(10)
-	box.shadow_color = Color(0,0,0,0.35)
-	box.shadow_size = 8
+	var box := UIStyle.tactical_panel(UITheme.TACTICAL_PANEL, UITheme.TACTICAL_EDGE, 6)
 	_card.add_theme_stylebox_override("panel",box)
 	_heading.text = Locale.t("milestone_achievement" if current.achievement else "milestone_quest")
 	_heading.add_theme_color_override("font_color",_accent)
