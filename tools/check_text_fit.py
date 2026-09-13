@@ -404,6 +404,9 @@ def _is_cjk(ch: str) -> bool:
 
 
 COVERED_BY = {
+    # UIStyle only creates generic label/button shells. The actual strings, widths,
+    # and font sizes are supplied by these three consumers and measured below.
+    "UIStyle.gd": ("메뉴", "HUD", "레벨업"),
     "HUDTimedNotice.gd": ("보스전 · 이동 안내", "HUD · 자석 카드"),
     "SuburbEncounter.gd": ("보스전 · 이동 안내",),
     "MainMenu.gd": ("메뉴", "팝업 행", "아레나", "캐릭터", "영구 강화"),
