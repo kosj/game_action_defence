@@ -1,22 +1,28 @@
 extends WeaponModule
 ## 캐릭터 궁극기(모듈 "ultimate"): 긴 재사용 대기 후 자동 발동 — area_duration 초 동안
-## 화면 전체(플레이어 주변 SCREEN_R)의 모든 적에게 틱 피해를 퍼붓는다.
+## 화면 전체(플레이어 주변 _effect_radius)의 모든 적에게 틱 피해를 퍼붓는다.
 ## _data: fire_interval=재사용 대기(초), area_duration=지속(초),
 ## proj_damage/dmg_per_level=틱 피해(레벨업 카드로 강화), color=연출색(캐릭터 테마).
 
 const _FXMaterial := preload("res://scripts/FXMaterial.gd")
 const TICK := 0.30           # 피해 틱 간격
-@onready var SCREEN_R: float = get_viewport_rect().size.length() * 0.5      # Cover this edition's viewport.
 const FX_PER_TICK := 6       # 틱마다 무작위 피격 지점에 터뜨릴 버스트 수(과부하 방지 상한)
 const QUAKE_GROW := 0.55     # 균열이 끝까지 뻗는 데 걸리는 시간(초)
 const QUAKE_TREMOR := 9.0    # 균열 끝단이 옆으로 흔들리는 폭(px)
 const QUAKE_TREMOR_HZ := 14.0  # 흔들림 속도(rad/s) — 낮으면 출렁, 높으면 지직
+const FIELD_COVERAGE := 0.96  # 화면 가장자리까지 쓰되 착탄 중심이 잘리지 않을 최소 여백
+const ARROW_MIN := 42
+const ARROW_MAX := 72
+const ARROW_DENSITY_CELL := 200.0
 
 var _cd: float = 0.0
 var _active: float = 0.0
 var _tick_t: float = 0.0
 var _pulse: float = 0.0
 var _cracks: Array = []   # quake 전용 — 발동 시 뽑는 방사형 균열 폴리라인들(로컬 좌표)
+## 피해와 연출이 함께 쓰는 현재 화면의 월드 반경/절반 크기. 고정 해상도를 가정하지 않는다.
+var _effect_radius: float = 720.0
+var _field_half_extents: Vector2 = Vector2(640.0, 360.0)
 
 
 ## 결정적 의사난수(0..1) — 프레임마다 흔들리지 않는 연출 배치용.
@@ -27,6 +33,26 @@ func _h(n: int) -> float:
 func _ready() -> void:
 	z_index = 3
 	material = _FXMaterial.additive()   # 공유 인스턴스 — 개별 생성 시 드로우 배치가 쪼개진다   # 발동 중 화면을 물들이는 발광 오버레이
+	_sync_field_geometry()
+	get_viewport().size_changed.connect(_on_viewport_size_changed)
+
+
+## 현재 보이는 화면을 월드 단위로 환산한다. 피해 원과 세 궁극기 연출이 이 값 하나를 공유하므로
+## 해상도·화면 회전·카메라 줌이 달라도 중앙의 작은 고정 영역에만 연출이 몰리지 않는다.
+func _sync_field_geometry() -> void:
+	var field_size := get_viewport().get_visible_rect().size
+	var cam := get_viewport().get_camera_2d()
+	if cam != null and cam.zoom.x > 0.0 and cam.zoom.y > 0.0:
+		field_size = Vector2(field_size.x / cam.zoom.x, field_size.y / cam.zoom.y)
+	_field_half_extents = field_size * 0.5
+	_effect_radius = maxf(field_size.length() * 0.5, 1.0)
+
+
+func _on_viewport_size_changed() -> void:
+	_sync_field_geometry()
+	if _active > 0.0 and weapon_id == "ult_quake":
+		_build_quake_cracks()
+	queue_redraw()
 
 
 func _physics_process(delta: float) -> void:
@@ -52,28 +78,20 @@ func _physics_process(delta: float) -> void:
 
 
 func _activate() -> void:
+	_sync_field_geometry()
 	_active = _data.area_duration
 	_tick_t = 0.0
 	_pulse = 0.0
 	Events.shake(9.0)
-	_FXBurst.spawn(get_tree().current_scene, global_position, _data.color, 150.0, 0.5)
+	# 첫 파동부터 실제 피해 반경까지 퍼져야 '화면 전체 공격'으로 읽힌다.
+	_FXBurst.spawn(get_tree().current_scene, global_position, _data.color, _effect_radius, 0.62)
 	match weapon_id:
 		"ult_quake":
 			if SoundManager.has_stream("ult_quake"):
 				SoundManager.play("ult_quake", 0.04, 1.0)
 			else:
 				SoundManager.play("boom", 0.08, 0.55)   # 낮게 우르릉
-			_cracks.clear()
-			for i in 8:   # 플레이어에서 화면 밖으로 뻗는 방사형 균열
-				var ang := TAU * (float(i) + _h(i) * 0.6) / 8.0
-				var pts := PackedVector2Array([Vector2.ZERO])
-				var pos := Vector2.ZERO
-				var seg_len := 70.0
-				for k in 9:
-					ang += (_h(i * 17 + k) - 0.5) * 0.7
-					pos += Vector2.from_angle(ang) * seg_len * (0.8 + _h(i * 31 + k) * 0.5)
-					pts.append(pos)
-				_cracks.append(pts)
+			_build_quake_cracks()
 		"ult_arrowstorm":
 			if SoundManager.has_stream("ult_arrow"):
 				SoundManager.play("ult_arrow", 0.04, 1.0)
@@ -91,7 +109,7 @@ func _activate() -> void:
 func _damage_tick() -> void:
 	var lvl := _level()
 	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1) + int(Events.upgrade_bullet_damage / 2)
-	var r_sq := SCREEN_R * SCREEN_R
+	var r_sq := _effect_radius * _effect_radius
 	var hit_pos: Array = []
 	for z in Events.live_zombies():
 		if not is_instance_valid(z) or not z.is_in_group("zombies"):
@@ -114,14 +132,21 @@ func _damage_tick() -> void:
 ##   ult_orbital: 하늘에서 꽂히는 수직 광선 폭격(조준 링 + 착탄 글로우)
 ## ⚠️ 프리미티브 대신 **QuadDraw(텍스처 쿼드)** 로 그린다 — 캔버스 배처는 한 아이템
 ## 안에서도 프리미티브 종류가 다르면 배치를 끊는다(ASSET_PIPELINE.md 1절).
-## 화살비는 `for i in 42` 안에서 선 5~6개를 발행해 프레임당 약 237 프리미티브였다.
+## 화살비는 화살마다 선 5~6개를 발행하므로 화면 면적에 따라 42~72개로 제한한다.
 func _draw() -> void:
 	if _active <= 0.0 or _data == null:
 		return
 	var fade := clampf(_active / maxf(_data.area_duration, 0.01), 0.0, 1.0)
 	var c: Color = _data.color
-	# 공통 — 캐릭터색 스크린워시.
-	QuadDraw.disc(self, Vector2.ZERO, SCREEN_R, Color(c.r, c.g, c.b, 0.05 + 0.03 * sin(_pulse * 9.0)))
+	# 공통 — 실제 피해 반경 전체를 물들이고, 반복 파동이 중심에서 화면 끝까지 이동한다.
+	var field_fade := minf(fade * 2.0, 1.0)
+	QuadDraw.disc(self, Vector2.ZERO, _effect_radius,
+		Color(c.r, c.g, c.b, (0.075 + 0.035 * sin(_pulse * 9.0)) * field_fade))
+	for i in 3:
+		var phase := fmod(_pulse * 0.46 + float(i) / 3.0, 1.0)
+		var wave_r := lerpf(24.0, _effect_radius, phase)
+		QuadDraw.ring(self, Vector2.ZERO, wave_r,
+			Color(c.r, c.g, c.b, (1.0 - phase) * 0.18 * field_fade), 8.0, 48)
 	match weapon_id:
 		"ult_quake":
 			_draw_quake(c, fade)
@@ -148,8 +173,26 @@ func _draw_quake(c: Color, fade: float) -> void:
 		QuadDraw.disc(self, tip, 3.4 * spark, Color(1.0, 0.8, 0.35, 0.75 * fade * spark))
 	# 연쇄 충격 링 3겹 — 시차를 두고 화면 밖으로 퍼진다.
 	for k in 3:
-		var ring_r := fmod(_pulse * 760.0 + float(k) * SCREEN_R / 3.0, SCREEN_R)
-		QuadDraw.ring(self, Vector2.ZERO, maxf(ring_r, 8.0), Color(c.r, c.g, c.b, 0.30 * fade * (1.0 - ring_r / SCREEN_R)), 6.0, 40)
+		var ring_r := fmod(_pulse * 760.0 + float(k) * _effect_radius / 3.0, _effect_radius)
+		QuadDraw.ring(self, Vector2.ZERO, maxf(ring_r, 8.0), Color(c.r, c.g, c.b, 0.30 * fade * (1.0 - ring_r / _effect_radius)), 6.0, 40)
+
+
+## 현재 피해 반경을 기준으로 균열을 다시 만든다. 이전 고정 9×70px 길이는 넓은 웹 화면에서
+## 피해 반경의 절반에도 못 미쳤다. 경로가 꺾여도 끝이 화면 가장자리에 닿도록 여유를 둔다.
+func _build_quake_cracks() -> void:
+	const SPOKES := 10
+	const SEGMENTS := 11
+	_cracks.clear()
+	var seg_len := _effect_radius * 1.28 / float(SEGMENTS)
+	for i in SPOKES:
+		var ang := TAU * (float(i) + _h(i) * 0.6) / float(SPOKES)
+		var pts := PackedVector2Array([Vector2.ZERO])
+		var pos := Vector2.ZERO
+		for k in SEGMENTS:
+			ang += (_h(i * 17 + k) - 0.5) * 0.58
+			pos += Vector2.from_angle(ang) * seg_len * (0.86 + _h(i * 31 + k) * 0.30)
+			pts.append(pos)
+		_cracks.append(pts)
 
 
 ## 균열 ci 의 이번 프레임 모양 — 자라난 길이까지만, 각 마디를 옆으로 떨어서 돌려준다.
@@ -179,13 +222,15 @@ func _quake_crack(ci: int) -> PackedVector2Array:
 ##   목표 지점·주기는 결정적 난수로 고정되어 프레임 간 흔들리지 않는다.
 func _draw_arrowstorm(c: Color, fade: float) -> void:
 	var drop := Vector2(-0.22, 1.0).normalized()   # 낙하 방향(살짝 기울어진 폭우)
-	for i in 42:
+	var field_area := _field_half_extents.x * 2.0 * _field_half_extents.y * 2.0
+	var arrow_count := clampi(int(round(field_area / (ARROW_DENSITY_CELL * ARROW_DENSITY_CELL))),
+		ARROW_MIN, ARROW_MAX)
+	for i in arrow_count:
 		var cycle := 0.42 + _h(i * 11) * 0.25           # 화살별 낙하+꽂힘 주기(초)
 		var raw := _pulse / cycle + _h(i * 13)
 		var t := fmod(raw, 1.0)                          # 0..0.62 낙하, 0.62..1 꽂힘
 		var bucket := int(raw)                           # 사이클마다 착지 지점이 바뀐다
-		var target := Vector2((_h(i * 29 + bucket) - 0.5) * 1.8 * 640.0,
-			(_h(i * 47 + bucket * 3) - 0.5) * 1.8 * 520.0)
+		var target := _field_point(i * 29 + bucket, i * 47 + bucket * 3)
 		if t < 0.62:
 			# 낙하: 위에서 목표 지점으로 빠르게 떨어지는 화살 + 꼬리 스트릭.
 			var p := t / 0.62
@@ -212,15 +257,23 @@ func _draw_arrowstorm(c: Color, fade: float) -> void:
 
 
 func _draw_orbital(c: Color, fade: float) -> void:
-	# 궤도 폭격 — 0.35초마다 자리를 옮기며 꽂히는 수직 광선 5기 + 조준 링 + 착탄 글로우.
+	# 궤도 폭격 — 0.35초마다 자리를 옮기며 꽂히는 수직 광선 5~8기 + 조준 링 + 착탄 글로우.
 	var bucket := int(_pulse / 0.35)
 	var bt := fmod(_pulse, 0.35) / 0.35   # 이 광선 세트의 수명(0..1)
-	for i in 5:
+	var beam_count := clampi(int(ceil(_effect_radius / 220.0)), 5, 8)
+	for i in beam_count:
 		var seed := bucket * 5 + i
-		var impact := Vector2((_h(seed) - 0.5) * 1.7 * 640.0, (_h(seed * 3 + 1) - 0.5) * 1.7 * 520.0)
+		var impact := _field_point(seed, seed * 3 + 1)
 		var beam_a := (1.0 - bt) * fade
-		QuadDraw.segment(self, impact + Vector2(0, -SCREEN_R * 1.2), impact, Color(c.r, c.g, c.b, 0.30 * beam_a), 24.0)
-		QuadDraw.segment(self, impact + Vector2(0, -SCREEN_R * 1.2), impact, Color(1.0, 1.0, 1.0, 0.65 * beam_a), 7.0)
+		QuadDraw.segment(self, impact + Vector2(0, -_effect_radius * 1.2), impact, Color(c.r, c.g, c.b, 0.30 * beam_a), 24.0)
+		QuadDraw.segment(self, impact + Vector2(0, -_effect_radius * 1.2), impact, Color(1.0, 1.0, 1.0, 0.65 * beam_a), 7.0)
 		QuadDraw.disc(self, impact, 34.0 * (0.5 + bt * 0.8), Color(c.r, c.g, c.b, 0.35 * beam_a))
 		QuadDraw.disc(self, impact, 12.0, Color(1.0, 1.0, 1.0, 0.8 * beam_a))
 		QuadDraw.ring(self, impact, 46.0 + bt * 30.0, Color(c.r, c.g, c.b, 0.45 * beam_a), 2.5, 24)
+
+
+## 화면 안 무작위 지점. 실제 보이는 월드 사각형을 기준으로 세 궁극기의 착탄 분포를 맞춘다.
+func _field_point(seed_x: int, seed_y: int) -> Vector2:
+	return Vector2(
+		(_h(seed_x) - 0.5) * 2.0 * _field_half_extents.x * FIELD_COVERAGE,
+		(_h(seed_y) - 0.5) * 2.0 * _field_half_extents.y * FIELD_COVERAGE)
