@@ -70,6 +70,11 @@ const STRINGS: Dictionary = {
 	"menu_options":    {"en": "Options",     "ko": "옵션",      "ja": "オプション"},
 	"menu_close":      {"en": "Close",       "ko": "닫기",      "ja": "とじる"},
 	"menu_ranking":    {"en": "Ranking",     "ko": "랭킹",      "ja": "ランキング"},
+	"records_header": {"en": "Threat — Best Score / Best Survival",
+		"ko": "위협 단계 — 최고 점수 / 최고 생존 시간",
+		"ja": "スレット — ハイスコア / ベストタイム"},
+	"records_threat_row": {"en": "Threat %d — %d / %s",
+		"ko": "위협 %d — %d / %s", "ja": "スレット %d — %d / %s"},
 	# 일본어는 가나 표기가 기본이다 — 서브셋 폰트의 한자는 89자뿐이고, 원본에도 없어 되살릴 수
 	# 없는 글자가 많다(実/績/強/選/択/宝/箱/体/分 등). tools/font_known_absent.txt 참고.
 	"menu_achievements": {"en": "Achievements", "ko": "도전과제",  "ja": "アチーブメント"},

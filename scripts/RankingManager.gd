@@ -1,16 +1,17 @@
 extends Node
 ## 랭킹/최고점 매니저 (Autoload 싱글톤: "RankingManager").
 ##
-## 플랫폼 독립 파사드. 호출부(메뉴·HUD)는 mode_id(=난이도)로만 점수를 제출/조회하고,
+## 플랫폼 독립 파사드. 호출부(메뉴·HUD)는 mode_id(=위협 단계)로 점수를 제출/조회하고,
 ## 실제 저장과 온라인 랭킹은 백엔드(RankingBackend 구현)가 담당한다.
 ## 새 플랫폼은 RankingBackend 를 상속한 백엔드를 만들어 _make_backend() 에서 갈아끼우면 되고,
 ## 게임 코드는 한 줄도 바뀌지 않는다.
 ##   웹/PC/에디터 → LocalRankingBackend (로컬 최고점)
 ##   안드로이드 실빌드 → PlayGamesRankingBackend (로컬 + Google Play 리더보드)
 ##
-## 모드 = 난이도(Easy/Normal/Hard). 각 모드가 "독립된 최고점"과 (온라인 시) 독립 리더보드를 가진다.
+## 새 기록은 위협 단계별로 분리한다. 예전 Easy/Normal/Hard 키는 기존 파일에 그대로
+## 남겨 두되 새 기록 화면과 제출 경로에서는 사용하지 않는다.
 
-## 모드 id — 난이도 인덱스(0,1,2)에 대응. 저장 키 / 리더보드 매핑 키로 쓰인다.
+## 구버전 저장 키. 기존 사용자 기록을 지우지 않기 위해 유지한다.
 const MODES: Array = ["easy", "normal", "hard"]
 
 ## 안드로이드 실빌드에서 Google Play Games 사용 여부.
@@ -39,7 +40,7 @@ func _ready() -> void:
 
 	_migrate_legacy_high_score()
 
-	# 현재 난이도(모드)의 최고점을 Events 에 주입 — HUD/메뉴의 기존 high_score 표시가 그대로 동작.
+	# 현재 위협 단계의 최고점을 Events 에 주입 — HUD의 신기록 판정이 같은 단계끼리 비교된다.
 	Events.set_high_score(current_best())
 	_booting = false
 
@@ -64,8 +65,16 @@ static func mode_id_for_difficulty(diff: int) -> String:
 	return MODES[clampi(diff, 0, MODES.size() - 1)]
 
 
+static func mode_id_for_threat(rank: int) -> String:
+	return "threat_%d" % maxi(1, rank)
+
+
 static func current_mode_id() -> String:
-	return mode_id_for_difficulty(Events.difficulty)
+	return mode_id_for_threat(ThreatManager.selected_rank())
+
+
+func best_for_threat(rank: int) -> int:
+	return best_for_mode(mode_id_for_threat(rank))
 
 
 # ── 최고점 조회/제출 ─────────────────────────────────────────────────
@@ -77,13 +86,13 @@ func current_best() -> int:
 	return best_for_mode(current_mode_id())
 
 
-## { "easy": int, "normal": int, "hard": int } — 랭킹 화면용.
+## 해금된 위협 단계별 최고 점수 — 기록 화면용.
 func all_bests() -> Dictionary:
 	if _backend == null:
 		return {}
 	var out := {}
-	for m in MODES:
-		out[m] = _backend.best_for_mode(m)
+	for rank in range(1, ThreatManager.max_rank() + 1):
+		out[mode_id_for_threat(rank)] = best_for_threat(rank)
 	return out
 
 
@@ -129,9 +138,9 @@ func _on_player_died() -> void:
 	submit(Events.score)
 
 
-## 구버전 단일 최고점(user://highscore.save)을 현재 난이도 모드로 1회 이관한다.
+## 구버전 단일 최고점(user://highscore.save)은 위협 1 기록으로 1회 이관한다.
 func _migrate_legacy_high_score() -> void:
 	var legacy := SaveManager.read_legacy_high_score()
 	if legacy > 0 and _backend:
-		_backend.set_best(current_mode_id(), legacy)
+		_backend.set_best(mode_id_for_threat(1), legacy)
 	SaveManager.clear_legacy_high_score()

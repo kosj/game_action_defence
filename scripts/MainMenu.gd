@@ -8,9 +8,6 @@ const _CodexPanel := preload("res://scripts/CodexPanel.gd")
 const _ThreatPanel := preload("res://scripts/ThreatPanel.gd")
 const _IntroStory := preload("res://scripts/IntroStory.gd")
 
-## 난이도 인덱스 → Locale 키
-const _DIFF_KEYS: Array = ["diff_easy", "diff_normal", "diff_hard"]
-
 var _diff_title: Label
 var _new_game_btn: Button
 var _continue_btn: Button
@@ -299,10 +296,17 @@ func _refresh_lobby() -> void:
 
 
 func _on_records_pressed() -> void:
-	_ranking_label.text = "%s · %s" % [Locale.t("menu_ranking"), Locale.t("menu_best")]
-	for i in RankingManager.MODES.size():
-		_ranking_label.text += "\n%s  %d" % [Locale.t(_DIFF_KEYS[i]), RankingManager.best_for_mode(RankingManager.MODES[i])]
+	_ranking_label.text = _records_text()
 	_UIPopup.open(_records_dim, _records_panel)
+
+
+func _records_text() -> String:
+	var text := Locale.t("records_header")
+	for rank in range(1, ThreatManager.max_rank() + 1):
+		var seconds := int(ThreatManager.best_seconds(rank))
+		var survival := "%02d:%02d" % [seconds / 60, seconds % 60] if seconds > 0 else "--:--"
+		text += "\n" + Locale.t("records_threat_row") % [rank, RankingManager.best_for_threat(rank), survival]
+	return text
 
 
 ## 3차 버튼 묶음 사이의 간격. VBox 의 기본 간격(18)에 이만큼을 더해 "여기서 묶음이

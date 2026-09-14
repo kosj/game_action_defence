@@ -192,6 +192,7 @@ jobs:
       - name: Edition layout checks
         run: |
           set -e
+          godot --headless --path . --script res://tools/verify_threat_records.gd
           godot --headless --path . --script res://tools/verify_mobile_web.gd
           godot --headless --path . --script res://tools/verify_editions.gd
           godot --headless --path . --script res://tools/verify_editions.gd -- --mobile-preview

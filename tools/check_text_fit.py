@@ -188,6 +188,8 @@ def main() -> None:
                       "menu_ranking", "menu_powerup", "menu_options",
                       "menu_codex") for t in loc(k)]),
         ("메뉴 · 버전 라벨", 320, 14, False, lit("v1.0.0 · 8f52771 · 2026-08-13 09:45 UTC")),
+        ("메뉴 · 기록 머리말", 580, 24, False, loc("records_header")),
+        ("메뉴 · 위협 기록", 580, 24, False, loc("records_threat_row", (20, 999999, "99:59"))),
         # 옵션 행 카드(MainMenu._make_option_row). 제목 칸은 카드 폭 616 - 플레이트 여백 36
         # - 조작(언어 칩 3x104 + 간격 12 = 324) - 간격 12 = 244. 토글 행은 더 넓다.
         ("옵션 · 행 제목", 244, 19, False,
