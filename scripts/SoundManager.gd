@@ -49,7 +49,6 @@ const _SOUNDS: Dictionary = {
 	"chainsaw":    "res://assets/audio/sfx_chainsaw.ogg",   # 전기톱이 무는 순간
 	"drone_shot":  "res://assets/audio/sfx_drone_shot.ogg", # 드론 사격(총성과 대역을 갈라 둠)
 	"magnet":      "res://assets/audio/sfx_magnet.ogg",     # 골드 자석 버프 발동
-	"weather":     "res://assets/audio/sfx_weather.ogg",    # 날씨 전환 훅
 	"boss_die":    "res://assets/audio/sfx_boss_die.ogg",   # 보스 처치(잡몹 사망음과 분리)
 	# 아직 파일이 없다 — 생물의 포효는 합성으로 만들면 악기가 된다(SOUND_GUIDE §9).
 	# 프롬프트는 SOUND_PROMPTS.md 에 있고, 파일이 들어오면 자동으로 붙는다(그때까지는
@@ -110,7 +109,6 @@ const _VOLUMES: Dictionary = {
 	"chainsaw":    -8.0,    # 물기 틱마다 — 실효 -27.9
 	"drone_shot": -16.0,    # 드론 여러 기가 동시 사격 — 실효 -32.1, 얇게 깔린다
 	"magnet":      -5.0,    # 버프 발동은 놓치면 안 된다 — 실효 -24.7
-	"weather":    -11.0,    # 환경 알림 — 전투음을 덮지 않게 실효 -27.7
 	"boss_die":    -1.5,    # 런 최대 사건 — 실효 -21.0(defeat -20.2 와 같은 층)
 	"boss_roar":   -2.0,
 }
