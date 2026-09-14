@@ -19,7 +19,7 @@ func _initialize() -> void:
 		_a("boss_25",     "Boss Slayer",   "Defeat 25 bosses (total)",     "boss_kills",  25,    300),
 		_a("survive_5",   "Survivor",      "Survive 5 minutes in one run", "best_time",   300,   80),
 		_a("survive_15",  "Hardened",      "Survive 15 minutes in one run","best_time",   900,   200),
-		_a("survive_30",  "Deadline Beaten","Survive 30 minutes (CLEAR)",  "best_time",   1800,  500),
+		_a("survive_30",  "Deadline Beaten","Survive 20 minutes (CLEAR)",  "best_time",   1200,  500),
 		_a("level_20",    "Veteran Blood", "Reach level 20 in one run",    "best_level",  20,    100),
 		_a("level_40",    "Ascended",      "Reach level 40 in one run",    "best_level",  40,    250),
 	]

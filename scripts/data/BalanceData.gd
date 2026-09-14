@@ -4,7 +4,7 @@ extends Resource
 ## 있던 밸런스 상수를 한곳에 모은다. 모든 수치는 res://data/balance.tres 에서 편집한다.
 
 @export_group("Player")
-@export var contact_cooldown: float = 0.25      # 피격 후 무적(= 좀비 접촉 피해 간격, 초)
+@export var contact_cooldown: float = 0.375     # 피격 후 무적(기존 0.25초의 1.5배)
 @export var regen_interval_lv1: float = 16.0   # 재생 Lv1 회복 간격(초) — Lv n 은 이 값/n
 @export var start_invuln: float = 5.0          # 게임 시작 무적(초)
 
@@ -59,7 +59,7 @@ extends Resource
 @export var boss_arena_radius: float = 480.0        # 1회차 반경
 @export var boss_arena_shrink_per_count: float = 16.0   # 회차마다 좁아지는 양
 @export var boss_arena_radius_min: float = 400.0    # 이보다 좁아지지는 않는다(회피 공간 보장)
-## 경계 감전. 간격을 Player.take_hit 의 자체 무적(contact_cooldown 0.25초)보다 길게 잡아야 한다 —
+## 경계 감전. 간격을 Player.take_hit 의 자체 무적(contact_cooldown 0.375초)보다 길게 잡아야 한다 —
 ## 그대로 두면 초당 4대라, 최대 체력 5인 플레이어가 벽에 스치는 순간 죽는다.
 @export var boss_arena_shock_damage: int = 1
 @export var boss_arena_shock_interval: float = 0.6

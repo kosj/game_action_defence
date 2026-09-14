@@ -70,9 +70,9 @@ reward_gold = 200
 script = ExtResource("1_q8lkf")
 id = "survive_30"
 display = "Deadline Beaten"
-desc = "Survive 30 minutes (CLEAR)"
+desc = "Survive 20 minutes (CLEAR)"
 metric = "best_time"
-threshold = 1800
+threshold = 1200
 reward_gold = 500
 
 [sub_resource type="Resource" id="Resource_l3ays"]

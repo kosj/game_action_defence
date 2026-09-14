@@ -2,7 +2,7 @@ extends Control
 ## 런 타임라인 바 — 상단 바 아래쪽 가장자리에 걸린 얇은 띠. "지금 어디쯤이고 다음에 무엇이
 ## 오는가"를 한눈에 준다.
 ##
-## 왜 필요한가: 30분 런의 마일스톤은 엘리트 5회 + 보스 2~3회뿐인데 그 리듬이 화면 어디에도
+## 왜 필요한가: 20분 런의 마일스톤은 엘리트와 보스 몇 회뿐인데 그 리듬이 화면 어디에도
 ## 보이지 않았다. 남은 시간 카운트다운(TimeLabel)은 "언제 끝나는가"만 말할 뿐 "다음에 무엇이
 ## 오는가"는 말하지 않는다 — "버티는 것 말고 할 일이 없다"는 체감의 직접적 원인이다(HANDOFF P1-4).
 ##
@@ -27,11 +27,11 @@ const CURSOR_COL := Color(1.0, 1.0, 1.0, 0.9)
 const CURSOR_W := 2.0
 
 var _elapsed: float = 0.0
-var _clear: float = 1800.0
+var _clear: float = 1200.0
 var _next_boss: float = -1.0
 var _next_elite: float = -1.0
-var _boss_period: float = 600.0
-var _elite_period: float = 300.0
+var _boss_period: float = 400.0
+var _elite_period: float = 200.0
 
 
 func _ready() -> void:

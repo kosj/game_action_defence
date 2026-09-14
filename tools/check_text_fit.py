@@ -133,7 +133,7 @@ def main() -> None:
         ("인트로 · 제목", 720, 44, True, loc("intro_title")),
         ("인트로 · 본문", 604, 26, False,
          [t for k in ("intro_l1", "intro_l2", "intro_l3", "intro_l4", "intro_l5") for t in loc(k)]),
-        ("인트로 · 목표 한 줄", 720, 20, False, loc("hud_goal_fmt", "30:00")),
+        ("인트로 · 목표 한 줄", 720, 20, False, loc("hud_goal_fmt", "20:00")),
 
         # ── HUD (씬/코드 고정 오프셋) ──────────────────────────
         ("HUD · 골드", 168, 20, False, lit("999999")),

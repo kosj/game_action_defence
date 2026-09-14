@@ -28,7 +28,7 @@ const _PerfOverlay := preload("res://scripts/PerfOverlay.gd")
 @onready var boss_bg: Panel = $BossBar/BarBg
 @onready var boss_fill: Panel = $BossBar/BarFill
 @onready var boss_name_label: Label = $BossBar/BossName
-## 화면 중앙 대형 배너 — 30분 클리어와 보스 처치 마일스톤이 함께 쓴다.
+## 화면 중앙 대형 배너 — 20분 클리어와 보스 처치 마일스톤이 함께 쓴다.
 @onready var banner_bg: Panel = $BannerBg
 @onready var banner_label: Label = $BannerLabel
 @onready var game_over_panel: Panel = $GameOverPanel
@@ -635,7 +635,7 @@ func _on_kills_changed(kills: int) -> void:
 		_pulse(kills_label, 1.18)
 
 
-## 메인 타이머 — 클리어(30분)까지의 "남은 시간" 카운트다운 하나만 보여준다(경과·진행률 라벨 통합).
+## 메인 타이머 — 클리어(20분)까지의 "남은 시간" 카운트다운 하나만 보여준다(경과·진행률 라벨 통합).
 ## 카운트다운 자체가 목표를 전달하고, 경과 시간은 일시정지 패널/게임오버 통계에서 확인한다.
 ## 클리어 후엔 금색 "연장전 +MM:SS" 카운트업으로 전환, 막판 1분은 붉게 강조.
 func _on_run_progress(elapsed: float, clear: float) -> void:
@@ -658,10 +658,10 @@ func _on_run_progress(elapsed: float, clear: float) -> void:
 		_prev_remain = remain
 
 
-## 30분 생존 클리어 — 웨이브 클리어 배너를 재사용해 크게 알린다(승리 아님, 이후 무한 하드모드).
+## 20분 생존 클리어 — 웨이브 클리어 배너를 재사용해 크게 알린다(승리 아님, 이후 무한 하드모드).
 func _on_run_cleared() -> void:
 	if SoundManager.has_stream("victory"):
-		SoundManager.play_ui("victory", 0.02, 1.0)   # 30분 클리어 징글(파일 있을 때만)
+		SoundManager.play_ui("victory", 0.02, 1.0)   # 20분 클리어 징글(파일 있을 때만)
 	banner_label.text = Locale.t("run_cleared")
 	banner_label.visible = true
 	banner_bg.visible = true
@@ -1262,7 +1262,7 @@ func _on_player_died() -> void:
 
 ## REAPER 처치 → 승리. 게임오버 패널을 승리용으로 재사용(부활 없음).
 func _on_game_won() -> void:
-	# 승리 징글. 지금까지 이 소리는 30분 클리어(_on_run_cleared)에서만 울렸고, 정작 REAPER 를
+	# 승리 징글. 지금까지 이 소리는 20분 클리어(_on_run_cleared)에서만 울렸고, 정작 REAPER 를
 	# 잡아 판을 끝낸 순간은 무음이었다 — 패배에는 defeat 스팅어가 있는데 승리에만 소리가 없었다.
 	if SoundManager.has_stream("victory"):
 		SoundManager.play_ui("victory", 0.02, 1.0)
@@ -1285,7 +1285,7 @@ const _GOLD_TXT := Color(1.00, 0.86, 0.42)
 
 ## 등급 문자와 메달 색. 기준은 **화면에 보이는 생존 시간**이다 — 예전에는 Events.score 로
 ## 정했는데 그 숫자는 HUD 에서 빠져(P2-22) 근거를 볼 수 없었다. 클리어는 무조건 S.
-const _GRADE_MIN := [1200.0, 600.0, 0.0]        # A / B / C 의 하한(초)
+const _GRADE_MIN := [800.0, 400.0, 0.0]         # A / B / C 의 하한(초), 20분 런 비율
 const _GRADE_TXT := ["S", "A", "B", "C"]
 const _GRADE_COL := [
 	Color(1.00, 0.82, 0.25),   # S — 금

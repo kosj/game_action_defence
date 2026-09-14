@@ -5,7 +5,7 @@ extends CharacterBody2D
 @export var attack_cooldown: float = 0.35   # 발사 간격(초)
 @export var max_health: int = 5
 @export var contact_damage: int = 1
-@export var contact_cooldown: float = 0.4   # 좀비 접촉 피해 간격(= 피격 후 무적 시간)
+@export var contact_cooldown: float = 0.375 # 좀비 접촉 피해 간격(= 피격 후 무적 시간)
 @export var contact_radius: float = 26.0    # 플레이어 몸통 반경 — 겹침 해소와 접촉 피해가 함께 쓴다
 
 const BULLET := preload("res://scenes/Bullet.tscn")

@@ -87,7 +87,7 @@ signal run_progress(elapsed: float, clear: float)   # 시간 기반 진행(HUD �
 ## **스포너가 소유한 값을 그대로 흘린다** — 보스는 전투 중이면 미뤄지고 치트(TIME +5 MIN)로도
 ## 밀리므로, HUD 가 주기 상수로 따로 계산하면 반드시 어긋난다(P1-4).
 signal forecast_changed(next_boss: float, next_elite: float)
-signal run_cleared                                  # 30분 생존 = 클리어 달성(1회)
+signal run_cleared                                  # 20분 생존 = 클리어 달성(1회)
 signal zombie_killed
 signal weapon_equipped(stats: Dictionary)
 signal score_changed(score: int)
@@ -131,7 +131,7 @@ var total_gold: int:
 	get: return _vault.get_int(&"gold")
 	set(value): _vault.set_int(&"gold", value)
 var total_kills: int = 0
-var did_clear: bool = false   # 이번 런에서 30분 클리어를 달성했는가
+var did_clear: bool = false   # 이번 런에서 20분 클리어를 달성했는가
 var player_health: int = 0
 var player_max_health: int = 0
 var boss_reward_sequence_active: bool = false

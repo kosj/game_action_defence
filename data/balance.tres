@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_bal00")
-contact_cooldown = 0.25
+contact_cooldown = 0.375
 regen_interval_lv1 = 16.0
 start_invuln = 5.0
 spawn_budget_per_frame = 12

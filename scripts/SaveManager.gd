@@ -91,7 +91,7 @@ func save_game(player: Node) -> void:
 		"xp": Events.xp,
 		"xp_to_next": Events.xp_to_next,
 		"revives_left": Events.revives_left, # 소모한 부활이 복구되거나 상자 +1 부활이 유실되지 않게
-		"did_clear": Events.did_clear,       # 30분 클리어 알림이 이어하기 후 재발동하지 않게
+		"did_clear": Events.did_clear,       # 20분 클리어 알림이 이어하기 후 재발동하지 않게
 		"upgrade_speed": Events.upgrade_speed,
 		"upgrade_atk_speed": Events.upgrade_atk_speed,
 		"upgrade_bullet_damage": Events.upgrade_bullet_damage,

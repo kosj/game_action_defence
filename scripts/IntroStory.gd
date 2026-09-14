@@ -120,7 +120,7 @@ func _build_ui() -> void:
 	# 목표 한 줄 — 서사("신호를 살려두어라")와 인게임 카운트다운 목표를 잇는 다리.
 	# HUD 하단 힌트와 같은 문구/포맷을 써서 인트로 → 전투 화면이 자연스럽게 이어진다.
 	_goal_label = Label.new()
-	var clear_s := 1800
+	var clear_s := 1200
 	if GameData.difficulty != null:
 		clear_s = int(GameData.difficulty.clear_seconds)
 	_goal_label.text = Locale.t("hud_goal_fmt") % ("%02d:%02d" % [clear_s / 60, clear_s % 60])

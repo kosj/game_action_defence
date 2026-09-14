@@ -18,7 +18,7 @@ const _SOUNDS: Dictionary = {
 	"level_up":    "res://assets/audio/sfx_level_up.ogg",    # 레벨업 카드 등장 징글
 	"boss_alarm":  "res://assets/audio/sfx_boss_alarm.ogg",  # 보스 등장 경보
 	"defeat":      "res://assets/audio/sfx_defeat.ogg",      # 사망(게임오버) 스팅어
-	"victory":     "res://assets/audio/sfx_victory.ogg",     # 30분 클리어 징글
+	"victory":     "res://assets/audio/sfx_victory.ogg",     # 20분 클리어 징글
 	"ui_click":    "res://assets/audio/sfx_ui_click.ogg",    # 메뉴/버튼 탭
 	# UI 전용 4종(P2-24). 예전에는 선택 성공에 gold(동전)를, 거부에 player_hurt(피격음)를
 	# 돌려썼다 — 살 돈이 없을 때 맞는 소리가 났다. tools/gen_sfx.py 로 절차 생성한다.

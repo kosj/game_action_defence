@@ -34,8 +34,8 @@ const STRINGS: Dictionary = {
 	"suburb_boss_move": {"en":"BOSS AREA  %dm", "ko":"보스전 구역  %dm", "ja":"ボスエリア  %dm"},
 	"suburb_transfer": {"en":"Auto move in %ds", "ko":"%d초 후 자동 이동", "ja":"あと %d秒で いどう"},
 	# ── 인트로: "Hold the Ground" (이 구역을 사수하라) ─────────────────────
-	# 비컨(송신탑)은 구조 요청이 아니라 "한 구역을 30분 지켜내면 켜지는 표식"이다.
-	# 클리어 조건(30분 생존)·캐릭터 3종(부대 생존자)·테마 진행(교외→도심→연구소)과 맞춘다.
+	# 비컨(송신탑)은 구조 요청이 아니라 "한 구역을 20분 지켜내면 켜지는 표식"이다.
+	# 클리어 조건(20분 생존)·캐릭터 3종(부대 생존자)·테마 진행(교외→도심→연구소)과 맞춘다.
 	"intro_title":  {"en": "HOLD THE GROUND",        "ko": "이 구역을 사수하라",   "ja": "このエリアを守れ"},
 	"intro_l1":     {"en": "Day 47 since the outbreak.",
 					 "ko": "감염 발생 +47일.",
@@ -46,9 +46,9 @@ const STRINGS: Dictionary = {
 	"intro_l3":     {"en": "Your unit is gone.\nThree of you walked out.",
 					 "ko": "부대는 무너졌다.\n걸어 나온 것은 셋뿐.",
 					 "ja": "部隊は壊滅した。\nぬけだせたのは、ほんのわずか。"},
-	"intro_l4":     {"en": "Hold one zone for thirty minutes\nand its beacon comes alive.",
-					 "ko": "한 구역을 30분 버텨내면\n그곳의 송신탑이 살아난다.",
-					 "ja": "ひとつのエリアを30:00 守りぬけば\nその信号がよみがえる。"},
+	"intro_l4":     {"en": "Hold one zone for twenty minutes\nand its beacon comes alive.",
+					 "ko": "한 구역을 20분 버텨내면\n그곳의 송신탑이 살아난다.",
+					 "ja": "ひとつのエリアを20:00 守りぬけば\nその信号がよみがえる。"},
 	"intro_l5":     {"en": "Suburb. Downtown.\nThen the lab where it began.",
 					 "ko": "교외에서 도심으로,\n그리고 모든 것이 시작된 연구소까지.",
 					 "ja": "まちはずれから都市へ、\nそして全てが始まったラボへ。"},
@@ -215,7 +215,7 @@ const STRINGS: Dictionary = {
 	"hud_hp_fmt":      {"en": "HP %d / %d", "ko": "체력 %d / %d", "ja": "HP %d / %d"},
 	"hud_kills_fmt":   {"en": "%d Kills",   "ko": "%d 처치",   "ja": "%d キル"},
 	"boss_cleared":    {"en": "Boss %d Clear!", "ko": "보스 %d 클리어!", "ja": "ボス %d クリア！"},
-	"run_cleared":     {"en": "SURVIVED 30:00\nCLEAR!", "ko": "30분 생존\n클리어!", "ja": "30:00 生存\nクリア！"},
+	"run_cleared":     {"en": "SURVIVED 20:00\nCLEAR!", "ko": "20분 생존\n클리어!", "ja": "20:00 生存\nクリア！"},
 	"hud_magnet_fmt":  {"en": "XP Magnet  %ds", "ko": "잼 자석  %d초", "ja": "ジェム磁石  %d秒"},
 	"hud_revive":      {"en": "REVIVE  (Watch Ad)", "ko": "부활  (광고 시청)", "ja": "復活（広告を視聴）"},
 	# 서브셋 폰트 주의: 일본어는 한자 글리프가 서브셋에 없을 수 있어 가나 위주로 쓴다.

@@ -16,7 +16,7 @@ const TRACKS := [
 	## 웨이브 개념이 사라진 뒤로 구 "waves" 트랙은 영구히 0/8 이었다 — 메뉴에 *절대 진행되지 않는
 	## 항목*이 상시 떠 있어 유저 눈에는 버그로 보였다(P0-2). 누적 생존 분으로 교체한다.
 	## 보스 처치 수(Boss Breaker)와 측정 대상이 겹치지 않는 지표를 고른 것이 이 교체의 요점이다.
-	## 목표 15분은 한 판(30분 클리어)의 절반 — 첫 티어를 한 세션 안에 닿게 잡았다.
+	## 목표 15분은 한 판(20분 클리어)의 후반 구간 — 첫 티어를 한 세션 안에 닿게 잡았다.
 	{"id": "survive", "metric": "survive", "title": "Survivor", "verb": "Survive", "unit": "minutes",
 		"base_goal": 15,  "goal_mul": 1.6,  "base_reward": 80,  "reward_mul": 1.5},
 ]

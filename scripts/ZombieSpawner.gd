@@ -3,7 +3,7 @@ extends Node
 ## 시간이 갈수록 스폰 간격↓·동시 출현↑·체력/이속↑·강한 종 비중↑. 모든 수치는
 ## DifficultyData(res://data/difficulty.tres)에서 조정한다(하드코딩 금지).
 ## 보스는 _diff.boss_seconds 마다, 엘리트 팩은 _diff.elite_seconds 마다 등장하며 아키타입을 순환한다.
-## _diff.clear_seconds(기본 30분) 생존 시 CLEAR 를 1회 알리고, 이후에는 무한 하드모드로 계속된다.
+## _diff.clear_seconds(기본 20분) 생존 시 CLEAR 를 1회 알리고, 이후에는 무한 하드모드로 계속된다.
 
 const ZOMBIE := preload("res://scenes/Zombie.tscn")
 const BOSS := preload("res://scenes/Boss.tscn")
@@ -85,7 +85,7 @@ var _boss_count: int = 0        # 지금까지 등장한 보스 수(아키타입
 var _arena: Node2D = null       # 현재 보스전의 격리 구역(보스 처치 시 스스로 사라진다)
 var _next_boss_at: float = 0.0  # 이 경과 시각(초)에 도달하면 보스 등장
 var _next_elite_at: float = 0.0 # 이 경과 시각(초)에 도달하면 엘리트 팩 등장
-var _cleared: bool = false      # 30분 생존 클리어를 이미 알렸는가(1회)
+var _cleared: bool = false      # 20분 생존 클리어를 이미 알렸는가(1회)
 var _escort_accum: float = 0.0
 
 
@@ -233,7 +233,7 @@ func _process(delta: float) -> void:
 	_tick_elapsed()
 	_drain_spawn_queue()   # 대기 중인 대량 스폰을 프레임 예산만큼 처리
 
-	# 30분 생존 = 클리어(1회 알림). 승리 조건은 아니며, 이후 무한 하드모드로 계속된다.
+	# 20분 생존 = 클리어(1회 알림). 승리 조건은 아니며, 이후 무한 하드모드로 계속된다.
 	if not _cleared and _elapsed >= _diff.clear_seconds:
 		_cleared = true
 		Events.did_clear = true
