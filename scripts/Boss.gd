@@ -443,7 +443,8 @@ func _start_heal() -> void:
 	_heal_t = HEAL_CHANNEL
 	_heal_taken = 0
 	velocity = Vector2.ZERO
-	SoundManager.play("revive", 0.0, 0.7)   # 회복 차임(보스라 낮은 피치)
+	# 플레이어 부활용 긴 징글 대신 짧은 스냅으로 회복 시전 시작만 알린다.
+	SoundManager.play("card_flip", 0.03, 1.0)
 	_FXBurst.spawn(get_tree().current_scene, global_position, HEAL_COLOR, 95.0, 0.45)
 
 
@@ -462,7 +463,8 @@ func _finish_heal() -> void:
 	Events.boss_health_changed.emit(health, max_health)
 	# 회복량은 피해 숫자와 같은 채널에 초록으로 띄운다(보스 표시라 우선 슬롯 사용).
 	_DamageNumber.spawn(get_tree().current_scene, global_position + Vector2(0, -40), gained, true, HEAL_COLOR, true)
-	SoundManager.play("revive", 0.0, 0.5)
+	# 성공 시에도 긴 부활 징글을 재사용하지 않고 짧고 높은 차임으로 즉시 끝낸다.
+	SoundManager.play("gold", 0.03, 1.25)
 	_FXBurst.spawn(get_tree().current_scene, global_position, HEAL_COLOR, 160.0, 0.55)
 	Events.shake(3.0)
 
@@ -656,13 +658,16 @@ func _die() -> void:
 	_burst(Color(1.0, 0.45, 0.15), 120.0, 0.5,  0.12)   # 주황 2차 파동
 	_burst(Color(1.0, 0.88, 0.35), 190.0, 0.7,  0.24)   # 넓게 퍼지는 마지막 황금 링
 
-	# 황금 동전 분수 — 보스 중심에서 사방으로 튀어 흩어졌다가 착지(시간차 분출). 보스 코인은 프리미엄(값2).
-	for i in range(gold_drop):
+	# 경험치 보석 분수 — 기존 총 경험치(gold_drop*2)는 유지하면서 젬 수를 두 배로 나눠
+	# 최소 32개가 서로 다른 높이로 솟구쳤다가 보스 주변 넓은 범위에 쏟아져 내린다.
+	var gem_count := maxi(32,gold_drop*2)
+	for i in range(gem_count):
 		var g := Pool.acquire(GOLD, get_tree().current_scene)
 		g.global_position = global_position
-		g.set_value(2)
-		var landing := global_position + Vector2.from_angle(randf() * TAU) * randf_range(45.0, 135.0)
-		g.launch(landing, randf() * 0.18)
+		g.set_value(1)
+		var angle := TAU*float(i)/float(gem_count)+randf_range(-0.12,0.12)
+		var landing := global_position+Vector2.from_angle(angle)*randf_range(90.0,280.0)
+		g.launch_fountain(landing,randf_range(210.0,430.0),randf_range(0.0,0.32))
 
 	# 보스 상자 보상 — 무료 레벨업 1회(강화/진화 카드가 즉시 뜬다). 최종 보스는 승리 처리라 제외.
 	if not _is_final:

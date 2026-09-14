@@ -58,6 +58,7 @@ func on_spawn() -> void:
 	_pull_vel = Vector2.ZERO
 	value = 1                     # 풀 재사용 대비 기본값 리셋(등급 젬은 set_value 로 덮어씀)
 	body.scale = COLLECT_SCALE   # 수집 애니메이션 후 리셋
+	body.rotation = 0.0          # 분수 회전 연출이 풀 재사용 뒤 남지 않게 초기화
 	body.modulate = Color(1, 1, 1)   # 경험치 젬 — 파란 다이아(원색). 등급은 set_value 로 틴트.
 	if player == null or not is_instance_valid(player):
 		player = get_tree().get_first_node_in_group("player")
@@ -122,6 +123,35 @@ func launch(to: Vector2, delay: float = 0.0) -> void:
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	# 분출 애니메이션(지연+0.4s)이 모두 끝난 뒤 자석 흡수를 다시 허용.
 	tw.chain().tween_callback(func(): _launching = false)
+
+
+## 보스 처치 분수 — 화면 위로 솟구친 뒤 중력에 끌리듯 착지한다.
+## 착지 전에는 자석·수집을 막아 분출 도중 플레이어에게 직선으로 빨려가는 것을 방지한다.
+func launch_fountain(to: Vector2, rise: float, delay: float = 0.0) -> void:
+	_launching = true
+	body.scale = COLLECT_SCALE * 0.25
+	var start := global_position
+	var apex := Vector2(lerpf(start.x,to.x,0.48),minf(start.y,to.y)-rise)
+	var up_time := randf_range(0.34,0.46)
+	var down_time := randf_range(0.48,0.64)
+
+	var move_tw := create_tween()
+	move_tw.tween_interval(delay)
+	move_tw.tween_property(self,"global_position",apex,up_time) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	move_tw.tween_property(self,"global_position",to,down_time) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	move_tw.tween_callback(func(): _launching = false)
+
+	var art_tw := create_tween()
+	art_tw.tween_interval(delay)
+	art_tw.tween_property(body,"scale",COLLECT_SCALE*1.35,up_time*0.72) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	art_tw.tween_property(body,"scale",COLLECT_SCALE,up_time*0.28+down_time)
+	var spin_tw := create_tween()
+	spin_tw.tween_interval(delay)
+	spin_tw.tween_property(body,"rotation",randf_range(-TAU*2.0,TAU*2.0),up_time+down_time)
+	spin_tw.tween_callback(func(): body.rotation = 0.0)
 
 
 func on_despawn() -> void:
