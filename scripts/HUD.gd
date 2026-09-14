@@ -1166,10 +1166,12 @@ func _build_gameover_stats() -> void:
 	medal_row.add_child(header)
 
 	_go_grade = Label.new()
-	_go_grade.anchor_left = 0.735
-	_go_grade.anchor_top = 0.05
-	_go_grade.anchor_right = 0.90
-	_go_grade.anchor_bottom = 0.75
+	# 원본 헤더(900×300)의 메달 안쪽 원 중심은 약 (764, 128)이다. 라벨 영역도 그
+	# 중심을 기준으로 잡아 글자 폭과 관계없이 등급 문자가 메달 한가운데 놓이게 한다.
+	_go_grade.anchor_left = 0.770
+	_go_grade.anchor_top = 0.20
+	_go_grade.anchor_right = 0.928
+	_go_grade.anchor_bottom = 0.65
 	_go_grade.add_theme_font_size_override("font_size", 52)
 	_go_grade.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_go_grade.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
