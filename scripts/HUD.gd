@@ -51,6 +51,7 @@ var _hp_fill_tween: Tween = null       # 채움부 폭 트윈 — 연속 피격 
 var _flash_tween: Tween = null         # 피격 붉은 섬광 — 종료 시 오버레이를 숨겨 fill-rate 낭비를 없앤다
 var _gold_shown: float = 0.0           # 골드 롤링 카운터의 현재 표시값
 var _gold_roll_tween: Tween = null
+const _GOLD_ROLL_SEC := 0.55           # 획득량과 관계없이 항상 같은 시간에 목표값에 도달
 var _boss_max: int = 1
 var _weapon_tween: Tween = null
 var _weapon_base_text: String = ""
@@ -83,6 +84,7 @@ var _blur_mat: ShaderMaterial = null
 
 # 게임오버 통계 위젯(아이콘 그리드) — 코드로 생성해 텍스트 라벨을 대체.
 var _go_medal: UIIcon = null
+var _go_medal_row: HBoxContainer = null
 var _go_record: Label = null
 var _go_grade: Label = null
 ## 판 시작 시점의 이 위협 등급 최고 생존 시간. 게임오버에서 신기록인지 판정하는 기준이다.
@@ -91,6 +93,7 @@ var _go_grade: Label = null
 ## 그러면 모든 판이 신기록이 된다.
 var _best_at_start: float = 0.0
 var _go_vals: Dictionary = {}   # "score"/"best"/"kills"/"time" -> Label
+var _go_stat_cells: Array = []   # 통계 한 줄의 [아이콘, 이름, 값] — 순차 등장 연출용
 
 ## 상단 경고 띠. 무리·정예·보스 예고·보스 등장이 **하나를** 같이 쓴다(HUDAlert 주석).
 var _alert: HUDAlert = null
@@ -246,8 +249,9 @@ func _on_gold_changed(total: int) -> void:
 		if _gold_roll_tween and _gold_roll_tween.is_valid():
 			_gold_roll_tween.kill()
 		_gold_roll_tween = create_tween()
-		_gold_roll_tween.tween_method(_set_gold_shown, _gold_shown, float(total), 0.35)\
-			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		# 액수에 따라 초반에 몰리지 않도록 선형 보간한다. +1과 +1000 모두 정확히 같은 시간에 끝난다.
+		_gold_roll_tween.tween_method(_set_gold_shown, _gold_shown, float(total), _GOLD_ROLL_SEC)\
+			.set_trans(Tween.TRANS_LINEAR).set_ease(Tween.EASE_IN_OUT)
 	_prev_gold = total
 
 
@@ -1148,6 +1152,7 @@ func _build_gameover_stats() -> void:
 	# 지금은 바로 아래 줄에 보이는 **생존 시간**으로 정하고, 등급 문자를 옆에 붙인다.
 	# 문자를 쓰는 이유는 번역이 필요 없고 폰트 서브셋과도 무관하기 때문이다.
 	var medal_row := HBoxContainer.new()
+	_go_medal_row = medal_row
 	medal_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	medal_row.add_theme_constant_override("separation", 10)
 	holder.add_child(medal_row)
@@ -1187,7 +1192,8 @@ func _build_gameover_stats() -> void:
 			["clock", "time", "go_stat_time", Color(0.82, 0.86, 0.95), _STAT_TXT],
 			["bolt", "level", "go_stat_level", Color(0.65, 0.85, 1.00), _STAT_TXT],
 			["coin", "gold", "go_stat_gold", Color(1.00, 0.82, 0.30), _GOLD_TXT]]:
-		grid.add_child(UIIcon.make(row[0], 22, row[3]))
+		var stat_icon := UIIcon.make(row[0], 22, row[3])
+		grid.add_child(stat_icon)
 
 		var name_lbl := Label.new()
 		name_lbl.text = Locale.t(String(row[2]))
@@ -1204,6 +1210,7 @@ func _build_gameover_stats() -> void:
 		val.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		grid.add_child(val)
 		_go_vals[row[1]] = val
+		_go_stat_cells.append([stat_icon,name_lbl,val])
 
 	# 정보(제목·통계)와 버튼 사이 고정 간격 — 통계가 2줄뿐이라 확장 스페이서를 쓰면
 	# 패널 중앙이 텅 비어 보인다. 고정 간격 + VBox 중앙 정렬로 짜임새 있게 모은다.
@@ -1279,7 +1286,10 @@ const _GRADE_COL := [
 ]
 
 const _VICTORY_TINT := Color(1.20, 1.03, 0.70)
-const _END_COUNT_SEC := 0.6      # 통계 숫자가 0 에서 올라오는 시간
+const _END_COUNT_SEC := 0.42     # 각 통계 숫자가 굴러 올라오는 고정 시간
+const _END_MEDAL_AT := 0.22
+const _END_ROW_AT := 0.52
+const _END_ROW_STAGGER := 0.20
 
 ## 게임오버 배경 비네트(UI_POLISH_PLAN 3-3). 패널만으로는 승패가 **제목 글자 색**으로만
 ## 구분됐다 — 화면 전체가 결과를 말하도록 가장자리를 결과 색으로 물들인다.
@@ -1310,23 +1320,50 @@ func _set_gold_count(v: float) -> void:
 	_go_vals["gold"].text = "%d" % int(round(v))
 
 
+func _set_level_count(v: float) -> void:
+	_go_vals["level"].text = "%d" % int(round(v))
+
+
 func _mmss(seconds: float) -> String:
 	var t := int(round(seconds))
 	return "%02d:%02d" % [t / 60, t % 60]
 
 
-## 게임오버 통계 — 처치 수와 생존 시간을 0 에서 굴려 올린다. 그냥 대입하면 "이미 정해진 값"
-## 이지만, 올라가는 동안은 그 판의 결과를 읽게 된다(골드 롤링 카운터와 같은 이유).
-## 트리가 정지된 뒤에 돈다 — HUD 가 PROCESS_MODE_ALWAYS 라 여기서 만든 트윈도 계속 흐른다.
-func _play_end_stats(kills: int, seconds: int, gold: int) -> void:
-	var tw := create_tween()
-	tw.set_parallel(true)
-	tw.tween_method(_set_kill_count, 0.0, float(kills), _END_COUNT_SEC).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_method(_set_time_count, 0.0, float(seconds), _END_COUNT_SEC).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	tw.tween_method(_set_gold_count, 0.0, float(gold), _END_COUNT_SEC).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+## 메달 → 신기록 → 처치/시간/레벨/골드 순서로 시선을 이동시킨다.
+## 각 줄은 나타나는 순간 숫자를 굴리고, 마지막 숫자가 끝난 뒤에만 버튼을 연다.
+func _play_end_stats(kills: int, seconds: int, level: int, gold: int) -> void:
+	_go_medal_row.modulate.a = 0.0
+	_go_medal_row.scale = Vector2(0.65,0.65)
+	var medal_size := _go_medal_row.size if _go_medal_row.size.x > 0.0 else _go_medal_row.get_combined_minimum_size()
+	_go_medal_row.pivot_offset = medal_size*0.5
+	var medal_tw := create_tween()
+	medal_tw.tween_interval(_END_MEDAL_AT)
+	medal_tw.tween_property(_go_medal_row,"modulate:a",1.0,0.14)
+	medal_tw.parallel().tween_property(_go_medal_row,"scale",Vector2.ONE,0.28)\
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+	if _go_record.visible:
+		_go_record.modulate.a = 0.0
+		var record_tw := create_tween()
+		record_tw.tween_interval(_END_MEDAL_AT+0.22)
+		record_tw.tween_property(_go_record,"modulate:a",1.0,0.16)
+
+	var setters: Array[Callable] = [_set_kill_count,_set_time_count,_set_level_count,_set_gold_count]
+	var targets := [kills,seconds,level,gold]
+	for i in _go_stat_cells.size():
+		var row_delay := _END_ROW_AT+_END_ROW_STAGGER*float(i)
+		for cell in _go_stat_cells[i]:
+			cell.modulate.a = 0.0
+			var fade_tw := create_tween()
+			fade_tw.tween_interval(row_delay)
+			fade_tw.tween_property(cell,"modulate:a",1.0,0.14)
+		var count_tw := create_tween()
+		count_tw.tween_interval(row_delay)
+		count_tw.tween_method(setters[i],0.0,float(targets[i]),_END_COUNT_SEC)\
+			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 
 
-## 버튼은 통계가 다 올라간 뒤 차례로 나타난다 — 숫자를 읽기도 전에 손이 먼저 가지 않게.
+## 버튼은 마지막 통계가 다 올라간 뒤 차례로 나타난다.
 func _stagger_end_buttons() -> void:
 	var btns: Array = []
 	for b in [_revive_btn, restart_button, main_menu_button]:
@@ -1336,7 +1373,8 @@ func _stagger_end_buttons() -> void:
 	for b in btns:
 		b.modulate.a = 0.0
 		var tw := create_tween()
-		tw.tween_interval(_END_COUNT_SEC * 0.5 + _END_BTN_STAGGER * float(i))
+		var stats_end := _END_ROW_AT+_END_ROW_STAGGER*float(_go_stat_cells.size()-1)+_END_COUNT_SEC
+		tw.tween_interval(stats_end+0.12+_END_BTN_STAGGER*float(i))
 		tw.tween_property(b, "modulate:a", 1.0, UIMotion.DUR_FADE)
 		i += 1
 
@@ -1374,16 +1412,6 @@ func _show_end_panel(victory: bool) -> void:
 	_go_grade.add_theme_color_override("font_color", medal)
 	_go_medal.color = medal
 	_go_medal.queue_redraw()
-	# 메달은 패널보다 한 박자 늦게 튀어나온다 — 패널·메달·숫자가 한꺼번에 나오면
-	# 어디를 봐야 할지 알 수 없다.
-	# (패널이 숨어 있던 동안 배치가 안 됐을 수 있어, size 가 0 이면 최소 크기로 중심을 잡는다)
-	var medal_sz := _go_medal.size if _go_medal.size.x > 0.0 else _go_medal.custom_minimum_size
-	_go_medal.pivot_offset = medal_sz * 0.5
-	_go_medal.scale = Vector2(0.4, 0.4)
-	var mtw := create_tween()
-	mtw.tween_interval(0.18)
-	mtw.tween_property(_go_medal, "scale", Vector2.ONE, 0.34).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-
 	# 신기록 배너. 이 위협 등급에서 판 시작 시점의 최고 기록을 넘겼을 때만 뜬다.
 	# 예전에는 스코어 기반이라 늘 꺼 두고 있었다 — 점수는 화면에서 뺐으니(P2-22)
 	# 플레이어가 실제로 겨루는 값, 곧 생존 시간으로 판정한다.
@@ -1406,10 +1434,7 @@ func _show_end_panel(victory: bool) -> void:
 	tw.set_parallel(true)
 	tw.tween_property(game_over_panel, "modulate:a", 1.0, 0.3)
 	tw.tween_property(game_over_panel, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	# 레벨은 굴리지 않는다 — 두 자리라 카운트업이 눈에 띄지도 않고, 굴러가는 숫자가
-	# 셋이면 어디를 봐야 할지 알 수 없다. 처치·시간·골드만 굴린다.
-	_go_vals["level"].text = "%d" % Events.level
-	_play_end_stats(Events.total_kills, int(Events.elapsed_time), Events.total_gold)
+	_play_end_stats(Events.total_kills,int(Events.elapsed_time),Events.level,Events.total_gold)
 	_stagger_end_buttons()
 
 	# 게임 전체 정지 — 좀비·총알·플레이어 이동까지 모두 멈춘다(HUD/광고는 PROCESS_MODE_ALWAYS 라 계속 동작).

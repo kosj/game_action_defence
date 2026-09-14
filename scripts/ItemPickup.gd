@@ -1,5 +1,5 @@
 extends Node2D
-## 필드 픽업: 보물상자(먹으면 랜덤 골드) 또는 폭탄(화면 내 잡몹 일소). 방치 시 사라진다.
+## 필드 픽업: 보물상자·체력 회복·진화 상자. 방치 시 사라진다.
 ## 풀링되며 "item_pickups" 그룹으로 동시 등장 수를 제한한다.
 ##
 ## 물리 노드가 아니다: 수집 판정은 아래 _process() 의 collect_radius 거리 계산뿐이다.
@@ -19,6 +19,8 @@ const _ChestReward := preload("res://scripts/ChestRewardPanel.gd")
 const CHEST_COLOR := Color(1.0, 0.82, 0.2)
 const EVOCHEST_COLOR := Color(0.75, 0.45, 1.0)   # 진화 상자 — 보라(엘리트/보스 드롭)
 const BOMB_COLOR := Color(1.0, 0.45, 0.15)
+const HEAL_COLOR := Color(0.30, 1.0, 0.52)
+const HEAL_AMOUNT := 2
 const BOMB_DAMAGE := 40           # 폭탄: 화면 내 잡몹 일소(보스 제외)
 const CHEST_GOLD_MIN := 12        # 보물상자 골드 획득 범위
 const CHEST_GOLD_MAX := 55
@@ -30,7 +32,7 @@ const CHEST_TEX_PATH := "res://assets/atlas/chest_treasure.tres"
 const EVOCHEST_TEX_PATH := "res://assets/atlas/chest_evolution.tres"
 const CHEST_DRAW_PX := 46.0   # 화면에 그릴 긴 변 크기
 
-var kind: String = "chest"   # "chest" | "bomb" — 스포너가 스폰 시 지정
+var kind: String = "chest"   # "chest" | "heal" | "evochest" | "bomb"
 var player: Node2D = null
 var _alive: bool = false
 var _t: float = 0.0
@@ -41,6 +43,7 @@ var _tex_kind: String = ""   # _tex 를 어느 kind 로 캐시했는지
 func _icon_color() -> Color:
 	match kind:
 		"bomb": return BOMB_COLOR
+		"heal": return HEAL_COLOR
 		"evochest": return EVOCHEST_COLOR
 		_: return CHEST_COLOR
 
@@ -48,6 +51,7 @@ func _icon_color() -> Color:
 func _label() -> String:
 	match kind:
 		"bomb": return Locale.t("pickup_bomb")
+		"heal": return Locale.t("pickup_heal")
 		"evochest": return Locale.t("pickup_evolution")
 		_: return Locale.t("pickup_treasure")
 
@@ -77,7 +81,7 @@ func _process(delta: float) -> void:
 		player = get_tree().get_first_node_in_group("player")
 		queue_redraw()
 		return
-	if global_position.distance_to(player.global_position) <= collect_radius:
+	if global_position.distance_to(player.global_position) <= collect_radius and _can_collect():
 		_collect()
 		return
 	if _t >= lifetime:
@@ -90,9 +94,25 @@ func _collect() -> void:
 	_alive = false
 	match kind:
 		"bomb": _collect_bomb()
+		"heal": _collect_heal()
 		"evochest": _collect_evochest()
 		_: _collect_chest()
 	_despawn()
+
+
+## 체력이 가득 찼을 때 회복 아이템을 낭비하지 않고 필드에 남겨 둔다.
+func _can_collect() -> bool:
+	if kind != "heal":
+		return true
+	return int(player.get("health")) < int(player.get("max_health"))
+
+
+func _collect_heal() -> void:
+	if player.has_method("heal"):
+		player.heal(HEAL_AMOUNT)
+	SoundManager.play("gold",0.03,1.2)
+	_FXBurst.spawn(get_tree().current_scene,global_position,HEAL_COLOR,80.0,0.4)
+	Events.shake(2.0)
 
 
 ## 진화 보물상자: 진화 가능한 무기가 있으면 진화 선택지를 띄우고, 없으면 보상(무료 레벨업 + 골드).
@@ -137,12 +157,24 @@ func _draw() -> void:
 	var remain := lifetime - _t
 	if remain < fade_time:
 		alpha = clampf(remain / fade_time, 0.0, 1.0)
-	if kind == "bomb":
-		_draw_bomb(center, alpha)
-	else:
-		_draw_chest(center, alpha)   # chest/evochest — 금속 밴드 색은 _icon_color()
+	match kind:
+		"bomb": _draw_bomb(center,alpha)
+		"heal": _draw_heal(center,alpha)
+		_: _draw_chest(center,alpha)   # chest/evochest — 금속 밴드 색은 _icon_color()
 	var font := ThemeDB.fallback_font
 	draw_string(font, center + Vector2(-60.0, -34.0), _label(), HORIZONTAL_ALIGNMENT_CENTER, 120.0, 14, Color(1.0, 1.0, 1.0, alpha))   # batching-exempt: 임의 로케일 문자열이라 비트맵으로 못 굽는다. 동시 표시 수가 한 자릿수라 배치 손실이 그만큼뿐이다
+
+
+func _draw_heal(center: Vector2, alpha: float) -> void:
+	var pulse := 1.0+sin(_t*4.5)*0.07
+	for i in 5:
+		var f := float(i)/5.0
+		QuadDraw.disc(self,center,(29.0-11.0*f)*pulse,Color(HEAL_COLOR.r,HEAL_COLOR.g,HEAL_COLOR.b,0.055*alpha))
+	QuadDraw.disc(self,center,17.0*pulse,Color(0.10,0.34,0.18,0.96*alpha))
+	QuadDraw.ring(self,center,18.0*pulse,Color(HEAL_COLOR.r,HEAL_COLOR.g,HEAL_COLOR.b,alpha),2.5,28)
+	var white := Color(0.94,1.0,0.96,alpha)
+	QuadDraw.rect(self,Rect2(center+Vector2(-3.0,-11.0),Vector2(6.0,22.0)),white)
+	QuadDraw.rect(self,Rect2(center+Vector2(-11.0,-3.0),Vector2(22.0,6.0)),white)
 
 
 ## 종류에 맞는 상자 텍스처(없으면 null). 파일이 없으면 절차 드로잉으로 폴백하므로

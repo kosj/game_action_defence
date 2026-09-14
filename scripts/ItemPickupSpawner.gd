@@ -1,5 +1,5 @@
 extends Node
-## 필드 아이템 스포너: 보물상자(랜덤 골드) 위주로, 가끔 폭탄을 플레이어 주변에 등장시킨다.
+## 필드 아이템 스포너: 보물상자와 체력 회복 아이템을 플레이어 주변에 등장시킨다.
 ## 동시에 존재하는 미수집 아이템 수를 제한한다("item_pickups" 그룹).
 
 const ITEM_PICKUP := preload("res://scenes/ItemPickup.tscn")
@@ -50,7 +50,9 @@ func _process(delta: float) -> void:
 
 func _spawn_item() -> void:
 	var p := Pool.acquire(ITEM_PICKUP, get_tree().current_scene)
-	p.kind = "chest"   # 필드 스폰은 보물상자만(폭탄 스폰 제거)
+	# 다친 상태에서 30% 확률로 회복 아이템. 만피일 때는 쓸 수 없는 아이템이 슬롯을 막지 않는다.
+	var needs_heal := int(player.get("health")) < int(player.get("max_health"))
+	p.kind = "heal" if needs_heal and randf() < 0.30 else "chest"
 	p.global_position = _random_spawn_pos()
 
 

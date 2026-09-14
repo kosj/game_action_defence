@@ -192,6 +192,7 @@ const STRINGS: Dictionary = {
 
 	# ── 필드 아이템 픽업 라벨(월드에 그린다) ───────────────────────────────
 	"pickup_bomb":     {"en": "Bomb", "ko": "폭탄", "ja": "ボム"},
+	"pickup_heal":     {"en": "First Aid", "ko": "응급 치료", "ja": "かいふく"},
 	"pickup_evolution": {"en": "Evolution", "ko": "진화", "ja": "エボリューション"},
 	"pickup_treasure": {"en": "Treasure", "ko": "보물", "ja": "トレジャー"},
 
