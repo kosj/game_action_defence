@@ -31,11 +31,19 @@ var _started := false
 var _menu: Node = null
 var _i := 0
 var _opened := false
+var _lang := "ko"
 
 
 func _process(_d: float) -> bool:
 	if not _started:
 		_started = true
+		root.content_scale_size = Vector2i(720, 1280)
+		root.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_KEEP
+		root.size = Vector2i(720, 1280)
+		for arg in OS.get_cmdline_user_args():
+			if String(arg) in ["en", "ko", "ja"]:
+				_lang = String(arg)
+		root.get_node("Locale").set_language(_lang)
 		_menu = (load("res://scenes/MainMenu.tscn") as PackedScene).instantiate()
 		root.add_child(_menu)
 		current_scene = _menu
@@ -72,6 +80,6 @@ func _process(_d: float) -> bool:
 
 func _grab(tag: String) -> void:
 	var img := root.get_texture().get_image()
-	var path := OUT + tag + ".png"
+	var path := OUT + _lang + "_" + tag + ".png"
 	img.save_png(path)
 	print("저장: %s  (%dx%d)" % [path, img.get_width(), img.get_height()])

@@ -4,6 +4,9 @@ extends CanvasLayer
 ## 카탈로그·슬롯 규칙은 ItemDB, 인벤토리는 Events.weapons/passives.
 
 const _UIStyle := preload("res://scripts/UIStyle.gd")
+const _CelebrationFX := preload("res://scripts/LevelUpCelebrationFX.gd")
+
+const _CARD_HEIGHT := 184.0
 
 var _dim: ColorRect
 var _panel: PanelContainer
@@ -18,6 +21,7 @@ var _auto_t: float = 0.0        # 자동플레이 치트 — 카드가 뜬 뒤 �
 var _stuck_t: float = 0.0       # 카드 없는 패널이 떠 있는 시간(안전망 — 강제 진행/닫기)
 var _fw_holder: Control = null  # 축하 폭죽 홀더(패널 뒤)
 var _fw_tw: Tween = null        # 폭죽 발사 예약 트윈 — 패널을 닫을 때 끊는다
+var _celebration: Control = null
 ## 카드를 고른 뒤 확정 연출이 도는 동안 참. 이 사이에는 다른 카드를 누를 수도,
 ## 자동플레이가 또 고를 수도, "선택지 없는 패널" 안전망이 끼어들 수도 없어야 한다.
 var _confirming: bool = false
@@ -69,6 +73,9 @@ func _build_ui() -> void:
 	_dim.color = Color(0, 0, 0, 0.62)
 	add_child(_dim)
 
+	_celebration = _CelebrationFX.new()
+	add_child(_celebration)
+
 	# 축하 폭죽 홀더 — 패널 뒤(어둠 위)에 깔려 카드 UI 를 가리지 않는다.
 	_fw_holder = Control.new()
 	_fw_holder.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -100,7 +107,8 @@ func _build_ui() -> void:
 	# 패널 자체를 밀어 넓히고 있었다 — 프레임에 글자가 닿아 여백이 사라진다(실렌더 확인, P2-3).
 	# 크기를 줄이는 대신 줄바꿈을 켠다. 한국어·일본어는 짧아 한 줄로 유지된다.
 	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_title.custom_minimum_size = Vector2(560, 0)
+	_title.custom_minimum_size = Vector2(560, 82)
+	_title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_title.add_theme_font_size_override("font_size", 34)
 	_title.add_theme_color_override("font_color", UITheme.TACTICAL_TEXT)
 	vb.add_child(_title)
@@ -142,10 +150,13 @@ func _present() -> void:
 	Events.pause_push(self, "levelup")   # 정지 소유권은 Events 가 참조 카운트로 관리한다
 	if SoundManager.has_stream("level_up"):
 		SoundManager.play_ui("level_up", 0.03, 1.0)   # 레벨업 징글(파일 있을 때만)
-	# 레벨업 축하 폭죽 — 패널 주변 화면 전역에 금빛/청색 폭죽을 쏟아붓는다.
+	# 전체 화면 폭죽과 저채도 방사광. 둘 다 패널 뒤라 카드의 글자와 입력을 가리지 않는다.
 	_stop_fireworks()   # 직전 레벨업의 잔여 폭죽을 먼저 비운다
-	_fw_tw = FireworksFX.celebrate(_fw_holder, Rect2(70, 190, 580, 760),
-		[Color(1.0, 0.85, 0.35), Color(0.5, 0.8, 1.0), Color(1.0, 1.0, 0.9)], 40)
+	_celebration.play(_evo_mode)
+	var screen := get_viewport().get_visible_rect().size
+	var fireworks_region := Rect2(Vector2(18, 42), Vector2(maxf(1.0, screen.x - 36), maxf(1.0, screen.y - 84)))
+	_fw_tw = FireworksFX.celebrate(_fw_holder, fireworks_region,
+		[Color(1.0, 0.85, 0.35), Color(0.5, 0.8, 1.0), Color(1.0, 1.0, 0.9)], 56)
 	_refresh()
 	_panel.scale = Vector2(0.96, 0.96)
 	_panel.modulate.a = 0.0
@@ -347,8 +358,10 @@ func _card_content(btn: Button, item: Dictionary, tag: String, levels: String, e
 	# A container owns text height; long translations grow the card rather than overlap.
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_"+side, 16)
+	margin.add_theme_constant_override("margin_left", 24)
+	margin.add_theme_constant_override("margin_right", 24)
+	margin.add_theme_constant_override("margin_top", 18)
+	margin.add_theme_constant_override("margin_bottom", 18)
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(margin)
 	var row := HBoxContainer.new()
@@ -364,14 +377,22 @@ func _card_content(btn: Button, item: Dictionary, tag: String, levels: String, e
 	text.add_theme_constant_override("separation", 4)
 	row.add_child(text)
 	var badge := _UIStyle.tactical_label(tag + "   " + levels, 24, UITheme.TACTICAL_YELLOW if evolved else UITheme.TACTICAL_TEAL)
-	badge.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	badge.name = "Badge"
+	badge.clip_text = true
+	badge.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	badge.custom_minimum_size.y = 30
 	text.add_child(badge)
 	var title := _UIStyle.tactical_label(item.get("name", ""), 28)
+	title.name = "Title"
 	title.add_theme_font_override("font", UITheme.bold_font())
-	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.clip_text = true
+	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	title.custom_minimum_size.y = 34
 	text.add_child(title)
 	var desc := _UIStyle.tactical_label(item.get("desc", ""), 24, UITheme.TACTICAL_MUTED)
+	desc.name = "Description"
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	desc.custom_minimum_size.y = 58
 	text.add_child(desc)
 	var check := UIIcon.make("check", 28, UITheme.TACTICAL_TEXT)
 	check.name = "SelectedCheck"
@@ -379,16 +400,13 @@ func _card_content(btn: Button, item: Dictionary, tag: String, levels: String, e
 	check.position = Vector2(-36,8)
 	check.hide()
 	btn.add_child(check)
-	# Width is fixed by the parent; refresh the minimum height after text wrapping.
-	var fit := func(): btn.custom_minimum_size.y = maxf(176, margin.get_combined_minimum_size().y)
-	margin.minimum_size_changed.connect(fit)
-	btn.resized.connect(fit)
-	fit.call_deferred()
+	# Fixed row heights make the three-card stack deterministic on 360x640.  Each label owns
+	# enough vertical room for its allowed line count and trims inside that room.
 
 
 func _new_card_button() -> Button:
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(560, 176)
+	btn.custom_minimum_size = Vector2(560, _CARD_HEIGHT)
 	return btn
 
 
@@ -401,6 +419,8 @@ const _CONFIRM_TINT := Color(1.08, 1.08, 1.02, 1.0)
 
 func _confirm_card(picked: Control) -> void:
 	_confirming = true
+	if _celebration != null:
+		_celebration.confirm()
 	# 확정음 — 그림(카드가 커지며 밝아짐)과 같은 순간에 소리도 있어야 "정해졌다"가 된다.
 	# 진화는 뒤이어 전용 팡파르가 나므로 여기서는 내지 않는다(둘이 겹쳐 뭉갠다).
 	if not _evo_mode:
@@ -533,6 +553,8 @@ func _stop_fireworks() -> void:
 	if _fw_holder != null:
 		for c in _fw_holder.get_children():
 			c.queue_free()
+	if _celebration != null:
+		_celebration.clear()
 
 
 ## 씬 전환 등으로 패널이 뜬 채 사라질 때 — 정지가 영구히 남지 않게 소유권을 반납한다.

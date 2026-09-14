@@ -5,8 +5,8 @@ extends Node2D
 
 const BULLET := preload("res://scenes/Bullet.tscn")
 const FIRE_INTERVAL := 0.5   # 터렛 자체 발사 간격
-const MUZZLE_LEN := 15.0     # 발사 위치(포신 끝) — 조준 방향으로 이만큼 앞에서 탄이 나간다
-const SPR_SCALE := 0.3
+const MUZZLE_LEN := 24.0     # 커진 포신 끝에서 탄이 나오도록 시각 크기와 함께 맞춘다.
+const SPR_SCALE := 0.46      # 128px 원본을 약 59px로 표시해 필드에서도 실루엣이 읽히게 한다.
 
 ## 방향 스프라이트(3x3 시트에서 잘라낸 셀). 시트가 8방향을 완벽히 담진 않아 실제 그려진 방향에
 ## 맞춰 매핑: up=idx0, up-right=idx2, left=idx3, down=idx4, right=idx5. (없는 대각은 근접/미러 대체)
@@ -58,12 +58,20 @@ func _ready() -> void:
 	_shadow = Sprite2D.new()
 	_shadow.texture = _SHADOW_TEX
 	_shadow.z_index = -1
+	_shadow.modulate = Color(0.03, 0.05, 0.07, 0.72)
 	add_child(_shadow)
 	_spr = Sprite2D.new()
 	_spr.scale = Vector2(SPR_SCALE, SPR_SCALE)
 	add_child(_spr)
 	_update_sprite()
 	_fit_shadow()
+	# 설치 순간 바닥에서 묵직하게 올라온다. 노드 전체를 키워 그림자와 본체가 함께 안착한다.
+	scale = Vector2.ONE * 0.72
+	modulate.a = 0.0
+	var deploy := create_tween()
+	deploy.set_parallel(true)
+	deploy.tween_property(self, "scale", Vector2.ONE, 0.24).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	deploy.tween_property(self, "modulate:a", 1.0, 0.12)
 
 
 func _physics_process(delta: float) -> void:
@@ -99,9 +107,9 @@ func _fit_shadow() -> void:
 	if _spr.texture == null:
 		return
 	var tex: Vector2 = _spr.texture.get_size()
-	var sx: float = (tex.x * SPR_SCALE * 1.15) / 128.0
-	_shadow.scale = Vector2(sx, sx * 0.5)
-	_shadow.position = Vector2(0.0, tex.y * SPR_SCALE * 0.42)
+	var sx: float = (tex.x * SPR_SCALE * 1.28) / 128.0
+	_shadow.scale = Vector2(sx, sx * 0.46)
+	_shadow.position = Vector2(0.0, tex.y * SPR_SCALE * 0.40)
 
 
 func _fire(target: Node2D) -> void:
@@ -119,6 +127,10 @@ func _fire(target: Node2D) -> void:
 	b.knockback = 0.0
 	b.splash_radius = 0.0
 	b.queue_redraw()
+	# 포신이 발사 반대 방향으로 짧게 밀렸다 돌아와 작은 화면에서도 발사 주체가 보인다.
+	_spr.position = -_aim * 3.5
+	var recoil := _spr.create_tween()
+	recoil.tween_property(_spr, "position", Vector2.ZERO, 0.10).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	SoundManager.play("shoot", 0.08, 1.15)
 
 

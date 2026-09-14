@@ -32,17 +32,22 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_card = Panel.new()
 	_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_card.clip_contents = true
 	add_child(_card)
-	_heading = _label(24,Vector2(100,14),Vector2(394,27))
-	_title = _label(24,Vector2(100,43),Vector2(394,60))
-	_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_title.max_lines_visible = 2
-	_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	_detail = _label(24,Vector2(100,109),Vector2(394,26))
+	# Effects are behind the labels.  The old order painted the progress rule over the detail text.
 	_fx = Control.new()
 	_fx.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.add_child(_fx)
 	_fx.draw.connect(_draw_fx)
+	_heading = _label(24,Vector2(100,18),Vector2(394,30))
+	_heading.clip_text = true
+	_heading.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_title = _label(24,Vector2(100,54),Vector2(394,34))
+	_title.clip_text = true
+	_title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	_detail = _label(22,Vector2(100,100),Vector2(394,30))
+	_detail.clip_text = true
+	_detail.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	get_viewport().size_changed.connect(_layout)
 	Events.player_died.connect(clear)
 	_card.hide()
@@ -59,7 +64,7 @@ func _label(font_size: int, at: Vector2, extent: Vector2) -> Label:
 
 func _layout() -> void:
 	var screen := get_viewport_rect().size
-	_card.size = Vector2(minf(520,screen.x-48),148)
+	_card.size = Vector2(minf(520,screen.x-48),208)
 	var portrait := screen.y>screen.x
 	_card.position = Vector2((screen.x-_card.size.x)*0.5 if portrait else screen.x-_card.size.x-24,416)
 	for label in [_heading,_title,_detail]:
@@ -101,7 +106,7 @@ func _next() -> void:
 	_tween.tween_callback(_next)
 
 func _draw_fx() -> void:
-	var origin := Vector2(52,70)
+	var origin := Vector2(52,104)
 	_fx.draw_circle(origin,30,_accent.darkened(0.78))
 	_fx.draw_arc(origin,32,0,TAU,48,_accent,2,true)
 	if current.get("achievement",false):
@@ -116,7 +121,8 @@ func _draw_fx() -> void:
 		var col := _accent
 		col.a = 1-_burst
 		_fx.draw_line(origin+ray*(32+_burst*18),origin+ray*(36+_burst*25),col,2,true)
-	_fx.draw_line(Vector2(16,141),Vector2(16+(_card.size.x-32)*_progress,141),_accent,2,true)
+	var progress_y := _card.size.y - 10.0
+	_fx.draw_line(Vector2(16,progress_y),Vector2(16+(_card.size.x-32)*_progress,progress_y),_accent,2,true)
 
 func clear() -> void:
 	if _tween != null and _tween.is_valid(): _tween.kill()

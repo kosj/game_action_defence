@@ -39,6 +39,13 @@ func run() -> void:
 	await create_timer(0.8).timeout
 	var card: Control = notice.get("_card")
 	check(Rect2(Vector2.ZERO,root.get_visible_rect().size).encloses(card.get_global_rect()),"Notice outside viewport")
+	for field in ["_heading","_title","_detail"]:
+		var label: Label = notice.get(field)
+		check(card.get_global_rect().encloses(label.get_global_rect()),"Notice text outside card: "+field)
+	var detail: Label = notice.get("_detail")
+	check(detail.position.y+detail.size.y <= card.size.y-36.0,
+		"Notice detail overlaps metal frame: detail_bottom=%s safe_bottom=%s" % [
+			detail.position.y+detail.size.y, card.size.y-36.0])
 	await capture("milestone-achievement")
 	var before: float = notice.get("_progress")
 	root.get_node("Events").pause_push(notice,"notice_test")

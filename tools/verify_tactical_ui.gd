@@ -15,6 +15,18 @@ func settle() -> void:
 func inside(ctrl: Control, message: String) -> void:
 	check(Rect2(Vector2.ZERO, root.get_visible_rect().size).grow(1).encloses(ctrl.get_global_rect()), message + " " + str(ctrl.get_global_rect()))
 
+func card_text_inside(card: Control, message: String) -> void:
+	for node_name in ["Badge", "Title", "Description"]:
+		var label: Label = card.find_child(node_name, true, false)
+		check(label != null, message + " missing " + node_name)
+		if label == null: continue
+		check(label.size.y > 0.0, message + " missing " + node_name)
+		check(card.get_global_rect().grow(1).encloses(label.get_global_rect()),
+			message + " overflow " + node_name + " " + str(label.get_global_rect()))
+	var description: Label = card.find_child("Description", true, false)
+	if description != null:
+		check(description.get_line_count() <= 2, message + " description exceeds two rows")
+
 func _run() -> void:
 	# Save-presence fixture is restored even when an assertion fails.
 	var save_path := "user://save.json"
@@ -131,7 +143,9 @@ func _run() -> void:
 				panel._card_box.add_child(panel._make_item_card({"item":catalog[i],"lv":7,"is_new":false}))
 			await settle()
 			inside(panel._panel,"Long cards fit "+language)
-			for card in panel._card_box.get_children(): inside(card,"Long card fits")
+			for card in panel._card_box.get_children():
+				inside(card,"Long card fits")
+				card_text_inside(card,"Long card text fits "+language)
 			panel._pending = 0
 			panel._advance_or_close()
 		# An evolution followed by a queued level must keep pause until both finish.
