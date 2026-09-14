@@ -338,20 +338,26 @@ func _reveal() -> void:
 		_antic = null
 	_auto_left = float(_rar["hold"])
 	var col := _col
+	var rarity := int(get_meta("rarity"))
+	var screen_size := get_viewport().get_visible_rect().size
 
-	# 등급 섬광(희귀 이상) — 화면 전체가 등급색으로 번쩍였다 사라진다.
-	var flash_a: float = _rar["flash"]
-	if flash_a > 0.0:
-		var flash := ColorRect.new()
-		flash.set_anchors_preset(Control.PRESET_FULL_RECT)
-		flash.color = Color(col.r, col.g, col.b, flash_a)
-		flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(flash)
-		create_tween().tween_property(flash, "color:a", 0.0, 0.5).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	# 모든 등급에 짧은 획득 섬광을 준다. 상위 등급은 등급색과 강도가 더 선명하다.
+	var flash_a := maxf(0.14, float(_rar["flash"]))
+	var flash_col := Color.WHITE if rarity == 0 else col.lightened(0.25)
+	var flash := ColorRect.new()
+	flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+	flash.color = Color(flash_col.r, flash_col.g, flash_col.b, flash_a)
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(flash)
+	var flash_tw := create_tween()
+	flash_tw.tween_property(flash, "color:a", 0.0, 0.55).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	flash_tw.tween_callback(flash.queue_free)
+	# 월드에도 짧게 충격을 전달해 상자가 실제로 터져 열린 느낌을 준다.
+	Events.shake(maxf(2.0, float(_rar["shake"])))
 
 	# 반짝이 입자 분출 — 등급이 높을수록 많고 화려하게.
 	var spark := CPUParticles2D.new()
-	spark.position = Vector2(get_viewport().get_visible_rect().size.x * 0.5, 560)
+	spark.position = screen_size * Vector2(0.5, 0.44)
 	spark.amount = int(_rar["spark"])
 	spark.lifetime = 1.1
 	spark.one_shot = false
@@ -448,7 +454,6 @@ func _reveal() -> void:
 		ft.tween_callback(_flip_swap.bind(back, face, i))
 		ft.tween_property(card, "scale:x", 1.0, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		ft.tween_callback(_pop_firework.bind(fw_holder, 0.8))
-		ft.tween_callback(_pop_firework.bind(fw_holder, 0.8))
 	_auto_left += 1.0 + 0.34 * float(n)   # 확대+플립이 다 보이도록 자동 닫힘 여유 추가
 
 	var hint := Label.new()
@@ -489,28 +494,46 @@ func _reveal() -> void:
 			SoundManager.play_ui("gold", 0.05, 0.7)
 
 
-## 등급에 비례해 화면 곳곳에 폭죽을 연달아 터뜨린다(보상 UI 뒤). 전설은 중앙 피날레 대형 폭죽까지.
+## 등급에 비례해 실제 뷰포트 전체에 폭죽을 연달아 터뜨린다(보상 UI 뒤).
+## 첫 파동은 고정된 화면 구역을 채워 가로·세로 화면 모두 가장자리까지 축하 연출이 보이게 한다.
 func _launch_fireworks(holder: Control) -> void:
 	var rarity := int(get_meta("rarity"))
-	var bursts: int = [24, 36, 52, 80][rarity]   # 축하 밀도 4배 — 등급이 높을수록 쏟아진다
+	var bursts: int = [24, 36, 52, 80][rarity]
 	var fw_tw := create_tween()
+	var cover_points := [
+		Vector2(0.10, 0.20), Vector2(0.32, 0.34), Vector2(0.52, 0.16),
+		Vector2(0.72, 0.36), Vector2(0.90, 0.22), Vector2(0.18, 0.72),
+		Vector2(0.42, 0.82), Vector2(0.66, 0.70), Vector2(0.88, 0.80),
+	]
+	# 공개 프레임에 화면 전역을 먼저 밝힌 뒤 연속 폭죽을 이어 간다.
+	for uv in cover_points:
+		fw_tw.tween_callback(_pop_firework_at.bind(holder, uv, 0.85 + 0.08 * rarity))
 	for i in range(bursts / 2):   # 틱마다 2발씩 짧은 간격으로 — 화면이 폭죽으로 가득 찬다
 		fw_tw.tween_interval(0.03 if i == 0 else randf_range(0.05, 0.11))
 		fw_tw.tween_callback(_pop_firework.bind(holder, 1.0))
 		fw_tw.tween_callback(_pop_firework.bind(holder, 1.0))
-	if rarity == 3:
-		fw_tw.tween_interval(0.25)
-		fw_tw.tween_callback(_pop_firework.bind(holder, 1.9))
+	# 모든 상자가 중앙 피날레로 끝나며, 전설 등급은 더 크게 터진다.
+	fw_tw.tween_interval(0.18)
+	fw_tw.tween_callback(_pop_firework_at.bind(holder, Vector2(0.5, 0.42), 1.9 if rarity == 3 else 1.35))
+
+
+## 정규화 좌표로 지정한 위치에 폭죽을 터뜨린다. 해상도·화면비에 독립적이다.
+func _pop_firework_at(holder: Control, uv: Vector2, size_mul: float) -> void:
+	var screen_size := get_viewport().get_visible_rect().size
+	_pop_firework(holder, size_mul, Vector2(screen_size.x * uv.x, screen_size.y * uv.y))
 
 
 ## 폭죽 1발 — 원샷 방사 폭발 + 중력 낙하 + 페이드. size_mul 로 피날레 대형화.
-func _pop_firework(holder: Control, size_mul: float) -> void:
+func _pop_firework(holder: Control, size_mul: float, forced_pos: Vector2 = Vector2(-1, -1)) -> void:
 	if _closed or not is_instance_valid(holder):
 		return
 	var rarity := int(get_meta("rarity"))
-	var pos := Vector2(randf_range(90, 630), randf_range(220, 920))
-	if size_mul > 1.5:
-		pos = Vector2(get_viewport().get_visible_rect().size.x * 0.5, 470)   # 피날레는 중앙 상단
+	var screen_size := get_viewport().get_visible_rect().size
+	var pos := forced_pos
+	if pos.x < 0.0:
+		pos = Vector2(
+			randf_range(screen_size.x * 0.05, screen_size.x * 0.95),
+			randf_range(screen_size.y * 0.08, screen_size.y * 0.88))
 	# 색 변주 — 등급색·밝은 등급색·흰 불꽃을 섞고, 전설은 금/주황/백금 혼합.
 	var cols: Array = [_col, _col.lightened(0.35), Color(1, 1, 1)]
 	if rarity == 3:
@@ -634,6 +657,10 @@ func _flip_swap(back: Control, face: Control, i: int) -> void:
 		return
 	back.visible = false
 	face.visible = true
+	# 카드별 획득 순간을 밝기 펄스와 작은 충격으로 분리해 여러 보상이 차례로 손에 들어오는 느낌을 준다.
+	face.modulate = Color(1.35, 1.35, 1.35, 1.0)
+	create_tween().tween_property(face, "modulate", Color.WHITE, 0.24).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	Events.shake(1.2 + 0.35 * float(i))
 	if SoundManager.has_stream("card_flip"):
 		SoundManager.play_ui("card_flip", 0.06, 1.0 + 0.08 * float(i))
 	else:

@@ -109,6 +109,7 @@ var _level_badge: Control = null   # VARCO 원형 뱃지 텍스처 모드일 때
 var _prev_level: int = -1   # 레벨업 감지(뱃지 펄스)용
 
 # 장착 로드아웃(무기/패시브) — 아이콘 슬롯 그리드(무기 1줄 + 패시브 1줄) + 목표 힌트.
+var _loadout_panel: PanelContainer = null
 var _loadout_box: VBoxContainer = null
 var _weapon_row: HBoxContainer = null
 var _passive_row: HBoxContainer = null
@@ -815,15 +816,19 @@ const _Z_UNDER_UI := -1
 
 
 func _build_loadout() -> void:
-	var panel := PanelContainer.new()
+	_loadout_panel = PanelContainer.new()
+	var panel := _loadout_panel
 	panel.name = "TacticalLoadout"
 	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	panel.offset_top = -208
+	panel.offset_top = -224
 	panel.offset_bottom = -16
 	panel.offset_left = -328
 	panel.offset_right = 328
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_theme_stylebox_override("panel", _UIStyle.tactical_panel())
+	# 장식 프레임의 금속 림 안쪽으로 콘텐츠를 밀어 아이콘이 외곽선과 겹치지 않게 한다.
+	var panel_style := _UIStyle.tactical_panel()
+	panel_style.set_content_margin_all(24)
+	panel.add_theme_stylebox_override("panel", panel_style)
 	add_child(panel)
 	_loadout_box = VBoxContainer.new()
 	_loadout_box.add_theme_constant_override("separation", 12)
@@ -902,10 +907,11 @@ func _make_loadout_slot(meta: Dictionary, lv: int) -> Control:
 		# 슬롯 함몰부를 꽉 채우는 여백 — 프레임 림(슬롯의 12.3%)이 끝나는 지점에 맞춘다.
 		# 아이콘 원본에는 투명 여백이 없으므로 이 값이 곧 보이는 크기가 된다.
 		tex.set_anchors_preset(Control.PRESET_FULL_RECT)
-		tex.offset_left = 8.0
-		tex.offset_top = 8.0
-		tex.offset_right = -8.0
-		tex.offset_bottom = -16.0
+		# 장식 슬롯 림과 레벨 뱃지 영역을 피해 사방에 같은 안전 여백을 둔다.
+		tex.offset_left = 12.0
+		tex.offset_top = 12.0
+		tex.offset_right = -12.0
+		tex.offset_bottom = -12.0
 		tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1087,8 +1093,8 @@ func _on_rewarded_granted(placement: String) -> void:
 	Events.pause_pop(game_over_panel)
 	if _pause_btn:
 		_pause_btn.visible = true   # 부활 → 일시정지 버튼 복귀
-	if _loadout_box:
-		_loadout_box.visible = true   # 로드아웃 표시 복귀
+	if _loadout_panel:
+		_loadout_panel.visible = true   # 로드아웃 패널 전체 표시 복귀
 	player.revive()
 
 
@@ -1226,8 +1232,8 @@ func _on_player_died() -> void:
 	SaveManager.delete_save()   # 사망 시 진행 실패 — 체크포인트 무효화
 	if _pause_btn:
 		_pause_btn.visible = false   # 게임오버 패널과 겹치지 않도록 일시정지 버튼 숨김
-	if _loadout_box:
-		_loadout_box.visible = false   # 좌하단 로드아웃이 게임오버 버튼을 가리지 않게
+	if _loadout_panel:
+		_loadout_panel.visible = false   # 빈 배경까지 남지 않도록 패널 전체를 숨긴다
 	# 부활 버튼은 아직 안 썼고 광고가 준비됐을 때만 노출.
 	_revive_btn.visible = not _revive_used and AdManager.is_rewarded_ready()
 	Events.hit_stop(_DEATH_SLOWMO_SEC, _DEATH_SLOWMO_SCALE)
@@ -1247,8 +1253,8 @@ func _on_game_won() -> void:
 	if _pause_btn:
 		_pause_btn.visible = false
 	_revive_btn.visible = false
-	if _loadout_box:
-		_loadout_box.visible = false
+	if _loadout_panel:
+		_loadout_panel.visible = false
 	game_over_label.text = Locale.t("go_victory")
 	game_over_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
 	_show_end_panel(true)
