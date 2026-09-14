@@ -18,11 +18,14 @@ func run() -> void:
 	var threat: Node = root.get_node("ThreatManager")
 	var ranking: Node = root.get_node("RankingManager")
 	var locale: Node = root.get_node("Locale")
+	# 앞선 회귀 테스트가 같은 user:// 랭킹 파일에 더 높은 점수를 남길 수 있다. set_best()는
+	# 최고값만 받으므로 4321을 넣어도 이전 값이 유지되어 문자열 검사가 실행 순서에 의존했다.
+	# 디스크를 건드리지 않는 격리된 백엔드 상태로 검사한 뒤 원래 값을 복원한다.
+	var previous_bests: Dictionary = ranking._backend.get("_bests").duplicate(true)
+	ranking._backend.set("_bests", {"threat_1":4321,"threat_2":987})
 	threat._max_rank = 2
 	threat._selected = 2
 	threat._best = {"1":125.0,"2":0.0}
-	ranking._backend.set_best(ranking.mode_id_for_threat(1),4321)
-	ranking._backend.set_best(ranking.mode_id_for_threat(2),987)
 	check(ranking.current_mode_id()=="threat_2","Score mode is not selected threat")
 	locale.current = "ko"
 	var korean: String = menu._records_text()
@@ -38,5 +41,6 @@ func run() -> void:
 	check(menu._records_text().contains("Threat 1 — 4321 / 02:05"),"English threat record missing")
 	locale.current = "ja"
 	check(menu._records_text().contains("スレット 1 — 4321 / 02:05"),"Japanese threat record missing")
+	ranking._backend.set("_bests", previous_bests)
 	print("THREAT RECORDS failures=",failures)
 	quit(failures)
