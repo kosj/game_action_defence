@@ -64,6 +64,7 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS   # 트리를 멈춰도 이 UI 는 동작해야 한다
 	Events.level_up.connect(_on_level_up)
 	Events.evolution_offer.connect(_on_evolution_offer)
+	Events.boss_reward_sequence_changed.connect(_on_boss_reward_sequence_changed)
 	_build_ui()
 
 
@@ -126,7 +127,13 @@ func _on_level_up(_level: int) -> void:
 		Events.grant_maxed_level_gold()
 		return
 	_pending += 1
-	if not _showing:
+	if not _showing and not Events.boss_reward_sequence_active:
+		_present()
+
+
+## 보석 분수의 마지막 보석이 착지한 뒤, 그동안 모인 레벨업을 순서대로 보여 준다.
+func _on_boss_reward_sequence_changed(active: bool) -> void:
+	if not active and _pending > 0 and not _showing:
 		_present()
 
 

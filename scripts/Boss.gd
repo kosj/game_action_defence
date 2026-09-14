@@ -90,7 +90,6 @@ const BERSERK_RECOVER := 0.7
 const BERSERK_QUAKE_R := 130.0     # 대시 종료 지점의 착지 충격파 반경
 var _dash_chain: int = 0           # 남은 연속 대시 수(페이즈≥1에서 연속 돌진)
 var _bstate: String = "stalk"
-var _is_final: bool = false        # 최종 보스(REAPER)면 처치 시 보너스 레벨업 대신 승리 처리
 var _bt: float = 0.0               # 현재 상태 경과 시간
 
 # ── 공용 스킬: 자가 회복(재생) ────────────────────────────────────────
@@ -130,7 +129,6 @@ func setup(stats: Dictionary) -> void:
 	gold_drop = stats.get("gold", 12)
 	_archetype = stats.get("archetype", "melee")
 	_codex_key = String(stats.get("key", ""))
-	_is_final = stats.get("final", false)
 	# 전용 아트워크 사용 — 타입별 틴트 대신 스프라이트를 그대로 노출(피격 잔광은 흰색 복귀).
 	# stats.sprite 는 **필수**다. 예전에는 아키타입 기본 텍스처(_BOSS_TEX)로 폴백했지만,
 	# 아키타입 5종 순환 경로가 사라지면서(P1-1) 그 아트 4종도 함께 걷어냈다. 폴백이 없어진 대신
@@ -658,9 +656,11 @@ func _die() -> void:
 	_burst(Color(1.0, 0.45, 0.15), 120.0, 0.5,  0.12)   # 주황 2차 파동
 	_burst(Color(1.0, 0.88, 0.35), 190.0, 0.7,  0.24)   # 넓게 퍼지는 마지막 황금 링
 
-	# 경험치 보석 분수 — 기존 총 경험치(gold_drop*2)는 유지하면서 젬 수를 두 배로 나눠
-	# 최소 32개가 서로 다른 높이로 솟구쳤다가 보스 주변 넓은 범위에 쏟아져 내린다.
-	var gem_count := maxi(32,gold_drop*2)
+	# 경험치 보석 분수 — 보스 진화 상자와 즉시 무료 레벨업을 없앤 대신 실제로 주워
+	# 성장하는 보상을 크게 늘린다. 최소 48개, 회차별 gold_drop의 3배가 넓게 쏟아진다.
+	# 이 시간에는 LevelUpPanel이 레벨업 요청을 모아 두므로 분출 장면을 가리지 않는다.
+	Events.begin_boss_reward_sequence(1.55)
+	var gem_count := maxi(48,gold_drop*3)
 	for i in range(gem_count):
 		var g := Pool.acquire(GOLD, get_tree().current_scene)
 		g.global_position = global_position
@@ -668,10 +668,6 @@ func _die() -> void:
 		var angle := TAU*float(i)/float(gem_count)+randf_range(-0.12,0.12)
 		var landing := global_position+Vector2.from_angle(angle)*randf_range(90.0,280.0)
 		g.launch_fountain(landing,randf_range(210.0,430.0),randf_range(0.0,0.32))
-
-	# 보스 상자 보상 — 무료 레벨업 1회(강화/진화 카드가 즉시 뜬다). 최종 보스는 승리 처리라 제외.
-	if not _is_final:
-		Events.bonus_level()
 
 	queue_free()
 

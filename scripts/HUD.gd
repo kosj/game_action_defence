@@ -2,6 +2,7 @@ extends CanvasLayer
 ## HUD: 골드·체력·웨이브·경과시간을 Events 시그널로 받아 실시간 갱신. 게임오버 패널 제어.
 
 const FOG_TEX := preload("res://assets/ui/fog_vision.png")   # 주변 시야 제한 오버레이(방사형 암전)
+const GAMEOVER_HEADER_TEX := preload("res://assets/ui/gameover_header.png")
 const _UIStyle := preload("res://scripts/UIStyle.gd")
 const _Timeline := preload("res://scripts/TimelineBar.gd")
 const _HUDAlert := preload("res://scripts/HUDAlert.gd")
@@ -83,8 +84,7 @@ var _blur_rect: ColorRect = null
 var _blur_mat: ShaderMaterial = null
 
 # 게임오버 통계 위젯(아이콘 그리드) — 코드로 생성해 텍스트 라벨을 대체.
-var _go_medal: UIIcon = null
-var _go_medal_row: HBoxContainer = null
+var _go_medal_row: Control = null
 var _go_record: Label = null
 var _go_grade: Label = null
 ## 판 시작 시점의 이 위협 등급 최고 생존 시간. 게임오버에서 신기록인지 판정하는 기준이다.
@@ -1146,22 +1146,32 @@ func _build_gameover_stats() -> void:
 	vbox.add_child(holder)
 	vbox.move_child(holder, game_over_label.get_index() + 1)
 
-	# ── 메달 + 등급 문자 ──
-	# 예전에는 트로피만 덩그러니 있었다. 색은 **화면에 없는 점수**로 정해져 있어서
-	# (Events.score — P2-22 에서 HUD 표시를 뺐다) 왜 금인지 은인지 알 방법이 없었다.
-	# 지금은 바로 아래 줄에 보이는 **생존 시간**으로 정하고, 등급 문자를 옆에 붙인다.
-	# 문자를 쓰는 이유는 번역이 필요 없고 폰트 서브셋과도 무관하기 때문이다.
-	var medal_row := HBoxContainer.new()
+	# ── 고대비 결과 헤더 + 동적 등급 ──
+	# 제목·트로피·등급 테두리를 한 장의 전용 이미지로 묶어 작은 화면에서도 실루엣과 글자가
+	# 또렷하다. 오른쪽 빈 메달에 실제 생존 등급 문자만 코드로 얹는다.
+	game_over_label.visible = false
+	var medal_row := Control.new()
 	_go_medal_row = medal_row
-	medal_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	medal_row.add_theme_constant_override("separation", 10)
+	medal_row.custom_minimum_size = Vector2(400, 133)
+	medal_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	medal_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.add_child(medal_row)
 
-	_go_medal = UIIcon.make("trophy", _MEDAL_SIZE, Color(1.0, 0.82, 0.25))
-	medal_row.add_child(_go_medal)
+	var header := TextureRect.new()
+	header.texture = GAMEOVER_HEADER_TEX
+	header.set_anchors_preset(Control.PRESET_FULL_RECT)
+	header.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	header.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	medal_row.add_child(header)
 
 	_go_grade = Label.new()
-	_go_grade.add_theme_font_size_override("font_size", 40)
+	_go_grade.anchor_left = 0.735
+	_go_grade.anchor_top = 0.05
+	_go_grade.anchor_right = 0.90
+	_go_grade.anchor_bottom = 0.75
+	_go_grade.add_theme_font_size_override("font_size", 52)
+	_go_grade.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_go_grade.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	UITheme.heading(_go_grade)
 	medal_row.add_child(_go_grade)
@@ -1269,7 +1279,6 @@ func _on_game_won() -> void:
 
 ## 승리 패널의 프레임 색조. 1.0 을 넘는 성분은 밝히는 쪽으로 곱해져 강철 프레임이
 ## 금빛으로 읽힌다(패널 자신에만 적용 — self_modulate).
-const _MEDAL_SIZE := 44
 const _STAT_GRID_W := 320.0
 const _STAT_TXT := Color(0.92, 0.94, 0.98)
 const _GOLD_TXT := Color(1.00, 0.86, 0.42)
@@ -1405,13 +1414,15 @@ func _grade_index(victory: bool, seconds: float) -> int:
 
 func _show_end_panel(victory: bool) -> void:
 	boss_bar.visible = false
+	# 전용 헤더의 문구는 GAME OVER로 고정되어 있다. 승리 화면은 기존 로컬라이즈 제목을
+	# 유지하고, 패배 화면에서만 트로피·등급 메달이 포함된 결과 이미지를 사용한다.
+	_go_medal_row.visible = not victory
+	game_over_label.visible = victory
 
 	var gi := _grade_index(victory, Events.elapsed_time)
 	var medal: Color = _GRADE_COL[gi]
 	_go_grade.text = String(_GRADE_TXT[gi])
 	_go_grade.add_theme_color_override("font_color", medal)
-	_go_medal.color = medal
-	_go_medal.queue_redraw()
 	# 신기록 배너. 이 위협 등급에서 판 시작 시점의 최고 기록을 넘겼을 때만 뜬다.
 	# 예전에는 스코어 기반이라 늘 꺼 두고 있었다 — 점수는 화면에서 뺐으니(P2-22)
 	# 플레이어가 실제로 겨루는 값, 곧 생존 시간으로 판정한다.

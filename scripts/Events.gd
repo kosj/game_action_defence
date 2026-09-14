@@ -95,6 +95,7 @@ signal high_score_changed(high_score: int)
 signal boss_spawned(max_health: int)
 signal boss_health_changed(health: int, max_health: int)
 signal boss_died
+signal boss_reward_sequence_changed(active: bool)   # 보석 분출 중 레벨업 패널 표시 지연
 signal boss_summon(count: int)   # 서머너 보스가 호위 좀비 소환 요청 — 스포너가 처리(카운터 일관성)
 signal game_won                  # 최종 보스(REAPER) 처치 — 런 클리어(승리)
 
@@ -133,6 +134,8 @@ var total_kills: int = 0
 var did_clear: bool = false   # 이번 런에서 30분 클리어를 달성했는가
 var player_health: int = 0
 var player_max_health: int = 0
+var boss_reward_sequence_active: bool = false
+var _boss_reward_sequence_id: int = 0
 var elapsed_time: float = 0.0
 
 ## 이번 런의 환경 시드 — 날씨 스케줄이 (이 값 + 슬롯 인덱스)만으로 결정된다.
@@ -217,12 +220,27 @@ func _xp_curve(lvl: int) -> int:
 	return int(round(10.0 + (lvl - 1) * 8.0 + pow(float(lvl), 1.5) * 2.0))
 
 
-## 보스 상자 보상 — 무료 레벨업 1회(경험치 소모 없이 강화 카드가 뜬다).
+## 무료 보상 레벨업 — 경험치 소모 없이 강화 카드가 뜬다(치트·진화 불가 상자 폴백용).
 func bonus_level() -> void:
 	level += 1
 	xp_to_next = _xp_curve(level)
 	level_up.emit(level)
 	xp_changed.emit(xp, xp_to_next, level)
+
+
+## 보스 보석이 솟구치고 착지하는 동안 레벨업 선택창을 늦춘다. 여러 요청이 겹쳐도 마지막
+## 요청의 종료 시점까지 유지되도록 세대 번호로 이전 타이머의 콜백을 무시한다.
+func begin_boss_reward_sequence(duration: float) -> void:
+	_boss_reward_sequence_id += 1
+	var sequence_id := _boss_reward_sequence_id
+	if not boss_reward_sequence_active:
+		boss_reward_sequence_active = true
+		boss_reward_sequence_changed.emit(true)
+	await get_tree().create_timer(maxf(duration, 0.0), true, false, true).timeout
+	if sequence_id != _boss_reward_sequence_id:
+		return
+	boss_reward_sequence_active = false
+	boss_reward_sequence_changed.emit(false)
 
 
 ## 고를 강화 카드가 하나도 없는 레벨업(보유 아이템 전부 만렙 + 슬롯 만석)을 골드로 보상한다.
@@ -576,6 +594,8 @@ func reset() -> void:
 	did_clear = false
 	player_health = 0
 	player_max_health = 0
+	_boss_reward_sequence_id += 1
+	boss_reward_sequence_active = false
 	elapsed_time = 0.0
 	env_seed = randi()   # 런마다 새 날씨 타임라인
 	gold_magnet_active = false
