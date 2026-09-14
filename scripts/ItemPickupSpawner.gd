@@ -13,6 +13,7 @@ var player: Node2D = null
 var _accum: float = 0.0
 var _next_interval: float = 0.0
 var _game_over: bool = false
+var _boss_active: bool = false
 
 
 func _ready() -> void:
@@ -25,6 +26,8 @@ func _ready() -> void:
 	player = get_tree().get_first_node_in_group("player")
 	Events.player_died.connect(func(): _game_over = true)
 	Events.player_revived.connect(func(): _game_over = false)   # 부활 시 스폰 재개
+	Events.boss_spawned.connect(_on_boss_spawned)
+	Events.boss_died.connect(func(): _boss_active = false)
 	Events.elite_pack.connect(_drop_evochest)                   # 엘리트 팩 → 진화 상자
 	_next_interval = randf_range(spawn_interval_min, spawn_interval_max)
 
@@ -58,11 +61,20 @@ func _spawn_item() -> void:
 ## 엘리트 팩 드롭 진화 상자 — 상시 상한(max_active)과 무관하게 항상 등장(보상 보장).
 ## 보스 보상은 Boss.gd의 대량 경험치 보석 분수로 일원화한다.
 func _drop_evochest() -> void:
-	if _game_over or not is_instance_valid(player):
+	if _game_over or _boss_active or not is_instance_valid(player):
 		return
 	var p := Pool.acquire(ITEM_PICKUP, get_tree().current_scene)
 	p.kind = "evochest"
 	p.global_position = _random_spawn_pos()
+
+
+## 보스전에는 진화 상자를 제공하지 않는다. 전투 직전에 남아 있던 상자도 치워 보스 등장과
+## 동시에 주워지는 경우를 막고, 전투가 끝날 때까지 엘리트 드롭 역시 위에서 차단한다.
+func _on_boss_spawned(_max_health: int) -> void:
+	_boss_active = true
+	for pickup in get_tree().get_nodes_in_group("item_pickups"):
+		if is_instance_valid(pickup) and String(pickup.get("kind")) == "evochest":
+			pickup.call("_despawn")
 
 
 ## 화면 안쪽 ~ 살짝 바깥쪽 사이의 랜덤 위치.
