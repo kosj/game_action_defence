@@ -648,7 +648,12 @@ func _die() -> void:
 	Events.add_score(score_value)
 	Events.boss_died.emit()
 	Events.shake(11.0)      # 보스 폭사 — 강한 화면 흔들림
-	Events.hit_stop()       # 순간 정지로 한 방의 무게감
+	# 타격 순간을 0.07초 붙잡은 뒤 보석이 솟는 첫 0.78초를 슬로 모션으로 보여 준다.
+	# 한 가지 느린 속도로만 재생하면 처치 충격이 무뎌지므로 정지 → 슬로 → 정상의 3단계로 간다.
+	Events.hit_stop(0.07, 0.05, 0.78, 0.38)
+	var player := get_tree().get_first_node_in_group("player")
+	if is_instance_valid(player) and player.has_method("camera_zoom_punch"):
+		player.camera_zoom_punch(0.92, 1.05)   # 넓게 퍼지는 보석 궤적이 화면 안에 들어오게 한다
 
 	# 다중 충격파 — 흰 섬광 → 황금 링 → 주황 링이 시간차로 번지며 터진다.
 	_burst(Color(1.0, 1.0, 0.85), 70.0,  0.28, 0.0)    # 중심 흰 섬광
@@ -659,7 +664,9 @@ func _die() -> void:
 	# 경험치 보석 분수 — 보스 진화 상자와 즉시 무료 레벨업을 없앤 대신 실제로 주워
 	# 성장하는 보상을 크게 늘린다. 최소 48개, 회차별 gold_drop의 3배가 넓게 쏟아진다.
 	# 이 시간에는 LevelUpPanel이 레벨업 요청을 모아 두므로 분출 장면을 가리지 않는다.
-	Events.begin_boss_reward_sequence(1.55)
+	# 슬로 모션 때문에 착지까지의 실제 시간이 길어진다. 레벨업 창도 그만큼 더 늦춰 마지막
+	# 보석이 내려오기 전에 화면을 가리지 않게 한다.
+	Events.begin_boss_reward_sequence(2.05)
 	var gem_count := maxi(48,gold_drop*3)
 	for i in range(gem_count):
 		var g := Pool.acquire(GOLD, get_tree().current_scene)
@@ -667,7 +674,7 @@ func _die() -> void:
 		g.set_value(1)
 		var angle := TAU*float(i)/float(gem_count)+randf_range(-0.12,0.12)
 		var landing := global_position+Vector2.from_angle(angle)*randf_range(90.0,280.0)
-		g.launch_fountain(landing,randf_range(210.0,430.0),randf_range(0.0,0.32))
+		g.launch_fountain(landing,randf_range(210.0,430.0),randf_range(0.0,0.22))
 
 	queue_free()
 

@@ -530,18 +530,29 @@ func shake(amount: float) -> void:
 
 
 ## 히트스톱(순간 정지) — 큰 한 방(보스 사망 등)에 짧게 시간을 멈춰 타격감을 준다.
-## 시간 배율에 영향받지 않는 타이머로 복구하므로 확실히 원상 복귀한다(중첩 방지).
+## slow_duration 을 주면 정지 직후 완만한 슬로 모션을 이어 붙인다. 둘 다 시간 배율에
+## 영향받지 않는 타이머를 써서 연출이 느려져도 지정한 실제 시간 뒤 확실히 복구한다.
 var _hitstop_active: bool = false
-func hit_stop(duration: float = 0.07, scale: float = 0.05) -> void:
+func hit_stop(duration: float = 0.07, scale: float = 0.05,
+		slow_duration: float = 0.0, slow_scale: float = 1.0) -> void:
 	if _hitstop_active:
 		return
 	_hitstop_active = true
 	Engine.time_scale = scale
 	var t := get_tree().create_timer(duration, true, false, true)   # ignore_time_scale=true
-	t.timeout.connect(_end_hit_stop)
+	t.timeout.connect(_end_hit_stop.bind(slow_duration, slow_scale))
 
 
-func _end_hit_stop() -> void:
+func _end_hit_stop(slow_duration: float = 0.0, slow_scale: float = 1.0) -> void:
+	if slow_duration > 0.0:
+		Engine.time_scale = clampf(slow_scale, 0.05, 1.0)
+		var t := get_tree().create_timer(slow_duration, true, false, true)
+		t.timeout.connect(_finish_hit_stop)
+		return
+	_finish_hit_stop()
+
+
+func _finish_hit_stop() -> void:
 	Engine.time_scale = 1.0
 	_hitstop_active = false
 

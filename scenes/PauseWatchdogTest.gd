@@ -73,10 +73,17 @@ func _run() -> void:
 	_check("T3 계속 숨은 소유자 자동 해제", not get_tree().paused)
 	hidden.queue_free()
 
-	# T4 — 히트스톱 배속이 남으면 게임이 멈춘 것처럼 보인다.
+	# T4 — 히트스톱 뒤 슬로 모션으로 넘어가고, 연출이 끝나면 정상 배속으로 복구한다.
+	Events.hit_stop(0.05, 0.05, 0.15, 0.4)
+	await _wait(0.09)
+	_check("T4 히트스톱 뒤 슬로 모션 전환", is_equal_approx(Engine.time_scale, 0.4))
+	await _wait(0.18)
+	_check("T4 단계형 슬로 모션 정상 복구", is_equal_approx(Engine.time_scale, 1.0))
+
+	# 외부 코드가 낮춘 배속이 남으면 게임이 멈춘 것처럼 보인다.
 	Engine.time_scale = 0.05
 	await _wait(2.0)
-	_check("T4 잔류 히트스톱 배속 복구", is_equal_approx(Engine.time_scale, 1.0))
+	_check("T4 잔류 배속 워치독 복구", is_equal_approx(Engine.time_scale, 1.0))
 
 	# T5 — 패널이 떠 있는 동안 들어온 진화 제안이 증발하지 않아야 한다.
 	var lp := _find_levelup_panel()
