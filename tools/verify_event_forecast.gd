@@ -30,19 +30,19 @@ func _process(_delta: float) -> bool:
 	var tl: GDScript = load("res://scripts/TimelineBar.gd")
 
 	print("── 눈금 시각 계산 ───────────────────────────────")
-	# 보스 600초 주기, 30분 런에서 다음 보스가 600초라면 눈금은 600/1200/1800.
-	var boss: Array = tl.series_times(600.0, 600.0, 1800.0)
-	_ok("보스 눈금 3개(600·1200·1800)", boss == [600.0, 1200.0, 1800.0], str(boss))
-	# 엘리트 300초 주기.
-	var elite: Array = tl.series_times(300.0, 300.0, 1800.0)
+	# 보스 400초 주기, 20분 런에서 눈금은 400/800/1200.
+	var boss: Array = tl.series_times(400.0, 400.0, 1200.0)
+	_ok("보스 눈금 3개(400·800·1200)", boss == [400.0, 800.0, 1200.0], str(boss))
+	# 엘리트 200초 주기.
+	var elite: Array = tl.series_times(200.0, 200.0, 1200.0)
 	_ok("엘리트 눈금 6개", elite.size() == 6, str(elite))
 	# 클리어를 넘는 눈금은 그리지 않는다 — 띠 밖으로 나가면 거짓 정보다.
-	var late: Array = tl.series_times(1700.0, 600.0, 1800.0)
-	_ok("클리어를 넘는 눈금은 없다", late == [1700.0], str(late))
+	var late: Array = tl.series_times(1100.0, 400.0, 1200.0)
+	_ok("클리어를 넘는 눈금은 없다", late == [1100.0], str(late))
 	# 보스전 중에는 "다음 보스"가 정해지지 않았으므로 눈금을 그리지 않는다.
-	_ok("예정 없음(-1)이면 눈금 0개", tl.series_times(-1.0, 600.0, 1800.0).is_empty())
+	_ok("예정 없음(-1)이면 눈금 0개", tl.series_times(-1.0, 400.0, 1200.0).is_empty())
 	_ok("주기가 0 이어도 무한 루프에 빠지지 않는다",
-		tl.series_times(600.0, 0.0, 1800.0).is_empty())
+		tl.series_times(400.0, 0.0, 1200.0).is_empty())
 
 	print("── 스포너가 흘리는 예정 시각 ────────────────────")
 	# HUD 가 주기 상수로 따로 계산하면 어긋난다(보스는 전투 중 미뤄지고 치트로도 밀린다).
@@ -82,50 +82,52 @@ func _process(_delta: float) -> bool:
 
 	# 임계 밖 — 아직 뜨지 않는다.
 	events.elapsed_time = 500.0
-	hud._swarm_banner.text = ""
+	hud._alert.label.text = ""
 	hud._on_forecast(600.0, 900.0)   # 보스 100초 뒤, 엘리트 400초 뒤
-	_ok("임계 밖에서는 배너가 뜨지 않는다", hud._swarm_banner.text == "",
-		"'%s'" % hud._swarm_banner.text)
+	_ok("임계 밖에서는 배너가 뜨지 않는다", hud._alert.label.text == "",
+		"'%s'" % hud._alert.label.text)
 
 	# 보스 60초 전 — 뜬다.
 	events.elapsed_time = 545.0
 	hud._on_forecast(600.0, 900.0)
-	_ok("보스 60초 전에 예고가 뜬다", hud._swarm_banner.text == boss_txt % 55,
-		"'%s'" % hud._swarm_banner.text)
+	_ok("보스 60초 전에 예고가 뜬다", hud._alert.label.text == boss_txt % 55,
+		"'%s'" % hud._alert.label.text)
 
 	# 같은 회차는 다시 뜨지 않는다 — 매초 갱신이라 잠그지 않으면 배너가 깜박인다.
-	hud._swarm_banner.text = ""
+	hud._alert.label.text = ""
 	events.elapsed_time = 550.0
 	hud._on_forecast(600.0, 900.0)
-	_ok("같은 보스 회차는 한 번만 뜬다", hud._swarm_banner.text == "",
-		"'%s'" % hud._swarm_banner.text)
+	_ok("같은 보스 회차는 한 번만 뜬다", hud._alert.label.text == "",
+		"'%s'" % hud._alert.label.text)
 
 	# 다음 회차(예정 시각이 바뀜)에는 다시 뜬다.
 	events.elapsed_time = 1150.0
 	hud._on_forecast(1200.0, 1500.0)
-	_ok("다음 보스 회차에는 다시 뜬다", hud._swarm_banner.text == boss_txt % 50,
-		"'%s'" % hud._swarm_banner.text)
+	_ok("다음 보스 회차에는 다시 뜬다", hud._alert.label.text == boss_txt % 50,
+		"'%s'" % hud._alert.label.text)
 
 	# 엘리트는 20초 전.
-	hud._swarm_banner.text = ""
+	hud._alert._retire()
+	hud._alert.label.text = ""
 	events.elapsed_time = 1470.0
 	hud._on_forecast(-1.0, 1485.0)
-	_ok("엘리트 20초 전에 예고가 뜬다", hud._swarm_banner.text == elite_txt % 15,
-		"'%s'" % hud._swarm_banner.text)
+	_ok("엘리트 20초 전에 예고가 뜬다", hud._alert.label.text == elite_txt % 15,
+		"'%s'" % hud._alert.label.text)
 
-	hud._swarm_banner.text = ""
+	hud._alert._retire()
+	hud._alert.label.text = ""
 	events.elapsed_time = 1460.0
 	hud._on_forecast(-1.0, 1500.0)   # 40초 남음 — 임계 밖
-	_ok("엘리트도 임계 밖에서는 뜨지 않는다", hud._swarm_banner.text == "",
-		"'%s'" % hud._swarm_banner.text)
+	_ok("엘리트도 임계 밖에서는 뜨지 않는다", hud._alert.label.text == "",
+		"'%s'" % hud._alert.label.text)
 
 	# 보스전 중(-1)에는 보스 예고가 뜨지 않는다.
-	hud._swarm_banner.text = ""
+	hud._alert.label.text = ""
 	hud._boss_warned_at = -99.0
 	events.elapsed_time = 700.0
 	hud._on_forecast(-1.0, 3000.0)
-	_ok("보스 예정이 -1 이면 보스 예고가 없다", hud._swarm_banner.text == "",
-		"'%s'" % hud._swarm_banner.text)
+	_ok("보스 예정이 -1 이면 보스 예고가 없다", hud._alert.label.text == "",
+		"'%s'" % hud._alert.label.text)
 
 	hud.free()
 	events.elapsed_time = 0.0

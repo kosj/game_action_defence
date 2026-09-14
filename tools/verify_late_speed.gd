@@ -3,7 +3,7 @@ extends SceneTree
 ##
 ## 이 게임의 적 이속은 시간에 비례해 오른다(`ZombieSpawner._speed_mult()`).
 ## 언젠가 가장 빠른 좀비가 플레이어를 추월하는데, **그 자체는 의도된 압박이다** —
-## 30분을 끝까지 도망만 쳐서 클리어할 수 있으면 화력 빌드가 의미를 잃는다.
+## 20분을 끝까지 도망만 쳐서 클리어할 수 있으면 화력 빌드가 의미를 잃는다.
 ## 문제가 되는 건 그 지점이 너무 이르거나(런 대부분이 강제 추격), 반대로
 ## 어떤 투자로도 뿌리칠 수 없어서(이속 스탯이 죽은 스탯) 선택이 사라지는 경우다.
 ##
@@ -17,11 +17,11 @@ extends SceneTree
 
 ## Player.gd:528 — move_speed = _base_move_speed + 30.0 * Events.upgrade_speed
 const PER_LEVEL_SPEED := 30.0
-## 클리어 포맷(30분). 이 시점의 힘 관계가 후반 밸런스의 기준선이다.
-const CLEAR_MINUTES := 30.0
+## 클리어 포맷(20분). 이 시점의 힘 관계가 후반 밸런스의 기준선이다.
+const CLEAR_MINUTES := 20.0
 ## 투자 0 에서 추월당하기 시작하는 최소 시점. 이보다 이르면 런 절반 이상이 강제 추격이 된다.
-const MIN_CROSSOVER_MIN := 15.0
-## 30분 시점에 "해법이 있다"를 보장하는 이속 합계(패시브+메타+캐릭터 보정).
+const MIN_CROSSOVER_MIN := 10.0
+## 20분 시점에 "해법이 있다"를 보장하는 이속 합계(패시브+메타+캐릭터 보정).
 ## 이 정도 투자로도 못 뿌리치면 이속은 선택지가 아니라 세금이다.
 const SOLVABLE_SPEED_LV := 3
 
@@ -96,7 +96,7 @@ func _init() -> void:
 	_check("이속 투자 0 의 추월 시점이 %.0f분 이후" % MIN_CROSSOVER_MIN, cross0 >= MIN_CROSSOVER_MIN,
 		"실제 %.1f분" % cross0)
 
-	# ── 3. 30분 시점에 압박과 해법이 둘 다 존재한다 ───────────────
+	# ── 3. 20분 시점에 압박과 해법이 둘 다 존재한다 ───────────────
 	var e30 := _enemy_speed(fastest, diff.speed_cap, CLEAR_MINUTES, diff, mode_mult, threat_min)
 	_check("%.0f분에 투자 0 은 추월당한다(도망 클리어 봉쇄)" % CLEAR_MINUTES,
 		e30 > _player_speed(base_speed, 0),
