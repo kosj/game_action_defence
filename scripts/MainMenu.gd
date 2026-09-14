@@ -45,8 +45,6 @@ var _ranking_label: Label
 var _records_title: Label
 var _records_close: Button
 
-var _log_btn: Button = null
-var _log_hint: Label = null
 var _diff_buttons: Array = []
 var _lang_buttons: Array = []   # [{ "btn": Button, "lang": String }]
 
@@ -484,26 +482,6 @@ func _build_options_panel() -> void:
 	_music_title = mus["title"]
 	_music_btn = _make_toggle(mus["slot"], _on_music_pressed)
 
-	# ── 기록 복사: 설정이 아니라 도구다 — 닫기 바로 위, 작게 ──
-	# 출시 전 밸런스 검증용. 릴리스 빌드에서도 보인다(치트와 무관). 웹은 user:// 가 IndexedDB 라
-	# 파일로 뺄 방법이 없어 클립보드가 유일한 경로다. 기록은 이 기기에만 있고 전송되지 않는다.
-	var tool_box := VBoxContainer.new()
-	tool_box.add_theme_constant_override("separation", 6)
-	_log_btn = Button.new()
-	_log_btn.custom_minimum_size = Vector2(0, 44)
-	_log_btn.add_theme_font_size_override("font_size", 16)
-	_UIStyle.apply_button_style(_log_btn, Color(0.16, 0.18, 0.26), Color(0.42, 0.50, 0.66))
-	_log_btn.pressed.connect(_on_copy_log_pressed)
-	tool_box.add_child(_log_btn)
-	_log_hint = Label.new()
-	_log_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_log_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_log_hint.add_theme_font_size_override("font_size", 13)
-	_log_hint.add_theme_color_override("font_color", UITheme.TEXT_DIM)
-	tool_box.add_child(_log_hint)
-	_UIPopup.add_above_close(p, tool_box)
-
-
 ## 설정 행 카드 — [제목 ────── 조작]. 반환: { "title": Label, "slot": HBoxContainer }.
 ## 판은 버튼 플레이트를 그대로 쓴다(다른 팝업의 행과 같은 재질). 카드 자체는 눌리지 않고
 ## 오른쪽 조작만 반응한다.
@@ -543,19 +521,7 @@ func _make_toggle(slot: HBoxContainer, on_pressed: Callable) -> Button:
 
 
 func _on_options_pressed() -> void:
-	_refresh_log_button()   # 판 수가 늘었을 수 있으니 열 때마다 갱신
 	_UIPopup.open(_options_dim, _options_panel)
-
-
-func _refresh_log_button() -> void:
-	if is_instance_valid(_log_btn):
-		_log_btn.text = Locale.t("opt_copy_log") % Telemetry.record_count()
-		_log_btn.disabled = Telemetry.record_count() == 0
-
-
-func _on_copy_log_pressed() -> void:
-	DisplayServer.clipboard_set(Telemetry.export_text())
-	_log_btn.text = Locale.t("opt_copy_log_done")
 
 
 func _on_close_options() -> void:
@@ -1488,8 +1454,6 @@ func _apply_language() -> void:
 	_refresh_music_button()
 	_options_btn.text = Locale.t("menu_options")
 	_options_title.text = Locale.t("menu_options")
-	_log_hint.text = Locale.t("opt_log_hint")
-	_refresh_log_button()
 	_close_btn.text = Locale.t("menu_close")
 	_refresh_language_buttons()
 	_refresh_sound_button()

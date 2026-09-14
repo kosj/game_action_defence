@@ -1,5 +1,6 @@
 extends Node
-## 런 기록 수집 (Autoload "Telemetry") — **기기 밖으로 아무것도 보내지 않는다.**
+## 개발 빌드 전용 런 기록 수집 (Autoload "Telemetry").
+## 릴리즈 빌드에서는 신호 연결, 수집, 파일 읽기·쓰기·삭제가 모두 비활성화된다.
 ##
 ## 왜 필요한가
 ## -----------
@@ -34,7 +35,8 @@ const MAX_RECORDS := 300        # 이 개수를 넘으면 오래된 것부터 �
 const PARTIAL_INTERVAL := 10.0
 const SAMPLE_INTERVAL := 60.0   # 분당 스냅샷
 
-var enabled: bool = true
+var enabled: bool = false
+var _debug_build: bool = false
 
 var _active: bool = false
 var _hits: int = 0
@@ -69,6 +71,11 @@ var _watchdog_log: Array = []
 
 
 func _ready() -> void:
+	_debug_build = OS.is_debug_build()
+	enabled = _debug_build
+	if not _debug_build:
+		set_process(false)
+		return
 	Events.player_died.connect(end_run.bind("died"))
 	Events.pause_watchdog_fired.connect(func(reason: String, detail: String):
 		if _watchdog_log.size() < 20:      # 무한 증가 방지 — 앞쪽 20건이면 원인 파악에 충분하다
@@ -82,6 +89,9 @@ func _ready() -> void:
 
 ## 판 시작 — `Main._ready()` 가 호출한다. 이어하기도 같은 진입점을 쓴다.
 func begin_run() -> void:
+	if not _debug_build:
+		_active = false
+		return
 	# 이전 판이 끝맺지 못한 채 남아 있으면 **먼저 기록한다.** 여기서 안 건지면 아래 초기화 뒤
 	# 진행 스냅샷이 그 파일을 덮어써 그 판이 영구히 사라진다 — 실제로 30분 클리어 판이 그렇게
 	# 소실됐다(클리어 후 메뉴로 나가고 새 게임을 시작한 경우).
@@ -188,7 +198,7 @@ func _stop_if_reset() -> bool:
 ## HUD 가 직접 부른다(`_on_main_menu_pressed`). 이걸 안 부르면 그 판이 통째로 사라진다.
 ## outcome: "died" 사망 · "left" 메뉴로 나감(정상 종료) · "abandoned" 탭 닫힘·크래시.
 func end_run(outcome: String) -> void:
-	if not _active:
+	if not _debug_build or not _active:
 		return
 	if _stop_if_reset():
 		return
@@ -310,6 +320,8 @@ func _group_count(g: String) -> int:
 
 ## 지난 실행에서 끝맺지 못한 판(웹 탭 닫힘·앱 강제 종료)을 '이탈' 기록으로 올린다.
 func _promote_abandoned() -> void:
+	if not _debug_build:
+		return
 	if not FileAccess.file_exists(PARTIAL_PATH):
 		return
 	var f := FileAccess.open(PARTIAL_PATH, FileAccess.READ)
@@ -322,6 +334,8 @@ func _promote_abandoned() -> void:
 
 
 func _append(rec: Dictionary) -> void:
+	if not _debug_build:
+		return
 	var lines := load_records_raw()
 	lines.append(JSON.stringify(rec))
 	if lines.size() > MAX_RECORDS:
@@ -335,6 +349,8 @@ func _append(rec: Dictionary) -> void:
 
 
 func _write_json(path: String, rec: Dictionary) -> void:
+	if not _debug_build:
+		return
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	if f == null:
 		return
@@ -344,6 +360,8 @@ func _write_json(path: String, rec: Dictionary) -> void:
 
 ## 저장된 기록의 원문(JSON 문자열) 목록. 비어 있으면 빈 배열.
 func load_records_raw() -> Array:
+	if not _debug_build:
+		return []
 	if not FileAccess.file_exists(PATH):
 		return []
 	var f := FileAccess.open(PATH, FileAccess.READ)
@@ -368,5 +386,7 @@ func export_text() -> String:
 
 
 func clear_records() -> void:
+	if not _debug_build:
+		return
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PATH))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(PARTIAL_PATH))

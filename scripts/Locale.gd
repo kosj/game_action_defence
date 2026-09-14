@@ -87,12 +87,6 @@ const STRINGS: Dictionary = {
 	"rewards_empty":     {"en": "No rewards waiting", "ko": "받을 보상이 없습니다", "ja": "受け取る報酬はありません"},
 
 	# ── 팝업 제목/문구 (전부 하드코딩 영어·한국어였다) ────────────────────
-	"opt_copy_log":      {"en": "COPY PLAY LOG (%d)", "ko": "플레이 기록 복사 (%d)",
-		"ja": "プレイ記録をコピー (%d)"},
-	"opt_copy_log_done": {"en": "COPIED", "ko": "복사했습니다", "ja": "コピーしました"},
-	"opt_log_hint":      {"en": "Runs saved on this device. Nothing is sent anywhere.",
-		"ko": "이 기기에만 저장된 플레이 기록입니다. 어디로도 전송되지 않습니다.",
-		"ja": "このデバイスにだけのこります。どこにもおくりません。"},
 	"popup_power":       {"en": "PERMANENT UPGRADES", "ko": "영구 강화", "ja": "パワーアップ"},
 
 	# ── 도감(P1-13) ───────────────────────────────────────────────────────
@@ -256,13 +250,6 @@ const STRINGS: Dictionary = {
 	# 마일스톤 카운트다운(P1-4). 기존 문구의 글자만 조합해 폰트 서브셋을 늘리지 않는다.
 	"hud_boss_in_fmt":  {"en": "BOSS IN %ds",  "ko": "보스 %d초",  "ja": "ボス %d秒"},
 	"hud_elite_in_fmt": {"en": "ELITE IN %ds", "ko": "정예 %d초", "ja": "エリート %d秒"},
-
-	# ── 날씨 전환 배너(WeatherSystem) ─────────────────────────────────────
-	# ja 는 가나로 적는다 — 번들 폰트에 한자가 89자뿐이라 雨/雪/霧/砂嵐/晴 이 들어 있지 않다.
-	# (게임 HUD 에서 가타카나 외래어 표기는 일본어로도 자연스럽다)
-	"weather_rain":    {"en": "RAIN",       "ko": "비",         "ja": "レイン"},
-	"weather_snow":    {"en": "SNOW",       "ko": "눈",         "ja": "スノー"},
-	"weather_clear":   {"en": "CLEARING",   "ko": "날이 갠다",  "ja": "はれてきた"},
 
 	# 패배 제목도 키로 옮긴다(P2-31). 승리는 "승리!"로 번역되는데 패배만 씬에 박힌 영어라
 	# 한 화면 안에서 두 결말의 말투가 달랐다.

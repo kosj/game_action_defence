@@ -10,7 +10,7 @@ const ITEM_PICKUP := preload("res://scenes/ItemPickup.tscn")
 
 
 func _ready() -> void:
-	Telemetry.begin_run()       # 이 판의 기록 시작(기기 안에만 남는다 — Telemetry.gd 참고)
+	Telemetry.begin_run()       # 개발 빌드에서만 진단 기록 시작(Telemetry.gd 참고)
 	CodexManager.on_run_start(ThemeManager.selected_id())   # 도감: 이 아레나를 플레이함 + 시작 인벤토리
 	ThreatManager.begin_run()   # 위협 등급: 다음 등급 해금 판정용 보스 처치 카운터를 연다
 	Events.pause_release_all()  # 게임 씬 진입 시 이전 판의 정지 소유권이 남아있지 않도록 보장

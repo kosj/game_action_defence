@@ -96,6 +96,8 @@ func _process(_delta: float) -> bool:
 	# 보스 등장은 이미 boss_alarm 을 울린다 — 띠까지 소리를 내면 두 경보가 겹친다.
 	_ok("보스 등장은 띠 소리를 끄고 부른다",
 		hud.contains("_ALERT_FONT_BOSS, false"), "boss_alarm 과 warn_boss 가 겹친다")
+	_ok("날씨 전환은 HUD 알림을 만들지 않는다",
+		not hud.contains("weather_changed.connect") and not hud.contains("_on_weather_changed"))
 
 	print("── 아스키 위험 표시가 되살아나지 않았는가 ───────")
 	# 경고 삼각형이 하는 일을 글자로 한 번 더 하지 않는다(UI_POLISH_PLAN §A-2 의 원칙).

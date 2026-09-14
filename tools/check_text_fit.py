@@ -197,7 +197,6 @@ def main() -> None:
         ("옵션 · 언어 칩", 104 - BTN_PAD, 16, True,
          [(l, Locale_native(l)) for l in ("en", "ko", "ja")]),
         ("옵션 · 토글", 112 - BTN_PAD, 17, True, loc("sound_on") + loc("sound_off")),
-        ("옵션 · 기록 복사", 580 - BTN_PAD, 16, True, loc("opt_copy_log", 999) + loc("opt_copy_log_done")),
         # 계정 상태 줄(MainMenu._build_status_strip). 칩 셋이 가로 한 줄에 서므로 칩 하나는
         # (720 - 간격 26x2 - 아이콘 28x3) / 3 ≈ 190 을 넘지 않아야 셋이 한 줄에 든다.
         ("메뉴 · 상태 줄", 190, 18, False,
@@ -279,9 +278,6 @@ def main() -> None:
          [(lang, fmt % (head, 99999))
           for lang, fmt in L.get("toast_gold_gain_fmt", {}).items()
           for head in [h for _, h in loc("toast_maxbuild") + loc("toast_maxbuild_fmt", 99)]]),
-        ("HUD 토스트 · 날씨", 720, 22, False,
-         [t for k in ("weather_clear", "weather_rain", "weather_snow") for t in loc(k)]),
-
         # ── 보상 카드(보물 상자) — 카드 폭이 고정이라 이름이 카드를 넘칠 수 있다.
         # 카드 128(4장) / 140(3장) / 152(2장 이하), 콘텐츠 여백 10*2.
         # 줄바꿈이 켜져 있으므로 "가장 긴 단어"가 기준이다.

@@ -199,7 +199,6 @@ func _ready() -> void:
 	Events.boss_health_changed.connect(_on_boss_health_changed)
 	Events.boss_died.connect(_on_boss_died)
 	Events.swarm_incoming.connect(_on_swarm_incoming)
-	Events.weather_changed.connect(_on_weather_changed)
 	Events.xp_changed.connect(_on_xp_changed)
 	Events.inventory_changed.connect(_on_inventory_changed)
 	Events.game_won.connect(_on_game_won)
@@ -369,16 +368,6 @@ func _show_banner(text: String, level: int) -> void:
 	if _alert == null:
 		return
 	_alert.flash(text, level, _ALERT_FONT)
-
-
-## 날씨 전환 알림 — 상시 위젯을 두지 않고(시간 표시 과밀 방지) 바뀌는 순간만 짧게 띄운다.
-## key == "" 는 '맑아짐'.
-func _on_weather_changed(key: String) -> void:
-	# 배너만 뜨고 소리가 없던 자리(P2-12). 맑아질 때는 반음 올려 '걷힌다'로 읽히게 한다 —
-	# 같은 파일이지만 방향이 반대인 사건이라 피치로만 갈라도 충분히 구분된다.
-	SoundManager.play("weather", 0.05, 1.12 if key == "" else 0.94)
-	var col := Color(0.72, 0.86, 1.0) if key != "" else Color(0.85, 0.88, 0.92)
-	_show_toast(Locale.t("weather_clear" if key == "" else "weather_" + key), col, 215.0, "weather")
 
 
 ## 달성 카드는 전용 레인에서 순차 재생하여 연속 달성도 빠짐없이 보여 준다.

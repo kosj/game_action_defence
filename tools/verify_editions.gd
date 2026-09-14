@@ -20,6 +20,7 @@ func _run() -> void:
 	current_scene = menu
 	await create_timer(1.2).timeout
 	assert(not menu.has_method("_on_ranking_pressed"))
+	assert(not menu.has_method("_on_copy_log_pressed"))
 	await _capture("mobile-menu" if mobile else "desktop-menu")
 	menu.call("_on_options_pressed")
 	await create_timer(0.5).timeout

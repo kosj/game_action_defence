@@ -22,6 +22,7 @@ extends Node
 ##   T14 판 도중 Events.reset() 이 일어나도 기록이 0 으로 덮이지 않는다
 ##   T15 이어하기 판이 분당 샘플을 한 프레임에 몰아 쓰지 않는다
 ##   T16 죽은 지표(mem_mb)가 돌아오지 않는다 — 웹에서 항상 0 이라 "누수 없음"으로 오독된다
+##   T17 릴리즈 모드에서는 수집과 기록 파일 접근이 모두 차단된다
 ##       (30분 클리어 판이 "생존 0초 · 처치 1" 로 저장되던 버그)
 ##       (클리어 후 메뉴로 나간 판이 통째로 사라지던 버그)
 
@@ -297,6 +298,26 @@ func _ready() -> void:
 	_check("T15 이어하기 직후 샘플을 몰아 쓰지 않는다",
 		burst == 0 and after == 1,
 		"재개 직후 %d행 · 1분 뒤 %d행" % [burst, after])
+	Telemetry.clear_records()
+
+	# ── T17 릴리즈 모드에서는 메모리 수집과 파일 접근을 하지 않는다 ─────
+	# 실제 릴리즈에서는 _ready()가 OS.is_debug_build()를 읽어 이 상태를 만든다. 여기서는 같은
+	# 상태를 강제로 만들어 공개 진입점뿐 아니라 내부 파일 쓰기 안전망까지 함께 검증한다.
+	Telemetry._debug_build = false
+	Telemetry.enabled = true       # 외부에서 켜려 해도 빌드 게이트가 우선해야 한다
+	Events.reset()
+	Telemetry.begin_run()
+	Telemetry._write_json(Telemetry.PARTIAL_PATH, {"must_not_write": true})
+	Telemetry._append({"must_not_write": true})
+	Telemetry.end_run("left")
+	var release_files_absent := (
+		not FileAccess.file_exists(Telemetry.PATH)
+		and not FileAccess.file_exists(Telemetry.PARTIAL_PATH))
+	_check("T17 릴리즈 모드는 수집·파일 접근 차단",
+		not Telemetry._active and Telemetry.record_count() == 0
+			and Telemetry.export_text().is_empty() and release_files_absent)
+	Telemetry._debug_build = true
+	Telemetry.enabled = true
 	Telemetry.clear_records()
 
 	print("RESULT ok=%d/%d" % [_ok, _total])
