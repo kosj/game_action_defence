@@ -185,6 +185,7 @@ func _refresh() -> void:
 		for rule in _evo_rules:
 			_card_box.add_child(_make_evolve_card(rule))
 		_stagger_cards()
+		_prepare_keyboard_focus.call_deferred()
 		return
 	# 올릴 아이템이 없으면(전부 만렙·슬롯 꽉참) 그 레벨업은 넘긴다. 재귀 대신 루프로 소진해
 	# 대기 레벨업이 많이 쌓여도 스택이 깊어지지 않게 한다.
@@ -202,6 +203,31 @@ func _refresh() -> void:
 	for ch in choices:
 		_card_box.add_child(_make_card(ch))
 	_stagger_cards()
+	_prepare_keyboard_focus.call_deferred()
+
+
+## 키보드/게임패드 선택: 첫 카드를 즉시 포커스하고 방향 입력이 목록 끝에서 순환하도록 연결한다.
+## Button의 엔진 기본 ui_accept 처리를 쓰므로 Enter/Space/패드 확인 버튼이 클릭과 같은 pressed 경로를 탄다.
+func _prepare_keyboard_focus() -> void:
+	if not _showing or _confirming or _card_box == null:
+		return
+	var cards: Array[Button] = []
+	for child in _card_box.get_children():
+		if child is Button:
+			cards.append(child as Button)
+	if cards.is_empty():
+		return
+	for i in cards.size():
+		var btn := cards[i]
+		var prev := cards[(i - 1 + cards.size()) % cards.size()]
+		var next := cards[(i + 1) % cards.size()]
+		btn.focus_neighbor_top = btn.get_path_to(prev)
+		btn.focus_neighbor_left = btn.get_path_to(prev)
+		btn.focus_neighbor_bottom = btn.get_path_to(next)
+		btn.focus_neighbor_right = btn.get_path_to(next)
+		btn.focus_previous = btn.get_path_to(prev)
+		btn.focus_next = btn.get_path_to(next)
+	cards[0].grab_focus()
 
 
 ## 카드 등장 연출 — 위에서부터 순차적으로(stagger) 깔린다. 알파만 올리면 "그 자리에 있던 것이
@@ -360,6 +386,10 @@ func _make_evolve_card(rule: Dictionary) -> Button:
 
 func _card_content(btn: Button, item: Dictionary, tag: String, levels: String, evolved: bool) -> void:
 	_UIStyle.tactical_button(btn)
+	btn.focus_mode = Control.FOCUS_ALL
+	# 공용 버튼 스타일은 터치 화면을 위해 포커스 테두리를 숨긴다. 선택 카드에서는 청록색 판으로
+	# 덮어써 현재 키보드 위치가 마우스 없이도 확실히 보이게 한다.
+	btn.add_theme_stylebox_override("focus", _UIStyle.button_box(UITheme.TACTICAL_TEAL, 0.0))
 	if evolved:
 		btn.add_theme_stylebox_override("normal", _UIStyle.button_box(UITheme.TACTICAL_YELLOW, 0.02))
 	# A container owns text height; long translations grow the card rather than overlap.

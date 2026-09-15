@@ -1,6 +1,6 @@
 extends CanvasLayer
 ## 보물상자 보상 리빌 — 상자를 열면 게임을 멈추고 등급(일반/고급/희귀/전설)별 연출과 함께
-## 무엇을 받았는지 보여준다. 탭(또는 자동)으로 닫히면 그때 보상을 실제 적용하고 게임을 재개한다.
+## 무엇을 받았는지 보여준다. 탭·Enter(또는 자동)로 닫히면 그때 보상을 실제 적용하고 게임을 재개한다.
 ## 보상을 "닫힌 뒤" 적용하는 이유: 무료 레벨업 등은 LevelUpPanel(자체 일시정지)을 띄우므로
 ## 두 패널의 일시정지가 겹치지 않게 순서를 보장한다.
 ##
@@ -676,7 +676,7 @@ func _flips_pending() -> bool:
 	return false
 
 
-## 탭 스킵 — 남은 플립을 즉시 완료해 모든 카드 앞면을 보여준다.
+## 입력 스킵 — 남은 플립을 즉시 완료해 모든 카드 앞면을 보여준다.
 func _finish_flips() -> void:
 	for tw in _flip_tws:
 		if tw and tw.is_valid():
@@ -696,14 +696,32 @@ func _finish_flips() -> void:
 	SoundManager.play_ui("gold", 0.04, 1.4)
 
 
+## 터치/클릭과 Enter가 같은 상태 전이를 사용해야 입력 방식에 따라 보상이 두 번 적용되거나
+## 중간 단계가 달라지지 않는다.
+func _advance_reward_sequence() -> void:
+	if _closed:
+		return
+	if _phase == 0:
+		_reveal()   # 기대 단계 = 바로 공개로 스킵
+	elif _flips_pending():
+		_finish_flips()   # 플립 연출 중 = 남은 카드 즉시 전부 공개
+	else:
+		_close()
+
+
 func _on_dim_input(e: InputEvent) -> void:
-	if e is InputEventMouseButton and e.pressed:
-		if _phase == 0:
-			_reveal()   # 기대 단계 탭 = 바로 공개로 스킵
-		elif _flips_pending():
-			_finish_flips()   # 플립 연출 중 탭 = 남은 카드 즉시 전부 공개
-		else:
-			_close()
+	var pressed_touch: bool = e is InputEventScreenTouch and (e as InputEventScreenTouch).pressed
+	var pressed_mouse: bool = e is InputEventMouseButton and (e as InputEventMouseButton).pressed
+	if pressed_touch or pressed_mouse:
+		_advance_reward_sequence()
+
+
+func _input(e: InputEvent) -> void:
+	if _closed:
+		return
+	if e is InputEventKey and e.pressed and not e.echo and e.is_action_pressed("ui_accept"):
+		_advance_reward_sequence()
+		get_viewport().set_input_as_handled()
 
 
 func _process(delta: float) -> void:
