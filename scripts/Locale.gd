@@ -167,7 +167,7 @@ const STRINGS: Dictionary = {
 	# 카드 폭이 128px(4장)뿐이라 **가장 긴 낱말**이 108px 를 넘으면 안 된다.
 	# tools/check_text_fit.py 의 "보상 카드 · 이름" 케이스가 세 언어를 모두 잰다 —
 	# 문구를 고치면 그 검사를 반드시 다시 돌릴 것.
-	"tap_continue":    {"en": "Tap or Enter to continue", "ko": "탭 또는 Enter로 계속", "ja": "タップまたはEnterでつづける"},
+	"tap_continue":    {"en": "Tap or Enter to continue", "ko": "탭 / Enter로 계속", "ja": "タップまたはEnterでつづける"},
 	"chest_head":      {"en": "TREASURE", "ko": "보물상자", "ja": "トレジャー"},
 	"chest_rar_common": {"en": "COMMON", "ko": "일반", "ja": "ノーマル"},
 	# 한국어는 서브셋에 없는 음절을 피한다 — "희귀"(귀·희)·"영웅"(웅)을 못 써
