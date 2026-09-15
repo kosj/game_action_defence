@@ -68,6 +68,41 @@ func _ready() -> void:
 	_build_ui()
 
 
+## 레벨업 중에는 플레이 이동용 WASD를 카드 포커스 이동으로 전환한다. InputMap의
+## move_* 액션을 그대로 써서 키 설정과 동기화하며, 키 반복은 한 번 누른 입력만 처리한다.
+## 방향키·게임패드는 Button의 기본 ui_* 포커스 이동이 먼저 처리하므로 이 경로와 중복되지 않는다.
+func _unhandled_input(event: InputEvent) -> void:
+	if not _showing or _confirming or not (event is InputEventKey):
+		return
+	var key := event as InputEventKey
+	if not key.pressed or key.echo:
+		return
+	var step := 0
+	if event.is_action_pressed("move_up") or event.is_action_pressed("move_left"):
+		step = -1
+	elif event.is_action_pressed("move_down") or event.is_action_pressed("move_right"):
+		step = 1
+	if step == 0:
+		return
+	_move_keyboard_focus(step)
+	get_viewport().set_input_as_handled()
+
+
+func _move_keyboard_focus(step: int) -> void:
+	var cards: Array[Button] = []
+	for child in _card_box.get_children():
+		if child is Button and not child.disabled:
+			cards.append(child as Button)
+	if cards.is_empty():
+		return
+	var focused := get_viewport().gui_get_focus_owner()
+	var index := cards.find(focused)
+	if index < 0:
+		cards[0].grab_focus()
+	else:
+		cards[posmod(index + step, cards.size())].grab_focus()
+
+
 func _build_ui() -> void:
 	_dim = ColorRect.new()
 	_dim.set_anchors_preset(Control.PRESET_FULL_RECT)

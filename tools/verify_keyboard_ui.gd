@@ -1,5 +1,5 @@
 extends SceneTree
-## 레벨업 방향키/Enter 선택과 보물상자 Enter 단계 진행을 실제 입력 이벤트로 검증한다.
+## 레벨업 방향키/WASD/Enter 선택과 보물상자 Enter 단계 진행을 실제 입력 이벤트로 검증한다.
 
 var _failures := 0
 var _applied := 0
@@ -58,6 +58,14 @@ func _run() -> void:
 		_check("Down moves focus to next card", root.gui_get_focus_owner() == cards[1])
 		await _press_key(KEY_UP)
 		_check("Up moves focus to previous card", root.gui_get_focus_owner() == cards[0])
+		await _press_key(KEY_S)
+		_check("S moves focus to next card", root.gui_get_focus_owner() == cards[1])
+		await _press_key(KEY_W)
+		_check("W moves focus to previous card", root.gui_get_focus_owner() == cards[0])
+		await _press_key(KEY_D)
+		_check("D moves focus to next card", root.gui_get_focus_owner() == cards[1])
+		await _press_key(KEY_A)
+		_check("A moves focus to previous card", root.gui_get_focus_owner() == cards[0])
 		await _press_key(KEY_ENTER)
 		_check("Enter confirms focused level-up card", bool(level_panel.get("_confirming")))
 	await create_timer(0.36, true, false, true).timeout
