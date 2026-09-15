@@ -41,7 +41,11 @@ func _create_fire() -> void:
 	_pool.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_pool.position = Vector2.ONE * -radius * 1.08
 	_pool.size = Vector2.ONE * radius * 2.16
-	_pool.z_index = -1
+	# GroundHazard 자체가 z=-1이라 여기서 다시 -1을 주면 유효 z=-2가 된다. 그 값은
+	# 도로·잔디 TileMapLayer와 같아 청크/위치의 정렬 순서에 따라 바닥 셰이더가 가려졌다.
+	# 부모와 같은 z에 두고 부모의 테두리보다 먼저 그리면 지면 위·유닛 아래가 항상 유지된다.
+	_pool.z_index = 0
+	_pool.show_behind_parent = true
 	var pool_mat := ShaderMaterial.new()
 	pool_mat.shader = _POOL_SHADER
 	pool_mat.set_shader_parameter("tint", color)
