@@ -87,6 +87,9 @@ var _blur_mat: ShaderMaterial = null
 var _go_medal_row: Control = null
 var _go_record: Label = null
 var _go_grade: Label = null
+var _go_grade_caption: Label = null
+var _go_grade_reveal: Control = null
+var _go_grade_tween: Tween = null
 ## 판 시작 시점의 이 위협 등급 최고 생존 시간. 게임오버에서 신기록인지 판정하는 기준이다.
 ## **여기서 미리 잡아 두는 이유**: ThreatManager 는 사망/클리어 시그널에서 기록을 갱신하는데,
 ## 그 연결이 HUD 보다 먼저라 게임오버 시점에 물어보면 **이미 갱신된 값**이 돌아온다 —
@@ -1139,6 +1142,9 @@ func _build_gameover_stats() -> void:
 	# 바로 뒤에 그리드를 끼웠는데, 그 라벨은 이제 씬에서 지웠다(P2-22) — 제목 바로
 	# 뒤에 넣는다.
 	var vbox := game_over_label.get_parent()
+	# 헤더를 좌표로 억지로 내리지 않는다. 콘텐츠는 프레임 상단에서 시작하고 남는 높이는
+	# 통계와 버튼 사이의 유동 여백이 흡수해, 제목 위가 비고 버튼까지 함께 뜨는 문제를 막는다.
+	vbox.alignment = BoxContainer.ALIGNMENT_BEGIN
 
 	var holder := VBoxContainer.new()
 	holder.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1165,18 +1171,43 @@ func _build_gameover_stats() -> void:
 	header.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	medal_row.add_child(header)
 
+	_go_grade_reveal = Control.new()
+	# 원본 헤더(900×300)의 메달 안쪽 원 중심은 약 (764, 128)이다. 등급 문자와 캡션을
+	# 같은 중심에 묶어 글자 폭이나 언어와 관계없이 메달 한가운데 놓이게 한다.
+	_go_grade_reveal.anchor_left = 0.770
+	_go_grade_reveal.anchor_top = 0.14
+	_go_grade_reveal.anchor_right = 0.928
+	_go_grade_reveal.anchor_bottom = 0.70
+	_go_grade_reveal.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	medal_row.add_child(_go_grade_reveal)
+
 	_go_grade = Label.new()
-	# 원본 헤더(900×300)의 메달 안쪽 원 중심은 약 (764, 128)이다. 라벨 영역도 그
-	# 중심을 기준으로 잡아 글자 폭과 관계없이 등급 문자가 메달 한가운데 놓이게 한다.
-	_go_grade.anchor_left = 0.770
-	_go_grade.anchor_top = 0.20
-	_go_grade.anchor_right = 0.928
-	_go_grade.anchor_bottom = 0.65
-	_go_grade.add_theme_font_size_override("font_size", 52)
+	_go_grade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_go_grade.offset_bottom = -11.0
+	_go_grade.add_theme_font_size_override("font_size", 54)
+	_go_grade.add_theme_constant_override("outline_size", 8)
+	_go_grade.add_theme_color_override("font_outline_color", Color(0.055, 0.045, 0.04, 1.0))
+	_go_grade.add_theme_constant_override("shadow_offset_x", 2)
+	_go_grade.add_theme_constant_override("shadow_offset_y", 3)
+	_go_grade.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.85))
 	_go_grade.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_go_grade.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	UITheme.heading(_go_grade)
-	medal_row.add_child(_go_grade)
+	_go_grade_reveal.add_child(_go_grade)
+
+	_go_grade_caption = Label.new()
+	_go_grade_caption.anchor_left = 0.0
+	_go_grade_caption.anchor_top = 0.72
+	_go_grade_caption.anchor_right = 1.0
+	_go_grade_caption.anchor_bottom = 1.0
+	_go_grade_caption.text = "RANK"
+	_go_grade_caption.add_theme_font_size_override("font_size", 11)
+	_go_grade_caption.add_theme_constant_override("outline_size", 3)
+	_go_grade_caption.add_theme_color_override("font_outline_color", Color(0.03, 0.025, 0.02, 1.0))
+	_go_grade_caption.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_go_grade_caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	UITheme.heading(_go_grade_caption)
+	_go_grade_reveal.add_child(_go_grade_caption)
 
 	_go_record = Label.new()
 	_go_record.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1224,10 +1255,11 @@ func _build_gameover_stats() -> void:
 		_go_vals[row[1]] = val
 		_go_stat_cells.append([stat_icon,name_lbl,val])
 
-	# 정보(제목·통계)와 버튼 사이 고정 간격 — 통계가 2줄뿐이라 확장 스페이서를 쓰면
-	# 패널 중앙이 텅 비어 보인다. 고정 간격 + VBox 중앙 정렬로 짜임새 있게 모은다.
+	# 정보(제목·통계)는 상단, 행동 버튼은 하단에 고정한다. 해상도나 번역으로 남는 높이가
+	# 달라져도 이 여백만 늘어나므로 헤더 위치와 버튼 위치가 흔들리지 않는다.
 	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(0, 14)
+	gap.custom_minimum_size = Vector2(0, 10)
+	gap.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(gap)
 	vbox.move_child(gap, holder.get_index() + 1)
@@ -1301,6 +1333,9 @@ const _END_COUNT_SEC := 0.42     # 각 통계 숫자가 굴러 올라오는 고�
 const _END_MEDAL_AT := 0.22
 const _END_ROW_AT := 0.52
 const _END_ROW_STAGGER := 0.20
+const _END_STATS_AT := _END_ROW_AT + _END_ROW_STAGGER * 3.0 + _END_COUNT_SEC
+const _END_GRADE_AT := _END_STATS_AT + 0.14
+const _END_GRADE_IMPACT_SEC := 0.37
 
 ## 게임오버 배경 비네트(UI_POLISH_PLAN 3-3). 패널만으로는 승패가 **제목 글자 색**으로만
 ## 구분됐다 — 화면 전체가 결과를 말하도록 가장자리를 결과 색으로 물들인다.
@@ -1372,6 +1407,47 @@ func _play_end_stats(kills: int, seconds: int, level: int, gold: int) -> void:
 		count_tw.tween_interval(row_delay)
 		count_tw.tween_method(setters[i],0.0,float(targets[i]),_END_COUNT_SEC)\
 			.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	if _go_medal_row.visible:
+		_play_grade_reveal()
+
+
+## 모든 통계가 자리를 잡은 뒤, 등급만 메달 정중앙에 강하게 찍힌다.
+## 헤더와 빈 메달을 먼저 보여 주어 마지막 결과를 기다리게 하고 버튼은 충격이 끝난 뒤 연다.
+func _play_grade_reveal() -> void:
+	if _go_grade_reveal == null:
+		return
+	if _go_grade_tween and _go_grade_tween.is_valid():
+		_go_grade_tween.kill()
+	_go_grade_reveal.pivot_offset = _go_grade_reveal.size * 0.5
+	_go_grade_reveal.modulate.a = 0.0
+	_go_grade_reveal.scale = Vector2(2.65, 2.65)
+	_go_grade_reveal.rotation = -0.08
+	_go_grade_tween = create_tween()
+	_go_grade_tween.tween_interval(_END_GRADE_AT)
+	_go_grade_tween.tween_callback(_on_grade_impact)
+	_go_grade_tween.set_parallel(true)
+	_go_grade_tween.tween_property(_go_grade_reveal, "modulate:a", 1.0, 0.04)
+	_go_grade_tween.tween_property(_go_grade_reveal, "scale", Vector2(0.78, 0.78), 0.11)\
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_go_grade_tween.tween_property(_go_grade_reveal, "rotation", 0.0, 0.11)\
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_go_grade_tween.set_parallel(false)
+	_go_grade_tween.tween_property(_go_grade_reveal, "scale", Vector2(1.12, 1.12), 0.10)\
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_go_grade_tween.tween_property(_go_grade_reveal, "scale", Vector2.ONE, 0.16)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+func _on_grade_impact() -> void:
+	SoundManager.play_ui("boom", 0.03, 1.18)
+	Events.shake(5.0)
+	# 등급만 찍혀도 헤더 전체가 충격을 받은 듯 짧게 눌렸다 돌아온다.
+	_go_medal_row.scale = Vector2(0.98, 0.98)
+	var punch := create_tween()
+	punch.tween_property(_go_medal_row, "scale", Vector2(1.025, 1.025), 0.08)\
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	punch.tween_property(_go_medal_row, "scale", Vector2.ONE, 0.13)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
 ## 버튼은 마지막 통계가 다 올라간 뒤 차례로 나타난다.
@@ -1384,8 +1460,9 @@ func _stagger_end_buttons() -> void:
 	for b in btns:
 		b.modulate.a = 0.0
 		var tw := create_tween()
-		var stats_end := _END_ROW_AT+_END_ROW_STAGGER*float(_go_stat_cells.size()-1)+_END_COUNT_SEC
-		tw.tween_interval(stats_end+0.12+_END_BTN_STAGGER*float(i))
+		var reveal_end := (_END_GRADE_AT + _END_GRADE_IMPACT_SEC + 0.08) \
+			if _go_medal_row.visible else (_END_STATS_AT + 0.12)
+		tw.tween_interval(reveal_end+_END_BTN_STAGGER*float(i))
 		tw.tween_property(b, "modulate:a", 1.0, UIMotion.DUR_FADE)
 		i += 1
 
@@ -1425,6 +1502,7 @@ func _show_end_panel(victory: bool) -> void:
 	var medal: Color = _GRADE_COL[gi]
 	_go_grade.text = String(_GRADE_TXT[gi])
 	_go_grade.add_theme_color_override("font_color", medal)
+	_go_grade_caption.add_theme_color_override("font_color", medal.lightened(0.22))
 	# 신기록 배너. 이 위협 등급에서 판 시작 시점의 최고 기록을 넘겼을 때만 뜬다.
 	# 예전에는 스코어 기반이라 늘 꺼 두고 있었다 — 점수는 화면에서 뺐으니(P2-22)
 	# 플레이어가 실제로 겨루는 값, 곧 생존 시간으로 판정한다.

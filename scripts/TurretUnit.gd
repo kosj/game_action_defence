@@ -5,8 +5,7 @@ extends Node2D
 
 const BULLET := preload("res://scenes/Bullet.tscn")
 const FIRE_INTERVAL := 0.5   # 터렛 자체 발사 간격
-const MUZZLE_LEN := 24.0     # 커진 포신 끝에서 탄이 나오도록 시각 크기와 함께 맞춘다.
-const SPR_SCALE := 0.46      # 128px 원본을 약 59px로 표시해 필드에서도 실루엣이 읽히게 한다.
+const SPR_SCALE := 0.56      # 128px 원본을 약 72px로 표시한다.
 
 ## 방향 스프라이트(3x3 시트에서 잘라낸 셀). 시트가 8방향을 완벽히 담진 않아 실제 그려진 방향에
 ## 맞춰 매핑: up=idx0, up-right=idx2, left=idx3, down=idx4, right=idx5. (없는 대각은 근접/미러 대체)
@@ -16,6 +15,14 @@ const _TEX := [
 	preload("res://assets/atlas/turret_3.tres"),  # [2] 좌(W)
 	preload("res://assets/atlas/turret_4.tres"),  # [3] 아래(S)
 	preload("res://assets/atlas/turret_5.tres"),  # [4] 우(E)
+]
+# Visible barrel openings in the original 128x128 cells, before centering/mirroring.
+const _MUZZLES := [
+	[Vector2(71, 79), Vector2(90, 79)],
+	[Vector2(18, 78), Vector2(34, 84)],
+	[Vector2(32, 47), Vector2(37, 56)],
+	[Vector2(55, 82), Vector2(74, 82)],
+	[Vector2(95, 45), Vector2(92, 55)],
 ]
 ## 조준 8분할(0=E,1=SE,2=S,3=SW,4=W,5=NW,6=N,7=NE) → [_TEX 인덱스, 좌우반전].
 const _DIR := [
@@ -39,6 +46,7 @@ var _aim: Vector2 = Vector2.RIGHT
 var _spr: Sprite2D
 var _shadow: Sprite2D
 var _oct: int = -1
+var _barrel: int = 0
 
 const _SHADOW_TEX := preload("res://assets/atlas/shadow.tres")
 
@@ -114,10 +122,16 @@ func _fit_shadow() -> void:
 
 func _fire(target: Node2D) -> void:
 	_aim = (target.global_position - global_position).normalized()
+	_update_sprite()
+	var texture_index := int(_DIR[_oct][0])
+	var muzzle_local: Vector2 = _MUZZLES[texture_index][_barrel] - _spr.texture.get_size() * 0.5
+	var muzzle_world := _spr.to_global(muzzle_local)
+	var shot_direction := (target.global_position - muzzle_world).normalized()
+	_barrel = 1 - _barrel
 	var b := Pool.acquire(BULLET, Events.fx_layer())
-	b.global_position = global_position + _aim * MUZZLE_LEN   # 포신 끝에서 발사
-	b.direction = _aim
-	b.rotation = _aim.angle() + PI / 2
+	b.global_position = muzzle_world
+	b.direction = shot_direction
+	b.rotation = shot_direction.angle() + PI / 2
 	b.speed = bullet_speed
 	b.damage = damage
 	b.is_crit = false
