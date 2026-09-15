@@ -40,10 +40,18 @@ func _ready() -> void:
 func _layout() -> void:
 	var screen := get_viewport_rect().size
 	var portrait := screen.y>screen.x
-	size = Vector2(600 if boss else 420,100)
-	position = Vector2((screen.x-size.x)*0.5,320) if boss else Vector2((screen.x-size.x)*0.5 if portrait else 24,screen.y-452)
+	if portrait:
+		# 세로 화면의 중앙 전투 공간을 비운다. 보스 이동 안내는 좌측, 버프는 우측 레인이다.
+		size = Vector2(minf(320.0, screen.x-48.0), 88.0 if boss else 80.0)
+		position = Vector2(24.0 if boss else screen.x-size.x-24.0, 328.0 if boss else 480.0)
+	else:
+		size = Vector2(600 if boss else 420,100)
+		position = Vector2((screen.x-size.x)*0.5,320) if boss else Vector2(24,screen.y-452)
 	pivot_offset = size*0.5
-	for label in [title,detail]: label.size.x = size.x-112
+	for label in [title,detail]:
+		label.position.x = 68.0 if portrait else 92.0
+		label.size.x = size.x-label.position.x-16.0
+		label.add_theme_font_size_override("font_size", 20 if portrait else 24)
 
 func update_notice(text: String, subtitle: String, seconds: float, ready: bool = false, angle: float = 0.0) -> void:
 	var entering := not active
@@ -55,7 +63,9 @@ func update_notice(text: String, subtitle: String, seconds: float, ready: bool =
 	direction = angle
 	active = true
 	title.text = text
-	title.position.y = 13 if boss else 31
+	var portrait := get_viewport_rect().size.y > get_viewport_rect().size.x
+	title.position.y = (10 if boss else 25) if portrait else (13 if boss else 31)
+	detail.position.y = 42 if portrait else 48
 	detail.text = subtitle
 	_accent = Color(0.4,1,0.7) if arrived else (Color(1,0.7,0.25) if boss else Color(0.35,0.85,1))
 	if remaining<=3 and not arrived: _accent = Color(1,0.43,0.3)
@@ -104,19 +114,22 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	_box.border_color = _accent.darkened(0.4)
 	draw_style_box(_box,Rect2(Vector2.ZERO,size))
-	var origin := Vector2(46,48)
-	draw_arc(origin,31,-PI/2,-PI/2+TAU*clampf(remaining/duration,0.001,1),48,_accent,3,true)
+	var portrait := get_viewport_rect().size.y > get_viewport_rect().size.x
+	var origin := Vector2(34,40) if portrait else Vector2(46,48)
+	var icon_scale := 0.76 if portrait else 1.0
+	draw_arc(origin,31*icon_scale,-PI/2,-PI/2+TAU*clampf(remaining/duration,0.001,1),48,_accent,3,true)
 	if arrived:
-		draw_polyline(PackedVector2Array([origin+Vector2(-14,0),origin+Vector2(-3,11),origin+Vector2(15,-12)]),_accent,4,true)
+		draw_polyline(PackedVector2Array([origin+Vector2(-14,0)*icon_scale,origin+Vector2(-3,11)*icon_scale,origin+Vector2(15,-12)*icon_scale]),_accent,4,true)
 	elif boss:
 		var arrow := PackedVector2Array()
 		for p in [Vector2(18,0),Vector2(-12,-12),Vector2(-5,0),Vector2(-12,12)]:
-			arrow.append(origin+p.rotated(direction)*(1+0.08*sin(_phase*5)))
+			arrow.append(origin+p.rotated(direction)*(1+0.08*sin(_phase*5))*icon_scale)
 		draw_colored_polygon(arrow,_accent)
 	else:
-		draw_arc(origin+Vector2(0,-3),15,0,PI,24,_accent,6,true)
+		draw_arc(origin+Vector2(0,-3)*icon_scale,15*icon_scale,0,PI,24,_accent,6*icon_scale,true)
 		for side in [-1,1]:
-			draw_line(origin+Vector2(side*15,-15),origin+Vector2(side*15,-3),_accent,6,true)
-			var dot := origin+Vector2(side*(24-8*fmod(_phase,1)), -20+12*fmod(_phase,1))
+			draw_line(origin+Vector2(side*15,-15)*icon_scale,origin+Vector2(side*15,-3)*icon_scale,_accent,6*icon_scale,true)
+			var dot := origin+Vector2(side*(24-8*fmod(_phase,1)), -20+12*fmod(_phase,1))*icon_scale
 			draw_circle(dot,2,_accent)
-	draw_line(Vector2(16,91),Vector2(16+(size.x-32)*clampf(remaining/duration,0,1),91),_accent,3,true)
+	var progress_y := size.y - (8.0 if portrait else 9.0)
+	draw_line(Vector2(16,progress_y),Vector2(16+(size.x-32)*clampf(remaining/duration,0,1),progress_y),_accent,3,true)

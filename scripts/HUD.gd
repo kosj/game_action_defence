@@ -416,14 +416,16 @@ func _on_maxed_level_gold(_level: int, gold: int) -> void:
 	_show_toast(Locale.t("toast_gold_gain_fmt") % [head, total], Color(1.0, 0.85, 0.35), 190.0, "maxbuild")
 
 
-## 화면 상단 중앙에 잠깐 떠오르는 토스트 알림(달성·과제·날씨·만렙 보상 공용).
+## 잠깐 떠오르는 토스트 알림. 세로 화면에서는 중앙 전투 공간을 피해 우측 알림 레인에 둔다.
 ## 줄 세우기와 겹침 처리는 HUDToast 레인이 한다 — 예전에는 여기서 Label 을 그때그때
 ## 만들었고, 서로를 모르니 같은 순간에 둘이 뜨면 그대로 겹쳤다(UI_POLISH_PLAN §A-10).
 ## kind 는 같은 종류가 떠 있을 때 새 줄 대신 글자만 갈아끼우게 한다(날씨가 그 경우다).
 func _show_toast(text: String, col: Color, _from_y: float, kind: String = "") -> void:
 	if _toasts == null:
 		return
-	_toasts.push(text, col, 604.0 + _tactical_safe_top, kind)
+	var extent := get_viewport().get_visible_rect().size
+	var notice_y := 616.0 if extent.y > extent.x else 604.0 + _tactical_safe_top
+	_toasts.push(text, col, notice_y, kind)
 
 
 func _on_player_health_changed(health: int, max_health: int) -> void:

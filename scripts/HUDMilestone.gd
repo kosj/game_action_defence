@@ -7,6 +7,13 @@ const CARD_W := 560.0
 const CARD_H := 224.0
 const FRAME_SAFE := 40.0
 const TEXT_LEFT := 120.0
+## 세로 화면에서는 전투 중심을 비우기 위해 우측 상단 알림 레인에 들어가는 작은 카드를 쓴다.
+const PORTRAIT_W := 320.0
+const PORTRAIT_H := 144.0
+const PORTRAIT_MARGIN := 24.0
+const PORTRAIT_Y := 328.0
+const PORTRAIT_SAFE := 18.0
+const PORTRAIT_TEXT_LEFT := 76.0
 var pending: Array[Dictionary] = []
 var current: Dictionary = {}
 var _card: Panel
@@ -16,6 +23,7 @@ var _detail: Label
 var _fx: Control
 var _tween: Tween
 var _accent := Color.GOLD
+var _portrait := false
 var _burst := 0.0:
 	set(value):
 		_burst = value
@@ -73,12 +81,26 @@ func _label(font_size: int, at: Vector2, extent: Vector2) -> Label:
 
 func _layout() -> void:
 	var screen := get_viewport_rect().size
-	_card.size = Vector2(minf(CARD_W,screen.x-48),CARD_H)
-	var portrait := screen.y>screen.x
-	_card.position = Vector2((screen.x-_card.size.x)*0.5 if portrait else screen.x-_card.size.x-24,416)
+	_portrait = screen.y > screen.x
+	var card_w := minf(PORTRAIT_W if _portrait else CARD_W, screen.x - 48.0)
+	_card.size = Vector2(card_w, PORTRAIT_H if _portrait else CARD_H)
+	_card.position = Vector2(screen.x-_card.size.x-PORTRAIT_MARGIN,
+		PORTRAIT_Y if _portrait else 416.0)
+	var text_left := PORTRAIT_TEXT_LEFT if _portrait else TEXT_LEFT
+	var frame_safe := PORTRAIT_SAFE if _portrait else FRAME_SAFE
+	_heading.position = Vector2(text_left, 18 if _portrait else 40)
+	_heading.size.y = 20 if _portrait else 24
+	_heading.add_theme_font_size_override("font_size", 14 if _portrait else 18)
+	_title.position = Vector2(text_left, 42 if _portrait else 70)
+	_title.size.y = 28 if _portrait else 34
+	_title.add_theme_font_size_override("font_size", 20 if _portrait else 26)
+	_detail.position = Vector2(text_left, 82 if _portrait else 124)
+	_detail.size.y = 22 if _portrait else 28
+	_detail.add_theme_font_size_override("font_size", 15 if _portrait else 20)
 	for label in [_heading,_title,_detail]:
-		label.size.x = _card.size.x-TEXT_LEFT-FRAME_SAFE
+		label.size.x = _card.size.x-text_left-frame_safe
 	_card.pivot_offset = _card.size*0.5
+	_fx.queue_redraw()
 
 func push(title: String, achievement: bool, reward: int = 0) -> void:
 	pending.append({"title":title,"achievement":achievement,"reward":reward})
@@ -116,27 +138,31 @@ func _next() -> void:
 	_tween.tween_callback(_next)
 
 func _draw_fx() -> void:
-	var origin := Vector2(72,112)
-	_fx.draw_circle(origin,30,_accent.darkened(0.78))
-	_fx.draw_arc(origin,32,0,TAU,48,_accent,2,true)
+	var origin := Vector2(42,72) if _portrait else Vector2(72,112)
+	var icon_scale := 0.64 if _portrait else 1.0
+	_fx.draw_circle(origin,30*icon_scale,_accent.darkened(0.78))
+	_fx.draw_arc(origin,32*icon_scale,0,TAU,48,_accent,2,true)
 	if current.get("achievement",false):
 		var star := PackedVector2Array()
 		for i in 10:
-			star.append(origin+Vector2.from_angle(-PI*0.5+i*PI/5)*(20 if i%2==0 else 9))
+			star.append(origin+Vector2.from_angle(-PI*0.5+i*PI/5)*(20 if i%2==0 else 9)*icon_scale)
 		_fx.draw_colored_polygon(star,_accent)
 	else:
-		_fx.draw_polyline(PackedVector2Array([origin+Vector2(-16,0),origin+Vector2(-4,12),origin+Vector2(18,-14)]),_accent,5,true)
+		_fx.draw_polyline(PackedVector2Array([origin+Vector2(-16,0)*icon_scale,origin+Vector2(-4,12)*icon_scale,origin+Vector2(18,-14)*icon_scale]),_accent,5*icon_scale,true)
 	for i in 8:
 		var ray := Vector2.from_angle(i*TAU/8)
 		var col := _accent
 		col.a = 1-_burst
-		_fx.draw_line(origin+ray*(32+_burst*18),origin+ray*(36+_burst*25),col,2,true)
+		_fx.draw_line(origin+ray*(32+_burst*18)*icon_scale,origin+ray*(36+_burst*25)*icon_scale,col,2,true)
 	# 제목과 설명 사이의 얇은 선으로 정보 계층을 구분한다.
 	var divider := Color(UITheme.TACTICAL_EDGE,0.72)
-	_fx.draw_line(Vector2(TEXT_LEFT,112),Vector2(_card.size.x-FRAME_SAFE,112),divider,1,true)
+	var text_left := PORTRAIT_TEXT_LEFT if _portrait else TEXT_LEFT
+	var frame_safe := PORTRAIT_SAFE if _portrait else FRAME_SAFE
+	var divider_y := 78.0 if _portrait else 112.0
+	_fx.draw_line(Vector2(text_left,divider_y),Vector2(_card.size.x-frame_safe,divider_y),divider,1,true)
 	# 진행선도 하단 장식 위가 아니라 프레임 안쪽 안전 영역에 둔다.
-	var progress_y := _card.size.y - 30.0
-	_fx.draw_line(Vector2(FRAME_SAFE,progress_y),Vector2(FRAME_SAFE+(_card.size.x-FRAME_SAFE*2.0)*_progress,progress_y),_accent,2,true)
+	var progress_y := _card.size.y - (16.0 if _portrait else 30.0)
+	_fx.draw_line(Vector2(frame_safe,progress_y),Vector2(frame_safe+(_card.size.x-frame_safe*2.0)*_progress,progress_y),_accent,2,true)
 
 func clear() -> void:
 	if _tween != null and _tween.is_valid(): _tween.kill()

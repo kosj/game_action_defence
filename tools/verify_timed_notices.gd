@@ -24,6 +24,7 @@ func run() -> void:
 	var boss: Control = guide.get("_notice")
 	root.get_node("Events").gold_magnet_changed.emit(true,10)
 	root.get_node("Events").achievement_unlocked.emit("First Blood")
+	main.get_node("HUD").call("_show_toast","MAX BUILD   +50 gold",Color.GOLD,0.0,"layout-test")
 	var magnet: Control = main.get_node("HUD").get("_magnet_notice")
 	await create_timer(0.5).timeout
 	check(boss.visible and magnet.visible,"Missing live cards")
@@ -31,6 +32,19 @@ func run() -> void:
 	for card in [boss,magnet]:
 		check(card.mouse_filter==Control.MOUSE_FILTER_IGNORE,"Input blocked")
 		check(root.get_visible_rect().encloses(card.get_global_rect()),"Card outside viewport")
+	if "--mobile-preview" in OS.get_cmdline_user_args():
+		var hud: Node = main.get_node("HUD")
+		var milestone: Control = hud.get("_milestones").get("_card")
+		var toast: Label = hud.get("_toasts").get("_active")[0]["node"]
+		var notices: Array[Control] = [boss, milestone, magnet, toast]
+		var focus := Rect2(root.get_visible_rect().size*0.5-Vector2(12,140),Vector2(24,280))
+		for notice in notices:
+			check(not focus.intersects(notice.get_global_rect()),"Portrait notice covers play center: "+notice.name)
+			check(root.get_visible_rect().encloses(notice.get_global_rect()),"Portrait notice outside viewport: "+notice.name)
+		for i in notices.size():
+			for j in range(i+1,notices.size()):
+				check(not notices[i].get_global_rect().intersects(notices[j].get_global_rect()),
+					"Portrait notices overlap: %s / %s" % [notices[i].name,notices[j].name])
 	var phase: float = magnet.get("_phase")
 	root.get_node("Events").pause_push(magnet,"timed_notice_test")
 	await create_timer(0.2,true).timeout

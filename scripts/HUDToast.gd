@@ -79,11 +79,20 @@ func _free_y(want: float) -> float:
 func _spawn(text: String, col: Color, y: float, kind: String) -> void:
 	var lbl := Label.new()
 	lbl.text = text
-	lbl.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	lbl.offset_left = -300
-	lbl.offset_right = 300
+	var screen := get_viewport_rect().size
+	var portrait := screen.y > screen.x
+	if portrait:
+		# 세로 화면의 일반 알림도 우측 레인에 붙여 플레이어 주변을 가리지 않는다.
+		lbl.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		lbl.offset_left = -344
+		lbl.offset_right = -24
+	else:
+		lbl.set_anchors_preset(Control.PRESET_CENTER_TOP)
+		lbl.offset_left = -300
+		lbl.offset_right = 300
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.offset_top = y
+	lbl.offset_bottom = y + 52.0
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.add_theme_font_size_override("font_size", FONT_SIZE)
 	lbl.add_theme_color_override("font_color", col)
