@@ -7,6 +7,9 @@ const _TurretUnit := preload("res://scripts/TurretUnit.gd")
 
 const PLACE_MIN := 30.0
 const PLACE_MAX := 90.0
+const SPEED_GROWTH := 0.06    # 레벨당 탄속 +6% — 후반 고속 적 선행 조준 여유
+const RANGE_GROWTH := 0.035   # 레벨당 사거리 +3.5%
+const LIFE_GROWTH := 0.10     # 레벨당 지속시간 +10%
 
 var _t: float = 0.0
 var _turrets: Array = []
@@ -31,7 +34,11 @@ func _physics_process(delta: float) -> void:
 func _deploy(lvl: int) -> void:
 	var pos := global_position + Vector2.from_angle(randf() * TAU) * randf_range(PLACE_MIN, PLACE_MAX)
 	var dmg: int = _data.proj_damage + _data.dmg_per_level * (lvl - 1) + Events.upgrade_bullet_damage
+	var growth := float(lvl - 1)
+	var shot_speed: float = _data.proj_speed * (1.0 + SPEED_GROWTH * growth)
+	var shot_range: float = _data.area_radius * (1.0 + RANGE_GROWTH * growth) * Events.area_mult()
+	var active_life: float = _data.area_duration * (1.0 + LIFE_GROWTH * growth)
 	var turret := _TurretUnit.new()
 	get_tree().current_scene.add_child(turret)
-	turret.setup(pos, dmg, _data.proj_speed, _data.area_radius * Events.area_mult(), _data.area_duration, _data.color)
+	turret.setup(pos, dmg, shot_speed, shot_range, active_life, _data.color)
 	_turrets.append(turret)

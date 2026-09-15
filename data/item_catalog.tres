@@ -537,7 +537,7 @@ area_duration = 0.0
 script = ExtResource("14_u1smn")
 id = "turret"
 display = "Turret"
-desc = "Deploys auto-firing sentries"
+desc = "Predictive sentries with guided rounds"
 color = Color(0.6, 0.75, 0.95, 1)
 max_level = 8
 evolved = false
@@ -556,7 +556,7 @@ proj_style = ""
 proj_spin = 0.0
 proj_homing = 0.0
 proj_homing_arc = 0.785398
-area_radius = 300.0
+area_radius = 380.0
 area_duration = 6.0
 
 [sub_resource type="Resource" id="Resource_g15pe"]

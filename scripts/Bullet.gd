@@ -135,6 +135,12 @@ func on_despawn() -> void:
 	_age = 0.0
 
 
+## 발사 주체가 이미 고른 표적을 유도탄에 넘긴다. 첫 조향 때 같은 적을 다시 검색하지 않으며,
+## 표적이 죽거나 유도 호를 벗어나면 기존 _steer 규칙대로 새 후보를 찾는다.
+func lock_homing_target(target: Node2D) -> void:
+	_target = target
+
+
 func _physics_process(delta: float) -> void:
 	if not _alive:
 		return
