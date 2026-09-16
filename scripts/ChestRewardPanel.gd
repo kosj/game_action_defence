@@ -577,9 +577,9 @@ func _make_card_back(w: float, h: float) -> PanelContainer:
 	return card
 
 
-## 카드 뒷면 내용물 — 전용 아트(assets/ui/card_back.png)가 있으면 그 이미지를, 없으면
+## 카드 뒷면 내용물 — 전용 아틀라스 아트가 있으면 그 이미지를, 없으면
 ## 등급색 다이아 엠블럼 + 두근거리는 "?" 를 그린다.
-const _CARD_BACK_PATH := "res://assets/ui/card_back.png"
+const _CARD_BACK_PATH := "res://assets/atlas/ui/frames/card_back.tres"
 
 func _card_back_content(w: float) -> Control:
 	if ResourceLoader.exists(_CARD_BACK_PATH):

@@ -21,12 +21,14 @@ shadow.png → zombie_walker.png → shadow.png → zombie_brute.png → ...
 이 되어 **아이템마다 배치가 끊긴다**. 좀비 300마리면 그것만으로 약 600 드로우 콜이었다.
 그래서 이 스프라이트들은 아틀라스(`assets/atlas/gameplay.png`) 한 장으로 묶여 있다.
 
-### 아틀라스는 6장이다 — 넣을 곳을 먼저 고른다
+### 아틀라스는 8장이다 — 넣을 곳을 먼저 고른다
 
 | 아틀라스 | 원본 위치 | `.tres` 위치 | 언제 로드되나 |
 |---|---|---|---|
 | `gameplay` | `assets/sprites/{,fx/,turret/}*.png` | `assets/atlas/*.tres` | 항상 |
 | `ui` | `assets/ui/icons/*.png` | `assets/atlas/ui/*.tres` | 항상 |
+| `ui/frames` | `assets/ui/frames/*.png` + `card_back.png` | `assets/atlas/ui/frames/*.tres` | UI 공통 |
+| `ui/hud` | `assets/ui/hud/*.png` | `assets/atlas/ui/hud/*.tres` | HUD 사용 시 |
 | `menu` | `assets/ui/{portraits,thumbs}/*.png` | `assets/atlas/menu/*.tres` | **메인메뉴에서만** |
 | `props/suburb` | `assets/sprites/props/suburb/*.png` | `assets/atlas/props/suburb/*.tres` | **그 테마를 고른 판에서만** |
 | `props/city` | `assets/sprites/props/city/*.png` | `assets/atlas/props/city/*.tres` | 〃 |
@@ -84,7 +86,6 @@ region 이 그 자리에 새로 들어온 다른 그림을 가리켜 엉뚱한 �
 | 대상 | 이유 |
 |---|---|
 | `assets/tiles/*` | `texture_repeat` 로 반복 샘플링해야 해서 아틀라스에 넣을 수 없다. **`sprites/` 밖에 둔다** — 아래 참조 |
-| `assets/ui/frames/*`·`hud/*` | `StyleBoxTexture` 나인패치 + 무손실 고정(아래 3절) |
 | `assets/ui` 루트의 **전체화면 그림**(배경·로고·비네트·fog_vision) | 한 번에 한 장만 뜨는 큰 그림이라 배칭 이득이 없다 |
 
 > ⚠️ **"assets/ui 루트" 를 통째로 제외하지 말 것.** 이 분류는 "전체화면 큰 그림" 에만
@@ -288,10 +289,12 @@ godot --headless --script res://tools/check_font_coverage.gd   # CI 도 이걸 �
 따라서 **새 PNG 는 아무것도 안 해도 자동으로 손실 압축**된다.
 
 예외가 하나 있다 — `assets/ui/frames/*` 와 `assets/ui/hud/*` 는 `StyleBoxTexture` 나인패치로
-**늘려서** 쓰기 때문에 테두리의 손실 아티팩트가 띠로 번져 보인다. 이 폴더의 `.import` 는
-무손실(`compress/mode=0`)로 고정해 저장소에 커밋해 두었고, `.gitignore` 에 예외가 있다.
+**늘려서** 쓰기 때문에 테두리의 손실 아티팩트가 띠로 번져 보인다. 런타임은 두 폴더의 원본이
+아니라 `assets/atlas/ui/frames.png` 와 `hud.png` 를 읽으므로, 두 아틀라스의 `.import` 를
+무손실(`compress/mode=0`)로 고정해 저장소에 커밋하고 `.gitignore` 에 예외를 둔다.
 
-**나인패치로 쓸 새 UI 텍스처를 추가한다면** 이 두 폴더 중 하나에 넣어야 같은 예외가 적용된다.
+**나인패치로 쓸 새 UI 텍스처를 추가한다면** 이 두 소스 폴더 중 하나에 넣고 아틀라스를 다시
+생성해야 같은 예외가 적용된다.
 
 ---
 

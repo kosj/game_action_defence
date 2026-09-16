@@ -52,6 +52,8 @@ OUT_DIR = "assets/atlas"
 OUT_SUBDIR = {
     "gameplay": "",
     "ui": "ui",
+    "ui_frames": "ui/frames",
+    "ui_hud": "ui/hud",
     "menu": "menu",
     "props_suburb": "props/suburb",
     "props_city": "props/city",
@@ -59,6 +61,8 @@ OUT_SUBDIR = {
 }
 ## 아틀라스 시트 PNG 의 경로(OUT_DIR 기준, 확장자 제외). 생략하면 아틀라스 이름 그대로.
 ATLAS_PNG = {
+    "ui_frames": "ui/frames",
+    "ui_hud": "ui/hud",
     "props_suburb": "props/suburb",
     "props_city": "props/city",
     "props_lab": "props/lab",
@@ -82,11 +86,18 @@ ATLASES: dict[str, list[str]] = {
     ],
     # UI — 아이콘 49장이 HUD·레벨업 카드·상점에서 줄줄이 그려지며 텍스처가 매번 바뀐다.
     # 인게임에서도 쓰므로 이 시트는 상주한다.
-    #  · frames/·hud/ 는 StyleBoxTexture 나인패치 + 무손실 고정이라 제외(ASSET_PIPELINE.md 3절)
     #  · assets/ui 루트의 배경/로고/비네트는 한 번에 한 장만 뜨는 큰 그림이라 이득이 없다
     "ui": [
         "assets/ui/icons/*.png",
     ],
+    # UI 크롬 — AtlasTexture region 은 StyleBoxTexture 의 나인패치 마진과 함께 정상 동작한다.
+    # 메뉴 프레임과 HUD를 나눠 두면 각각 1024x512 / 1024x256 에 들어가 한 장짜리 1024²보다
+    # VRAM을 덜 쓰고, HUD를 쓰지 않는 화면에서는 hud 시트를 로드하지 않을 수 있다.
+    "ui_frames": [
+        "assets/ui/frames/*.png",
+        "assets/ui/card_back.png",
+    ],
+    "ui_hud": ["assets/ui/hud/*.png"],
     # 메뉴 — 캐릭터 초상화와 테마 썸네일. **메인메뉴에서만** 쓴다(MainMenu.gd 두 곳에서 동적
     # load, preload/씬 고정 참조 없음). ui 시트에 같이 있으면 원본이 커서 시트 한 변을 2048 로
     # 밀어올리고, 그 16MB 가 게임 내내 VRAM 에 상주한다. 갈라 두면 메뉴 씬이 해제될 때 같이
@@ -113,6 +124,9 @@ ATLASES: dict[str, list[str]] = {
 EXPORT_EXCLUDE = (
     "assets/sprites/",
     "assets/ui/icons/",
+    "assets/ui/frames/",
+    "assets/ui/hud/",
+    "assets/ui/card_back.png",
     "assets/ui/portraits/",
     "assets/ui/thumbs/",
 )
@@ -199,8 +213,14 @@ def build(root: pathlib.Path, check_only: bool) -> int:
         png_path.parent.mkdir(parents=True, exist_ok=True)
         out_dir.mkdir(parents=True, exist_ok=True)
         new_bytes = _png_bytes(sheet)
-        old_bytes = png_path.read_bytes() if png_path.exists() else b""
-        if new_bytes != old_bytes:
+        # PNG 인코더 버전/압축 휴리스틱이 달라도 픽셀이 같으면 최신이다. 바이트 비교는 같은
+        # 그림을 다시 압축했다는 이유만으로 CI 를 실패시키고 거대한 바이너리 diff를 만들었다.
+        pixels_changed = True
+        if png_path.exists():
+            with Image.open(png_path) as old_img:
+                pixels_changed = old_img.convert("RGBA").tobytes() != sheet.tobytes() \
+                    or old_img.size != sheet.size
+        if pixels_changed:
             changed = True
             if not check_only:
                 png_path.write_bytes(new_bytes)

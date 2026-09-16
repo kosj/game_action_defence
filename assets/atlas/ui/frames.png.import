@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://di70oir2e8j7f"
-path="res://.godot/imported/hud_top_bar.png-001766690d338d406d86d3d124fd960d.ctex"
+uid="uid://dunfsydd8qkpc"
+path="res://.godot/imported/frames.png-f88d0920d1c6667522f9ce8e5699f70a.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/hud/hud_top_bar.png"
-dest_files=["res://.godot/imported/hud_top_bar.png-001766690d338d406d86d3d124fd960d.ctex"]
+source_file="res://assets/atlas/ui/frames.png"
+dest_files=["res://.godot/imported/frames.png-f88d0920d1c6667522f9ce8e5699f70a.ctex"]
 
 [params]
 

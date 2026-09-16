@@ -75,7 +75,7 @@ static func tactical_slot(icon: Texture2D, px: int = 88) -> Control:
 ## 공용 UI 스타일 팩토리 — 코드로 생성/구성되는 UI 전반(HUD·메뉴·레벨업)에서 재사용.
 
 # VARCO 생성 나인패치 패널 프레임(강철+골드 베벨 테두리). 320px 소스, 테두리 분할 40px.
-const _PANEL_FRAME_TEX := preload("res://assets/ui/frames/panel_frame.png")
+const _PANEL_FRAME_TEX := preload("res://assets/atlas/ui/frames/panel_frame.tres")
 const _PANEL_FRAME_MARGIN := 40      # 나인패치 코너/에지 분할(화면상 테두리 두께)
 
 # 버튼 플레이트 — 다크 건메탈 + 베벨 + 리벳 + 긁힘 그런지(tools/gen_menu_plates.py).
@@ -90,9 +90,9 @@ const _PANEL_FRAME_MARGIN := 40      # 나인패치 코너/에지 분할(화면�
 ## 한 장으로는 부위를 가릴 수 없어 구조상 못 고친다. 판을 나누면 리벳은 강철로, 하이라이트는
 ## 크림으로 남는다. 판 생성은 tools/gen_menu_plates.py.
 const _PLATES := {
-	"steel": preload("res://assets/ui/frames/btn_plate_steel.png"),
-	"blood": preload("res://assets/ui/frames/btn_plate_blood.png"),
-	"dark":  preload("res://assets/ui/frames/btn_plate_dark.png"),
+	"steel": preload("res://assets/atlas/ui/frames/btn_plate_steel.tres"),
+	"blood": preload("res://assets/atlas/ui/frames/btn_plate_blood.tres"),
+	"dark":  preload("res://assets/atlas/ui/frames/btn_plate_dark.tres"),
 }
 const PLATE_DEFAULT := "steel"
 const _BTN_PLATE_MARGIN := 14
@@ -101,19 +101,19 @@ const _BTN_PLATE_MARGIN := 14
 const _BTN_DARKEN := 0.16
 
 # 아이템 슬롯 프레임(황동 림 + 어두운 함몰부). 안쪽 빈 영역은 프레임의 약 71%.
-const _SLOT_TEX := preload("res://assets/ui/frames/item_slot.png")
+const _SLOT_TEX := preload("res://assets/atlas/ui/frames/item_slot.tres")
 const _SLOT_INNER_INSET := 0.16      # 아이콘이 함몰부 안에 앉도록 하는 사방 여백 비율
 
 
 # ── HUD 전용 텍스처 (Phase 2) ────────────────────────────────────────────
 # assets/ui/hud/ 의 VARCO 생성 에셋. 아직 파일이 없을 수 있으므로 preload 대신
 # 존재 확인 후 load — 호출부는 null 이면 기존 플랫 스타일로 폴백한다.
-const _HUD_DIR := "res://assets/ui/hud/"
+const _HUD_DIR := "res://assets/atlas/ui/hud/"
 
 
 ## HUD 텍스처 로드(없으면 null). 이름은 "hud_top_bar.png" 같은 파일명.
 static func hud_tex(fname: String) -> Texture2D:
-	var path := _HUD_DIR + fname
+	var path := _HUD_DIR + fname.get_basename() + ".tres"
 	if not ResourceLoader.exists(path):
 		return null
 	var t = load(path)

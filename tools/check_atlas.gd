@@ -17,6 +17,8 @@ extends SceneTree
 const ATLAS_DIRS := [
 	"res://assets/atlas",
 	"res://assets/atlas/ui",
+	"res://assets/atlas/ui/frames",
+	"res://assets/atlas/ui/hud",
 	# 초상화·테마 썸네일은 메인메뉴에서만 쓴다 — 갈라 둬야 인게임 VRAM 에 안 남는다.
 	"res://assets/atlas/menu",
 	# 프롭은 테마별로 나뉘어 있다 — 한 판에 한 테마만 로드된다(ASSET_PIPELINE.md 1절).
@@ -93,6 +95,50 @@ func _scan(dir_path: String, stems: Dictionary) -> void:
 	d.list_dir_end()
 
 
+## 생성된 AtlasTexture 가 실제 런타임 경로에서 참조되는지 검사한다. 소스 PNG가 글롭에 걸리기만
+## 하면 아틀라스에 들어가므로, 이 검사가 없으면 이미 교체된 그림도 시트 면적과 VRAM을 차지한다.
+## 메뉴 초상화·테마 프롭·HUD는 문자열로 경로를 조립하므로 해당 전용 폴더만 동적 참조로 허용한다.
+func _check_runtime_references() -> void:
+	var text := ""
+	for dir_path in SCAN_DIRS:
+		text += _read_tree(dir_path)
+	for dir_path in ATLAS_DIRS:
+		var d := DirAccess.open(dir_path)
+		if d == null:
+			continue
+		d.list_dir_begin()
+		var f := d.get_next()
+		while f != "":
+			if not d.current_is_dir() and f.ends_with(".tres"):
+				var path: String = dir_path.path_join(f)
+				var dynamic: bool = path.contains("/atlas/menu/") or path.contains("/atlas/props/") \
+					or path.contains("/atlas/ui/hud/")
+				if not dynamic and not text.contains(path):
+					_fails.append("미사용 아틀라스 항목: %s (원본 PNG도 정리하세요)" % path)
+			f = d.get_next()
+		d.list_dir_end()
+
+
+func _read_tree(dir_path: String) -> String:
+	var out := ""
+	var d := DirAccess.open(dir_path)
+	if d == null:
+		return out
+	d.list_dir_begin()
+	var f := d.get_next()
+	while f != "":
+		var p := dir_path.path_join(f)
+		if d.current_is_dir():
+			if not f.begins_with("."):
+				out += _read_tree(p)
+		elif f.ends_with(".gd") or f.ends_with(".tscn") or f.ends_with(".tres"):
+			var fa := FileAccess.open(p, FileAccess.READ)
+			if fa != null:
+				out += fa.get_as_text()
+		f = d.get_next()
+	return out
+
+
 func _initialize() -> void:
 	var stems := _atlas_stems()
 	if stems.is_empty():
@@ -103,9 +149,10 @@ func _initialize() -> void:
 	_check_sizes(stems)
 	for dir_path in SCAN_DIRS:
 		_scan(dir_path, stems)
+	_check_runtime_references()
 
 	if _fails.is_empty():
-		print("[ATLAS] 검사 통과 (크기 일치 + 직접 참조 없음)")
+		print("[ATLAS] 검사 통과 (크기 일치 + 직접 참조 없음 + 미사용 항목 없음)")
 		quit(0)
 		return
 	for x in _fails:

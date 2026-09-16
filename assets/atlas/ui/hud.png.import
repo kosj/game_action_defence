@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bwo7yw4yeapff"
-path="res://.godot/imported/hud_btn_round.png-e2c17f960da01a5e54a2dc915b7e8638.ctex"
+uid="uid://b4ujncitwp55x"
+path="res://.godot/imported/hud.png-c5dfbe5b94a2a490f5f9b2199c809436.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/ui/hud/hud_btn_round.png"
-dest_files=["res://.godot/imported/hud_btn_round.png-e2c17f960da01a5e54a2dc915b7e8638.ctex"]
+source_file="res://assets/atlas/ui/hud.png"
+dest_files=["res://.godot/imported/hud.png-c5dfbe5b94a2a490f5f9b2199c809436.ctex"]
 
 [params]
 

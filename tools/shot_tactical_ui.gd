@@ -26,6 +26,7 @@ func _run() -> void:
 		if arg == "small": small = true
 		if arg == "states": states = true
 		if arg in ["before", "after"]: prefix = arg
+		if arg.begins_with("prefix="): prefix = arg.trim_prefix("prefix=")
 		if arg in ["ko", "en", "ja"]: lang = arg
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output))
 	root.content_scale_size = Vector2i(720,1280)

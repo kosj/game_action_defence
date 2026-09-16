@@ -364,6 +364,7 @@ var _zg_filled: Array = []   # 이번 프레임에 실제로 채운 셀 키 — 
 # 겹치는 실제 사례가 있어 near/radius 는 서로 다른 버퍼를 쓴다.
 var _near_buf: Array = []
 var _radius_buf: Array = []
+var _segment_buf: Array = []
 
 # ── 같은 셀 재질의 건너뛰기 ────────────────────────────────────────────
 # zombies_near() 는 이 게임에서 가장 자주 불리는 함수다 — 탄 1발이 매 물리 프레임 1회이므로
@@ -450,6 +451,31 @@ func zombies_near(pos: Vector2) -> Array:
 			if arr != null and not (arr as Array).is_empty():
 				_near_buf.append_array(arr)
 	return _near_buf
+
+
+## 선분의 AABB 와 겹치는 모든 셀의 좀비 후보를 반환한다. 빠른 탄이 한 물리 틱에 여러 셀을
+## 건너가거나 프레임이 밀려 이동량이 커져도, 도착점 주변만 조회해 선분 앞쪽 적을 놓치지 않는다.
+## 정밀한 선분-원 판정은 호출부(Bullet)가 수행한다.
+##
+## 셀 수가 살아있는 좀비 수보다 많으면 전수 스캔이 더 싸므로 radius 질의와 같은 기준으로
+## 경로를 고른다. 반환 배열은 공유 버퍼이므로 즉시 순회해야 한다.
+func zombies_along_segment(from: Vector2, to: Vector2, padding: float) -> Array:
+	_ensure_zgrid()
+	_segment_buf.clear()
+	var min_cx := int(floor((minf(from.x, to.x) - padding) / _ZG_CELL))
+	var max_cx := int(floor((maxf(from.x, to.x) + padding) / _ZG_CELL))
+	var min_cy := int(floor((minf(from.y, to.y) - padding) / _ZG_CELL))
+	var max_cy := int(floor((maxf(from.y, to.y) + padding) / _ZG_CELL))
+	var cells := (max_cx - min_cx + 1) * (max_cy - min_cy + 1)
+	if cells >= live_zombies().size():
+		_segment_buf.append_array(live_zombies())
+		return _segment_buf
+	for cx in range(min_cx, max_cx + 1):
+		for cy in range(min_cy, max_cy + 1):
+			var arr: Variant = _zg.get(Vector2i(cx, cy))
+			if arr != null and not (arr as Array).is_empty():
+				_segment_buf.append_array(arr)
+	return _segment_buf
 
 
 ## pos 반경 r 안의 살아있는 좀비를 반환(거리 판정까지 포함). 오라·폭발·터렛 조준처럼 반경이

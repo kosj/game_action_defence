@@ -64,6 +64,11 @@ var _did_hit: bool = false         # 이 탄이 한 번이라도 맞혔는가(�
 ## 풀 재사용 시 남으면 이전 판의 좀비를 쫓으므로 on_spawn 에서 반드시 비운다.
 var _target: Node2D = null
 var _hit_ids: Dictionary = {}      # 이미 명중한 적(중복 타격 방지) — 관통 시에만 의미
+## 한 틱에 여러 적과 교차할 때 이동 경로 앞쪽부터 판정하기 위한 재사용 버퍼.
+## 공간 해시의 반환 순서는 위치 순서가 아니므로 정렬하지 않으면 뒤쪽 적이 관통 수를 먼저 쓴다.
+var _sweep_targets: Array = []
+var _sweep_points: Array[Vector2] = []
+var _sweep_t: Array[float] = []
 var _age: float = 0.0
 var _alive: bool = false
 ## 명중 판정용 탄 반경(= 5px × scale.x)을 스폰 직후 1회만 계산해 들고 있는다.
@@ -188,8 +193,11 @@ func _check_swept_hit(from: Vector2, to: Vector2) -> void:
 	var hi_x := maxf(from.x, to.x) + max_r
 	var lo_y := minf(from.y, to.y) - max_r
 	var hi_y := maxf(from.y, to.y) + max_r
-	# 공간 해시로 근처 좀비 후보만 훑는다(전체 스캔 대신) — 대량 총알·좀비에서 핵심 최적화.
-	for z in Events.zombies_near(to):
+	_sweep_targets.clear()
+	_sweep_points.clear()
+	_sweep_t.clear()
+	# 이동 선분 전체가 지나는 셀을 훑는다. 도착점 주변만 보면 큰 delta 에서 앞쪽 적을 놓친다.
+	for z in Events.zombies_along_segment(from, to, max_r):
 		if not is_instance_valid(z) or not z.is_in_group("zombies"):
 			continue   # 같은 프레임에 이미 죽어 스냅샷에만 남은 좀비
 		var zp: Vector2 = z.global_position
@@ -202,11 +210,20 @@ func _check_swept_hit(from: Vector2, to: Vector2) -> void:
 		var closest := from + seg * t
 		var target_r: float = (_BOSS_RADIUS if z.is_in_group("boss") else _ZOMBIE_RADIUS) + bullet_r
 		if closest.distance_squared_to(zp) <= target_r * target_r:
-			_resolve_hit(z, closest)
-			# 관통탄은 한 프레임에 여러 적을 지나갈 수 있다 — 소멸했을 때만 순회를 멈춘다.
-			# (예전에는 명중 즉시 return 이라 pierce 가 남아도 프레임당 1마리만 맞았다)
-			if not _alive:
-				return
+			# 후보 수는 보통 1~2개라 별도 sort용 Dictionary를 만들지 않고 삽입 정렬한다.
+			# 공간 해시 셀/그룹 순서와 무관하게 탄 진행 방향의 가까운 적부터 맞아야 한다.
+			var at := _sweep_t.bsearch(t)
+			_sweep_t.insert(at, t)
+			_sweep_targets.insert(at, z)
+			_sweep_points.insert(at, closest)
+	for i in _sweep_targets.size():
+		var target = _sweep_targets[i]
+		if not is_instance_valid(target) or not target.is_in_group("zombies"):
+			continue
+		_resolve_hit(target, _sweep_points[i])
+		# 관통탄은 같은 틱의 다음 적까지 진행하되, 관통 수를 다 썼으면 즉시 멈춘다.
+		if not _alive:
+			return
 
 
 func _resolve_hit(c: Node, pos: Vector2) -> void:
