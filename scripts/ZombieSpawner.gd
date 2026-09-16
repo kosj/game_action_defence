@@ -355,9 +355,13 @@ func _trigger_swarm(elite: bool) -> void:
 	Events.swarm_incoming.emit(_swarm_elite)
 
 
-## 스웜 규모: 시간이 갈수록 떼가 커진다 — 초반 소수에서 후반 수십 마리로 불어난다.
+## 스웜 규모: 초반 성장 곡선은 유지하고, 중후반부터 추가 물량이 붙는다.
+## late 보너스를 별도 항으로 둬 초반 XP/레벨 성장에는 영향을 주지 않는다.
 func _swarm_count() -> int:
-	return mini(_bal.swarm_base_count + int(_elapsed / 120.0) * _bal.swarm_count_per_2min, _bal.swarm_count_max)
+	var count := _bal.swarm_base_count + int(_elapsed / 120.0) * _bal.swarm_count_per_2min
+	if _elapsed > _bal.swarm_late_start_seconds:
+		count += int((_elapsed - _bal.swarm_late_start_seconds) / 120.0) * _bal.swarm_late_count_per_2min
+	return mini(count, _bal.swarm_count_max)
 
 
 ## 한 방향에서 한 종을 떼로 스폰. 엘리트면 더 크고 강하며 보상도 크다.

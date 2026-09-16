@@ -9,7 +9,7 @@ extends SceneTree
 ##
 ## 그래서 원칙을 하나 정했다:
 ##
-##   **유입 압력(초당 스폰 × 체력 배수)은 유지하되, 초당 스폰을 낮추고 개체당 체력을 올린다.**
+##   **초반은 유지하고, 중후반에는 체력과 물량이 함께 위협적으로 느껴질 만큼 올린다.**
 ##
 ## 왜 "동시 상한"이 아니라 "초당 스폰"인가 — 사람의 후반은 **DPS 제한이 아니라 스폰 제한**이다.
 ## 동시 좀비가 22~45마리인데 상한은 320이라 나오는 족족 죽는다. 그래서 분당 처치도, 처치마다
@@ -31,11 +31,16 @@ const LATE_START_MIN_S := 600.0
 const MID_HP_MAX := 14.0
 ## 기존 26분과 같은 진행률(17분 20초)의 체력 배수 하한. 밑돌면 후반이 다시 물러진다.
 const LATE_HP_MIN := 45.0
-## 같은 진행률의 **초당 스폰** 상한. 개체 유입이 곧 프레임 비용이자 처치 수다(P1-18/P1-19).
-const LATE_SPAWN_PER_S_MAX := 7.0
+## 같은 진행률의 **초당 스폰** 범위. 하한은 후반 화면이 비는 회귀를, 상한은 성능 폭주를 막는다.
+const LATE_SPAWN_PER_S_MIN := 7.5
+const LATE_SPAWN_PER_S_MAX := 8.0
 ## 같은 시점 **유입 압력** 상한 = 초당 스폰 × 체력 배수.
 ## 체력을 올리면서 스폰까지 그대로 두면 압력이 폭증한다 — 그 조합을 막는다.
-const LATE_PRESSURE_MAX := 360.0
+const LATE_PRESSURE_MAX := 400.0
+## 중후반 스웜은 연속 유입과 별개로 포위 압박을 만든다. 초반 수는 유지하고 16분에는 80마리 이상.
+const EARLY_SWARM_MIN := 8.0
+const LATE_SWARM_MIN := 16.0
+const LATE_SWARM_COUNT_MIN := 80
 
 const MID_MIN := 10.0
 const LATE_MIN := 26.0 * 2.0 / 3.0
@@ -78,14 +83,26 @@ func _spawn_per_s(d, mins: float) -> float:
 	return 1.0 / maxf(iv, 0.0001)
 
 
+## `ZombieSpawner._swarm_count()` 와 같은 식.
+func _swarm_count(b, mins: float) -> int:
+	var el := mins * 60.0
+	var count: int = b.swarm_base_count + int(el / 120.0) * b.swarm_count_per_2min
+	if el > b.swarm_late_start_seconds:
+		count += int((el - b.swarm_late_start_seconds) / 120.0) * b.swarm_late_count_per_2min
+	return mini(count, b.swarm_count_max)
+
+
 func _init() -> void:
 	await process_frame
 	var d = root.get_node("GameData").difficulty
+	var b = root.get_node("GameData").balance
 
 	var mid := _hp_mult(d, MID_MIN)
 	var late := _hp_mult(d, LATE_MIN)
 	var late_spawn := _spawn_per_s(d, LATE_MIN)
 	var pressure := late * late_spawn
+	var early_swarm := _swarm_count(b, EARLY_SWARM_MIN)
+	var late_swarm := _swarm_count(b, LATE_SWARM_MIN)
 
 	print("난이도 곡선 — 체력 배수 · 초당 스폰 · 유입 압력 · 동시 상한")
 	for m in [5.0, 10.0, LATE_MIN, 20.0, 26.0]:
@@ -105,9 +122,17 @@ func _init() -> void:
 	_check("%.0f분 초당 스폰 %.1f 이하 (개체 유입이 곧 프레임 비용이자 처치 수다)"
 		% [LATE_MIN, LATE_SPAWN_PER_S_MAX],
 		late_spawn <= LATE_SPAWN_PER_S_MAX, "실제 %.2f/s" % late_spawn)
+	_check("%.0f분 초당 스폰 %.1f 이상 (중후반 화면이 비지 않는다)"
+		% [LATE_MIN, LATE_SPAWN_PER_S_MIN],
+		late_spawn >= LATE_SPAWN_PER_S_MIN, "실제 %.2f/s" % late_spawn)
 	_check("%.0f분 유입 압력 %.0f EHP/s 이하 (체력만 올려 압력을 폭증시키지 않는다)"
 		% [LATE_MIN, LATE_PRESSURE_MAX],
 		pressure <= LATE_PRESSURE_MAX, "실제 %.0f EHP/s" % pressure)
+	_check("%.0f분 스웜은 기존 초반 곡선 유지" % EARLY_SWARM_MIN,
+		early_swarm == b.swarm_base_count + int(EARLY_SWARM_MIN / 2.0) * b.swarm_count_per_2min,
+		"실제 %d마리" % early_swarm)
+	_check("%.0f분 스웜 %d마리 이상 (포위 위협 유지)" % [LATE_SWARM_MIN, LATE_SWARM_COUNT_MIN],
+		late_swarm >= LATE_SWARM_COUNT_MIN, "실제 %d마리" % late_swarm)
 
 	if _fail == 0:
 		print("\n후반 난이도 곡선 OK")

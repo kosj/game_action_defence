@@ -16,7 +16,9 @@ extends Resource
 @export var swarm_interval_max: float = 24.0
 @export var swarm_base_count: int = 12         # 초반 스웜 규모
 @export var swarm_count_per_2min: int = 6      # 2분마다 스웜 규모 증가량
-@export var swarm_count_max: int = 84          # 스웜 규모 상한
+@export var swarm_count_max: int = 108         # 스웜 규모 상한
+@export var swarm_late_start_seconds: float = 600.0 # 이 시각부터 중후반 추가 물량 증가
+@export var swarm_late_count_per_2min: int = 8 # 시작 시각 이후 2분마다 추가되는 스웜 규모
 @export var swarm_ring_threshold: int = 28     # 이 수 이상이면 화면 둘레 링(포위) 스폰
 @export var swarm_elite_chance: float = 0.35   # 랜덤 스웜이 엘리트일 확률
 @export var swarm_elite_hp_mult: float = 1.7
